@@ -1,0 +1,19 @@
+Entidades principales
+Usuario: nombre, correo, contraseña cifrada, rol (admin u operador) y estado (activo o inactivo).
+Categoría: nombre y estado, más los productos asociados.
+Producto: SKU, nombre, categoría, precio, stock actual, stock mínimo y estado.
+Movimiento de stock: producto, usuario que lo registró, tipo (entrada o salida), cantidad, motivo y fecha.
+Reglas de negocio esenciales
+Identificadores únicos: no repetir el correo de un usuario ni el SKU de un producto. Conviene comparar correos sin distinguir mayúsculas y minúsculas.
+Cantidades válidas: precio y cantidad deben ser mayores que cero.
+Salidas seguras: rechazar una salida si la cantidad supera el stock disponible.
+Trazabilidad: al crear un producto con stock inicial, registrar una entrada inicial; así el stock tiene un historial explicable.
+Movimientos atómicos: guardar el movimiento y actualizar el stock juntos. Si una operación falla, no debe quedar guardada solo una de las dos cosas.
+Borrado lógico: si un producto tiene movimientos, desactivarlo en vez de eliminarlo. No eliminar una categoría que aún tenga productos.
+Protección del administrador: no permitir que un administrador se desactive a sí mismo ni que se quite el rol de administrador a sí mismo.
+Permisos por rol: el admin puede gestionar usuarios e inventario; el operador puede registrar productos y movimientos, pero no gestionar usuarios. Los permisos deben validarse en el servidor, no solo ocultando botones en React.
+Productos inactivos: no permitir registrar movimientos para un producto desactivado.
+Para el stock, recomiendo guardar stock_actual en el producto para consultarlo fácilmente y conservar los movimientos como historial. Ambos se actualizan en una sola transacción. Así practicas consistencia de datos sin tener que calcular el stock sumando todo el historial en cada consulta.
+
+Un buen siguiente ejercicio sería convertir cada regla en una función pequeña y probar casos como: “una salida válida reduce el stock” y “una salida mayor al stock se rechaza sin cambiar nada”. Luego conectamos esas reglas con los formularios y la API.
+
