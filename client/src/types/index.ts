@@ -42,3 +42,16 @@ export interface Product {
   created_at: string;
 }
 
+export type MovementTipo = "entrada" | "salida";
+
+export interface StockMovement {
+  id: number;
+  product_id: number;
+  sku: string;
+  producto: string;
+  tipo: MovementTipo;
+  cantidad: number;
+  motivo: string | null;
+  usuario: string;
+  created_at: string;
+}

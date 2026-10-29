@@ -12,11 +12,15 @@ import {
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
 import type { Category, Product } from "@/types";
+import { useNavigate } from "react-router-dom";
+import MovementFormModal from "@/components/MovementFormModal";
 
 export default function ProductsPage() {
   const { user } = useAuth();
   const isAdmin = user?.rol === "admin";
   const [messageApi, contextHolder] = message.useMessage();
+  const navigate = useNavigate();
+  const [movementProduct, setMovementProduct] = useState<Product | null>(null);
 
   const [query, setQuery] = useState<ProductsQuery>({ page: 1, pageSize: 10 });
   const [products, setProducts] = useState<Product[]>([]);
@@ -81,6 +85,11 @@ export default function ProductsPage() {
       messageApi.error(getErrorMessage(err));
     }
   };
+  const handleMovementSaved = (newStock: number) => {
+    setMovementProduct(null);
+    messageApi.success(`Movimiento registrado. Nuevo stock: ${newStock}`);
+    setReloadKey((k) => k + 1);
+  };
 
   const columns: TableProps<Product>["columns"] = [
     { title: "SKU", dataIndex: "sku" },
@@ -111,6 +120,12 @@ export default function ProductsPage() {
       title: "Acciones",
       render: (_, p) => (
         <Space>
+          <Button size="small" type="primary" disabled={!p.activo} onClick={() => setMovementProduct(p)}>
+            Movimiento
+          </Button>
+          <Button size="small" onClick={() => navigate(`/movements?product_id=${p.id}`)}>
+            Historial
+          </Button>
           <Button size="small" onClick={() => openEdit(p)}>
             Editar
           </Button>
@@ -191,6 +206,13 @@ export default function ProductsPage() {
           categories={categories}
           onClose={() => setModalOpen(false)}
           onSaved={handleSaved}
+        />
+      )}
+      {movementProduct && (
+        <MovementFormModal
+          product={movementProduct}
+          onClose={() => setMovementProduct(null)}
+          onSaved={handleMovementSaved}
         />
       )}
     </div>
