@@ -1,6 +1,8 @@
-import { Button, Layout, Menu, Space, Typography, theme } from "antd";
+import { Button, Layout, Menu, Space, Typography, message, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
+import ChangePasswordModal from "@/components/ChangePasswordModal";
 
 const { Sider, Header, Content } = Layout;
 
@@ -9,6 +11,8 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { token } = theme.useToken();
+  const [messageApi, contextHolder] = message.useMessage();
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const items = [
@@ -46,12 +50,23 @@ export default function AppLayout() {
             <Typography.Text>
               {user?.nombre} ({user?.rol})
             </Typography.Text>
+            <Button onClick={() => setPasswordOpen(true)}>Cambiar contraseña</Button>
             <Button onClick={signOut}>Cerrar sesión</Button>
           </Space>
         </Header>
 
         <Content style={{ margin: 24 }}>
           <Outlet />
+          {contextHolder}
+          {passwordOpen && (
+            <ChangePasswordModal
+              onClose={() => setPasswordOpen(false)}
+              onSaved={() => {
+                setPasswordOpen(false);
+                messageApi.success("Contraseña actualizada");
+              }}
+            />
+          )}
         </Content>
       </Layout>
     </Layout>

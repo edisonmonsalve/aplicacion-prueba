@@ -8,3 +8,7 @@ export async function login(email: string, password: string) {
   );
   return data;
 }
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  await api.put("/auth/password", { currentPassword, newPassword });
+}

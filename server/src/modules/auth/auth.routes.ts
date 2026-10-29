@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { login, loginSchema } from "./auth.service.js";
+// import { login, loginSchema } from "./auth.service.js";
 import { authenticate } from "../../middlewares/auth.js";
-
+import { changePassword, changePasswordSchema, login, loginSchema } from "./auth.service.js";
 
 export const authRouter = Router();
 
@@ -21,4 +21,10 @@ authRouter.post("/login", async (req, res) => {
   }
 
   res.json(result);
+});
+
+authRouter.put("/password", authenticate, async (req, res) => {
+  const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+  await changePassword(req.user!.id, currentPassword, newPassword);
+  res.json({ message: "Contraseña actualizada" });
 });
