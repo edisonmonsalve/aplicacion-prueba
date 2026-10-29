@@ -5,6 +5,8 @@ import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import HomePage from "@/pages/HomePage";
 import UsersPage from "@/pages/UsersPage";
+import CategoriesPage from "@/pages/CategoriesPage";
+import ProductsPage from "@/pages/ProductsPage";
 
 export default function App() {
   return (
@@ -30,6 +32,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/products" element={<ProductsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

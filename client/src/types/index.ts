@@ -22,3 +22,23 @@ export interface Paginated<T> {
   page: number;
   pageSize: number;
 }
+
+export interface Category {
+  id: number;
+  nombre: string;
+  productos: number; // cantidad de productos asociados
+}
+
+export interface Product {
+  id: number;
+  sku: string;
+  nombre: string;
+  category_id: number;
+  categoria: string;
+  precio: number;
+  stock_actual: number;
+  stock_minimo: number;
+  activo: number;
+  created_at: string;
+}
+

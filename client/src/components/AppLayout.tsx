@@ -13,6 +13,8 @@ export default function AppLayout() {
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const items = [
     { key: "/", label: "Inicio" },
+    { key: "/products", label: "Productos" },
+    { key: "/categories", label: "Categorías" },
     ...(user?.rol === "admin" ? [{ key: "/users", label: "Usuarios" }] : []),
   ];
 
