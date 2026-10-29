@@ -1,10 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/LoginPage";
+import HomePage from "@/pages/HomePage";
 import UsersPage from "@/pages/UsersPage";
-
-
 
 export default function App() {
   return (
@@ -12,23 +12,26 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Todo lo que está dentro exige sesión y comparte el layout */}
           <Route
-            path="/"
             element={
               <ProtectedRoute>
-                <h1>Inicio</h1>
-                <Link to="/users">Usuarios</Link>
+                <AppLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <UsersPage />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route path="/" element={<HomePage />} />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

@@ -117,7 +117,7 @@ export default function UsersPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       {contextHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2>Usuarios</h2>
