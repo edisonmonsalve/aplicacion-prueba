@@ -7,6 +7,7 @@ import HomePage from "@/pages/HomePage";
 import UsersPage from "@/pages/UsersPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import ProductsPage from "@/pages/ProductsPage";
+import MovementsPage from "@/pages/MovementsPage";
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
             />
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/movements" element={<MovementsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

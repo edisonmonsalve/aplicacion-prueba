@@ -14,6 +14,7 @@ export default function AppLayout() {
   const items = [
     { key: "/", label: "Inicio" },
     { key: "/products", label: "Productos" },
+    { key: "/movements", label: "Movimientos" },
     { key: "/categories", label: "Categorías" },
     ...(user?.rol === "admin" ? [{ key: "/users", label: "Usuarios" }] : []),
   ];
