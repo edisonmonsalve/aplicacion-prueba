@@ -5,6 +5,9 @@ import { pool } from "./config/Db.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 import { errorHandler } from "./middlewares/error-handler.js";
+import { categoriesRouter } from "./modules/categories/categories.routes.js";
+import { productsRouter } from "./modules/products/products.routes.js";
+
 
 
 const app = express();
@@ -14,6 +17,8 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 
 app.use("/api/users", usersRouter);
+app.use("/api/categories", categoriesRouter);
+app.use("/api/products", productsRouter);
 
 app.get("/api/health", async (_req, res) => {
   const [rows] = await pool.query("SELECT 1 AS ok");
