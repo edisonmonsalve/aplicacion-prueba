@@ -6,6 +6,9 @@ import { useAuth } from "@/context/AuthContext";
 import { getUsers, setUserActivo, type UsersQuery } from "@/services/usersService";
 import { getErrorMessage } from "@/utils/errors";
 import type { User } from "@/types";
+import UserFormModal from "@/components/UserFormModal";
+
+
 
 export default function UsersPage() {
   const { user: me } = useAuth();
@@ -16,6 +19,8 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   useEffect(() => {
     let ignore = false; // evita aplicar una respuesta vieja si cambió la consulta
@@ -48,6 +53,22 @@ export default function UsersPage() {
       messageApi.error(getErrorMessage(err));
     }
   };
+  const openCreate = () => {
+    setEditingUser(null);
+    setModalOpen(true);
+  };
+
+  const openEdit = (u: User) => {
+    setEditingUser(u);
+    setModalOpen(true);
+  };
+
+  const handleSaved = () => {
+    setModalOpen(false);
+    messageApi.success(editingUser ? "Usuario actualizado" : "Usuario creado");
+    if (!editingUser) setQuery((prev) => ({ ...prev, page: 1 })); // el nuevo aparece primero
+    setReloadKey((k) => k + 1);
+  };
 
   const columns: TableProps<User>["columns"] = [
     { title: "Nombre", dataIndex: "nombre" },
@@ -73,26 +94,37 @@ export default function UsersPage() {
     {
       title: "Acciones",
       render: (_, u) => (
-        <Popconfirm
-          title={u.activo ? "¿Desactivar usuario?" : "¿Activar usuario?"}
-          okText="Sí"
-          cancelText="No"
-          onConfirm={() => toggleActivo(u)}
-          disabled={u.id === me?.id}
-        >
-          {/* RN-06: no puedes desactivarte a ti mismo */}
-          <Button size="small" danger={!!u.activo} disabled={u.id === me?.id}>
-            {u.activo ? "Desactivar" : "Activar"}
+        <Space>
+          <Button size="small" onClick={() => openEdit(u)}>
+            Editar
           </Button>
-        </Popconfirm>
+          <Popconfirm
+            title={u.activo ? "¿Desactivar usuario?" : "¿Activar usuario?"}
+            okText="Sí"
+            cancelText="No"
+            onConfirm={() => toggleActivo(u)}
+            disabled={u.id === me?.id}
+          >
+            {/* RN-06: no puedes desactivarte a ti mismo */}
+            <Button size="small" danger={!!u.activo} disabled={u.id === me?.id}>
+              {u.activo ? "Desactivar" : "Activar"}
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
+
     },
   ];
 
   return (
     <div style={{ padding: 24 }}>
       {contextHolder}
-      <h2>Usuarios</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>Usuarios</h2>
+        <Button type="primary" onClick={openCreate}>
+          Nuevo usuario
+        </Button>
+      </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
@@ -136,6 +168,14 @@ export default function UsersPage() {
           onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
         }}
       />
+      {modalOpen && (
+        <UserFormModal
+          user={editingUser}
+          isSelf={editingUser?.id === me?.id}
+          onClose={() => setModalOpen(false)}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginPage from "@/pages/LoginPage";
@@ -17,6 +17,7 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <h1>Inicio</h1>
+                <Link to="/users">Usuarios</Link>
               </ProtectedRoute>
             }
           />
