@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:db": "tsx src/scripts/setup-test-db.ts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "migrate": "tsx src/scripts/migrate.ts"
   },
   "keywords": [],
   "author": "",

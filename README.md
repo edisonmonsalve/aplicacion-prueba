@@ -73,10 +73,14 @@ Aplicación fullstack para gestionar usuarios, productos, categorías y movimien
 
 ### 1. Base de datos
 
-```bash
-mariadb -u root -p < server/db/schema.sql
-```
+El esquema se gestiona con migraciones SQL numeradas en `server/migrations/`. Con `.env` configurado:
 
+​```bash
+cd server
+npm run migrate
+​```
+
+Esto crea la base si no existe y aplica las migraciones pendientes. Si ya tenías una base creada con el esquema anterior, adóptala con `npm run migrate -- --baseline=1`.
 Esto crea la base `inventario` con sus cuatro tablas.
 
 ### 2. Backend
