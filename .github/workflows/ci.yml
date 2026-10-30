@@ -65,6 +65,9 @@ jobs:
       - name: Ejecutar pruebas
         run: npm test
 
+      - name: Revisar estilo y errores comunes
+        run: npm run lint
+
   client:
     name: client
     runs-on: ubuntu-latest
