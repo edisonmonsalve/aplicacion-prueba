@@ -186,8 +186,8 @@ Cubren autenticación y permisos por rol, las reglas de negocio del inventario (
 
 ## Posibles mejoras
 
-- [ ] Panel de inicio con indicadores (productos, stock bajo, últimos movimientos)
-- [ x ] Pruebas automáticas de las reglas de negocio (Vitest y Supertest)
+- [x] Panel de inicio con indicadores (productos, stock bajo, últimos movimientos)
+- [x] Pruebas automáticas de las reglas de negocio (Vitest y Supertest)
 - [ ] Exportación de inventario e historial a CSV o Excel
 - [ ] Tokens de vida corta con refresh tokens
 - [ ] Despliegue en la nube
