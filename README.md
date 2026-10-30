@@ -174,4 +174,4 @@ Los errores siguen un formato único: `{ "message": "..." }`, con códigos 400 (
 
 ## Autor
 
-Edison · [GitHub](https://github.com/tu-usuario)
+Edison · [GitHub](https://github.com/edisonmonsalve)
