@@ -55,3 +55,20 @@ export interface StockMovement {
   usuario: string;
   created_at: string;
 }
+
+export interface LowStockProduct {
+  id: number;
+  sku: string;
+  nombre: string;
+  stock_actual: number;
+  stock_minimo: number;
+}
+
+export interface Dashboard {
+  productosActivos: number;
+  stockBajo: number;
+  movimientosHoy: number;
+  valorInventario: number;
+  productosStockBajo: LowStockProduct[];
+  ultimosMovimientos: StockMovement[];
+}
