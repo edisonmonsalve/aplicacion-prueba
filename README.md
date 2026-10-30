@@ -155,6 +155,26 @@ Todas las rutas, salvo el login y `health`, requieren el encabezado `Authorizati
 
 Los errores siguen un formato único: `{ "message": "..." }`, con códigos 400 (datos inválidos), 401 (sin sesión), 403 (sin permiso), 404, 409 (conflicto con una regla de negocio) y 500.
 
+## Pruebas
+
+Las pruebas del servidor usan Vitest y Supertest contra una base de datos aparte (`inventario_test`), para no tocar los datos de desarrollo.
+
+1. Crea `server/.env.test` con las mismas variables que `.env`, pero con `DB_NAME=inventario_test`.
+2. Crea la base de pruebas (una sola vez, o cuando cambie `schema.sql`):
+
+   ```bash
+   cd server
+   npm run test:db
+   ```
+
+3. Ejecuta las pruebas:
+
+   ```bash
+   npm test
+   ```
+
+Cubren autenticación y permisos por rol, las reglas de negocio del inventario (SKU único, categorías con productos, precios válidos) y los movimientos de stock, incluida una prueba de concurrencia.
+
 ## Decisiones técnicas
 
 - **Paginación, búsqueda y filtros en el servidor**, con consultas parametrizadas para evitar inyección SQL.
@@ -166,11 +186,11 @@ Los errores siguen un formato único: `{ "message": "..." }`, con códigos 400 (
 
 ## Posibles mejoras
 
-- Panel de inicio con indicadores (productos, stock bajo, últimos movimientos)
-- Pruebas automáticas de las reglas de negocio (Vitest y Supertest)
-- Exportación de inventario e historial a CSV o Excel
-- Tokens de vida corta con refresh tokens
-- Despliegue en la nube
+- [ ] Panel de inicio con indicadores (productos, stock bajo, últimos movimientos)
+- [ x ] Pruebas automáticas de las reglas de negocio (Vitest y Supertest)
+- [ ] Exportación de inventario e historial a CSV o Excel
+- [ ] Tokens de vida corta con refresh tokens
+- [ ] Despliegue en la nube
 
 ## Autor
 
