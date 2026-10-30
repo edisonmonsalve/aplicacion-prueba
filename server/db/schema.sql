@@ -1,7 +1,7 @@
 -- Esquema inicial: Usuarios e Inventario (MariaDB)
 CREATE DATABASE IF NOT EXISTS inventario
   CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;inventarioinventario
+  COLLATE utf8mb4_unicode_ci;
 
 USE inventario;
 
