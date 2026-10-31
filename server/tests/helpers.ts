@@ -8,6 +8,9 @@ export const PASSWORD = "Clave12345";
 
 // Orden respetando las claves foráneas
 export async function resetDb() {
+  await pool.query("DELETE FROM quote_status_history");
+  await pool.query("DELETE FROM quote_items");
+  await pool.query("DELETE FROM quotes");
   await pool.query("DELETE FROM stock_movements");
   await pool.query("DELETE FROM products");
   await pool.query("DELETE FROM categories");
