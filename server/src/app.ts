@@ -9,6 +9,8 @@ import { productsRouter } from "./modules/products/products.routes.js";
 import { movementsRouter } from "./modules/movements/movements.routes.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
+import { quotesRouter } from "./modules/quotes/quotes.routes.js";
+
 
 export const app = express();
 
@@ -26,5 +28,6 @@ app.use("/api/categories", categoriesRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/movements", movementsRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/quotes", quotesRouter);
 
 app.use(errorHandler); // siempre al final
