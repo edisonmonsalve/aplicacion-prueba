@@ -7,7 +7,6 @@ import { createQuote, draft, futureDate, rows, setup } from "./quote-helpers.js"
 
 describe("Presupuestos: borradores", () => {
   beforeEach(resetDb);
-  afterAll(() => pool.end());
 
   it("calcula los totales en el servidor y registra el estado inicial (RN-P05, RN-P12)", async () => {
     const { admin, a } = await setup();
@@ -170,4 +169,186 @@ describe("Presupuestos: borradores", () => {
     const res = await request(app).post("/api/quotes").send({});
     expect(res.status).toBe(401);
   });
+});
+
+
+describe("Presupuestos: transiciones de estado", () => {
+  beforeEach(resetDb);
+
+  it("permite enviar un borrador y registra el historial", async () => {
+    const { admin, a } = await setup();
+
+    const created = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 1 }])
+    );
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      estado_anterior: "borrador",
+      estado_nuevo: "enviado",
+    });
+
+    const history = await rows(
+      `SELECT estado_anterior, estado_nuevo, user_id
+       FROM quote_status_history
+       WHERE quote_id = ?
+       ORDER BY id`,
+      [created.body.id]
+    );
+
+    expect(history).toHaveLength(2);
+    expect(history[1].estado_anterior).toBe("borrador");
+    expect(history[1].estado_nuevo).toBe("enviado");
+  });
+
+  it("permite aprobar un presupuesto enviado", async () => {
+    const { admin, a } = await setup();
+
+    const created = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 1 }])
+    );
+
+    await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(admin.token));
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/approve`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.estado_nuevo).toBe("aprobado");
+
+    const [quote] = await rows(
+      "SELECT estado FROM quotes WHERE id = ?",
+      [created.body.id]
+    );
+
+    expect(quote.estado).toBe("aprobado");
+  });
+
+  it("permite rechazar un presupuesto enviado", async () => {
+    const { admin, a } = await setup();
+
+    const created = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 1 }])
+    );
+
+    await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(admin.token));
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/reject`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.estado_nuevo).toBe("rechazado");
+  });
+
+  it("no permite enviar un presupuesto sin productos", async () => {
+    const { admin } = await setup();
+
+    const created = await createQuote(admin.token, draft([]));
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(400);
+
+    const [quote] = await rows(
+      "SELECT estado FROM quotes WHERE id = ?",
+      [created.body.id]
+    );
+
+    expect(quote.estado).toBe("borrador");
+  });
+
+  it("no permite aprobar un presupuesto vencido", async () => {
+    const { admin, a } = await setup();
+
+    const created = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 1 }])
+    );
+
+    await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(admin.token));
+
+    await pool.query(
+      "UPDATE quotes SET fecha_validez = ? WHERE id = ?",
+      [futureDate(-1), created.body.id]
+    );
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/approve`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(400);
+  });
+
+  it("no permite transiciones desde un estado incorrecto", async () => {
+    const { admin, a } = await setup();
+
+    const created = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 1 }])
+    );
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/approve`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(409);
+  });
+
+  it("no permite modificar el estado de otro operador", async () => {
+    const { operador, a } = await setup();
+
+    const created = await createQuote(
+      operador.token,
+      draft([{ product_id: a, cantidad: 1 }])
+    );
+
+    const other = await createUser("operador", "otro@test.com");
+    const otherToken = await loginAs(other.email);
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(otherToken));
+
+    expect(res.status).toBe(403);
+  });
+
+  it("no permite volver a enviar un presupuesto enviado", async () => {
+    const { admin, a } = await setup();
+
+    const created = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 1 }])
+    );
+
+    await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(admin.token));
+
+    const res = await request(app)
+      .post(`/api/quotes/${created.body.id}/send`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(409);
+  });
+});
+
+afterAll(async () => {
+  await pool.end();
 });
