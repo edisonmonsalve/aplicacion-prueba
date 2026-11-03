@@ -1,49 +1,9 @@
-import type { RowDataPacket } from "mysql2";
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
-import { bearer, createUser, loginAs, resetDb, userWithToken } from "./helpers.js";
-
-const futureDate = (days: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toLocaleDateString("en-CA");
-};
-
-const draft = (items: object[], overrides: object = {}) => ({
-  customer_nombre: "Cliente Prueba",
-  fecha_validez: futureDate(10),
-  items,
-  ...overrides,
-});
-
-async function setup() {
-  const admin = await userWithToken("admin");
-  const operador = await userWithToken("operador");
-  const cat = await request(app)
-    .post("/api/categories")
-    .set(bearer(admin.token))
-    .send({ nombre: "General" });
-
-  const product = async (sku: string, precio: number) => {
-    const res = await request(app)
-      .post("/api/products")
-      .set(bearer(admin.token))
-      .send({ sku, nombre: `Producto ${sku}`, category_id: cat.body.id, precio, stock_minimo: 0 });
-    return res.body.id as number;
-  };
-
-  return { admin, operador, a: await product("A", 1000), b: await product("B", 500) };
-}
-
-const createQuote = (token: string, body: object) =>
-  request(app).post("/api/quotes").set(bearer(token)).send(body);
-
-async function rows(sql: string, params: unknown[] = []) {
-  const [r] = await pool.query<RowDataPacket[]>(sql, params);
-  return r;
-}
+import { bearer, createUser, loginAs, resetDb } from "./helpers.js";
+import { createQuote, draft, futureDate, rows, setup } from "./quote-helpers.js";
 
 describe("Presupuestos: borradores", () => {
   beforeEach(resetDb);

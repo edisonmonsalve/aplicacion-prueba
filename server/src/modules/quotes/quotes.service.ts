@@ -6,11 +6,15 @@ import { HttpError } from "../../utils/http-error.js";
 import { withTransaction } from "../../utils/transaction.js";
 import { calcLine, calcTotals } from "./quotes.calc.js";
 import type { quoteSchema } from "./quotes.schema.js";
+import { pool } from "../../config/Db.js";
+import { addDays, today } from "../../utils/dates.js";
+import { getQuote } from "./quotes.queries.js";
 
 type QuoteInput = z.infer<typeof quoteSchema>;
 
 const MAX_DESCUENTO_OPERADOR = 10;
-const today = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
+const VALIDEZ_POR_DEFECTO_DIAS = 15;
+// const today = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local¡
 
 // Validaciones que no necesitan la base de datos
 function validateInput(input: QuoteInput, actor: AuthUser) {
@@ -206,4 +210,47 @@ export async function deleteQuote(id: number, actor: AuthUser) {
     await lockDraft(conn, id, actor);
     await conn.query("DELETE FROM quotes WHERE id = ?", [id]); // las líneas y el historial caen en cascada
   });
+}
+
+export async function duplicateQuote(id: number, actor: AuthUser) {
+  const source = (await getQuote(id, actor)) as Awaited<ReturnType<typeof getQuote>> & {
+    customer_nombre: string;
+    customer_documento: string | null;
+    customer_email: string | null;
+    notas: string | null;
+  }; // mismas reglas de acceso que para leerlo
+
+  // Los productos que ya no están activos se omiten, y se informa cuáles
+  let activeIds = new Set<number>();
+  if (source.items.length > 0) {
+    const [active] = await pool.query<RowDataPacket[]>(
+      "SELECT id FROM products WHERE activo = 1 AND id IN (?)",
+      [source.items.map((i) => i.product_id)]
+    );
+    activeIds = new Set(active.map((p) => p.id as number));
+  }
+  const kept = source.items.filter((i) => activeIds.has(i.product_id));
+  const omitidos = source.items
+    .filter((i) => !activeIds.has(i.product_id))
+    .map((i) => ({ sku: i.sku, nombre: i.nombre }));
+
+  // Pasa por createQuote: se aplican todas las reglas (precios vigentes, límites de descuento...)
+  const created = await createQuote(
+    {
+      customer_nombre: source.customer_nombre,
+      customer_documento: source.customer_documento ?? undefined,
+      customer_email: source.customer_email ?? undefined,
+      notas: source.notas ?? undefined,
+      fecha_validez: addDays(today(), VALIDEZ_POR_DEFECTO_DIAS),
+      items: kept.map((i) => ({
+        product_id: i.product_id,
+        cantidad: i.cantidad,
+        descuento_pct: i.descuento_pct,
+        impuesto_pct: i.impuesto_pct,
+      })),
+    },
+    actor
+  );
+
+  return { ...created, omitidos };
 }
