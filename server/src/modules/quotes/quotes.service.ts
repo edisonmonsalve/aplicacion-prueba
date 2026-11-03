@@ -16,6 +16,16 @@ const MAX_DESCUENTO_OPERADOR = 10;
 const VALIDEZ_POR_DEFECTO_DIAS = 15;
 // const today = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local¡
 
+type QuoteStatus = "borrador" | "enviado" | "aprobado" | "rechazado";
+type TransitionTarget = Exclude<QuoteStatus, "borrador">;
+const ALLOWED_TRANSITIONS: Record<TransitionTarget, QuoteStatus[]> = {
+  enviado: ["borrador"],
+  aprobado: ["enviado"],
+  rechazado: ["enviado"],
+};
+ALLOWED_TRANSITIONS.aprobado.includes("enviado"); // true
+ALLOWED_TRANSITIONS.aprobado.includes("borrador"); // false
+
 // Validaciones que no necesitan la base de datos
 function validateInput(input: QuoteInput, actor: AuthUser) {
   if (input.fecha_validez < today()) {
@@ -253,4 +263,83 @@ export async function duplicateQuote(id: number, actor: AuthUser) {
   );
 
   return { ...created, omitidos };
+}
+
+export async function transitionQuote(id: number, target: TransitionTarget, actor: AuthUser) {
+  return withTransaction(async (conn) => {
+    // 1. Bloquear el presupuesto
+    const [rows] = await conn.query<RowDataPacket[]>(
+      `SELECT id, estado, created_by, fecha_validez
+       FROM quotes
+       WHERE id = ?
+       FOR UPDATE`,
+      [id]
+    );
+
+    const quote = rows[0];
+
+    // 2. Comprobar existencia
+    if (!quote) {
+      throw new HttpError(404, "Presupuesto no encontrado");
+    }
+
+    // 3. Comprobar permisos
+    if (actor.rol !== "admin" && quote.created_by !== actor.id) {
+      throw new HttpError(403, "Solo el creador o un admin puede gestionar este presupuesto");
+    }
+
+    // 4. Comprobar transición permitida
+    const currentStatus = quote.estado as QuoteStatus;
+
+    if (!ALLOWED_TRANSITIONS[target].includes(currentStatus)) {
+      throw new HttpError(409, `No se puede cambiar de ${currentStatus} a ${target}`);
+    }
+
+    // Validar reglas de negocio
+    if (target === "enviado") {
+      const [items] = await conn.query<RowDataPacket[]>(
+        `SELECT id
+     FROM quote_items
+     WHERE quote_id = ?
+     LIMIT 1`,
+        [id]
+      );
+
+      if (items.length === 0) {
+        throw new HttpError(400, "No se puede enviar un presupuesto sin productos");
+      }
+
+      const todayDate = today();
+
+      if (quote.fecha_validez < todayDate) {
+        throw new HttpError(400, "No se puede enviar un presupuesto vencido");
+      }
+    }
+
+    if (target === "aprobado" && quote.fecha_validez < today()) {
+      throw new HttpError(400, "No se puede aprobar un presupuesto vencido");
+    }
+
+    // Actualizar estado
+    await conn.query(
+      `UPDATE quotes SET estado = ?, 
+      updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+      [target, id]
+    );
+
+    // Registrar historial
+    await conn.query(
+      `INSERT INTO quote_status_history
+      (quote_id, estado_anterior, estado_nuevo, user_id)
+      VALUES (?, ?, ?, ?)`,
+      [id, currentStatus, target, actor.id]
+    );
+
+    return {
+      id,
+      estado_anterior: currentStatus,
+      estado_nuevo: target,
+    };
+  });
 }
