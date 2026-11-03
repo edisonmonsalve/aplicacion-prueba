@@ -3,6 +3,7 @@ import { authenticate } from "../../middlewares/auth.js";
 import { getQuote, listQuotes } from "./quotes.queries.js";
 import { idSchema, listQuerySchema, quoteSchema } from "./quotes.schema.js";
 import { createQuote, deleteQuote, duplicateQuote, updateQuote, transitionQuote } from "./quotes.service.js";
+import { getQuoteHistoryById } from "./quotes.service.js";
 
 export const quotesRouter = Router();
 
@@ -62,6 +63,15 @@ quotesRouter.post("/:id/reject", async (req, res) => {
   const result = await transitionQuote(
     idSchema.parse(req.params.id),
     "rechazado",
+    req.user!
+  );
+
+  res.json(result);
+});
+
+quotesRouter.get("/:id/history", async (req, res) => {
+  const result = await getQuoteHistoryById(
+    idSchema.parse(req.params.id),
     req.user!
   );
 

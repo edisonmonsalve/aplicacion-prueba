@@ -349,6 +349,175 @@ describe("Presupuestos: transiciones de estado", () => {
   });
 });
 
+describe("Presupuestos: historial de auditoría", () => {
+  beforeEach(resetDb);
+
+  it("permite al administrador consultar el historial", async () => {
+    const { admin, operador, a } = await setup();
+
+    const quote = await createQuote(
+      operador.token,
+      draft([
+        {
+          product_id: a,
+          cantidad: 1,
+          descuento_pct: 0,
+          impuesto_pct: 0,
+        },
+      ])
+    );
+
+    const res = await request(app)
+      .get(`/api/quotes/${quote.body.id}/history`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.quote_id).toBe(quote.body.id);
+    expect(res.body.history).toHaveLength(1);
+
+    expect(res.body.history[0]).toMatchObject({
+      estado_anterior: null,
+      estado_nuevo: "borrador",
+      user_id: operador.id,
+      usuario: "operador",
+    });
+  });
+
+  it("permite al creador consultar su historial", async () => {
+    const { operador, a } = await setup();
+
+    const quote = await createQuote(
+      operador.token,
+      draft([
+        {
+          product_id: a,
+          cantidad: 1,
+          descuento_pct: 0,
+          impuesto_pct: 0,
+        },
+      ])
+    );
+
+    const res = await request(app)
+      .get(`/api/quotes/${quote.body.id}/history`)
+      .set(bearer(operador.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.history).toHaveLength(1);
+  });
+
+  it("devuelve una lista vacía cuando el presupuesto no tiene historial", async () => {
+    const { admin, operador, a } = await setup();
+
+    const quote = await createQuote(
+      operador.token,
+      draft([
+        {
+          product_id: a,
+          cantidad: 1,
+          descuento_pct: 0,
+          impuesto_pct: 0,
+        },
+      ])
+    );
+
+    await pool.query(
+      "DELETE FROM quote_status_history WHERE quote_id = ?",
+      [quote.body.id]
+    );
+
+    const res = await request(app)
+      .get(`/api/quotes/${quote.body.id}/history`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      quote_id: quote.body.id,
+      history: [],
+    });
+  });
+
+  it("devuelve 404 cuando el presupuesto no existe", async () => {
+    const { admin } = await setup();
+
+    const res = await request(app)
+      .get("/api/quotes/999999/history")
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(404);
+  });
+
+  it("no permite consultar el historial de otro operador", async () => {
+    const { operador, a } = await setup();
+
+    const quote = await createQuote(
+      operador.token,
+      draft([
+        {
+          product_id: a,
+          cantidad: 1,
+          descuento_pct: 0,
+          impuesto_pct: 0,
+        },
+      ])
+    );
+
+    const other = await createUser("operador", "otro@test.com");
+    const otherToken = await loginAs(other.email);
+
+    const res = await request(app)
+      .get(`/api/quotes/${quote.body.id}/history`)
+      .set(bearer(otherToken));
+
+    expect(res.status).toBe(403);
+  });
+
+  it("devuelve el historial ordenado del más reciente al más antiguo", async () => {
+    const { operador, a } = await setup();
+
+    const quote = await createQuote(
+      operador.token,
+      draft([
+        {
+          product_id: a,
+          cantidad: 1,
+          descuento_pct: 0,
+          impuesto_pct: 0,
+        },
+      ])
+    );
+
+    const id = quote.body.id;
+
+    const send = await request(app)
+      .post(`/api/quotes/${id}/send`)
+      .set(bearer(operador.token));
+
+    expect(send.status).toBe(200);
+
+    const approve = await request(app)
+      .post(`/api/quotes/${id}/approve`)
+      .set(bearer(operador.token));
+
+    expect(approve.status).toBe(200);
+
+    const res = await request(app)
+      .get(`/api/quotes/${id}/history`)
+      .set(bearer(operador.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.history).toHaveLength(3);
+
+    expect(
+      res.body.history.map((item: { estado_nuevo: string }) => item.estado_nuevo)
+    ).toEqual([
+      "aprobado",
+      "enviado",
+      "borrador",
+    ]);
+  });
+});
+
 afterAll(async () => {
   await pool.end();
 });
