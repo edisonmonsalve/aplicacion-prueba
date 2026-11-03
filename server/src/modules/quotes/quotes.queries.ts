@@ -107,3 +107,23 @@ export async function getQuote(id: number, actor: AuthUser) {
 
   return { ...quote, numero: formatQuoteNumber(quote.id), items: items[0], historial: history[0] };
 }
+
+export async function getQuoteHistory(id: number) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       h.id,
+       h.quote_id,
+       h.estado_anterior,
+       h.estado_nuevo,
+       h.user_id,
+       u.nombre AS usuario,
+       h.created_at
+     FROM quote_status_history h
+     INNER JOIN users u ON u.id = h.user_id
+     WHERE h.quote_id = ?
+     ORDER BY h.created_at DESC, h.id DESC`,
+    [id]
+  );
+
+  return rows;
+}

@@ -9,6 +9,7 @@ import type { quoteSchema } from "./quotes.schema.js";
 import { pool } from "../../config/Db.js";
 import { addDays, today } from "../../utils/dates.js";
 import { getQuote } from "./quotes.queries.js";
+import { getQuoteHistory } from "./quotes.queries.js";
 
 type QuoteInput = z.infer<typeof quoteSchema>;
 
@@ -342,4 +343,19 @@ export async function transitionQuote(id: number, target: TransitionTarget, acto
       estado_nuevo: target,
     };
   });
+}
+
+export async function getQuoteHistoryById(
+  id: number,
+  actor: AuthUser
+) {
+  // Reutiliza la validación de existencia y autorización
+  await getQuote(id, actor);
+
+  const history = await getQuoteHistory(id);
+
+  return {
+    quote_id: id,
+    history,
+  };
 }
