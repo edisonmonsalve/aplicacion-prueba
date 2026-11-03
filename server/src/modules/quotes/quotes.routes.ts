@@ -1,14 +1,28 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/auth.js";
-import { idSchema, quoteSchema } from "./quotes.schema.js";
-import { createQuote, deleteQuote, updateQuote } from "./quotes.service.js";
+import { getQuote, listQuotes } from "./quotes.queries.js";
+import { idSchema, listQuerySchema, quoteSchema } from "./quotes.schema.js";
+import { createQuote, deleteQuote, duplicateQuote, updateQuote } from "./quotes.service.js";
 
 export const quotesRouter = Router();
 
 quotesRouter.use(authenticate);
 
+quotesRouter.get("/", async (req, res) => {
+  res.json(await listQuotes(listQuerySchema.parse(req.query), req.user!));
+});
+
+quotesRouter.get("/:id", async (req, res) => {
+  res.json(await getQuote(idSchema.parse(req.params.id), req.user!));
+});
+
 quotesRouter.post("/", async (req, res) => {
   const result = await createQuote(quoteSchema.parse(req.body), req.user!);
+  res.status(201).json(result);
+});
+
+quotesRouter.post("/:id/duplicate", async (req, res) => {
+  const result = await duplicateQuote(idSchema.parse(req.params.id), req.user!);
   res.status(201).json(result);
 });
 
