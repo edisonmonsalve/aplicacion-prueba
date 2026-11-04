@@ -54,8 +54,10 @@ Aplicación fullstack para gestionar usuarios, productos, categorías y movimien
 │       ├── types/           # interfaces compartidas
 │       └── utils/           # errores y formato de moneda
 └── server/                  # Express + TypeScript
-    ├── db/schema.sql        # esquema de la base de datos
+    ├── migrations/          # SQL numeradas (V001, V002, ...)
     └── src/
+        ├── db/
+        │   └── migrator.ts  # ejecutor de migraciones
         ├── config/          # conexión a MariaDB
         ├── middlewares/     # autenticación, roles y manejo central de errores
         ├── modules/         # auth, users, categories, products, movements
