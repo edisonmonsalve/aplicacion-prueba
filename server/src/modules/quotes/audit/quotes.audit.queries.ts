@@ -7,11 +7,11 @@ import type {
 
 interface QuoteAuditHeaderRow
   extends QuoteAuditHeader,
-    RowDataPacket {}
+  RowDataPacket { }
 
 interface QuoteAuditItemRow
   extends QuoteAuditItem,
-    RowDataPacket {}
+  RowDataPacket { }
 
 export async function getQuoteAuditHeader(
   conn: PoolConnection,

@@ -10,28 +10,6 @@ import {
   insertQuoteAudit,
 } from "./quotes.audit.queries.js";
 
-function normalizeValue(value: unknown): unknown {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  if (typeof value === "string" && value.trim() === "") {
-    return "";
-  }
-
-  if (
-    typeof value === "string" ||
-    typeof value === "number"
-  ) {
-    const numericValue = Number(value);
-
-    if (Number.isFinite(numericValue)) {
-      return numericValue;
-    }
-  }
-
-  return value;
-}
 
 function normalizeItem(item: QuoteAuditItem) {
   return {
@@ -52,18 +30,23 @@ function normalizeItems(items: QuoteAuditItem[]) {
     .sort((a, b) => a.product_id - b.product_id);
 }
 
+function normalizeNumber(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : value;
+}
+
 function addChange(
   changes: QuoteAuditChanges,
   field: string,
   oldValue: unknown,
-  newValue: unknown
+  newValue: unknown,
+  normalize: (value: unknown) => unknown = (value) => value
 ): void {
-  const oldNormalized = normalizeValue(oldValue);
-  const newNormalized = normalizeValue(newValue);
-
   if (
-    JSON.stringify(oldNormalized) !==
-    JSON.stringify(newNormalized)
+    JSON.stringify(normalize(oldValue)) !==
+    JSON.stringify(normalize(newValue))
   ) {
     changes[field] = {
       old: oldValue,
@@ -81,48 +64,30 @@ export async function auditQuoteUpdate(
 ): Promise<void> {
   const changes: QuoteAuditChanges = {};
 
-  const headerFields = [
-    "customer_nombre",
-    "customer_documento",
-    "customer_email",
-    "fecha_validez",
-    "notas",
-    "subtotal",
-    "descuento_total",
-    "impuesto_total",
-    "total",
-  ] as const;
+  const textFields = ["customer_nombre", "customer_documento", "customer_email", "fecha_validez", "notas",] as const;
 
-  for (const field of headerFields) {
-    addChange(
-      changes,
-      field,
-      previous.header[field],
-      current.header[field]
-    );
+  const numericFields = ["subtotal", "descuento_total", "impuesto_total", "total",] as const;
+
+  for (const field of textFields) {
+    addChange(changes, field, previous.header[field], current.header[field]);
+  }
+
+  for (const field of numericFields) {
+    addChange(changes, field, previous.header[field], current.header[field], normalizeNumber);
   }
 
   const oldItems = normalizeItems(previous.items);
   const newItems = normalizeItems(current.items);
 
   if (
-    JSON.stringify(oldItems) !==
-    JSON.stringify(newItems)
+    JSON.stringify(oldItems) !== JSON.stringify(newItems)
   ) {
-    changes.items = {
-      old: oldItems,
-      new: newItems,
-    };
+    changes.items = { old: oldItems, new: newItems, };
   }
 
   if (Object.keys(changes).length === 0) {
     return;
   }
 
-  await insertQuoteAudit(
-    conn,
-    quoteId,
-    userId,
-    changes
-  );
+  await insertQuoteAudit(conn, quoteId, userId, changes);
 }
