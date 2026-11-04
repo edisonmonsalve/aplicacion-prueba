@@ -32,10 +32,7 @@ function validateInput(input: QuoteInput, actor: AuthUser) {
   }
 
   if (actor.rol !== "admin" && input.items.some((i) => i.descuento_pct > MAX_DESCUENTO_OPERADOR)) {
-    throw new HttpError(
-      403,
-      `Los descuentos mayores al ${MAX_DESCUENTO_OPERADOR} % requieren rol admin`
-    ); // RN-P04
+    throw new HttpError(403, `Los descuentos mayores al ${MAX_DESCUENTO_OPERADOR} % requieren rol admin`); // RN-P04
   }
 }
 
@@ -229,7 +226,7 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
     );
 
     // 5. Reemplazar las líneas.
-    await conn.query( "DELETE FROM quote_items WHERE quote_id = ?", [id] );
+    await conn.query("DELETE FROM quote_items WHERE quote_id = ?", [id]);
 
     await insertItems(conn, id, lines);
 
@@ -250,7 +247,7 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
     };
 
     // 7. Registrar los cambios.
-    await auditQuoteUpdate( conn, id, actor.id, previous, current );
+    await auditQuoteUpdate(conn, id, actor.id, previous, current);
 
     return totalsResponse(id, totals);
   });
@@ -354,91 +351,7 @@ export async function changeStatus(id: number, action: QuoteAction, actor: AuthU
     return { id, estado: rule.to };
   });
 }
-
-
-// export async function transitionQuote(id: number, target: TransitionTarget, actor: AuthUser) {
-//   return withTransaction(async (conn) => {
-//     // 1. Bloquear el presupuesto
-//     const [rows] = await conn.query<RowDataPacket[]>(
-//       `SELECT id, estado, created_by, fecha_validez
-//        FROM quotes
-//        WHERE id = ?
-//        FOR UPDATE`,
-//       [id]
-//     );
-
-//     const quote = rows[0];
-
-//     // 2. Comprobar existencia
-//     if (!quote) {
-//       throw new HttpError(404, "Presupuesto no encontrado");
-//     }
-
-//     // 3. Comprobar permisos
-//     if (actor.rol !== "admin" && quote.created_by !== actor.id) {
-//       throw new HttpError(403, "Solo el creador o un admin puede gestionar este presupuesto");
-//     }
-
-//     // 4. Comprobar transición permitida
-//     const currentStatus = quote.estado as QuoteStatus;
-
-//     if (!ALLOWED_TRANSITIONS[target].includes(currentStatus)) {
-//       throw new HttpError(409, `No se puede cambiar de ${currentStatus} a ${target}`);
-//     }
-
-//     // Validar reglas de negocio
-//     if (target === "enviado") {
-//       const [items] = await conn.query<RowDataPacket[]>(
-//         `SELECT id
-//      FROM quote_items
-//      WHERE quote_id = ?
-//      LIMIT 1`,
-//         [id]
-//       );
-
-//       if (items.length === 0) {
-//         throw new HttpError(400, "No se puede enviar un presupuesto sin productos");
-//       }
-
-//       const todayDate = today();
-
-//       if (quote.fecha_validez < todayDate) {
-//         throw new HttpError(400, "No se puede enviar un presupuesto vencido");
-//       }
-//     }
-
-//     if (target === "aprobado" && quote.fecha_validez < today()) {
-//       throw new HttpError(400, "No se puede aprobar un presupuesto vencido");
-//     }
-
-//     // Actualizar estado
-//     await conn.query(
-//       `UPDATE quotes SET estado = ?, 
-//       updated_at = CURRENT_TIMESTAMP
-//       WHERE id = ?`,
-//       [target, id]
-//     );
-
-//     // Registrar historial
-//     await conn.query(
-//       `INSERT INTO quote_status_history
-//       (quote_id, estado_anterior, estado_nuevo, user_id)
-//       VALUES (?, ?, ?, ?)`,
-//       [id, currentStatus, target, actor.id]
-//     );
-
-//     return {
-//       id,
-//       estado_anterior: currentStatus,
-//       estado_nuevo: target,
-//     };
-//   });
-// }
-
-export async function getQuoteHistoryById(
-  id: number,
-  actor: AuthUser
-) {
+export async function getQuoteHistoryById(id: number, actor: AuthUser) {
   // Reutiliza la validación de existencia y autorización
   await getQuote(id, actor);
 
@@ -449,4 +362,3 @@ export async function getQuoteHistoryById(
     history,
   };
 }
-
