@@ -20,6 +20,7 @@ export default function AppLayout() {
     { key: "/products", label: "Productos" },
     { key: "/movements", label: "Movimientos" },
     { key: "/categories", label: "Categorías" },
+    { key: "/quotes", label: "Presupuestos" },
     ...(user?.rol === "admin" ? [{ key: "/users", label: "Usuarios" }] : []),
   ];
 

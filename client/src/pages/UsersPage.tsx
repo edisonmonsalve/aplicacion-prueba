@@ -8,8 +8,6 @@ import { getErrorMessage } from "@/utils/errors";
 import type { User } from "@/types";
 import UserFormModal from "@/components/UserFormModal";
 
-
-
 export default function UsersPage() {
   const { user: me } = useAuth();
   const [messageApi, contextHolder] = message.useMessage();
@@ -76,9 +74,7 @@ export default function UsersPage() {
     {
       title: "Rol",
       dataIndex: "rol",
-      render: (rol: User["rol"]) => (
-        <Tag color={rol === "admin" ? "blue" : "default"}>{rol}</Tag>
-      ),
+      render: (rol: User["rol"]) => <Tag color={rol === "admin" ? "blue" : "default"}>{rol}</Tag>,
     },
     {
       title: "Estado",
@@ -112,7 +108,6 @@ export default function UsersPage() {
           </Popconfirm>
         </Space>
       ),
-
     },
   ];
 
