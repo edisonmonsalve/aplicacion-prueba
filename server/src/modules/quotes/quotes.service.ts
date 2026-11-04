@@ -20,16 +20,6 @@ const MAX_DESCUENTO_OPERADOR = 10;
 const VALIDEZ_POR_DEFECTO_DIAS = 15;
 // const today = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local¡
 
-type QuoteStatus = "borrador" | "enviado" | "aprobado" | "rechazado";
-type TransitionTarget = Exclude<QuoteStatus, "borrador">;
-const ALLOWED_TRANSITIONS: Record<TransitionTarget, QuoteStatus[]> = {
-  enviado: ["borrador"],
-  aprobado: ["enviado"],
-  rechazado: ["enviado"],
-};
-ALLOWED_TRANSITIONS.aprobado.includes("enviado"); // true
-ALLOWED_TRANSITIONS.aprobado.includes("borrador"); // false
-
 // Validaciones que no necesitan la base de datos
 function validateInput(input: QuoteInput, actor: AuthUser) {
   if (input.fecha_validez < today()) {
@@ -122,17 +112,21 @@ async function insertItems(
 }
 
 // Bloquea el presupuesto y comprueba que se puede modificar
-async function lockDraft(conn: PoolConnection, id: number, actor: AuthUser) {
+async function lockQuote(conn: PoolConnection, id: number, actor: AuthUser) {
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT id, estado, created_by FROM quotes WHERE id = ? FOR UPDATE",
+    "SELECT id, estado, created_by, fecha_validez FROM quotes WHERE id = ? FOR UPDATE",
     [id]
   );
   const quote = rows[0];
-
   if (!quote) throw new HttpError(404, "Presupuesto no encontrado");
   if (actor.rol !== "admin" && quote.created_by !== actor.id) {
     throw new HttpError(403, "Solo el creador o un admin puede modificar este presupuesto");
   }
+  return quote;
+}
+
+async function lockDraft(conn: PoolConnection, id: number, actor: AuthUser) {
+  const quote = await lockQuote(conn, id, actor);
   if (quote.estado !== "borrador") {
     throw new HttpError(409, "Solo los borradores se pueden modificar"); // RN-P01
   }
@@ -312,84 +306,134 @@ export async function duplicateQuote(id: number, actor: AuthUser) {
   return { ...created, omitidos };
 }
 
-export async function transitionQuote(id: number, target: TransitionTarget, actor: AuthUser) {
+export type QuoteAction = "send" | "approve" | "reject";
+
+const TRANSITIONS: Record<QuoteAction, { from: string; to: string; verbo: string }> = {
+  send: { from: "borrador", to: "enviado", verbo: "enviar" },
+  approve: { from: "enviado", to: "aprobado", verbo: "aprobar" },
+  reject: { from: "enviado", to: "rechazado", verbo: "rechazar" },
+};
+
+export async function changeStatus(id: number, action: QuoteAction, actor: AuthUser) {
+  const rule = TRANSITIONS[action];
+
   return withTransaction(async (conn) => {
-    // 1. Bloquear el presupuesto
-    const [rows] = await conn.query<RowDataPacket[]>(
-      `SELECT id, estado, created_by, fecha_validez
-       FROM quotes
-       WHERE id = ?
-       FOR UPDATE`,
-      [id]
-    );
+    const quote = await lockQuote(conn, id, actor);
 
-    const quote = rows[0];
-
-    // 2. Comprobar existencia
-    if (!quote) {
-      throw new HttpError(404, "Presupuesto no encontrado");
+    if (quote.estado !== rule.from) {
+      throw new HttpError(
+        409,
+        `No se puede ${rule.verbo}: el presupuesto está en estado "${quote.estado}" y debe estar en "${rule.from}"`
+      );
     }
 
-    // 3. Comprobar permisos
-    if (actor.rol !== "admin" && quote.created_by !== actor.id) {
-      throw new HttpError(403, "Solo el creador o un admin puede gestionar este presupuesto");
-    }
+    const expired = quote.fecha_validez < today();
 
-    // 4. Comprobar transición permitida
-    const currentStatus = quote.estado as QuoteStatus;
-
-    if (!ALLOWED_TRANSITIONS[target].includes(currentStatus)) {
-      throw new HttpError(409, `No se puede cambiar de ${currentStatus} a ${target}`);
-    }
-
-    // Validar reglas de negocio
-    if (target === "enviado") {
-      const [items] = await conn.query<RowDataPacket[]>(
-        `SELECT id
-     FROM quote_items
-     WHERE quote_id = ?
-     LIMIT 1`,
+    if (action === "send") {
+      if (expired) throw new HttpError(409, "La fecha de validez ya pasó: edítala antes de enviar"); // RN-P11
+      const [[{ total }]] = await conn.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM quote_items WHERE quote_id = ?",
         [id]
       );
-
-      if (items.length === 0) {
-        throw new HttpError(400, "No se puede enviar un presupuesto sin productos");
-      }
-
-      const todayDate = today();
-
-      if (quote.fecha_validez < todayDate) {
-        throw new HttpError(400, "No se puede enviar un presupuesto vencido");
+      if (Number(total) === 0) {
+        throw new HttpError(409, "El presupuesto necesita al menos una línea para enviarse"); // RN-P10
       }
     }
 
-    if (target === "aprobado" && quote.fecha_validez < today()) {
-      throw new HttpError(400, "No se puede aprobar un presupuesto vencido");
+    if (action === "approve" && expired) {
+      throw new HttpError(409, "El presupuesto está vencido y ya no puede aprobarse"); // RN-P06
     }
 
-    // Actualizar estado
+    await conn.query("UPDATE quotes SET estado = ? WHERE id = ?", [rule.to, id]);
     await conn.query(
-      `UPDATE quotes SET estado = ?, 
-      updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?`,
-      [target, id]
+      `INSERT INTO quote_status_history (quote_id, estado_anterior, estado_nuevo, user_id)
+       VALUES (?, ?, ?, ?)`,
+      [id, rule.from, rule.to, actor.id] // RN-P12
     );
 
-    // Registrar historial
-    await conn.query(
-      `INSERT INTO quote_status_history
-      (quote_id, estado_anterior, estado_nuevo, user_id)
-      VALUES (?, ?, ?, ?)`,
-      [id, currentStatus, target, actor.id]
-    );
-
-    return {
-      id,
-      estado_anterior: currentStatus,
-      estado_nuevo: target,
-    };
+    return { id, estado: rule.to };
   });
 }
+
+
+// export async function transitionQuote(id: number, target: TransitionTarget, actor: AuthUser) {
+//   return withTransaction(async (conn) => {
+//     // 1. Bloquear el presupuesto
+//     const [rows] = await conn.query<RowDataPacket[]>(
+//       `SELECT id, estado, created_by, fecha_validez
+//        FROM quotes
+//        WHERE id = ?
+//        FOR UPDATE`,
+//       [id]
+//     );
+
+//     const quote = rows[0];
+
+//     // 2. Comprobar existencia
+//     if (!quote) {
+//       throw new HttpError(404, "Presupuesto no encontrado");
+//     }
+
+//     // 3. Comprobar permisos
+//     if (actor.rol !== "admin" && quote.created_by !== actor.id) {
+//       throw new HttpError(403, "Solo el creador o un admin puede gestionar este presupuesto");
+//     }
+
+//     // 4. Comprobar transición permitida
+//     const currentStatus = quote.estado as QuoteStatus;
+
+//     if (!ALLOWED_TRANSITIONS[target].includes(currentStatus)) {
+//       throw new HttpError(409, `No se puede cambiar de ${currentStatus} a ${target}`);
+//     }
+
+//     // Validar reglas de negocio
+//     if (target === "enviado") {
+//       const [items] = await conn.query<RowDataPacket[]>(
+//         `SELECT id
+//      FROM quote_items
+//      WHERE quote_id = ?
+//      LIMIT 1`,
+//         [id]
+//       );
+
+//       if (items.length === 0) {
+//         throw new HttpError(400, "No se puede enviar un presupuesto sin productos");
+//       }
+
+//       const todayDate = today();
+
+//       if (quote.fecha_validez < todayDate) {
+//         throw new HttpError(400, "No se puede enviar un presupuesto vencido");
+//       }
+//     }
+
+//     if (target === "aprobado" && quote.fecha_validez < today()) {
+//       throw new HttpError(400, "No se puede aprobar un presupuesto vencido");
+//     }
+
+//     // Actualizar estado
+//     await conn.query(
+//       `UPDATE quotes SET estado = ?, 
+//       updated_at = CURRENT_TIMESTAMP
+//       WHERE id = ?`,
+//       [target, id]
+//     );
+
+//     // Registrar historial
+//     await conn.query(
+//       `INSERT INTO quote_status_history
+//       (quote_id, estado_anterior, estado_nuevo, user_id)
+//       VALUES (?, ?, ?, ?)`,
+//       [id, currentStatus, target, actor.id]
+//     );
+
+//     return {
+//       id,
+//       estado_anterior: currentStatus,
+//       estado_nuevo: target,
+//     };
+//   });
+// }
 
 export async function getQuoteHistoryById(
   id: number,
@@ -405,3 +449,4 @@ export async function getQuoteHistoryById(
     history,
   };
 }
+

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../middlewares/auth.js";
 import { getQuote, listQuotes } from "./quotes.queries.js";
 import { idSchema, listQuerySchema, quoteSchema } from "./quotes.schema.js";
-import { createQuote, deleteQuote, duplicateQuote, updateQuote, transitionQuote } from "./quotes.service.js";
+import { changeStatus, createQuote, deleteQuote, duplicateQuote, updateQuote, type QuoteAction, } from "./quotes.service.js";
 import { getQuoteHistoryById } from "./quotes.service.js";
 
 export const quotesRouter = Router();
@@ -37,37 +37,11 @@ quotesRouter.delete("/:id", async (req, res) => {
   res.json({ message: "Presupuesto eliminado" });
 });
 
-quotesRouter.post("/:id/send", async (req, res) => {
-  const result = await transitionQuote(
-    idSchema.parse(req.params.id),
-    "enviado",
-    req.user!
-  );
-
-  res.json(result);
-});
-
-// Aprobar presupuesto
-quotesRouter.post("/:id/approve", async (req, res) => {
-  const result = await transitionQuote(
-    idSchema.parse(req.params.id),
-    "aprobado",
-    req.user!
-  );
-
-  res.json(result);
-});
-
-// Rechazar presupuesto
-quotesRouter.post("/:id/reject", async (req, res) => {
-  const result = await transitionQuote(
-    idSchema.parse(req.params.id),
-    "rechazado",
-    req.user!
-  );
-
-  res.json(result);
-});
+for (const action of ["send", "approve", "reject"] as QuoteAction[]) {
+  quotesRouter.post(`/:id/${action}`, async (req, res) => {
+    res.json(await changeStatus(idSchema.parse(req.params.id), action, req.user!));
+  });
+}
 
 quotesRouter.get("/:id/history", async (req, res) => {
   const result = await getQuoteHistoryById(
