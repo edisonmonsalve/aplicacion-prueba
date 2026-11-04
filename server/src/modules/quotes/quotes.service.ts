@@ -10,6 +10,9 @@ import { pool } from "../../config/Db.js";
 import { addDays, today } from "../../utils/dates.js";
 import { getQuote } from "./quotes.queries.js";
 import { getQuoteHistory } from "./quotes.queries.js";
+import { getQuoteAuditHeader, getQuoteAuditItems } from "./audit/quotes.audit.queries.js";
+import { auditQuoteUpdate } from "./audit/quotes.audit.service.js";
+import type { QuoteAuditSnapshot } from "./audit/quotes.audit.types.js";
 
 type QuoteInput = z.infer<typeof quoteSchema>;
 
@@ -185,14 +188,37 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
   validateInput(input, actor);
 
   return withTransaction(async (conn) => {
+    // 1. Verificar existencia, permisos y estado.
     await lockDraft(conn, id, actor);
+
+    // 2. Recuperar el estado anterior dentro de la transacción.
+    const previousHeader = await getQuoteAuditHeader(conn, id);
+    const previousItems = await getQuoteAuditItems(conn, id);
+
+    if (!previousHeader) {
+      throw new HttpError(404, "Cotización no encontrada");
+    }
+
+    const previous: QuoteAuditSnapshot = {
+      header: previousHeader,
+      items: previousItems,
+    };
+
+    // 3. Construir las nuevas líneas y calcular totales.
     const { lines, totals } = await buildLines(conn, input.items);
 
+    // 4. Actualizar encabezado.
     await conn.query(
       `UPDATE quotes SET
-         customer_nombre = ?, customer_documento = ?, customer_email = ?,
-         fecha_validez = ?, notas = ?,
-         subtotal = ?, descuento_total = ?, impuesto_total = ?, total = ?
+         customer_nombre = ?,
+         customer_documento = ?,
+         customer_email = ?,
+         fecha_validez = ?,
+         notas = ?,
+         subtotal = ?,
+         descuento_total = ?,
+         impuesto_total = ?,
+         total = ?
        WHERE id = ?`,
       [
         input.customer_nombre,
@@ -208,9 +234,29 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
       ]
     );
 
-    // Las líneas se reemplazan completas: más simple que comparar una por una
-    await conn.query("DELETE FROM quote_items WHERE quote_id = ?", [id]);
+    // 5. Reemplazar las líneas.
+    await conn.query( "DELETE FROM quote_items WHERE quote_id = ?", [id] );
+
     await insertItems(conn, id, lines);
+
+    // 6. Construir el nuevo estado.
+    const current: QuoteAuditSnapshot = {
+      header: {
+        customer_nombre: input.customer_nombre,
+        customer_documento: input.customer_documento ?? null,
+        customer_email: input.customer_email ?? null,
+        fecha_validez: input.fecha_validez,
+        notas: input.notas ?? null,
+        subtotal: totals.subtotal,
+        descuento_total: totals.descuentoTotal,
+        impuesto_total: totals.impuestoTotal,
+        total: totals.total,
+      },
+      items: lines,
+    };
+
+    // 7. Registrar los cambios.
+    await auditQuoteUpdate( conn, id, actor.id, previous, current );
 
     return totalsResponse(id, totals);
   });

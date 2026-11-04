@@ -518,6 +518,178 @@ describe("Presupuestos: historial de auditoría", () => {
   });
 });
 
+describe("Presupuestos: auditoría de modificaciones", () => {
+  beforeEach(resetDb);
+
+  it("registra los cambios realizados en una cotización", async () => {
+    const { admin, a } = await setup();
+
+    const original = draft(
+      [{ product_id: a, cantidad: 1 }],
+      { customer_nombre: "Cliente original" }
+    );
+
+    const created = await createQuote(admin.token, original);
+
+    const updated = draft(
+      [{ product_id: a, cantidad: 2 }],
+      { customer_nombre: "Cliente actualizado" }
+    );
+
+    const res = await request(app)
+      .put(`/api/quotes/${created.body.id}`)
+      .set(bearer(admin.token))
+      .send(updated);
+
+    expect(res.status).toBe(200);
+
+    const auditRows = await rows(
+      `SELECT user_id, changes
+       FROM quote_audit_log
+       WHERE quote_id = ?`,
+      [created.body.id]
+    );
+
+    expect(auditRows).toHaveLength(1);
+    expect(Number(auditRows[0].user_id)).toBe(admin.id);
+
+    const changes =
+      typeof auditRows[0].changes === "string"
+        ? JSON.parse(auditRows[0].changes)
+        : auditRows[0].changes;
+
+    expect(changes).toMatchObject({
+      customer_nombre: {
+        old: "Cliente original",
+        new: "Cliente actualizado",
+      },
+    });
+
+    expect(changes.items.old[0].cantidad).toBe(1);
+    expect(changes.items.new[0].cantidad).toBe(2);
+  });
+
+  it("no registra auditoría cuando no existen cambios", async () => {
+    const { admin, a } = await setup();
+
+    const payload = draft(
+      [{ product_id: a, cantidad: 1 }],
+      { customer_nombre: "Cliente original" }
+    );
+
+    const created = await createQuote(admin.token, payload);
+
+    const res = await request(app)
+      .put(`/api/quotes/${created.body.id}`)
+      .set(bearer(admin.token))
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    const auditRows = await rows(
+      "SELECT id FROM quote_audit_log WHERE quote_id = ?",
+      [created.body.id]
+    );
+
+    expect(auditRows).toHaveLength(0);
+  });
+
+  it("revierte la actualización si falla el registro de auditoría", async () => {
+    const { admin, a } = await setup();
+
+    const created = await createQuote(
+      admin.token,
+      draft(
+        [{ product_id: a, cantidad: 1 }],
+        { customer_nombre: "Cliente original" }
+      )
+    );
+
+    await pool.query("DROP TRIGGER IF EXISTS fail_quote_audit_insert");
+
+    await pool.query(`
+      CREATE TRIGGER fail_quote_audit_insert
+      BEFORE INSERT ON quote_audit_log
+      FOR EACH ROW
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Error forzado de auditoría'
+    `);
+
+    try {
+      const res = await request(app)
+        .put(`/api/quotes/${created.body.id}`)
+        .set(bearer(admin.token))
+        .send(
+          draft(
+            [{ product_id: a, cantidad: 2 }],
+            { customer_nombre: "Cliente modificado" }
+          )
+        );
+
+      expect(res.status).toBe(500);
+
+      const [quote] = await rows(
+        "SELECT customer_nombre FROM quotes WHERE id = ?",
+        [created.body.id]
+      );
+
+      expect(quote.customer_nombre).toBe("Cliente original");
+
+      const auditRows = await rows(
+        "SELECT id FROM quote_audit_log WHERE quote_id = ?",
+        [created.body.id]
+      );
+
+      expect(auditRows).toHaveLength(0);
+    } finally {
+      await pool.query(
+        "DROP TRIGGER IF EXISTS fail_quote_audit_insert"
+      );
+    }
+  });
+
+  it("no registra cambios cuando otro operador no tiene permisos", async () => {
+    const { operador, a } = await setup();
+
+    const created = await createQuote(
+      operador.token,
+      draft(
+        [{ product_id: a, cantidad: 1 }],
+        { customer_nombre: "Cliente original" }
+      )
+    );
+
+    const other = await createUser("operador", "otro@test.com");
+    const otherToken = await loginAs(other.email);
+
+    const res = await request(app)
+      .put(`/api/quotes/${created.body.id}`)
+      .set(bearer(otherToken))
+      .send(
+        draft(
+          [{ product_id: a, cantidad: 2 }],
+          { customer_nombre: "Cliente modificado" }
+        )
+      );
+
+    expect(res.status).toBe(403);
+
+    const [quote] = await rows(
+      "SELECT customer_nombre FROM quotes WHERE id = ?",
+      [created.body.id]
+    );
+
+    expect(quote.customer_nombre).toBe("Cliente original");
+
+    const auditRows = await rows(
+      "SELECT id FROM quote_audit_log WHERE quote_id = ?",
+      [created.body.id]
+    );
+
+    expect(auditRows).toHaveLength(0);
+  });
+});
+
 afterAll(async () => {
   await pool.end();
 });
