@@ -1,0 +1,244 @@
+import { useEffect, useState } from "react";
+import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Space, Typography, message } from "antd";
+import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
+import dayjs, { type Dayjs } from "dayjs";
+import { isAxiosError } from "axios";
+import { useNavigate, useParams } from "react-router-dom";
+import { createQuote, getQuote, updateQuote } from "@/services/quotesService";
+import { getProducts } from "@/services/productsService";
+import type { QuoteLineInput } from "@/types";
+import { money } from "./quoteUtils";
+
+interface ProductOpt {
+  id: number;
+  sku: string;
+  nombre: string;
+  precio: number;
+}
+interface FormValues {
+  cliente_nombre: string;
+  cliente_documento?: string;
+  fecha_validez: Dayjs;
+  lineas: Partial<QuoteLineInput>[];
+  cliente_email?: string;
+  notas?: string;
+}
+
+const lineTotal = (l: Partial<QuoteLineInput>) => {
+  const base = (l.cantidad ?? 0) * (l.precio_unitario ?? 0);
+  const net = base - (base * (l.descuento_pct ?? 0)) / 100;
+  return net + (net * (l.impuesto_pct ?? 0)) / 100;
+};
+
+export default function QuoteFormPage() {
+  const { id } = useParams();
+  const editId = id ? Number(id) : null;
+  const navigate = useNavigate();
+  const [form] = Form.useForm<FormValues>();
+  const [products, setProducts] = useState<Record<number, ProductOpt>>({});
+  const [saving, setSaving] = useState(false);
+  const lineas = Form.useWatch("lineas", form) ?? [];
+
+  const search = async (q: string) => {
+    try {
+      const r = await getProducts({ q, page: 1, pageSize: 20 });
+      setProducts((prev) => ({ ...prev, ...Object.fromEntries(r.data.map((p: ProductOpt) => [p.id, p])) }));
+    } catch {
+      message.error("No se pudo buscar productos");
+    }
+  };
+
+  useEffect(() => {
+    search("");
+    if (!editId) return;
+    getQuote(editId)
+      .then((d) => {
+        if (d.estado !== "borrador") {
+          message.error("Solo se pueden editar borradores");
+          navigate(`/presupuestos/${editId}`, { replace: true });
+          return;
+        }
+        setProducts((prev) => ({
+          ...prev,
+          ...Object.fromEntries(
+            d.items
+              .filter((l) => l.product_id)
+              .map((l) => [
+                l.product_id!,
+                { id: l.product_id!, sku: l.sku, nombre: l.nombre, precio: l.precio_unitario },
+              ])
+          ),
+        }));
+        form.setFieldsValue({
+          cliente_nombre: d.customer_nombre,
+          cliente_documento: d.customer_documento ?? undefined,
+          fecha_validez: dayjs(d.fecha_validez),
+          lineas: d.items.map((l) => ({
+            product_id: l.product_id ?? undefined,
+            cantidad: l.cantidad,
+            precio_unitario: l.precio_unitario,
+            descuento_pct: l.descuento_pct,
+            impuesto_pct: l.impuesto_pct,
+          })),
+        });
+      })
+      .catch(() => {
+        message.error("No se pudo cargar el presupuesto");
+        navigate("/presupuestos", { replace: true });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
+  const onProductChange = (name: number, pid: number) => {
+    const p = products[pid];
+    if (!p) return;
+    const arr = form.getFieldValue("lineas");
+    arr[name] = { ...arr[name], precio_unitario: p.precio };
+    form.setFieldsValue({ lineas: arr });
+  };
+
+  const onFinish = async (v: FormValues) => {
+    const payload = {
+      cliente_nombre: v.cliente_nombre.trim(),
+      cliente_documento: v.cliente_documento?.trim() || undefined,
+      fecha_validez: v.fecha_validez.format("YYYY-MM-DD"),
+      lineas: v.lineas as QuoteLineInput[],
+      cliente_email: v.cliente_email?.trim() || undefined,
+      notas: v.notas?.trim() || undefined,
+    };
+    setSaving(true);
+    try {
+      const r = editId ? await updateQuote(editId, payload) : await createQuote(payload);
+      message.success(editId ? "Presupuesto actualizado" : "Borrador creado");
+      navigate(`/presupuestos/${r.id ?? editId}`);
+    } catch (e) {
+      const msg = isAxiosError(e)
+        ? (e.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(msg ?? "No se pudo guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card title={editId ? "Editar presupuesto" : "Nuevo presupuesto"}>
+      <Form<FormValues>
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        initialValues={{ fecha_validez: dayjs().add(15, "day"), lineas: [{}] }}
+      >
+        <Space wrap align="start">
+          <Form.Item
+            name="cliente_nombre"
+            label="Cliente"
+            rules={[
+              { required: true, message: "Requerido" },
+              { min: 2, message: "Mínimo 2 caracteres" },
+            ]}
+          >
+            <Input style={{ width: 280 }} />
+          </Form.Item>
+          <Form.Item name="cliente_documento" label="Documento">
+            <Input style={{ width: 180 }} />
+          </Form.Item>
+          <Form.Item
+            name="cliente_email"
+            label="Email"
+            rules={[{ type: "email", message: "Email inválido" }, { max: 150 }]}
+          >
+            <Input style={{ width: 280 }} />
+          </Form.Item>
+          s
+          <Form.Item
+            name="fecha_validez"
+            label="Válido hasta"
+            rules={[{ required: true, message: "Requerido" }]}
+          >
+            <DatePicker format="YYYY-MM-DD" />
+          </Form.Item>
+        </Space>
+
+        <Form.Item name="notas" label="Notas" rules={[{ max: 2000 }]}>
+          <Input.TextArea rows={3} maxLength={2000} showCount />
+        </Form.Item>
+
+        <Form.List
+          name="lineas"
+          rules={[
+            {
+              validator: async (_, v) => {
+                if (!v?.length) throw new Error("Agrega al menos una línea");
+              },
+            },
+          ]}
+        >
+          {(fields, { add, remove }, { errors }) => (
+            <>
+              {fields.map(({ key, name }) => (
+                <Space key={key} align="start" wrap>
+                  <Form.Item name={[name, "product_id"]} rules={[{ required: true, message: "Producto" }]}>
+                    <Select
+                      showSearch
+                      filterOption={false}
+                      onSearch={search}
+                      onChange={(pid: number) => onProductChange(name, pid)}
+                      placeholder="Producto"
+                      style={{ width: 280 }}
+                      options={Object.values(products).map((p) => ({
+                        value: p.id,
+                        label: `${p.sku} — ${p.nombre}`,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item name={[name, "cantidad"]} rules={[{ required: true, message: "Cant." }]}>
+                    <InputNumber min={1} placeholder="Cant." />
+                  </Form.Item>
+                  <Form.Item name={[name, "precio_unitario"]} rules={[{ required: true, message: "Precio" }]}>
+                    <InputNumber min={0} placeholder="Precio" style={{ width: 130 }} />
+                  </Form.Item>
+                  <Form.Item name={[name, "descuento_pct"]} initialValue={0}>
+                    <InputNumber min={0} max={100} addonAfter="% desc." />
+                  </Form.Item>
+                  <Form.Item name={[name, "impuesto_pct"]} initialValue={0}>
+                    <InputNumber min={0} max={100} addonAfter="% imp." />
+                  </Form.Item>
+                  <Typography.Text
+                    style={{ lineHeight: "32px", minWidth: 110, display: "inline-block", textAlign: "right" }}
+                  >
+                    {money(lineTotal(lineas[name] ?? {}))}
+                  </Typography.Text>
+                  <MinusCircleOutlined onClick={() => remove(name)} style={{ lineHeight: "32px" }} />
+                </Space>
+              ))}
+              <Form.ErrorList errors={errors} />
+              <Form.Item>
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={() => add({ descuento_pct: 0, impuesto_pct: 0 })}
+                >
+                  Agregar línea
+                </Button>
+              </Form.Item>
+            </>
+          )}
+        </Form.List>
+
+        <Typography.Title level={5} style={{ textAlign: "right" }}>
+          Total estimado: {money(lineas.reduce((s, l) => s + lineTotal(l ?? {}), 0))}
+        </Typography.Title>
+
+        <Space>
+          <Button type="primary" htmlType="submit" loading={saving}>
+            Guardar
+          </Button>
+          <Button onClick={() => navigate(editId ? `/presupuestos/${editId}` : "/presupuestos")}>
+            Cancelar
+          </Button>
+        </Space>
+      </Form>
+    </Card>
+  );
+}

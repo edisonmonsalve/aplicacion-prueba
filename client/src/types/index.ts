@@ -72,3 +72,71 @@ export interface Dashboard {
   productosStockBajo: LowStockProduct[];
   ultimosMovimientos: StockMovement[];
 }
+
+export type QuoteStatus = "borrador" | "enviado" | "aprobado" | "rechazado" | "entregado" | "vencido";
+
+export interface Quote {
+  id: number;
+  numero: string;
+  customer_nombre: string;
+  customer_documento: string | null;
+  customer_email: string | null;
+  estado: QuoteStatus;
+  fecha_validez: string;
+  notas: string | null;
+  subtotal: number;
+  descuento_total: number;
+  impuesto_total: number;
+  total: number;
+  created_by: number;
+  creador: string;
+  created_at: string;
+}
+
+export interface QuoteLine {
+  product_id: number | null;
+  sku: string;
+  nombre: string;
+  cantidad: number;
+  precio_unitario: number;
+  descuento_pct: number;
+  impuesto_pct: number;
+  total_linea: number;
+}
+
+export interface QuoteHistory {
+  estado_anterior: QuoteStatus | null;
+  estado_nuevo: QuoteStatus;
+  usuario: string;
+  created_at: string;
+}
+
+export interface QuoteDetail extends Quote {
+  items: QuoteLine[];
+  historial: QuoteHistory[];
+}
+export interface QuotesQuery {
+  q?: string;
+  estado?: QuoteStatus;
+  desde?: string;
+  hasta?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface QuoteLineInput {
+  product_id: number;
+  cantidad: number;
+  precio_unitario: number;
+  descuento_pct: number;
+  impuesto_pct: number;
+}
+
+export interface QuoteInput {
+  cliente_nombre: string;
+  cliente_documento?: string;
+  fecha_validez: string;
+  lineas: QuoteLineInput[];
+  cliente_email?: string;
+  notas?: string;
+}
