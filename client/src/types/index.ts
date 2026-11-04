@@ -77,22 +77,24 @@ export type QuoteStatus = "borrador" | "enviado" | "aprobado" | "rechazado" | "e
 
 export interface Quote {
   id: number;
-  numero: number;
-  cliente_nombre: string;
-  cliente_documento: string | null;
+  numero: string;
+  customer_nombre: string;
+  customer_documento: string | null;
+  customer_email: string | null;
   estado: QuoteStatus;
-  subtotal: number;
-  descuento: number;
-  impuesto: number;
-  total: number;
   fecha_validez: string;
-  creado_por: number;
-  creador_nombre: string;
+  notas: string | null;
+  subtotal: number;
+  descuento_total: number;
+  impuesto_total: number;
+  total: number;
+  created_by: number;
+  creador: string;
   created_at: string;
 }
 
 export interface QuoteLine {
-  id: number;
+  product_id: number | null;
   sku: string;
   nombre: string;
   cantidad: number;
@@ -103,18 +105,16 @@ export interface QuoteLine {
 }
 
 export interface QuoteHistory {
-  id: number;
   estado_anterior: QuoteStatus | null;
   estado_nuevo: QuoteStatus;
-  usuario_nombre: string;
+  usuario: string;
   created_at: string;
 }
 
 export interface QuoteDetail extends Quote {
-  lineas: QuoteLine[];
+  items: QuoteLine[];
   historial: QuoteHistory[];
 }
-
 export interface QuotesQuery {
   q?: string;
   estado?: QuoteStatus;
@@ -125,7 +125,7 @@ export interface QuotesQuery {
 }
 
 export interface QuoteLineInput {
-  producto_id: number;
+  product_id: number;
   cantidad: number;
   precio_unitario: number;
   descuento_pct: number;
@@ -137,4 +137,6 @@ export interface QuoteInput {
   cliente_documento?: string;
   fecha_validez: string;
   lineas: QuoteLineInput[];
+  cliente_email?: string;
+  notas?: string;
 }

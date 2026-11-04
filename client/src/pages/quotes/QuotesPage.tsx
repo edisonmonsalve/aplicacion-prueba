@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Input, Select, DatePicker, Table, Space, message } from "antd";
+import { Input, Select, DatePicker, Table, Space, message, Button } from "antd";
 import type { Dayjs } from "dayjs";
 import { useNavigate } from "react-router-dom";
 import { listQuotes } from "@/services/quotesService";
 import type { Quote, QuoteStatus } from "@/types";
 import { StatusTag, money, fmtDate } from "@/pages/quotes/quoteUtils";
+import { PlusOutlined } from "@ant-design/icons/es/icons/index";
 
 const ESTADOS: QuoteStatus[] = ["borrador", "enviado", "aprobado", "rechazado", "entregado", "vencido"];
 
@@ -74,6 +75,9 @@ export default function QuotesPage() {
             setPage(1);
           }}
         />
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/presupuestos/nuevo")}>
+          Nuevo
+        </Button>
       </Space>
       <Table<Quote>
         rowKey="id"
@@ -91,12 +95,12 @@ export default function QuotesPage() {
           },
         }}
         columns={[
-          { title: "Número", dataIndex: "numero", render: (n: number) => `PRE-${n}` },
-          { title: "Cliente", dataIndex: "cliente_nombre" },
+          { title: "Número", dataIndex: "numero" },
+          { title: "Cliente", dataIndex: "customer_nombre" },
           { title: "Estado", dataIndex: "estado", render: (e: QuoteStatus) => <StatusTag estado={e} /> },
           { title: "Total", dataIndex: "total", align: "right", render: money },
           { title: "Válido hasta", dataIndex: "fecha_validez", render: fmtDate },
-          { title: "Creado por", dataIndex: "creador_nombre" },
+          { title: "Creado por", dataIndex: "creador" },
         ]}
       />
     </>

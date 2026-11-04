@@ -66,7 +66,7 @@ export default function QuoteDetailPage() {
 
   if (!quote) return <Card loading />;
 
-  const canAct = user?.rol === "admin" || quote.creado_por === user?.id;
+  const canAct = user?.rol === "admin" || quote.created_by === user?.id;
 
   const confirm = (label: string, fn: (id: number) => Promise<unknown>, ok: string, danger = false) => (
     <Popconfirm
@@ -90,22 +90,31 @@ export default function QuoteDetailPage() {
         {canAct &&
           quote.estado === "enviado" &&
           confirm("Rechazar", rejectQuote, "Presupuesto rechazado", true)}
+        {canAct && quote.estado === "borrador" && (
+          <Button onClick={() => navigate(`/presupuestos/${quoteId}/editar`)} disabled={busy}>
+            Editar
+          </Button>
+        )}
         <Button onClick={onDuplicate} disabled={busy}>
           Duplicar
         </Button>
       </Space>
 
-      <Card title={`PRE-${quote.numero}`} extra={<StatusTag estado={quote.estado} />}>
+      <Card title={quote.numero} extra={<StatusTag estado={quote.estado} />}>
         <Descriptions column={2} size="small">
-          <Descriptions.Item label="Cliente">{quote.cliente_nombre}</Descriptions.Item>
-          <Descriptions.Item label="Documento">{quote.cliente_documento ?? "—"}</Descriptions.Item>
+          <Descriptions.Item label="Cliente">{quote.customer_nombre}</Descriptions.Item>
+          <Descriptions.Item label="Email">{quote.customer_email ?? "—"}</Descriptions.Item>
+          <Descriptions.Item label="Documento">{quote.customer_documento ?? "—"}</Descriptions.Item>
           <Descriptions.Item label="Válido hasta">{fmtDate(quote.fecha_validez)}</Descriptions.Item>
-          <Descriptions.Item label="Creado por">{quote.creador_nombre}</Descriptions.Item>
+          <Descriptions.Item label="Creado por">{quote.creador}</Descriptions.Item>
           <Descriptions.Item label="Subtotal">{money(quote.subtotal)}</Descriptions.Item>
-          <Descriptions.Item label="Descuento">{money(quote.descuento)}</Descriptions.Item>
-          <Descriptions.Item label="Impuesto">{money(quote.impuesto)}</Descriptions.Item>
+          <Descriptions.Item label="Descuento">{money(quote.descuento_total)}</Descriptions.Item>
+          <Descriptions.Item label="Impuesto">{money(quote.impuesto_total)}</Descriptions.Item>
           <Descriptions.Item label="Total">
             <strong>{money(quote.total)}</strong>
+          </Descriptions.Item>
+          <Descriptions.Item label="Notas" span={2}>
+            {quote.notas ?? ""}
           </Descriptions.Item>
         </Descriptions>
       </Card>
@@ -114,7 +123,7 @@ export default function QuoteDetailPage() {
         <Table<QuoteLine>
           rowKey="id"
           pagination={false}
-          dataSource={quote.lineas}
+          dataSource={quote.items}
           columns={[
             { title: "SKU", dataIndex: "sku" },
             { title: "Nombre", dataIndex: "nombre" },
@@ -129,7 +138,7 @@ export default function QuoteDetailPage() {
 
       <Card title="Historial de estados">
         <Table<QuoteHistory>
-          rowKey="id"
+          rowKey={(h) => h.created_at + h.estado_nuevo}
           pagination={false}
           dataSource={quote.historial}
           columns={[
@@ -142,7 +151,7 @@ export default function QuoteDetailPage() {
                 </>
               ),
             },
-            { title: "Usuario", dataIndex: "usuario_nombre" },
+            { title: "Usuario", dataIndex: "usuario" },
             { title: "Fecha", dataIndex: "created_at", render: fmtDateTime },
           ]}
         />

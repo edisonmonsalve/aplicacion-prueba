@@ -10,6 +10,7 @@ import ProductsPage from "@/pages/ProductsPage";
 import MovementsPage from "@/pages/MovementsPage";
 import QuotesPage from "@/pages/quotes/QuotesPage";
 import QuoteDetailPage from "./pages/quotes/QuoteDetailPage";
+import QuoteFormPage from "./pages/quotes/QuoteFormPage";
 
 export default function App() {
   return (
@@ -40,6 +41,8 @@ export default function App() {
             <Route path="/movements" element={<MovementsPage />} />
             <Route path="/presupuestos" element={<QuotesPage />} />
             <Route path="/presupuestos/:id" element={<QuoteDetailPage />} />
+            <Route path="/presupuestos/nuevo" element={<QuoteFormPage />} />
+            <Route path="/presupuestos/:id/editar" element={<QuoteFormPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
