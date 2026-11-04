@@ -1,6 +1,8 @@
 # Sistema de Usuarios e Inventario
 
-Aplicación fullstack para gestionar usuarios, productos, categorías y movimientos de stock. Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio y transacciones SQL.
+Aplicación fullstack para gestionar usuarios, productos, categorías, movimientos de stock y presupuestos (cotizaciones). Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio, transacciones SQL, cálculos monetarios y máquinas de estado.
+
+El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos-presupuestos.md`](requisitos-presupuestos.md).
 
 ## Funcionalidades
 
@@ -10,26 +12,28 @@ Aplicación fullstack para gestionar usuarios, productos, categorías y movimien
 - **Productos:** listar con búsqueda, filtros por categoría, estado y stock bajo; crear, editar y desactivar.
 - **Movimientos de stock:** registrar entradas y salidas con motivo, e historial filtrable por producto y tipo.
 - **Alertas:** indicador visual de productos con stock por debajo del mínimo.
+- **Presupuestos:** crear borradores con datos del cliente y líneas de productos; totales calculados en el servidor (descuentos e impuestos, redondeo a 2 decimales); enviar, aprobar y rechazar con historial de estados; duplicar presupuestos; auditoría de las ediciones de cada borrador. El operador solo ve y duplica los suyos; el admin ve todos.
 
 ## Stack
 
-| Capa | Tecnología |
-|---|---|
-| Frontend | React, TypeScript, Vite, Ant Design, React Router, Axios |
-| Backend | Node.js, Express 5, TypeScript, Zod |
-| Base de datos | MariaDB (driver `mysql2`) |
-| Seguridad | JWT, bcryptjs |
+| Capa          | Tecnología                                               |
+| ------------- | -------------------------------------------------------- |
+| Frontend      | React, TypeScript, Vite, Ant Design, React Router, Axios |
+| Backend       | Node.js, Express 5, TypeScript, Zod                      |
+| Base de datos | MariaDB (driver `mysql2`)                                |
+| Seguridad     | JWT, bcryptjs                                            |
+| Pruebas y CI  | Vitest, Supertest, ESLint, GitHub Actions                |
 
 ## Roles y permisos
 
-| Acción | Admin | Operador |
-|---|:---:|:---:|
-| Ver categorías, productos y movimientos | Sí | Sí |
-| Crear y editar productos | Sí | Sí |
-| Registrar movimientos de stock | Sí | Sí |
-| Desactivar productos | Sí | No |
-| Crear, editar y eliminar categorías | Sí | No |
-| Gestionar usuarios | Sí | No |
+| Acción                                  | Admin | Operador |
+| --------------------------------------- | :---: | :------: |
+| Ver categorías, productos y movimientos |  Sí   |    Sí    |
+| Crear y editar productos                |  Sí   |    Sí    |
+| Registrar movimientos de stock          |  Sí   |    Sí    |
+| Desactivar productos                    |  Sí   |    No    |
+| Crear, editar y eliminar categorías     |  Sí   |    No    |
+| Gestionar usuarios                      |  Sí   |    No    |
 
 ## Reglas de negocio
 
@@ -40,6 +44,21 @@ Aplicación fullstack para gestionar usuarios, productos, categorías y movimien
 - **RN-05:** una categoría con productos asociados no se puede eliminar.
 - **RN-06:** un usuario no puede desactivarse a sí mismo ni quitarse el rol de admin.
 - **RN-07:** precios y cantidades deben ser mayores que cero.
+
+### Presupuestos
+
+- **RN-P01:** solo los borradores se editan o eliminan; un presupuesto enviado es inmutable (para cambiarlo se duplica).
+- **RN-P02:** cada línea guarda una copia del SKU, nombre y precio al cotizar; cambios del catálogo no alteran presupuestos existentes.
+- **RN-P03:** solo productos activos, cantidad entera mayor que cero, sin repetir producto en el mismo presupuesto.
+- **RN-P04:** el descuento va de 0 a 100 %; el operador aplica hasta 10 %, más requiere admin.
+- **RN-P05:** los totales los calcula siempre el servidor, con redondeo a 2 decimales.
+- **RN-P06:** un presupuesto enviado cuya validez ya pasó se muestra como vencido (estado calculado) y no puede aprobarse.
+- **RN-P07:** cotizar no reserva stock.
+- **RN-P10:** se necesita al menos una línea para enviar.
+- **RN-P11:** la fecha de validez no puede ser anterior a hoy.
+- **RN-P12:** cada cambio de estado queda registrado con quién lo hizo y cuándo.
+- **RN-P13:** el operador solo ve y duplica sus propios presupuestos.
+- **Pendiente:** RN-P08 y RN-P09 (entrega con descuento transaccional de stock), próximo ticket del backend.
 
 ## Estructura del proyecto
 
@@ -54,16 +73,17 @@ Aplicación fullstack para gestionar usuarios, productos, categorías y movimien
 │       ├── types/           # interfaces compartidas
 │       └── utils/           # errores y formato de moneda
 └── server/                  # Express + TypeScript
-    ├── migrations/          # SQL numeradas (V001, V002, ...)
+    ├── migrations/          # SQL numeradas (V001 a V006, presupuestos desde V003)
     └── src/
         ├── db/
         │   └── migrator.ts  # ejecutor de migraciones
         ├── config/          # conexión a MariaDB
         ├── middlewares/     # autenticación, roles y manejo central de errores
-        ├── modules/         # auth, users, categories, products, movements
-        │   └── <módulo>/    # routes, service y schema (validación con Zod)
-        ├── scripts/         # seed del usuario admin
-        └── utils/           # HttpError y helpers de SQL
+        ├── modules/         # auth, users, categories, products, movements, dashboard, quotes
+        │   └── quotes/      # incluye submódulo audit/ (auditoría de ediciones)
+        ├── scripts/         # seed admin, ejecutor de migraciones, base de pruebas
+        ├── types/           # tipos de Express (req.user)
+        └── utils/           # HttpError, helpers de SQL, transacciones y fechas
 ```
 
 ## Requisitos previos
@@ -75,15 +95,7 @@ Aplicación fullstack para gestionar usuarios, productos, categorías y movimien
 
 ### 1. Base de datos
 
-El esquema se gestiona con migraciones SQL numeradas en `server/migrations/`. Con `.env` configurado:
-
-​```bash
-cd server
-npm run migrate
-​```
-
 Esto crea la base si no existe y aplica las migraciones pendientes. Si ya tenías una base creada con el esquema anterior, adóptala con `npm run migrate -- --baseline=1`.
-Esto crea la base `inventario` con sus cuatro tablas.
 
 ### 2. Backend
 
@@ -95,13 +107,13 @@ cp .env.example .env     # en Windows: copy .env.example .env
 
 Edita `.env` con tus datos:
 
-| Variable | Descripción |
-|---|---|
-| `PORT` | Puerto de la API (por defecto 3000) |
-| `DB_HOST`, `DB_PORT` | Servidor de MariaDB |
-| `DB_USER`, `DB_PASSWORD` | Credenciales de la base |
-| `DB_NAME` | Nombre de la base (`inventario`) |
-| `JWT_SECRET` | Cadena larga y aleatoria para firmar los tokens |
+| Variable                 | Descripción                                     |
+| ------------------------ | ----------------------------------------------- |
+| `PORT`                   | Puerto de la API (por defecto 3000)             |
+| `DB_HOST`, `DB_PORT`     | Servidor de MariaDB                             |
+| `DB_USER`, `DB_PASSWORD` | Credenciales de la base                         |
+| `DB_NAME`                | Nombre de la base (`inventario`)                |
+| `JWT_SECRET`             | Cadena larga y aleatoria para firmar los tokens |
 
 Crea el primer usuario administrador:
 
@@ -129,35 +141,48 @@ La aplicación queda en `http://localhost:5173`. En desarrollo, Vite redirige la
 
 ## Scripts
 
-| Carpeta | Comando | Descripción |
-|---|---|---|
-| `server` | `npm run dev` | Servidor con recarga automática |
-| `server` | `npm run build` | Compila TypeScript a `dist/` |
-| `server` | `npm start` | Ejecuta la versión compilada |
-| `server` | `npm run seed:admin -- correo clave` | Crea un usuario administrador |
-| `client` | `npm run dev` | Servidor de desarrollo |
-| `client` | `npm run build` | Verifica tipos y genera el build |
-| `client` | `npm run lint` | Revisa el código con ESLint |
+| Carpeta  | Comando                              | Descripción                                |
+| -------- | ------------------------------------ | ------------------------------------------ |
+| `server` | `npm run dev`                        | Servidor con recarga automática            |
+| `server` | `npm run build`                      | Compila TypeScript a `dist/`               |
+| `server` | `npm start`                          | Ejecuta la versión compilada               |
+| `server` | `npm run seed:admin -- correo clave` | Crea un usuario administrador              |
+| `client` | `npm run dev`                        | Servidor de desarrollo                     |
+| `client` | `npm run build`                      | Verifica tipos y genera el build           |
+| `client` | `npm run lint`                       | Revisa el código con ESLint                |
+| `server` | `npm run typecheck`                  | Verifica tipos sin compilar                |
+| `server` | `npm run lint`                       | Revisa el código con ESLint                |
+| `server` | `npm run test:watch`                 | Pruebas en modo observador                 |
+| `server` | `npm run test:db`                    | Crea/actualiza la base de datos de pruebas |
 
 ## API
 
 Todas las rutas, salvo el login y `health`, requieren el encabezado `Authorization: Bearer <token>`.
 
-| Método | Ruta | Acceso | Descripción |
-|---|---|---|---|
-| GET | `/api/health` | Público | Estado del servidor y la base |
-| POST | `/api/auth/login` | Público | Inicio de sesión |
-| GET | `/api/auth/me` | Autenticado | Datos de la sesión |
-| PUT | `/api/auth/password` | Autenticado | Cambiar la propia contraseña |
-| GET, POST | `/api/users` | Admin | Listar (paginado y filtrado) y crear |
-| PUT | `/api/users/:id` | Admin | Editar |
-| PATCH | `/api/users/:id/activo` | Admin | Activar o desactivar |
-| GET | `/api/categories` | Autenticado | Listar con conteo de productos |
-| POST, PUT, DELETE | `/api/categories[/:id]` | Admin | Crear, editar y eliminar |
-| GET, POST | `/api/products` | Autenticado | Listar (paginado y filtrado) y crear |
-| PUT | `/api/products/:id` | Autenticado | Editar |
-| PATCH | `/api/products/:id/activo` | Admin | Activar o desactivar |
-| GET, POST | `/api/movements` | Autenticado | Historial (paginado) y registrar movimiento |
+| Método            | Ruta                        | Acceso          | Descripción                                   |
+| ----------------- | --------------------------- | --------------- | --------------------------------------------- |
+| GET               | `/api/health`               | Público         | Estado del servidor y la base                 |
+| POST              | `/api/auth/login`           | Público         | Inicio de sesión                              |
+| GET               | `/api/auth/me`              | Autenticado     | Datos de la sesión                            |
+| PUT               | `/api/auth/password`        | Autenticado     | Cambiar la propia contraseña                  |
+| GET, POST         | `/api/users`                | Admin           | Listar (paginado y filtrado) y crear          |
+| PUT               | `/api/users/:id`            | Admin           | Editar                                        |
+| PATCH             | `/api/users/:id/activo`     | Admin           | Activar o desactivar                          |
+| GET               | `/api/categories`           | Autenticado     | Listar con conteo de productos                |
+| POST, PUT, DELETE | `/api/categories[/:id]`     | Admin           | Crear, editar y eliminar                      |
+| GET, POST         | `/api/products`             | Autenticado     | Listar (paginado y filtrado) y crear          |
+| PUT               | `/api/products/:id`         | Autenticado     | Editar                                        |
+| PATCH             | `/api/products/:id/activo`  | Admin           | Activar o desactivar                          |
+| GET, POST         | `/api/movements`            | Autenticado     | Historial (paginado) y registrar movimiento   |
+| GET, POST         | `/api/quotes`               | Autenticado     | Listar (paginado y filtrado) y crear borrador |
+| GET               | `/api/quotes/:id`           | Autenticado     | Detalle con líneas                            |
+| PUT               | `/api/quotes/:id`           | Creador o admin | Editar borrador                               |
+| DELETE            | `/api/quotes/:id`           | Creador o admin | Eliminar borrador                             |
+| POST              | `/api/quotes/:id/duplicate` | Autenticado     | Duplicar como borrador nuevo                  |
+| POST              | `/api/quotes/:id/send`      | Creador o admin | Enviar                                        |
+| POST              | `/api/quotes/:id/approve`   | Creador o admin | Aprobar                                       |
+| POST              | `/api/quotes/:id/reject`    | Creador o admin | Rechazar                                      |
+| GET               | `/api/quotes/:id/history`   | Autenticado     | Historial de estados                          |
 
 Los errores siguen un formato único: `{ "message": "..." }`, con códigos 400 (datos inválidos), 401 (sin sesión), 403 (sin permiso), 404, 409 (conflicto con una regla de negocio) y 500.
 
@@ -166,7 +191,8 @@ Los errores siguen un formato único: `{ "message": "..." }`, con códigos 400 (
 Las pruebas del servidor usan Vitest y Supertest contra una base de datos aparte (`inventario_test`), para no tocar los datos de desarrollo.
 
 1. Crea `server/.env.test` con las mismas variables que `.env`, pero con `DB_NAME=inventario_test`.
-2. Crea la base de pruebas (una sola vez, o cuando cambie `schema.sql`):
+2. Crea la base de pruebas (una sola vez, o cuando cambien las migraciones):
+   Cubren autenticación y permisos por rol, las reglas de negocio del inventario (SKU único, categorías con productos, precios válidos) y los movimientos de stock, incluida una prueba de concurrencia. También el módulo de presupuestos: esquemas y validación, cálculo de totales, reglas de líneas (producto activo, sin repetir, descuento por rol), visibilidad por rol, transiciones de estado permitidas y prohibidas, y vencimiento por fecha de validez.
 
    ```bash
    cd server
@@ -192,11 +218,12 @@ Cubren autenticación y permisos por rol, las reglas de negocio del inventario (
 
 ## Posibles mejoras
 
-- [x] Panel de inicio con indicadores (productos, stock bajo, últimos movimientos)
-- [x] Pruebas automáticas de las reglas de negocio (Vitest y Supertest)
-- [ ] Exportación de inventario e historial a CSV o Excel
-- [ ] Tokens de vida corta con refresh tokens
-- [ ] Despliegue en la nube
+- Entrega de presupuestos con descuento transaccional de stock (RF-P07, RN-P08, RN-P09)
+- Frontend del módulo de presupuestos (lista, detalle y formulario con líneas dinámicas)
+- Exportación de inventario, historial y presupuestos a CSV o Excel
+- Vista de impresión o PDF de presupuestos (RF-P09)
+- Tokens de vida corta con refresh tokens
+- Despliegue en la nube
 
 ## Autor
 
