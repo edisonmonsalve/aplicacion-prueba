@@ -1,35 +1,14 @@
 import { api } from "./api";
-import type { Paginated } from "@/types";
+import type { Quote, QuoteDetail, QuotesQuery } from "../types";
 
-export type QuoteStatus =
-  | "borrador"
-  | "enviado"
-  | "aprobado"
-  | "rechazado"
-  | "vencido";
+export const listQuotes = async (params: QuotesQuery) =>
+  (await api.get<{ data: Quote[]; total: number }>("/quotes", { params })).data;
 
-export interface Quote {
-  id: number;
-  numero: string;
-  customer_nombre: string;
-  estado: QuoteStatus;
-  fecha_validez: string;
-  total: number;
-  creador: string;
-  created_at: string;
-}
+export const getQuote = async (id: number) => (await api.get<QuoteDetail>(`/quotes/${id}`)).data;
 
-export interface QuotesQuery {
-  page: number;
-  pageSize: number;
-  q?: string;
-  estado?: QuoteStatus;
-}
+export const sendQuote = (id: number) => api.post(`/quotes/${id}/send`);
+export const approveQuote = (id: number) => api.post(`/quotes/${id}/approve`);
+export const rejectQuote = (id: number) => api.post(`/quotes/${id}/reject`);
 
-export async function getQuotes(params: QuotesQuery) {
-  const { data } = await api.get<Paginated<Quote>>("/quotes", {
-    params,
-  });
-
-  return data;
-}
+export const duplicateQuote = async (id: number) =>
+  (await api.post<{ id: number }>(`/quotes/${id}/duplicate`)).data;
