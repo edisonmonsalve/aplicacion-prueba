@@ -1,14 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { ConfigProvider } from "antd";
-import esES from "antd/locale/es_ES";
 import App from "@/App";
 import "./index.css";
+import { ThemeProvider } from "@/context/ThemeContext";
+import "@fontsource-variable/plus-jakarta-sans";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ConfigProvider locale={esES}>
+    <ThemeProvider>
       <App />
-    </ConfigProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

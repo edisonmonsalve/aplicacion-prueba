@@ -1,8 +1,19 @@
-import { Button, Layout, Menu, Space, Typography, message, theme } from "antd";
+import { Button, Layout, Menu, Space, Switch, Typography, message, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
+import {
+  DashboardOutlined,
+  ShoppingOutlined,
+  SwapOutlined,
+  TagsOutlined,
+  FileTextOutlined,
+  TeamOutlined,
+  MoonOutlined,
+  SunOutlined,
+} from "@ant-design/icons";
+import { useThemeMode } from "@/context/ThemeContext";
 
 const { Sider, Header, Content } = Layout;
 
@@ -15,13 +26,16 @@ export default function AppLayout() {
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
+  const { mode, toggle } = useThemeMode();
+  const selected = "/" + (pathname.split("/")[1] ?? "");
+
   const items = [
-    { key: "/", label: "Inicio" },
-    { key: "/products", label: "Productos" },
-    { key: "/movements", label: "Movimientos" },
-    { key: "/categories", label: "Categorías" },
-    { key: "/presupuestos", label: "Presupuestos" },
-    ...(user?.rol === "admin" ? [{ key: "/users", label: "Usuarios" }] : []),
+    { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
+    { key: "/products", icon: <ShoppingOutlined />, label: "Productos" },
+    { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
+    { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
+    { key: "/presupuestos", icon: <FileTextOutlined />, label: "Presupuestos" },
+    ...(user?.rol === "admin" ? [{ key: "/users", icon: <TeamOutlined />, label: "Usuarios" }] : []),
   ];
 
   return (
@@ -31,7 +45,7 @@ export default function AppLayout() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[pathname]}
+          selectedKeys={[selected]}
           items={items}
           onClick={({ key }) => navigate(key)}
         />
@@ -48,6 +62,12 @@ export default function AppLayout() {
           }}
         >
           <Space>
+            <Switch
+              checked={mode === "dark"}
+              onChange={toggle}
+              checkedChildren={<MoonOutlined />}
+              unCheckedChildren={<SunOutlined />}
+            />
             <Typography.Text>
               {user?.nombre} ({user?.rol})
             </Typography.Text>
