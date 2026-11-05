@@ -46,23 +46,26 @@ describe("Presupuestos: borradores", () => {
     // Si el producto cambia después, el presupuesto no se altera
     await request(app).put(`/api/products/${a}`).set(bearer(admin.token)).send({ precio: 9000 });
 
-    const [item] = await rows(
-      "SELECT sku, nombre, precio_unitario FROM quote_items WHERE quote_id = ?",
-      [res.body.id]
-    );
+    const [item] = await rows("SELECT sku, nombre, precio_unitario FROM quote_items WHERE quote_id = ?", [
+      res.body.id,
+    ]);
     expect(Number(item.precio_unitario)).toBe(1000);
     expect(item.sku).toBe("A");
   });
 
   it("valida las líneas y no deja datos a medias (RN-P03)", async () => {
     const { admin, a, b } = await setup();
-    await request(app)
-      .patch(`/api/products/${b}/activo`)
-      .set(bearer(admin.token))
-      .send({ activo: false });
+    await request(app).patch(`/api/products/${b}/activo`).set(bearer(admin.token)).send({ activo: false });
 
     const cases: [string, object[], number][] = [
-      ["producto repetido", [{ product_id: a, cantidad: 1 }, { product_id: a, cantidad: 2 }], 400],
+      [
+        "producto repetido",
+        [
+          { product_id: a, cantidad: 1 },
+          { product_id: a, cantidad: 2 },
+        ],
+        400,
+      ],
       ["producto inexistente", [{ product_id: 99999, cantidad: 1 }], 400],
       ["cantidad cero", [{ product_id: a, cantidad: 0 }], 400],
       ["producto inactivo", [{ product_id: b, cantidad: 1 }], 409],
@@ -145,8 +148,14 @@ describe("Presupuestos: borradores", () => {
     const otherToken = await loginAs(other.email);
     const body = draft([{ product_id: a, cantidad: 2 }]);
 
-    const byOther = await request(app).put(`/api/quotes/${created.body.id}`).set(bearer(otherToken)).send(body);
-    const byAdmin = await request(app).put(`/api/quotes/${created.body.id}`).set(bearer(admin.token)).send(body);
+    const byOther = await request(app)
+      .put(`/api/quotes/${created.body.id}`)
+      .set(bearer(otherToken))
+      .send(body);
+    const byAdmin = await request(app)
+      .put(`/api/quotes/${created.body.id}`)
+      .set(bearer(admin.token))
+      .send(body);
 
     expect(byOther.status).toBe(403);
     expect(byAdmin.status).toBe(200);
@@ -171,184 +180,6 @@ describe("Presupuestos: borradores", () => {
   });
 });
 
-
-// describe("Presupuestos: transiciones de estado", () => {
-//   beforeEach(resetDb);
-
-//   it("permite enviar un borrador y registra el historial", async () => {
-//     const { admin, a } = await setup();
-
-//     const created = await createQuote(
-//       admin.token,
-//       draft([{ product_id: a, cantidad: 1 }])
-//     );
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(admin.token));
-
-//     expect(res.status).toBe(200);
-//     expect(res.body).toMatchObject({
-//       estado_anterior: "borrador",
-//       estado_nuevo: "enviado",
-//     });
-
-//     const history = await rows(
-//       `SELECT estado_anterior, estado_nuevo, user_id
-//        FROM quote_status_history
-//        WHERE quote_id = ?
-//        ORDER BY id`,
-//       [created.body.id]
-//     );
-
-//     expect(history).toHaveLength(2);
-//     expect(history[1].estado_anterior).toBe("borrador");
-//     expect(history[1].estado_nuevo).toBe("enviado");
-//   });
-
-//   it("permite aprobar un presupuesto enviado", async () => {
-//     const { admin, a } = await setup();
-
-//     const created = await createQuote(
-//       admin.token,
-//       draft([{ product_id: a, cantidad: 1 }])
-//     );
-
-//     await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(admin.token));
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/approve`)
-//       .set(bearer(admin.token));
-
-//     expect(res.status).toBe(200);
-//     expect(res.body.estado_nuevo).toBe("aprobado");
-
-//     const [quote] = await rows(
-//       "SELECT estado FROM quotes WHERE id = ?",
-//       [created.body.id]
-//     );
-
-//     expect(quote.estado).toBe("aprobado");
-//   });
-
-//   it("permite rechazar un presupuesto enviado", async () => {
-//     const { admin, a } = await setup();
-
-//     const created = await createQuote(
-//       admin.token,
-//       draft([{ product_id: a, cantidad: 1 }])
-//     );
-
-//     await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(admin.token));
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/reject`)
-//       .set(bearer(admin.token));
-
-//     expect(res.status).toBe(200);
-//     expect(res.body.estado_nuevo).toBe("rechazado");
-//   });
-
-//   it("no permite enviar un presupuesto sin productos", async () => {
-//     const { admin } = await setup();
-
-//     const created = await createQuote(admin.token, draft([]));
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(admin.token));
-
-//     expect(res.status).toBe(400);
-
-//     const [quote] = await rows(
-//       "SELECT estado FROM quotes WHERE id = ?",
-//       [created.body.id]
-//     );
-
-//     expect(quote.estado).toBe("borrador");
-//   });
-
-//   it("no permite aprobar un presupuesto vencido", async () => {
-//     const { admin, a } = await setup();
-
-//     const created = await createQuote(
-//       admin.token,
-//       draft([{ product_id: a, cantidad: 1 }])
-//     );
-
-//     await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(admin.token));
-
-//     await pool.query(
-//       "UPDATE quotes SET fecha_validez = ? WHERE id = ?",
-//       [futureDate(-1), created.body.id]
-//     );
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/approve`)
-//       .set(bearer(admin.token));
-
-//     expect(res.status).toBe(400);
-//   });
-
-//   it("no permite transiciones desde un estado incorrecto", async () => {
-//     const { admin, a } = await setup();
-
-//     const created = await createQuote(
-//       admin.token,
-//       draft([{ product_id: a, cantidad: 1 }])
-//     );
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/approve`)
-//       .set(bearer(admin.token));
-
-//     expect(res.status).toBe(409);
-//   });
-
-//   it("no permite modificar el estado de otro operador", async () => {
-//     const { operador, a } = await setup();
-
-//     const created = await createQuote(
-//       operador.token,
-//       draft([{ product_id: a, cantidad: 1 }])
-//     );
-
-//     const other = await createUser("operador", "otro@test.com");
-//     const otherToken = await loginAs(other.email);
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(otherToken));
-
-//     expect(res.status).toBe(403);
-//   });
-
-//   it("no permite volver a enviar un presupuesto enviado", async () => {
-//     const { admin, a } = await setup();
-
-//     const created = await createQuote(
-//       admin.token,
-//       draft([{ product_id: a, cantidad: 1 }])
-//     );
-
-//     await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(admin.token));
-
-//     const res = await request(app)
-//       .post(`/api/quotes/${created.body.id}/send`)
-//       .set(bearer(admin.token));
-
-//     expect(res.status).toBe(409);
-//   });
-// });
-
 describe("Presupuestos: historial de auditoría", () => {
   beforeEach(resetDb);
 
@@ -367,9 +198,7 @@ describe("Presupuestos: historial de auditoría", () => {
       ])
     );
 
-    const res = await request(app)
-      .get(`/api/quotes/${quote.body.id}/history`)
-      .set(bearer(admin.token));
+    const res = await request(app).get(`/api/quotes/${quote.body.id}/history`).set(bearer(admin.token));
 
     expect(res.status).toBe(200);
     expect(res.body.quote_id).toBe(quote.body.id);
@@ -398,9 +227,7 @@ describe("Presupuestos: historial de auditoría", () => {
       ])
     );
 
-    const res = await request(app)
-      .get(`/api/quotes/${quote.body.id}/history`)
-      .set(bearer(operador.token));
+    const res = await request(app).get(`/api/quotes/${quote.body.id}/history`).set(bearer(operador.token));
 
     expect(res.status).toBe(200);
     expect(res.body.history).toHaveLength(1);
@@ -421,14 +248,9 @@ describe("Presupuestos: historial de auditoría", () => {
       ])
     );
 
-    await pool.query(
-      "DELETE FROM quote_status_history WHERE quote_id = ?",
-      [quote.body.id]
-    );
+    await pool.query("DELETE FROM quote_status_history WHERE quote_id = ?", [quote.body.id]);
 
-    const res = await request(app)
-      .get(`/api/quotes/${quote.body.id}/history`)
-      .set(bearer(admin.token));
+    const res = await request(app).get(`/api/quotes/${quote.body.id}/history`).set(bearer(admin.token));
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -440,9 +262,7 @@ describe("Presupuestos: historial de auditoría", () => {
   it("devuelve 404 cuando el presupuesto no existe", async () => {
     const { admin } = await setup();
 
-    const res = await request(app)
-      .get("/api/quotes/999999/history")
-      .set(bearer(admin.token));
+    const res = await request(app).get("/api/quotes/999999/history").set(bearer(admin.token));
 
     expect(res.status).toBe(404);
   });
@@ -465,9 +285,7 @@ describe("Presupuestos: historial de auditoría", () => {
     const other = await createUser("operador", "otro@test.com");
     const otherToken = await loginAs(other.email);
 
-    const res = await request(app)
-      .get(`/api/quotes/${quote.body.id}/history`)
-      .set(bearer(otherToken));
+    const res = await request(app).get(`/api/quotes/${quote.body.id}/history`).set(bearer(otherToken));
 
     expect(res.status).toBe(403);
   });
@@ -489,28 +307,20 @@ describe("Presupuestos: historial de auditoría", () => {
 
     const id = quote.body.id;
 
-    const send = await request(app)
-      .post(`/api/quotes/${id}/send`)
-      .set(bearer(operador.token));
+    const send = await request(app).post(`/api/quotes/${id}/send`).set(bearer(operador.token));
 
     expect(send.status).toBe(200);
 
-    const approve = await request(app)
-      .post(`/api/quotes/${id}/approve`)
-      .set(bearer(operador.token));
+    const approve = await request(app).post(`/api/quotes/${id}/approve`).set(bearer(operador.token));
 
     expect(approve.status).toBe(200);
 
-    const res = await request(app)
-      .get(`/api/quotes/${id}/history`)
-      .set(bearer(operador.token));
+    const res = await request(app).get(`/api/quotes/${id}/history`).set(bearer(operador.token));
 
     expect(res.status).toBe(200);
     expect(res.body.history).toHaveLength(3);
 
-    expect(
-      res.body.history.map((item: { estado_nuevo: string }) => item.estado_nuevo)
-    ).toEqual([
+    expect(res.body.history.map((item: { estado_nuevo: string }) => item.estado_nuevo)).toEqual([
       "aprobado",
       "enviado",
       "borrador",
@@ -524,17 +334,11 @@ describe("Presupuestos: auditoría de modificaciones", () => {
   it("registra los cambios realizados en una cotización", async () => {
     const { admin, a } = await setup();
 
-    const original = draft(
-      [{ product_id: a, cantidad: 1 }],
-      { customer_nombre: "Cliente original" }
-    );
+    const original = draft([{ product_id: a, cantidad: 1 }], { customer_nombre: "Cliente original" });
 
     const created = await createQuote(admin.token, original);
 
-    const updated = draft(
-      [{ product_id: a, cantidad: 2 }],
-      { customer_nombre: "Cliente actualizado" }
-    );
+    const updated = draft([{ product_id: a, cantidad: 2 }], { customer_nombre: "Cliente actualizado" });
 
     const res = await request(app)
       .put(`/api/quotes/${created.body.id}`)
@@ -554,9 +358,7 @@ describe("Presupuestos: auditoría de modificaciones", () => {
     expect(Number(auditRows[0].user_id)).toBe(admin.id);
 
     const changes =
-      typeof auditRows[0].changes === "string"
-        ? JSON.parse(auditRows[0].changes)
-        : auditRows[0].changes;
+      typeof auditRows[0].changes === "string" ? JSON.parse(auditRows[0].changes) : auditRows[0].changes;
 
     expect(changes).toMatchObject({
       customer_nombre: {
@@ -572,10 +374,7 @@ describe("Presupuestos: auditoría de modificaciones", () => {
   it("no registra auditoría cuando no existen cambios", async () => {
     const { admin, a } = await setup();
 
-    const payload = draft(
-      [{ product_id: a, cantidad: 1 }],
-      { customer_nombre: "Cliente original" }
-    );
+    const payload = draft([{ product_id: a, cantidad: 1 }], { customer_nombre: "Cliente original" });
 
     const created = await createQuote(admin.token, payload);
 
@@ -586,10 +385,7 @@ describe("Presupuestos: auditoría de modificaciones", () => {
 
     expect(res.status).toBe(200);
 
-    const auditRows = await rows(
-      "SELECT id FROM quote_audit_log WHERE quote_id = ?",
-      [created.body.id]
-    );
+    const auditRows = await rows("SELECT id FROM quote_audit_log WHERE quote_id = ?", [created.body.id]);
 
     expect(auditRows).toHaveLength(0);
   });
@@ -599,10 +395,7 @@ describe("Presupuestos: auditoría de modificaciones", () => {
 
     const created = await createQuote(
       admin.token,
-      draft(
-        [{ product_id: a, cantidad: 1 }],
-        { customer_nombre: "Cliente original" }
-      )
+      draft([{ product_id: a, cantidad: 1 }], { customer_nombre: "Cliente original" })
     );
 
     await pool.query("DROP TRIGGER IF EXISTS fail_quote_audit_insert");
@@ -619,32 +412,19 @@ describe("Presupuestos: auditoría de modificaciones", () => {
       const res = await request(app)
         .put(`/api/quotes/${created.body.id}`)
         .set(bearer(admin.token))
-        .send(
-          draft(
-            [{ product_id: a, cantidad: 2 }],
-            { customer_nombre: "Cliente modificado" }
-          )
-        );
+        .send(draft([{ product_id: a, cantidad: 2 }], { customer_nombre: "Cliente modificado" }));
 
       expect(res.status).toBe(500);
 
-      const [quote] = await rows(
-        "SELECT customer_nombre FROM quotes WHERE id = ?",
-        [created.body.id]
-      );
+      const [quote] = await rows("SELECT customer_nombre FROM quotes WHERE id = ?", [created.body.id]);
 
       expect(quote.customer_nombre).toBe("Cliente original");
 
-      const auditRows = await rows(
-        "SELECT id FROM quote_audit_log WHERE quote_id = ?",
-        [created.body.id]
-      );
+      const auditRows = await rows("SELECT id FROM quote_audit_log WHERE quote_id = ?", [created.body.id]);
 
       expect(auditRows).toHaveLength(0);
     } finally {
-      await pool.query(
-        "DROP TRIGGER IF EXISTS fail_quote_audit_insert"
-      );
+      await pool.query("DROP TRIGGER IF EXISTS fail_quote_audit_insert");
     }
   });
 
@@ -653,10 +433,7 @@ describe("Presupuestos: auditoría de modificaciones", () => {
 
     const created = await createQuote(
       operador.token,
-      draft(
-        [{ product_id: a, cantidad: 1 }],
-        { customer_nombre: "Cliente original" }
-      )
+      draft([{ product_id: a, cantidad: 1 }], { customer_nombre: "Cliente original" })
     );
 
     const other = await createUser("operador", "otro@test.com");
@@ -665,26 +442,15 @@ describe("Presupuestos: auditoría de modificaciones", () => {
     const res = await request(app)
       .put(`/api/quotes/${created.body.id}`)
       .set(bearer(otherToken))
-      .send(
-        draft(
-          [{ product_id: a, cantidad: 2 }],
-          { customer_nombre: "Cliente modificado" }
-        )
-      );
+      .send(draft([{ product_id: a, cantidad: 2 }], { customer_nombre: "Cliente modificado" }));
 
     expect(res.status).toBe(403);
 
-    const [quote] = await rows(
-      "SELECT customer_nombre FROM quotes WHERE id = ?",
-      [created.body.id]
-    );
+    const [quote] = await rows("SELECT customer_nombre FROM quotes WHERE id = ?", [created.body.id]);
 
     expect(quote.customer_nombre).toBe("Cliente original");
 
-    const auditRows = await rows(
-      "SELECT id FROM quote_audit_log WHERE quote_id = ?",
-      [created.body.id]
-    );
+    const auditRows = await rows("SELECT id FROM quote_audit_log WHERE quote_id = ?", [created.body.id]);
 
     expect(auditRows).toHaveLength(0);
   });

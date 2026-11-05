@@ -6,7 +6,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof ZodError) {
     res.status(400).json({ message: "Datos inválidos", errors: err.issues });
   } else if (err instanceof HttpError) {
-    res.status(err.status).json({ message: err.message });
+    res.status(err.status).json({
+      message: err.message,
+      ...(err.details !== undefined && { errors: err.details }),
+    });
   } else if (err?.code === "ER_DUP_ENTRY") {
     const detail = String(err.sqlMessage ?? "");
     const message = detail.includes("uq_products_sku")
