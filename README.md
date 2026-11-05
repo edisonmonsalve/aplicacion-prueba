@@ -12,7 +12,7 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 - **Productos:** listar con búsqueda, filtros por categoría, estado y stock bajo; crear, editar y desactivar.
 - **Movimientos de stock:** registrar entradas y salidas con motivo, e historial filtrable por producto y tipo.
 - **Alertas:** indicador visual de productos con stock por debajo del mínimo.
-- **Presupuestos:** crear borradores con datos del cliente y líneas de productos; totales calculados en el servidor (descuentos e impuestos, redondeo a 2 decimales); enviar, aprobar y rechazar con historial de estados; duplicar presupuestos; auditoría de las ediciones de cada borrador. El operador solo ve y duplica los suyos; el admin ve todos.
+- **Presupuestos:** crear y editar borradores con datos del cliente (email y notas incluidos) y líneas dinámicas de productos; totales calculados en el servidor (descuentos e impuestos, redondeo a 2 decimales); enviar, aprobar, rechazar y entregar con historial de estados; la entrega descuenta stock en una sola transacción; duplicar; auditoría de las ediciones; vista de impresión / PDF. El operador solo ve y duplica los suyos; el admin ve todos.
 
 ## Stack
 
@@ -53,12 +53,18 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 - **RN-P04:** el descuento va de 0 a 100 %; el operador aplica hasta 10 %, más requiere admin.
 - **RN-P05:** los totales los calcula siempre el servidor, con redondeo a 2 decimales.
 - **RN-P06:** un presupuesto enviado cuya validez ya pasó se muestra como vencido (estado calculado) y no puede aprobarse.
+- **RN-P08:** entregar es todo o nada: si alguna línea no tiene stock suficiente, no se entrega ninguna y se informa cuáles fallan (409 con `errors`).
 - **RN-P07:** cotizar no reserva stock.
+- **RN-P09:** entregar genera salidas de stock con motivo "Presupuesto PRE-n" en una sola transacción, bloqueando los productos en orden de id para evitar interbloqueos.
 - **RN-P10:** se necesita al menos una línea para enviar.
 - **RN-P11:** la fecha de validez no puede ser anterior a hoy.
 - **RN-P12:** cada cambio de estado queda registrado con quién lo hizo y cuándo.
 - **RN-P13:** el operador solo ve y duplica sus propios presupuestos.
 - **Pendiente:** RN-P08 y RN-P09 (entrega con descuento transaccional de stock), próximo ticket del backend.
+
+### Estados de un presupuesto
+
+`borrador → enviado → aprobado → entregado`, o `enviado → rechazado`. **Vencido** no se guarda: el servidor lo calcula cuando un presupuesto enviado pasó su fecha de validez. Entregar solo es posible desde `aprobado`.
 
 ## Estructura del proyecto
 
@@ -69,21 +75,24 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 │       ├── components/      # AppLayout, ProtectedRoute, modales de formularios
 │       ├── context/         # AuthContext (sesión)
 │       ├── pages/           # Login, Inicio, Usuarios, Categorías, Productos, Movimientos
+│       │   └── quotes/      # lista, detalle, formulario e impresión de
 │       ├── services/        # llamadas a la API (axios)
 │       ├── types/           # interfaces compartidas
 │       └── utils/           # errores y formato de moneda
+│
 └── server/                  # Express + TypeScript
-    ├── migrations/          # SQL numeradas (V001 a V006, presupuestos desde V003)
-    └── src/
-        ├── db/
-        │   └── migrator.ts  # ejecutor de migraciones
-        ├── config/          # conexión a MariaDB
-        ├── middlewares/     # autenticación, roles y manejo central de errores
-        ├── modules/         # auth, users, categories, products, movements, dashboard, quotes
-        │   └── quotes/      # incluye submódulo audit/ (auditoría de ediciones)
-        ├── scripts/         # seed admin, ejecutor de migraciones, base de pruebas
-        ├── types/           # tipos de Express (req.user)
-        └── utils/           # HttpError, helpers de SQL, transacciones y fechas
+    ├── migrations/          # SQL numeradas (presupuestos y auditoría desde V003)
+    ├── src/
+    │   ├── db/
+    │   │   └── migrator.ts  # ejecutor de migraciones
+    │   ├── config/          # conexión a MariaDB
+    │   ├── middlewares/     # autenticación, roles y manejo central de errores
+    │   ├── modules/         # auth, users, categories, products, movements, dashboard, quotes
+    │   │   └── quotes/      # incluye submódulo audit/ (auditoría de ediciones)
+    │   ├── scripts/         # seed admin, ejecutor de migraciones, base de pruebas
+    │   ├── types/           # tipos de Express (req.user)
+    │   └── utils/           # HttpError, helpers de SQL, transacciones y fechas
+    └── test/                # pruebas Vitest + Supertest
 ```
 
 ## Requisitos previos
@@ -96,6 +105,11 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 ### 1. Base de datos
 
 Esto crea la base si no existe y aplica las migraciones pendientes. Si ya tenías una base creada con el esquema anterior, adóptala con `npm run migrate -- --baseline=1`.
+
+```bash
+cd server
+npm run migrate
+```
 
 ### 2. Backend
 
@@ -154,6 +168,8 @@ La aplicación queda en `http://localhost:5173`. En desarrollo, Vite redirige la
 | `server` | `npm run lint`                       | Revisa el código con ESLint                |
 | `server` | `npm run test:watch`                 | Pruebas en modo observador                 |
 | `server` | `npm run test:db`                    | Crea/actualiza la base de datos de pruebas |
+| `server` | `npm run migrate`                    | Aplica las migraciones pendientes          |
+| `server` | `npm test`                           | Ejecuta las pruebas                        |
 
 ## API
 
@@ -183,8 +199,9 @@ Todas las rutas, salvo el login y `health`, requieren el encabezado `Authorizati
 | POST              | `/api/quotes/:id/approve`   | Creador o admin | Aprobar                                       |
 | POST              | `/api/quotes/:id/reject`    | Creador o admin | Rechazar                                      |
 | GET               | `/api/quotes/:id/history`   | Autenticado     | Historial de estados                          |
+| POST              | `/api/quotes/:id/deliver`   | Creador o admin | Entregar (descuenta stock)                    |
 
-Los errores siguen un formato único: `{ "message": "..." }`, con códigos 400 (datos inválidos), 401 (sin sesión), 403 (sin permiso), 404, 409 (conflicto con una regla de negocio) y 500.
+Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuando hay detalle (validación Zod o líneas sin stock en la entrega), con códigos 400, 401, 403, 404, 409 y 500.
 
 ## Pruebas
 
@@ -192,7 +209,6 @@ Las pruebas del servidor usan Vitest y Supertest contra una base de datos aparte
 
 1. Crea `server/.env.test` con las mismas variables que `.env`, pero con `DB_NAME=inventario_test`.
 2. Crea la base de pruebas (una sola vez, o cuando cambien las migraciones):
-   Cubren autenticación y permisos por rol, las reglas de negocio del inventario (SKU único, categorías con productos, precios válidos) y los movimientos de stock, incluida una prueba de concurrencia. También el módulo de presupuestos: esquemas y validación, cálculo de totales, reglas de líneas (producto activo, sin repetir, descuento por rol), visibilidad por rol, transiciones de estado permitidas y prohibidas, y vencimiento por fecha de validez.
 
    ```bash
    cd server
@@ -205,7 +221,7 @@ Las pruebas del servidor usan Vitest y Supertest contra una base de datos aparte
    npm test
    ```
 
-Cubren autenticación y permisos por rol, las reglas de negocio del inventario (SKU único, categorías con productos, precios válidos) y los movimientos de stock, incluida una prueba de concurrencia.
+Cubren autenticación y permisos por rol, las reglas del inventario (SKU único, categorías con productos, precios válidos) y los movimientos de stock, incluida una prueba de concurrencia. Del módulo de presupuestos: validación y cálculo de totales, reglas de líneas, visibilidad por rol, auditoría de ediciones, historial, transiciones de estado y la entrega (todo o nada y dos entregas simultáneas).
 
 ## Decisiones técnicas
 
@@ -218,12 +234,10 @@ Cubren autenticación y permisos por rol, las reglas de negocio del inventario (
 
 ## Posibles mejoras
 
-- Entrega de presupuestos con descuento transaccional de stock (RF-P07, RN-P08, RN-P09)
-- Frontend del módulo de presupuestos (lista, detalle y formulario con líneas dinámicas)
 - Exportación de inventario, historial y presupuestos a CSV o Excel
-- Vista de impresión o PDF de presupuestos (RF-P09)
 - Tokens de vida corta con refresh tokens
-- Despliegue en la nube
+- Docker y despliegue en la nube
+- Auditoría ampliada y seguridad reforzada
 
 ## Autor
 
