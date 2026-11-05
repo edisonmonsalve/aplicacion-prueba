@@ -54,7 +54,7 @@ export default function QuoteDetailPage() {
       );
       navigate("/presupuestos", { replace: true });
     }
-  }, [quoteId, navigate]);
+  }, [quoteId, navigate, message]);
 
   useEffect(() => {
     load();

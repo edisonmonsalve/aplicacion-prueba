@@ -12,6 +12,7 @@ import QuotesPage from "@/pages/quotes/QuotesPage";
 import QuoteDetailPage from "./pages/quotes/QuoteDetailPage";
 import QuoteFormPage from "./pages/quotes/QuoteFormPage";
 import QuotePrintPage from "./pages/quotes/QuotePrintPage";
+import ProfilePage from "@/pages/ProfilePage";
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/presupuestos/nuevo" element={<QuoteFormPage />} />
             <Route path="/presupuestos/:id/editar" element={<QuoteFormPage />} />
             <Route path="/presupuestos/:id/imprimir" element={<QuotePrintPage />} />
+            <Route path="/perfil" element={<ProfilePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

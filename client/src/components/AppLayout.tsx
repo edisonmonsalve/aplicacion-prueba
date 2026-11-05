@@ -1,4 +1,5 @@
-import { Button, Layout, Menu, Space, Switch, Typography, message, theme } from "antd";
+// import { Button, Layout, Menu, Space, Switch, Typography, message, theme } from "antd";
+import { Avatar, Dropdown, Layout, Menu, Space, Switch, Typography, message, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
@@ -12,6 +13,9 @@ import {
   TeamOutlined,
   MoonOutlined,
   SunOutlined,
+  KeyOutlined,
+  LogoutOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
 
@@ -36,11 +40,16 @@ export default function AppLayout() {
     { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
     { key: "/presupuestos", icon: <FileTextOutlined />, label: "Presupuestos" },
     ...(user?.rol === "admin" ? [{ key: "/users", icon: <TeamOutlined />, label: "Usuarios" }] : []),
+    { key: "/perfil", icon: <UserOutlined />, label: "Mi perfil" },
   ];
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Sider breakpoint="lg" collapsedWidth={0}>
+      <Sider
+        breakpoint="lg"
+        collapsedWidth={0}
+        style={{ position: "sticky", top: 0, alignSelf: "flex-start", height: "100vh", overflow: "auto" }}
+      >
         <div style={{ color: "#fff", padding: 16, fontWeight: 600 }}>Inventario</div>
         <Menu
           theme="dark"
@@ -59,20 +68,49 @@ export default function AppLayout() {
             alignItems: "center",
             background: token.colorBgContainer,
             padding: "0 24px",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
           }}
         >
-          <Space>
+          <Space size="middle">
             <Switch
               checked={mode === "dark"}
               onChange={toggle}
               checkedChildren={<MoonOutlined />}
               unCheckedChildren={<SunOutlined />}
             />
-            <Typography.Text>
-              {user?.nombre} ({user?.rol})
-            </Typography.Text>
-            <Button onClick={() => setPasswordOpen(true)}>Cambiar contraseña</Button>
-            <Button onClick={signOut}>Cerrar sesión</Button>
+            <Dropdown
+              trigger={["click"]}
+              menu={{
+                items: [
+                  {
+                    key: "password",
+                    icon: <KeyOutlined />,
+                    label: "Cambiar contraseña",
+                    onClick: () => setPasswordOpen(true),
+                  },
+                  { type: "divider" },
+                  {
+                    key: "logout",
+                    icon: <LogoutOutlined />,
+                    label: "Cerrar sesión",
+                    danger: true,
+                    onClick: signOut,
+                  },
+                ],
+              }}
+            >
+              <Space style={{ cursor: "pointer" }}>
+                <Avatar style={{ background: token.colorPrimary }}>{user?.nombre?.[0]?.toUpperCase()}</Avatar>
+                <div style={{ lineHeight: 1.2 }}>
+                  <div>{user?.nombre}</div>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {user?.rol}
+                  </Typography.Text>
+                </div>
+              </Space>
+            </Dropdown>
           </Space>
         </Header>
 
