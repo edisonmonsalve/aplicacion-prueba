@@ -1,4 +1,4 @@
-import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { z } from "zod";
 import { pool } from "../../config/Db.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -6,50 +6,57 @@ import type { createMovementSchema, listQuerySchema } from "./movements.schema.j
 
 export async function registerMovement(
   input: z.infer<typeof createMovementSchema>,
-  userId: number
+  userId: number,
+  externalConn?: PoolConnection
 ) {
+  // Con conexión externa, la transacción (begin/commit/rollback) la maneja quien llama
+  if (externalConn) return applyMovement(input, userId, externalConn);
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-
-    // FOR UPDATE bloquea esta fila hasta el commit: otra petición sobre
-    // el mismo producto espera aquí y luego lee el stock ya actualizado
-    const [rows] = await conn.query<RowDataPacket[]>(
-      "SELECT id, stock_actual, activo FROM products WHERE id = ? FOR UPDATE",
-      [input.product_id]
-    );
-    const product = rows[0];
-
-    if (!product) throw new HttpError(404, "Producto no encontrado");
-    if (!product.activo) throw new HttpError(409, "El producto está inactivo");
-
-    const delta = input.tipo === "entrada" ? input.cantidad : -input.cantidad;
-    const nuevoStock = product.stock_actual + delta;
-
-    // RN-02: no se permite una salida mayor al stock disponible
-    if (nuevoStock < 0) {
-      throw new HttpError(409, `Stock insuficiente: disponible ${product.stock_actual}`);
-    }
-
-    await conn.query("UPDATE products SET stock_actual = ? WHERE id = ?", [
-      nuevoStock,
-      input.product_id,
-    ]);
-
-    const [res] = await conn.query<ResultSetHeader>(
-      `INSERT INTO stock_movements (product_id, user_id, tipo, cantidad, motivo)
-       VALUES (?, ?, ?, ?, ?)`,
-      [input.product_id, userId, input.tipo, input.cantidad, input.motivo ?? null]
-    );
-
+    const result = await applyMovement(input, userId, conn);
     await conn.commit();
-    return { id: res.insertId, stock_actual: nuevoStock };
+    return result;
   } catch (err) {
-    await conn.rollback(); // si algo falló, no queda ninguna escritura a medias
+    await conn.rollback();
     throw err;
   } finally {
-    conn.release(); // siempre devolver la conexión al pool
+    conn.release();
   }
+}
+
+async function applyMovement(
+  input: z.infer<typeof createMovementSchema>,
+  userId: number,
+  conn: PoolConnection
+) {
+  const [rows] = await conn.query<RowDataPacket[]>(
+    "SELECT id, stock_actual, activo FROM products WHERE id = ? FOR UPDATE",
+    [input.product_id]
+  );
+  const product = rows[0];
+
+  if (!product) throw new HttpError(404, "Producto no encontrado");
+  if (!product.activo) throw new HttpError(409, "El producto está inactivo");
+
+  const delta = input.tipo === "entrada" ? input.cantidad : -input.cantidad;
+  const nuevoStock = product.stock_actual + delta;
+
+  // RN-02: no se permite una salida mayor al stock disponible
+  if (nuevoStock < 0) {
+    throw new HttpError(409, `Stock insuficiente: disponible ${product.stock_actual}`);
+  }
+
+  await conn.query("UPDATE products SET stock_actual = ? WHERE id = ?", [nuevoStock, input.product_id]);
+
+  const [res] = await conn.query<ResultSetHeader>(
+    `INSERT INTO stock_movements (product_id, user_id, tipo, cantidad, motivo)
+     VALUES (?, ?, ?, ?, ?)`,
+    [input.product_id, userId, input.tipo, input.cantidad, input.motivo ?? null]
+  );
+
+  return { id: res.insertId, stock_actual: nuevoStock };
 }
 
 export async function listMovements(query: z.infer<typeof listQuerySchema>) {

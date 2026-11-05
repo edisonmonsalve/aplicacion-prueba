@@ -13,6 +13,8 @@ import { getQuoteHistory } from "./quotes.queries.js";
 import { getQuoteAuditHeader, getQuoteAuditItems } from "./audit/quotes.audit.queries.js";
 import { auditQuoteUpdate } from "./audit/quotes.audit.service.js";
 import type { QuoteAuditSnapshot } from "./audit/quotes.audit.types.js";
+import { registerMovement } from "../movements/movements.service.js";
+import { formatQuoteNumber } from "./quotes.format.js";
 
 type QuoteInput = z.infer<typeof quoteSchema>;
 
@@ -361,4 +363,79 @@ export async function getQuoteHistoryById(id: number, actor: AuthUser) {
     quote_id: id,
     history,
   };
+}
+
+export async function deliverQuote(id: number, actor: AuthUser) {
+  return withTransaction(async (conn) => {
+    const quote = await lockQuote(conn, id, actor);
+
+    if (quote.estado !== "aprobado") {
+      throw new HttpError(
+        409,
+        `No se puede entregar: el presupuesto está en estado "${quote.estado}" y debe estar en "aprobado"`
+      );
+    }
+
+    const [items] = await conn.query<RowDataPacket[]>(
+      "SELECT product_id, sku, nombre, cantidad FROM quote_items WHERE quote_id = ? ORDER BY product_id ASC",
+      [id]
+    );
+    if (items.length === 0) throw new HttpError(409, "El presupuesto no tiene líneas");
+    if (items.some((i) => i.product_id === null)) {
+      throw new HttpError(409, "Hay líneas cuyo producto ya no existe en el catálogo");
+    }
+
+    // RN-P09: bloquear productos en orden de id (items ya viene ordenado)
+    const ids = items.map((i) => i.product_id as number);
+    const [products] = await conn.query<RowDataPacket[]>(
+      "SELECT id, stock_actual, activo FROM products WHERE id IN (?) ORDER BY id ASC FOR UPDATE",
+      [ids]
+    );
+    const byId = new Map(products.map((p) => [p.id as number, p]));
+
+    // RN-P08: validar todo antes de mover stock, informando cuáles fallan
+    const fallos = items.flatMap((i) => {
+      const p = byId.get(i.product_id as number);
+      if (!p || !p.activo)
+        return [{ sku: i.sku, nombre: i.nombre, motivo: "producto inactivo o inexistente" }];
+      if (p.stock_actual < i.cantidad) {
+        return [
+          {
+            sku: i.sku,
+            nombre: i.nombre,
+            requerido: i.cantidad,
+            disponible: p.stock_actual,
+            motivo: "stock insuficiente",
+          },
+        ];
+      }
+      return [];
+    });
+    if (fallos.length > 0) {
+      throw new HttpError(409, "Stock insuficiente para entregar", fallos);
+    }
+
+    // RN-P09: salidas con motivo "Presupuesto PRE-n", en la misma transacción
+    for (const i of items) {
+      await registerMovement(
+        {
+          product_id: i.product_id as number,
+          tipo: "salida",
+          cantidad: i.cantidad,
+          motivo: `Presupuesto ${formatQuoteNumber(quote.id)}`,
+        },
+        actor.id,
+        conn
+      );
+    }
+
+    await conn.query("UPDATE quotes SET estado = 'entregado' WHERE id = ?", [id]);
+    await conn.query(
+      `INSERT INTO quote_status_history (quote_id, estado_anterior, estado_nuevo, user_id)
+       VALUES (?, 'aprobado', 'entregado', ?)`,
+      [id, actor.id] // RN-P12
+    );
+
+    return { id, estado: "entregado" as const };
+  });
 }

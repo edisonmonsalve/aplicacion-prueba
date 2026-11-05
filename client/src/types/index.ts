@@ -140,3 +140,11 @@ export interface QuoteInput {
   cliente_email?: string;
   notas?: string;
 }
+
+export interface StockFailure {
+  sku: string;
+  nombre: string;
+  motivo: string;
+  requerido?: number;
+  disponible?: number;
+}

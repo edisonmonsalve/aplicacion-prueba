@@ -27,3 +27,5 @@ export const createQuote = async (data: QuoteInput) =>
 
 export const updateQuote = async (id: number, data: QuoteInput) =>
   (await api.put<{ id: number }>(`/quotes/${id}`, toPayload(data))).data;
+
+export const deliverQuote = (id: number) => api.post(`/quotes/${id}/deliver`);

@@ -3,7 +3,6 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
-import { FileTextOutlined } from "@ant-design/icons/es/icons/index";
 
 const { Sider, Header, Content } = Layout;
 
@@ -21,7 +20,7 @@ export default function AppLayout() {
     { key: "/products", label: "Productos" },
     { key: "/movements", label: "Movimientos" },
     { key: "/categories", label: "Categorías" },
-    { key: "/presupuestos", icon: <FileTextOutlined />, label: "Presupuestos" },
+    { key: "/presupuestos", label: "Presupuestos" },
     ...(user?.rol === "admin" ? [{ key: "/users", label: "Usuarios" }] : []),
   ];
 

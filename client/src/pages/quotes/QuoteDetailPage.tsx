@@ -6,6 +6,9 @@ import { getQuote, sendQuote, approveQuote, rejectQuote, duplicateQuote } from "
 import type { QuoteDetail, QuoteHistory, QuoteLine } from "../../types";
 import { StatusTag, money, fmtDate, fmtDateTime } from "./quoteUtils";
 import { isAxiosError } from "axios";
+import { Modal } from "antd"; // añadir Modal al import de antd
+import type { StockFailure } from "../../types"; // añadir al import type
+import { deliverQuote } from "../../services/quotesService"; // añadir al import
 
 export default function QuoteDetailPage() {
   const { id } = useParams();
@@ -42,10 +45,26 @@ export default function QuoteDetailPage() {
       message.success(okMsg);
       await load();
     } catch (e) {
-      const msg = isAxiosError(e)
-        ? (e.response?.data as { message?: string } | undefined)?.message
+      const data = isAxiosError(e)
+        ? (e.response?.data as { message?: string; errors?: StockFailure[] } | undefined)
         : undefined;
-      message.error(msg ?? "No se pudo completar la acción");
+      if (data?.errors?.length) {
+        Modal.error({
+          title: data.message ?? "No se pudo completar la acción",
+          content: (
+            <ul>
+              {data.errors.map((f) => (
+                <li key={f.sku}>
+                  {f.sku} — {f.nombre}: {f.motivo}
+                  {f.requerido !== undefined && ` (requerido ${f.requerido}, disponible ${f.disponible})`}
+                </li>
+              ))}
+            </ul>
+          ),
+        });
+      } else {
+        message.error(data?.message ?? "No se pudo completar la acción");
+      }
     } finally {
       setBusy(false);
     }
@@ -90,6 +109,7 @@ export default function QuoteDetailPage() {
         {canAct &&
           quote.estado === "enviado" &&
           confirm("Rechazar", rejectQuote, "Presupuesto rechazado", true)}
+        {canAct && quote.estado === "aprobado" && confirm("Entregar", deliverQuote, "Presupuesto entregado")}
         {canAct && quote.estado === "borrador" && (
           <Button onClick={() => navigate(`/presupuestos/${quoteId}/editar`)} disabled={busy}>
             Editar
