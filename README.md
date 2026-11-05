@@ -238,6 +238,7 @@ Cubren autenticación y permisos por rol, las reglas del inventario (SKU único,
 - Tokens de vida corta con refresh tokens
 - Docker y despliegue en la nube
 - Auditoría ampliada y seguridad reforzada
+- Rediseño UI/UX: diseño moderno y funcional (sistema de diseño con tokens de Ant Design, tema claro/oscuro, jerarquía visual, estados vacíos y de carga, responsive)
 
 ## Autor
 
