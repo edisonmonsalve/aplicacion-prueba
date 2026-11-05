@@ -1,0 +1,18 @@
+@media print {
+  .no-print,
+  .ant-layout-sider,
+  .ant-layout-header,
+  .ant-layout-sider-children {
+    display: none !important;
+  }
+  .ant-layout,
+  .ant-layout-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .ant-layout-sider + .ant-layout,
+  .ant-layout {
+    margin-left: 0 !important;
+  }
+}

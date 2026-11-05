@@ -118,6 +118,7 @@ export default function QuoteDetailPage() {
         <Button onClick={onDuplicate} disabled={busy}>
           Duplicar
         </Button>
+        <Button onClick={() => navigate(`/presupuestos/${quoteId}/imprimir`)}>Imprimir</Button>
       </Space>
 
       <Card title={quote.numero} extra={<StatusTag estado={quote.estado} />}>

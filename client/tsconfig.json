@@ -13,7 +13,7 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "ignoreDeprecations": "5.0",
     "paths": { "@/*": ["./src/*"] }
   },
