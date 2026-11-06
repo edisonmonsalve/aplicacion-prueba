@@ -7,6 +7,7 @@ import { getMovements, type MovementsQuery } from "@/services/movementsService";
 import { getProducts } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
 import type { Product, StockMovement } from "@/types";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function MovementsPage() {
   const [messageApi, contextHolder] = message.useMessage();
@@ -24,6 +25,8 @@ export default function MovementsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  useDocumentTitle("Movimientos");
 
   // Productos para el filtro (suficiente para esta práctica: los primeros 100)
   useEffect(() => {

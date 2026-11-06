@@ -71,6 +71,9 @@ export interface Dashboard {
   valorInventario: number;
   productosStockBajo: LowStockProduct[];
   ultimosMovimientos: StockMovement[];
+  movimientosPorDia: { dia: string; tipo: MovementTipo; total: number }[];
+  presupuestosPorEstado: { estado: QuoteStatus; total: number }[];
+  topProductos: { sku: string; nombre: string; unidades: number }[];
 }
 
 export type QuoteStatus = "borrador" | "enviado" | "aprobado" | "rechazado" | "entregado" | "vencido";

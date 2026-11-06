@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
@@ -12,6 +12,8 @@ import QuotesPage from "@/pages/quotes/QuotesPage";
 import QuoteDetailPage from "./pages/quotes/QuoteDetailPage";
 import QuoteFormPage from "./pages/quotes/QuoteFormPage";
 import QuotePrintPage from "./pages/quotes/QuotePrintPage";
+import ProfilePage from "@/pages/ProfilePage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
   return (
@@ -45,9 +47,9 @@ export default function App() {
             <Route path="/presupuestos/nuevo" element={<QuoteFormPage />} />
             <Route path="/presupuestos/:id/editar" element={<QuoteFormPage />} />
             <Route path="/presupuestos/:id/imprimir" element={<QuotePrintPage />} />
+            <Route path="/perfil" element={<ProfilePage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

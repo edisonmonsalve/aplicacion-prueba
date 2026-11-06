@@ -7,6 +7,7 @@ import { getUsers, setUserActivo, type UsersQuery } from "@/services/usersServic
 import { getErrorMessage } from "@/utils/errors";
 import type { User } from "@/types";
 import UserFormModal from "@/components/UserFormModal";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function UsersPage() {
   const { user: me } = useAuth();
@@ -19,6 +20,8 @@ export default function UsersPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  useDocumentTitle("Usuarios");
 
   useEffect(() => {
     let ignore = false; // evita aplicar una respuesta vieja si cambió la consulta

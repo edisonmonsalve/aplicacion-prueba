@@ -1,5 +1,19 @@
 import { useEffect, useState } from "react";
-import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Space, Typography, message } from "antd";
+// import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Space, Typography, message } from "antd";
+import {
+  Button,
+  Card,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Tag,
+  Typography,
+  message,
+  theme,
+} from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { isAxiosError } from "axios";
@@ -14,6 +28,7 @@ interface ProductOpt {
   sku: string;
   nombre: string;
   precio: number;
+  stock_actual?: number;
 }
 interface FormValues {
   cliente_nombre: string;
@@ -30,6 +45,23 @@ const lineTotal = (l: Partial<QuoteLineInput>) => {
   return net + (net * (l.impuesto_pct ?? 0)) / 100;
 };
 
+const totals = (ls: Partial<QuoteLineInput>[]) =>
+  ls.reduce(
+    (t, l) => {
+      const x = l ?? {};
+      const base = (x.cantidad ?? 0) * (x.precio_unitario ?? 0);
+      const desc = (base * (x.descuento_pct ?? 0)) / 100;
+      const imp = ((base - desc) * (x.impuesto_pct ?? 0)) / 100;
+      return {
+        subtotal: t.subtotal + base,
+        descuento: t.descuento + desc,
+        impuesto: t.impuesto + imp,
+        total: t.total + base - desc + imp,
+      };
+    },
+    { subtotal: 0, descuento: 0, impuesto: 0, total: 0 }
+  );
+
 export default function QuoteFormPage() {
   const { id } = useParams();
   const editId = id ? Number(id) : null;
@@ -38,6 +70,8 @@ export default function QuoteFormPage() {
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
   const [saving, setSaving] = useState(false);
   const lineas = Form.useWatch("lineas", form) ?? [];
+  const { token } = theme.useToken();
+  const t = totals(lineas);
 
   const search = async (q: string) => {
     try {
@@ -150,7 +184,7 @@ export default function QuoteFormPage() {
           >
             <Input style={{ width: 280 }} />
           </Form.Item>
-          s
+
           <Form.Item
             name="fecha_validez"
             label="Válido hasta"
@@ -209,6 +243,15 @@ export default function QuoteFormPage() {
                   >
                     {money(lineTotal(lineas[name] ?? {}))}
                   </Typography.Text>
+                  {(() => {
+                    const l = lineas[name];
+                    const p = l?.product_id ? products[l.product_id] : undefined;
+                    return p?.stock_actual !== undefined && (l?.cantidad ?? 0) > p.stock_actual ? (
+                      <Tag color="orange" style={{ lineHeight: "30px" }}>
+                        Stock: {p.stock_actual}
+                      </Tag>
+                    ) : null;
+                  })()}
                   <MinusCircleOutlined onClick={() => remove(name)} style={{ lineHeight: "32px" }} />
                 </Space>
               ))}
@@ -226,18 +269,51 @@ export default function QuoteFormPage() {
           )}
         </Form.List>
 
-        <Typography.Title level={5} style={{ textAlign: "right" }}>
-          Total estimado: {money(lineas.reduce((s, l) => s + lineTotal(l ?? {}), 0))}
-        </Typography.Title>
+        <Card size="small" style={{ maxWidth: 360, marginLeft: "auto", marginBottom: 16 }}>
+          {[
+            ["Subtotal", t.subtotal],
+            ["Descuento", -t.descuento],
+            ["Impuestos", t.impuesto],
+          ].map(([label, value]) => (
+            <div key={label as string} style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>{label}</span>
+              <span>{money(value as number)}</span>
+            </div>
+          ))}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: 8,
+              paddingTop: 8,
+              borderTop: `1px solid ${token.colorBorderSecondary}`,
+              fontWeight: 600,
+              fontSize: 18,
+            }}
+          >
+            <span>Total</span>
+            <span>{money(t.total)}</span>
+          </div>
+        </Card>
 
-        <Space>
-          <Button type="primary" htmlType="submit" loading={saving}>
-            Guardar
-          </Button>
-          <Button onClick={() => navigate(editId ? `/presupuestos/${editId}` : "/presupuestos")}>
-            Cancelar
-          </Button>
-        </Space>
+        <div
+          style={{
+            position: "sticky",
+            bottom: 0,
+            padding: "12px 0",
+            background: token.colorBgContainer,
+            borderTop: `1px solid ${token.colorBorderSecondary}`,
+          }}
+        >
+          <Space>
+            <Button type="primary" htmlType="submit" loading={saving}>
+              Guardar
+            </Button>
+            <Button onClick={() => navigate(editId ? `/presupuestos/${editId}` : "/presupuestos")}>
+              Cancelar
+            </Button>
+          </Space>
+        </div>
       </Form>
     </Card>
   );
