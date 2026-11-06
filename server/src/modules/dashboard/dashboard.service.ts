@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2";
 import { pool } from "../../config/Db.js";
+import type { AuthUser } from "../../types/express.js";
 import { listMovements } from "../movements/movements.service.js";
 
 async function count(sql: string) {
@@ -7,7 +8,7 @@ async function count(sql: string) {
   return Number(row.total);
 }
 
-export async function getDashboard() {
+export async function getDashboard(actor: AuthUser) {
   // Las cinco consultas son independientes: se lanzan juntas
   const [productosActivos, stockBajo, movimientosHoy, valor, bajos, recientes, graficos] = await Promise.all([
     count("SELECT COUNT(*) AS total FROM products WHERE activo = 1"),
@@ -23,7 +24,7 @@ export async function getDashboard() {
          ORDER BY (stock_minimo - stock_actual) DESC
          LIMIT 5`
     ),
-    listMovements({ page: 1, pageSize: 5 }), // se reutiliza la consulta del historial
+    listMovements({ page: 1, pageSize: 5 }, actor), // se reutiliza la consulta del historial
     charts(),
   ]);
 

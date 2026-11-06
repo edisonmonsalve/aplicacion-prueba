@@ -3,7 +3,7 @@ import { Button, Card, Descriptions, Table, Typography, message } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 import { getQuote } from "../../services/quotesService";
 import type { QuoteDetail, QuoteLine } from "../../types";
-import { StatusTag, money, fmtDate } from "./quoteUtils";
+import { StatusTag, money, fmtDate } from "./QuoteUtils";
 
 export default function QuotePrintPage() {
   const { id } = useParams();
@@ -14,8 +14,8 @@ export default function QuotePrintPage() {
     getQuote(Number(id))
       .then(setQuote)
       .catch(() => {
-        message.error("No se pudo cargar el presupuesto");
-        navigate("/presupuestos", { replace: true });
+        message.error("No se pudo cargar la cotización");
+        navigate("/cotizaciones", { replace: true });
       });
   }, [id, navigate]);
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function QuotePrintPage() {
   return (
     <div className="print-area">
       <div className="no-print" style={{ marginBottom: 16 }}>
-        <Button onClick={() => navigate(`/presupuestos/${quote.id}`)} style={{ marginRight: 8 }}>
+        <Button onClick={() => navigate(`/cotizaciones/${quote.id}`)} style={{ marginRight: 8 }}>
           Volver
         </Button>
         <Button type="primary" onClick={() => window.print()}>
@@ -40,7 +40,7 @@ export default function QuotePrintPage() {
         </Button>
       </div>
 
-      <Typography.Title level={3}>Presupuesto {quote.numero}</Typography.Title>
+      <Typography.Title level={3}>Cotización {quote.numero}</Typography.Title>
       <StatusTag estado={quote.estado} />
 
       <Descriptions column={2} size="small" style={{ margin: "16px 0" }}>

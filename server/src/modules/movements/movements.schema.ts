@@ -4,6 +4,8 @@ export const createMovementSchema = z.object({
   product_id: z.number().int().positive(),
   tipo: z.enum(["entrada", "salida"]),
   cantidad: z.number().int().positive(), // RN-07: entero mayor que cero
+  // Costo unitario de la entrada. Si se omite, se usa products.costo.
+  costo_unitario: z.number().min(0).max(9_999_999_999).optional(),
   motivo: z.string().trim().max(255).optional(),
 });
 

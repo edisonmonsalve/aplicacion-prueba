@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middlewares/auth.js";
+import { authenticate, operateOnly, requireRole } from "../../middlewares/auth.js";
 import {
   categorySchema,
   createCategory,
@@ -11,7 +11,7 @@ import {
 
 export const categoriesRouter = Router();
 
-categoriesRouter.use(authenticate);
+categoriesRouter.use(authenticate, operateOnly);
 
 categoriesRouter.get("/", async (_req, res) => {
   res.json(await listCategories());

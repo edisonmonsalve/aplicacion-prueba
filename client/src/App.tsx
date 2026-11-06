@@ -14,6 +14,7 @@ import QuoteFormPage from "./pages/quotes/QuoteFormPage";
 import QuotePrintPage from "./pages/quotes/QuotePrintPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
+import RequireOperate from "./components/RequireOperate";
 
 export default function App() {
   return (
@@ -42,11 +43,13 @@ export default function App() {
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/movements" element={<MovementsPage />} />
-            <Route path="/presupuestos" element={<QuotesPage />} />
-            <Route path="/presupuestos/:id" element={<QuoteDetailPage />} />
-            <Route path="/presupuestos/nuevo" element={<QuoteFormPage />} />
-            <Route path="/presupuestos/:id/editar" element={<QuoteFormPage />} />
-            <Route path="/presupuestos/:id/imprimir" element={<QuotePrintPage />} />
+            <Route path="/cotizaciones" element={<QuotesPage />} />
+            <Route path="/cotizaciones/:id" element={<QuoteDetailPage />} />
+            <Route element={<RequireOperate />}>
+              <Route path="cotizaciones/nuevo" element={<QuoteFormPage />} />
+              <Route path="cotizaciones/:id/editar" element={<QuoteFormPage />} />
+            </Route>
+            <Route path="/cotizaciones/:id/imprimir" element={<QuotePrintPage />} />
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

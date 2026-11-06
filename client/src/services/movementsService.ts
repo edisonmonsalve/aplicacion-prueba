@@ -12,6 +12,7 @@ export interface MovementInput {
   product_id: number;
   tipo: MovementTipo;
   cantidad: number;
+  costo_unitario?: number;
   motivo?: string;
 }
 

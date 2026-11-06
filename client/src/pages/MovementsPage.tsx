@@ -5,11 +5,16 @@ import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { getMovements, type MovementsQuery } from "@/services/movementsService";
 import { getProducts } from "@/services/productsService";
+import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
+import { formatCurrency } from "@/utils/format";
+import { canSeeCosts } from "@/utils/roles";
 import type { Product, StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function MovementsPage() {
+  const { user } = useAuth();
+  const verCosto = canSeeCosts(user?.rol);
   const [messageApi, contextHolder] = message.useMessage();
   const [searchParams] = useSearchParams();
 
@@ -77,6 +82,22 @@ export default function MovementsPage() {
       align: "right",
       render: (_, m) => (m.tipo === "entrada" ? `+${m.cantidad}` : `-${m.cantidad}`),
     },
+    ...(verCosto
+      ? ([
+          {
+            title: "Costo unitario",
+            dataIndex: "costo_unitario",
+            align: "right",
+            render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
+          },
+          {
+            title: "Costo total",
+            align: "right",
+            render: (_: unknown, m: StockMovement) =>
+              m.costo_unitario === null ? "—" : formatCurrency(m.costo_unitario * m.cantidad),
+          },
+        ] as NonNullable<TableProps<StockMovement>["columns"]>)
+      : []),
     { title: "Motivo", dataIndex: "motivo", render: (v: string | null) => v ?? "—" },
     { title: "Usuario", dataIndex: "usuario" },
   ];

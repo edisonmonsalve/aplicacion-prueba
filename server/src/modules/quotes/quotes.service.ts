@@ -424,7 +424,7 @@ export async function deliverQuote(id: number, actor: AuthUser) {
           cantidad: i.cantidad,
           motivo: `Presupuesto ${formatQuoteNumber(quote.id)}`,
         },
-        actor.id,
+        actor,
         conn
       );
     }

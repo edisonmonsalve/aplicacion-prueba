@@ -15,6 +15,7 @@ export interface ProductInput {
   nombre: string;
   category_id: number;
   precio: number;
+  costo?: number;
   stock_minimo: number;
 }
 

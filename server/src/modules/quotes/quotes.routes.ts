@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate } from "../../middlewares/auth.js";
+import { authenticate, operateOnly } from "../../middlewares/auth.js";
 import { getQuote, listQuotes } from "./quotes.queries.js";
 import { idSchema, listQuerySchema, quoteSchema } from "./quotes.schema.js";
 import {
@@ -15,7 +15,7 @@ import { getQuoteHistoryById } from "./quotes.service.js";
 
 export const quotesRouter = Router();
 
-quotesRouter.use(authenticate);
+quotesRouter.use(authenticate, operateOnly);
 
 quotesRouter.get("/", async (req, res) => {
   res.json(await listQuotes(listQuerySchema.parse(req.query), req.user!));
@@ -57,6 +57,6 @@ quotesRouter.get("/:id/history", async (req, res) => {
   res.json(result);
 });
 
-quotesRouter.post("/:id/deliver", authenticate, async (req, res) => {
-  res.json(await deliverQuote(Number(req.params.id), req.user!));
+quotesRouter.post("/:id/deliver", async (req, res) => {
+  res.json(await deliverQuote(idSchema.parse(req.params.id), req.user!));
 });

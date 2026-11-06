@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useThemeMode } from "@/context/ThemeContext";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { roleColor, roleLabel } from "@/utils/roles";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -34,7 +35,7 @@ export default function ProfilePage() {
             </Typography.Title>
             <Typography.Text type="secondary">{user.email}</Typography.Text>
             <div style={{ marginTop: 8 }}>
-              <Tag color={user.rol === "admin" ? "blue" : "default"}>{user.rol}</Tag>
+              <Tag color={roleColor(user.rol)}>{roleLabel(user.rol)}</Tag>
             </div>
           </div>
         </Space>

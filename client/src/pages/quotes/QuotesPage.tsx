@@ -5,10 +5,11 @@ import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listQuotes } from "@/services/quotesService";
 import type { Quote, QuoteStatus } from "@/types";
-import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/quoteUtils";
+import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/QuoteUtils";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useAuth } from "@/context/AuthContext";
 
 const FMT = "YYYY-MM-DD";
 
@@ -16,6 +17,7 @@ export default function QuotesPage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const [sp, setSp] = useSearchParams();
+  const { canOperate } = useAuth();
 
   const q = sp.get("q") ?? "";
   const estado = (sp.get("estado") as QuoteStatus | null) ?? undefined;
@@ -30,7 +32,7 @@ export default function QuotesPage() {
   const [text, setText] = useState(q);
   const [exporting, setExporting] = useState(false);
 
-  useDocumentTitle("Presupuestos");
+  useDocumentTitle("Cotizaciones");
 
   // Debounce: busca 400 ms después de dejar de escribir
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function QuotesPage() {
         setRows(r.data);
         setTotal(r.total);
       })
-      .catch(() => message.error("No se pudo cargar los presupuestos"))
+      .catch(() => message.error("No se pudieron cargar las cotizaciones"))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -66,7 +68,7 @@ export default function QuotesPage() {
         listQuotes({ q: q || undefined, estado, desde, hasta, page: p, pageSize: 100 })
       );
       downloadCsv(
-        `presupuestos-${dayjs().format("YYYY-MM-DD")}.csv`,
+        `cotizaciones-${dayjs().format("YYYY-MM-DD")}.csv`,
         [
           { header: "Número", value: (r) => r.numero },
           { header: "Cliente", value: (r) => r.customer_nombre },
@@ -112,15 +114,17 @@ export default function QuotesPage() {
         style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}
       >
         <Typography.Title level={3} style={{ margin: 0 }}>
-          Presupuestos
+          Cotizaciones
         </Typography.Title>
         <Space>
           <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
             Exportar CSV
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/presupuestos/nuevo")}>
-            Nuevo
-          </Button>
+          {canOperate && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/cotizaciones/nuevo")}>
+              Nuevo
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -165,16 +169,16 @@ export default function QuotesPage() {
           loading={loading}
           dataSource={rows}
           scroll={{ x: "max-content" }}
-          onRow={(r) => ({ onClick: () => navigate(`/presupuestos/${r.id}`), style: { cursor: "pointer" } })}
+          onRow={(r) => ({ onClick: () => navigate(`/cotizaciones/${r.id}`), style: { cursor: "pointer" } })}
           locale={{
             emptyText: (
               <Empty
                 description={
-                  hasFilters ? "Ningún presupuesto coincide con los filtros" : "Aún no hay presupuestos"
+                  hasFilters ? "Ninguna cotización coincide con los filtros" : "Aún no hay cotizaciones"
                 }
               >
-                {!hasFilters && (
-                  <Button type="primary" onClick={() => navigate("/presupuestos/nuevo")}>
+                {!hasFilters && canOperate && (
+                  <Button type="primary" onClick={() => navigate("/cotizaciones/nuevo")}>
                     Crear el primero
                   </Button>
                 )}
@@ -186,7 +190,7 @@ export default function QuotesPage() {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t) => `${t} presupuestos`,
+            showTotal: (t) => `${t} cotizaciones`,
             onChange: (p, s) => update({ page: String(p), pageSize: String(s) }, false),
           }}
           columns={[

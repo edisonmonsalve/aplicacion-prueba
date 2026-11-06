@@ -8,6 +8,7 @@ import { getErrorMessage } from "@/utils/errors";
 import type { User } from "@/types";
 import UserFormModal from "@/components/UserFormModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { ROLES, roleColor, roleLabel } from "@/utils/roles";
 
 export default function UsersPage() {
   const { user: me } = useAuth();
@@ -77,7 +78,7 @@ export default function UsersPage() {
     {
       title: "Rol",
       dataIndex: "rol",
-      render: (rol: User["rol"]) => <Tag color={rol === "admin" ? "blue" : "default"}>{rol}</Tag>,
+      render: (rol: User["rol"]) => <Tag color={roleColor(rol)}>{roleLabel(rol)}</Tag>,
     },
     {
       title: "Estado",
@@ -135,10 +136,7 @@ export default function UsersPage() {
           placeholder="Rol"
           allowClear
           style={{ width: 140 }}
-          options={[
-            { value: "admin", label: "Admin" },
-            { value: "operador", label: "Operador" },
-          ]}
+          options={ROLES.map(({ value, label }) => ({ value, label }))}
           onChange={(rol) => updateFilters({ rol })}
         />
         <Select

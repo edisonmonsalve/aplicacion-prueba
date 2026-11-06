@@ -6,6 +6,7 @@ const productBase = z.object({
   nombre: z.string().trim().min(2).max(150),
   category_id: z.number().int().positive(),
   precio: z.number().positive().max(9_999_999_999), // RN-07
+  costo: z.number().min(0).max(9_999_999_999).optional(),
   stock_minimo: z.number().int().min(0).default(0),
 });
 

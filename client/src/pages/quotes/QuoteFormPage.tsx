@@ -20,8 +20,8 @@ import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { createQuote, getQuote, updateQuote } from "@/services/quotesService";
 import { getProducts } from "@/services/productsService";
-import type { QuoteLineInput } from "@/types";
-import { money } from "./quoteUtils";
+import type { QuoteLineForm } from "@/types";
+import { money } from "./QuoteUtils";
 
 interface ProductOpt {
   id: number;
@@ -34,18 +34,18 @@ interface FormValues {
   cliente_nombre: string;
   cliente_documento?: string;
   fecha_validez: Dayjs;
-  lineas: Partial<QuoteLineInput>[];
+  lineas: Partial<QuoteLineForm>[];
   cliente_email?: string;
   notas?: string;
 }
 
-const lineTotal = (l: Partial<QuoteLineInput>) => {
+const lineTotal = (l: Partial<QuoteLineForm>) => {
   const base = (l.cantidad ?? 0) * (l.precio_unitario ?? 0);
   const net = base - (base * (l.descuento_pct ?? 0)) / 100;
   return net + (net * (l.impuesto_pct ?? 0)) / 100;
 };
 
-const totals = (ls: Partial<QuoteLineInput>[]) =>
+const totals = (ls: Partial<QuoteLineForm>[]) =>
   ls.reduce(
     (t, l) => {
       const x = l ?? {};
@@ -89,7 +89,7 @@ export default function QuoteFormPage() {
       .then((d) => {
         if (d.estado !== "borrador") {
           message.error("Solo se pueden editar borradores");
-          navigate(`/presupuestos/${editId}`, { replace: true });
+          navigate(`/cotizaciones/${editId}`, { replace: true });
           return;
         }
         setProducts((prev) => ({
@@ -117,8 +117,8 @@ export default function QuoteFormPage() {
         });
       })
       .catch(() => {
-        message.error("No se pudo cargar el presupuesto");
-        navigate("/presupuestos", { replace: true });
+        message.error("No se pudo cargar la cotización");
+        navigate("/cotizaciones", { replace: true });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
@@ -136,15 +136,21 @@ export default function QuoteFormPage() {
       cliente_nombre: v.cliente_nombre.trim(),
       cliente_documento: v.cliente_documento?.trim() || undefined,
       fecha_validez: v.fecha_validez.format("YYYY-MM-DD"),
-      lineas: v.lineas as QuoteLineInput[],
+      // El servidor toma el precio del catálogo; nunca se envía el del formulario
+      lineas: v.lineas.map((l) => ({
+        product_id: l.product_id!,
+        cantidad: l.cantidad!,
+        descuento_pct: l.descuento_pct ?? 0,
+        impuesto_pct: l.impuesto_pct ?? 0,
+      })),
       cliente_email: v.cliente_email?.trim() || undefined,
       notas: v.notas?.trim() || undefined,
     };
     setSaving(true);
     try {
       const r = editId ? await updateQuote(editId, payload) : await createQuote(payload);
-      message.success(editId ? "Presupuesto actualizado" : "Borrador creado");
-      navigate(`/presupuestos/${r.id ?? editId}`);
+      message.success(editId ? "Cotización actualizada" : "Borrador creado");
+      navigate(`/cotizaciones/${r.id ?? editId}`);
     } catch (e) {
       const msg = isAxiosError(e)
         ? (e.response?.data as { message?: string } | undefined)?.message
@@ -156,7 +162,7 @@ export default function QuoteFormPage() {
   };
 
   return (
-    <Card title={editId ? "Editar presupuesto" : "Nuevo presupuesto"}>
+    <Card title={editId ? "Editar cotización" : "Nueva cotización"}>
       <Form<FormValues>
         form={form}
         layout="vertical"
@@ -229,8 +235,12 @@ export default function QuoteFormPage() {
                   <Form.Item name={[name, "cantidad"]} rules={[{ required: true, message: "Cant." }]}>
                     <InputNumber min={1} placeholder="Cant." />
                   </Form.Item>
-                  <Form.Item name={[name, "precio_unitario"]} rules={[{ required: true, message: "Precio" }]}>
-                    <InputNumber min={0} placeholder="Precio" style={{ width: 130 }} />
+                  <Form.Item
+                    name={[name, "precio_unitario"]}
+                    rules={[{ required: true, message: "Precio" }]}
+                    extra="Tomado del catálogo"
+                  >
+                    <InputNumber min={0} placeholder="Precio" style={{ width: 130 }} disabled />
                   </Form.Item>
                   <Form.Item name={[name, "descuento_pct"]} initialValue={0}>
                     <InputNumber min={0} max={100} addonAfter="% desc." />
@@ -309,7 +319,7 @@ export default function QuoteFormPage() {
             <Button type="primary" htmlType="submit" loading={saving}>
               Guardar
             </Button>
-            <Button onClick={() => navigate(editId ? `/presupuestos/${editId}` : "/presupuestos")}>
+            <Button onClick={() => navigate(editId ? `/cotizaciones/${editId}` : "/cotizaciones")}>
               Cancelar
             </Button>
           </Space>

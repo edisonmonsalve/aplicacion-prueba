@@ -21,7 +21,7 @@ Un presupuesto `enviado` cuya fecha de validez ya pasó se muestra como **vencid
 | Enviar | borrador | enviado | Creador o admin |
 | Aprobar | enviado | aprobado | Creador o admin |
 | Rechazar | enviado | rechazado | Creador o admin |
-| Entregar | aprobado | entregado | Solo admin |
+| Entregar | aprobado | entregado | Creador o admin |
 | Eliminar | borrador | (se borra) | Creador o admin |
 
 ## 3. Requisitos funcionales
@@ -85,7 +85,7 @@ Estados posibles guardados: `borrador`, `enviado`, `aprobado`, `rechazado`, `ent
 | POST | `/api/quotes/:id/send` | Creador o admin | Enviar |
 | POST | `/api/quotes/:id/approve` | Creador o admin | Aprobar |
 | POST | `/api/quotes/:id/reject` | Creador o admin | Rechazar |
-| POST | `/api/quotes/:id/deliver` | Admin | Entregar y descontar stock |
+| POST | `/api/quotes/:id/deliver` | Creador o admin | Entregar y descontar stock |
 | POST | `/api/quotes/:id/duplicate` | Autenticado | Crear borrador a partir de otro |
 
 ## 8. Pantallas

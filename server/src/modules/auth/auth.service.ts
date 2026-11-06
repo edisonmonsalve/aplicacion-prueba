@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "../../config/Db.js";
+import type { Rol } from "../../types/roles.js";
 import { HttpError } from "../../utils/http-error.js";
 
 export const loginSchema = z.object({
@@ -19,7 +20,7 @@ interface UserRow extends RowDataPacket {
   nombre: string;
   email: string;
   password_hash: string;
-  rol: "admin" | "operador";
+  rol: Rol;
   activo: number;
 }
 

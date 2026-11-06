@@ -19,6 +19,7 @@ import {
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { roleLabel } from "@/utils/roles";
 
 const { Sider, Header, Content } = Layout;
 
@@ -39,7 +40,7 @@ export default function AppLayout() {
     { key: "/products", icon: <ShoppingOutlined />, label: "Productos" },
     { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
     { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
-    { key: "/presupuestos", icon: <FileTextOutlined />, label: "Presupuestos" },
+    { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
     ...(user?.rol === "admin" ? [{ key: "/users", icon: <TeamOutlined />, label: "Usuarios" }] : []),
     { key: "/perfil", icon: <UserOutlined />, label: "Mi perfil" },
   ];
@@ -107,7 +108,7 @@ export default function AppLayout() {
                 <div style={{ lineHeight: 1.2 }}>
                   <div>{user?.nombre}</div>
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {user?.rol}
+                    {user ? roleLabel(user.rol) : ""}
                   </Typography.Text>
                 </div>
               </Space>

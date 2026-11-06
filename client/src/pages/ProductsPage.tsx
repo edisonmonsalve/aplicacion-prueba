@@ -7,14 +7,16 @@ import { getCategories } from "@/services/categoriesService";
 import { getProducts, setProductActivo, type ProductsQuery } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
+import { canSeeCosts } from "@/utils/roles";
 import type { Category, Product } from "@/types";
 import { useNavigate } from "react-router-dom";
 import MovementFormModal from "@/components/MovementFormModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function ProductsPage() {
-  const { user } = useAuth();
+  const { user, canOperate } = useAuth();
   const isAdmin = user?.rol === "admin";
+  const verCosto = canSeeCosts(user?.rol);
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
@@ -100,6 +102,25 @@ export default function ProductsPage() {
       align: "right",
       render: (value: number) => formatCurrency(value),
     },
+    ...(verCosto
+      ? ([
+          {
+            title: "Costo",
+            dataIndex: "costo",
+            align: "right",
+            render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
+          },
+          {
+            title: "Margen",
+            align: "right",
+            render: (_: unknown, p: Product) => {
+              if (p.costo === null || p.precio <= 0) return "—";
+              const pct = ((p.precio - p.costo) / p.precio) * 100;
+              return <Tag color={pct < 0 ? "red" : pct < 20 ? "orange" : "green"}>{pct.toFixed(1)}%</Tag>;
+            },
+          },
+        ] as NonNullable<TableProps<Product>["columns"]>)
+      : []),
     {
       title: "Stock",
       dataIndex: "stock_actual",
@@ -119,15 +140,19 @@ export default function ProductsPage() {
       title: "Acciones",
       render: (_, p) => (
         <Space>
-          <Button size="small" type="primary" disabled={!p.activo} onClick={() => setMovementProduct(p)}>
-            Movimiento
-          </Button>
+          {canOperate && (
+            <Button size="small" type="primary" disabled={!p.activo} onClick={() => setMovementProduct(p)}>
+              Movimiento
+            </Button>
+          )}
           <Button size="small" onClick={() => navigate(`/movements?product_id=${p.id}`)}>
             Historial
           </Button>
-          <Button size="small" onClick={() => openEdit(p)}>
-            Editar
-          </Button>
+          {canOperate && (
+            <Button size="small" onClick={() => openEdit(p)}>
+              Editar
+            </Button>
+          )}
           {isAdmin && (
             <Popconfirm
               title={p.activo ? "¿Desactivar producto?" : "¿Activar producto?"}
@@ -150,9 +175,11 @@ export default function ProductsPage() {
       {contextHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2>Productos</h2>
-        <Button type="primary" onClick={openCreate}>
-          Nuevo producto
-        </Button>
+        {canOperate && (
+          <Button type="primary" onClick={openCreate}>
+            Nuevo producto
+          </Button>
+        )}
       </div>
 
       <Space style={{ marginBottom: 16 }} wrap>

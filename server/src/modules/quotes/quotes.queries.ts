@@ -17,7 +17,7 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
   const params: (string | number)[] = [];
 
   // RN-P13: un operador solo ve los suyos
-  if (actor.rol !== "admin") {
+  if (actor.rol === "operador") {
     where.push("q.created_by = ?");
     params.push(actor.id);
   }
@@ -85,7 +85,7 @@ export async function getQuote(id: number, actor: AuthUser) {
   const quote = rows[0];
 
   if (!quote) throw new HttpError(404, "Presupuesto no encontrado");
-  if (actor.rol !== "admin" && quote.created_by !== actor.id) {
+  if (actor.rol === "operador" && quote.created_by !== actor.id) {
     throw new HttpError(403, "No tienes acceso a este presupuesto");
   }
 

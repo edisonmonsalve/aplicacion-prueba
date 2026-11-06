@@ -47,3 +47,5 @@ uploads/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+memory-*/

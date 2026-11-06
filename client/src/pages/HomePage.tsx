@@ -19,7 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getDashboard } from "@/services/dashboardService";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
-import { STATUS_OPTIONS } from "@/pages/quotes/quoteUtils";
+import { STATUS_OPTIONS } from "@/pages/quotes/QuoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -197,9 +197,9 @@ export default function HomePage() {
               </Card>
             </Col>
             <Col xs={24} lg={10}>
-              <Card title="Presupuestos por estado">
+              <Card title="Cotizaciones por estado">
                 {estados.length === 0 ? (
-                  <Empty description="Aún no hay presupuestos" />
+                  <Empty description="Aún no hay cotizaciones" />
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
@@ -227,9 +227,9 @@ export default function HomePage() {
 
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} lg={12}>
-              <Card title="Top productos presupuestados">
+              <Card title="Top productos cotizados">
                 {data.topProductos.length === 0 ? (
-                  <Empty description="Se llenará con presupuestos aprobados o entregados" />
+                  <Empty description="Se llenará con cotizaciones aprobadas o entregadas" />
                 ) : (
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={data.topProductos} layout="vertical" margin={{ left: 16 }}>

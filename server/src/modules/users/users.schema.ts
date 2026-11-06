@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { ROLES } from "../../types/roles.js";
 
-const rol = z.enum(["admin", "operador"]);
+const rol = z.enum(ROLES);
 
 export const createUserSchema = z.object({
   nombre: z.string().trim().min(2).max(100),

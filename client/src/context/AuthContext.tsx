@@ -4,6 +4,7 @@ import type { AuthUser } from "@/types";
 
 interface AuthContextValue {
   user: AuthUser | null;
+  canOperate: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
 }
@@ -28,8 +29,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("user");
     setUser(null);
   };
-
-  return <AuthContext.Provider value={{ user, signIn, signOut }}>{children}</AuthContext.Provider>;
+  const canOperate = user?.rol === "admin" || user?.rol === "operador";
+  return (
+    <AuthContext.Provider value={{ user, canOperate, signIn, signOut }}>{children}</AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

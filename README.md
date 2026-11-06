@@ -1,12 +1,14 @@
 # Sistema de Usuarios e Inventario
 
-Aplicación fullstack para gestionar usuarios, productos, categorías, movimientos de stock y presupuestos (cotizaciones). Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio, transacciones SQL, cálculos monetarios y máquinas de estado.
+Aplicación fullstack para gestionar usuarios, productos, categorías, movimientos de stock y cotizaciones. Está en preparación un módulo financiero (presupuestos por periodo, transacciones, capital, ejecución y márgenes). Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio, transacciones SQL, cálculos monetarios y máquinas de estado.
 
-El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos-presupuestos.md`](requisitos-presupuestos.md).
+El módulo de finanzas tiene su propio documento de requisitos: [`docs/REQUISITOS-FINANZAS.md`](docs/REQUISITOS-FINANZAS.md). El módulo de cotizaciones está documentado en [`docs/requisitos-cotizaciones.md`](docs/requisitos-cotizaciones.md).
 
 ## Funcionalidades
 
 - **Autenticación:** inicio de sesión con JWT, rutas protegidas por rol y cambio de la propia contraseña.
+- **Roles:** admin, contador, operador y consulta. `contador` y `consulta` quedan preparados para el módulo financiero.
+- **Costos y márgenes:** `admin`, `contador` y `consulta` ven el costo de los productos y el margen; el `operador` no. Solo `admin` puede fijar el costo de un producto o el de una entrada de stock.
 - **Usuarios** (solo admin): listar con búsqueda, filtros y paginación; crear, editar y desactivar.
 - **Categorías:** listar, crear, editar y eliminar (si no tienen productos).
 - **Productos:** listar con búsqueda, filtros por categoría, estado y stock bajo; crear, editar y desactivar.
@@ -26,14 +28,18 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 
 ## Roles y permisos
 
-| Acción                                  | Admin | Operador |
-| --------------------------------------- | :---: | :------: |
-| Ver categorías, productos y movimientos |  Sí   |    Sí    |
-| Crear y editar productos                |  Sí   |    Sí    |
-| Registrar movimientos de stock          |  Sí   |    Sí    |
-| Desactivar productos                    |  Sí   |    No    |
-| Crear, editar y eliminar categorías     |  Sí   |    No    |
-| Gestionar usuarios                      |  Sí   |    No    |
+| Acción                                  | Admin | Contador | Operador | Consulta |
+| --------------------------------------- | :---: | :------: | :------: | :------: |
+| Ver categorías, productos y movimientos |  Sí   |    Sí    |    Sí    |    Sí    |
+| Ver costos y márgenes                   |  Sí   |    Sí    |    No    |    Sí    |
+| Fijar el costo de productos y entradas  |  Sí   |    No    |    No    |    No    |
+| Crear y editar productos                |  Sí   |    No    |    Sí    |    No    |
+| Registrar movimientos de stock          |  Sí   |    No    |    Sí    |    No    |
+| Desactivar productos                    |  Sí   |    No    |    No    |    No    |
+| Crear, editar y eliminar categorías     |  Sí   |    No    |    No    |    No    |
+| Gestionar usuarios                      |  Sí   |    No    |    No    |    No    |
+
+Los roles `contador` y `consulta` ya existen en autenticación y usuarios y ya acceden a costos y márgenes en solo lectura. El módulo financiero completo se habilitará con las tablas de `budgets`, `budget_lines` y `transactions`.
 
 ## Reglas de negocio
 
@@ -44,6 +50,8 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 - **RN-05:** una categoría con productos asociados no se puede eliminar.
 - **RN-06:** un usuario no puede desactivarse a sí mismo ni quitarse el rol de admin.
 - **RN-07:** precios y cantidades deben ser mayores que cero.
+- **RN-08:** solo `admin` fija `products.costo` y el costo unitario de una entrada; el `operador` registra productos con costo 0 y entradas con el costo del producto. Las salidas no guardan costo unitario.
+- **RN-09:** el `operador` nunca recibe costos desde la API (se devuelve `null`); `contador` y `consulta` los ven, pero no pueden modificarlos.
 
 ### Presupuestos
 
@@ -60,7 +68,6 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 - **RN-P11:** la fecha de validez no puede ser anterior a hoy.
 - **RN-P12:** cada cambio de estado queda registrado con quién lo hizo y cuándo.
 - **RN-P13:** el operador solo ve y duplica sus propios presupuestos.
-- **Pendiente:** RN-P08 y RN-P09 (entrega con descuento transaccional de stock), próximo ticket del backend.
 
 ### Estados de un presupuesto
 
@@ -92,7 +99,7 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
     │   ├── scripts/         # seed admin, ejecutor de migraciones, base de pruebas
     │   ├── types/           # tipos de Express (req.user)
     │   └── utils/           # HttpError, helpers de SQL, transacciones y fechas
-    └── test/                # pruebas Vitest + Supertest
+    └── tests/               # pruebas Vitest + Supertest
 ```
 
 ## Requisitos previos

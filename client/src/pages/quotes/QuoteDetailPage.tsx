@@ -27,7 +27,7 @@ import {
   deliverQuote,
 } from "../../services/quotesService";
 import type { QuoteDetail, QuoteLine, QuoteStatus, StockFailure } from "../../types";
-import { StatusTag, money, fmtDate, fmtDateTime } from "./quoteUtils";
+import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/QuoteUtils";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const FLOW: QuoteStatus[] = ["borrador", "enviado", "aprobado", "entregado"];
@@ -36,12 +36,12 @@ export default function QuoteDetailPage() {
   const { id } = useParams();
   const quoteId = Number(id);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canOperate } = useAuth();
   const { message, modal } = App.useApp();
   const [quote, setQuote] = useState<QuoteDetail | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useDocumentTitle(quote?.numero ?? "Presupuesto");
+  useDocumentTitle(quote?.numero ?? "Cotización");
 
   const load = useCallback(async () => {
     try {
@@ -50,12 +50,12 @@ export default function QuoteDetailPage() {
       const s = isAxiosError(e) ? e.response?.status : undefined;
       message.error(
         s === 403
-          ? "No tienes acceso a este presupuesto"
+          ? "No tienes acceso a esta cotización"
           : s === 404
-            ? "Presupuesto no encontrado"
-            : "Error al cargar el presupuesto"
+            ? "Cotización no encontrada"
+            : "Error al cargar la cotización"
       );
-      navigate("/presupuestos", { replace: true });
+      navigate("/cotizaciones", { replace: true });
     }
   }, [quoteId, navigate, message]);
 
@@ -100,7 +100,7 @@ export default function QuoteDetailPage() {
     try {
       const { id: newId } = await duplicateQuote(quoteId);
       message.success("Borrador creado");
-      navigate(`/presupuestos/${newId}`);
+      navigate(`/cotizaciones/${newId}`);
     } catch {
       message.error("No se pudo duplicar");
     } finally {
@@ -110,7 +110,7 @@ export default function QuoteDetailPage() {
 
   if (!quote) return <Card loading />;
 
-  const canAct = user?.rol === "admin" || quote.created_by === user?.id;
+  const canAct = canOperate && (user?.rol === "admin" || quote.created_by === user?.id);
 
   const confirm = (
     label: string,
@@ -119,7 +119,7 @@ export default function QuoteDetailPage() {
     opts: { danger?: boolean; primary?: boolean } = {}
   ) => (
     <Popconfirm
-      title={`¿${label} este presupuesto?`}
+      title={`¿${label} esta cotización?`}
       okText="Sí"
       cancelText="No"
       onConfirm={() => run(fn, ok)}
@@ -138,32 +138,32 @@ export default function QuoteDetailPage() {
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
       <Space wrap>
-        <Button onClick={() => navigate("/presupuestos")}>Volver</Button>
+        <Button onClick={() => navigate("/cotizaciones")}>Volver</Button>
         {canAct &&
           quote.estado === "borrador" &&
-          confirm("Enviar", sendQuote, "Presupuesto enviado", { primary: true })}
+          confirm("Enviar", sendQuote, "Cotización enviada", { primary: true })}
         {canAct &&
           quote.estado === "enviado" &&
-          confirm("Aprobar", approveQuote, "Presupuesto aprobado", { primary: true })}
+          confirm("Aprobar", approveQuote, "Cotización aprobada", { primary: true })}
         {canAct &&
           quote.estado === "enviado" &&
-          confirm("Rechazar", rejectQuote, "Presupuesto rechazado", { danger: true })}
+          confirm("Rechazar", rejectQuote, "Cotización rechazada", { danger: true })}
         {canAct &&
           quote.estado === "aprobado" &&
-          confirm("Entregar", deliverQuote, "Presupuesto entregado", { primary: true })}
+          confirm("Entregar", deliverQuote, "Cotización entregada", { primary: true })}
         {canAct && quote.estado === "borrador" && (
-          <Button onClick={() => navigate(`/presupuestos/${quoteId}/editar`)} disabled={busy}>
+          <Button onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)} disabled={busy}>
             Editar
           </Button>
         )}
         <Dropdown
           menu={{
             items: [
-              { key: "dup", label: "Duplicar", disabled: busy, onClick: onDuplicate },
+              { key: "dup", label: "Duplicar", disabled: busy || !canOperate, onClick: onDuplicate },
               {
                 key: "print",
                 label: "Imprimir",
-                onClick: () => navigate(`/presupuestos/${quoteId}/imprimir`),
+                onClick: () => navigate(`/cotizaciones/${quoteId}/imprimir`),
               },
             ],
           }}
@@ -180,10 +180,10 @@ export default function QuoteDetailPage() {
           type={daysLeft < 0 ? "error" : "warning"}
           message={
             daysLeft < 0
-              ? "Este presupuesto está vencido"
+              ? "Esta cotización está vencida"
               : daysLeft === 0
-                ? "Este presupuesto vence hoy"
-                : `Este presupuesto vence en ${daysLeft} día(s)`
+                ? "Esta cotización vence hoy"
+                : `Esta cotización vence en ${daysLeft} día(s)`
           }
         />
       )}
@@ -220,7 +220,7 @@ export default function QuoteDetailPage() {
 
       <Card title="Líneas">
         <Table<QuoteLine>
-          rowKey="id"
+          rowKey="sku"
           pagination={false}
           scroll={{ x: "max-content" }}
           dataSource={quote.items}

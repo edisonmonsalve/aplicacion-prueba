@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Form, Input, InputNumber, Modal, Select, message } from "antd";
 import { isAxiosError } from "axios";
 import { createProduct, updateProduct, type ProductInput } from "@/services/productsService";
+import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
+import { canEditCosts, canSeeCosts } from "@/utils/roles";
 import type { Category, Product } from "@/types";
 
 interface Props {
@@ -13,10 +15,13 @@ interface Props {
 }
 
 export default function ProductFormModal({ product, categories, onClose, onSaved }: Props) {
+  const { user } = useAuth();
   const [form] = Form.useForm<ProductInput>();
   const [messageApi, contextHolder] = message.useMessage();
   const [saving, setSaving] = useState(false);
   const isEdit = product !== null;
+  const verCosto = canSeeCosts(user?.rol);
+  const editarCosto = canEditCosts(user?.rol);
 
   const handleOk = async () => {
     const values = await form.validateFields().catch(() => null);
@@ -62,9 +67,10 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
                 nombre: product.nombre,
                 category_id: product.category_id,
                 precio: product.precio,
+                costo: product.costo ?? 0,
                 stock_minimo: product.stock_minimo,
               }
-            : { stock_minimo: 0 }
+            : { stock_minimo: 0, costo: 0 }
         }
       >
         <Form.Item
@@ -111,6 +117,21 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
         >
           <InputNumber min={0} step={100} style={{ width: "100%" }} />
         </Form.Item>
+
+        {verCosto && (
+          <Form.Item
+            label="Costo"
+            name="costo"
+            rules={[{ type: "number", min: 0, message: "No puede ser negativo" }]}
+            extra={
+              editarCosto
+                ? "Solo visible para roles con acceso a costos."
+                : "Solo lectura: tu rol no puede modificarlo."
+            }
+          >
+            <InputNumber min={0} step={100} style={{ width: "100%" }} disabled={!editarCosto} />
+          </Form.Item>
+        )}
 
         <Form.Item
           label="Stock mínimo"

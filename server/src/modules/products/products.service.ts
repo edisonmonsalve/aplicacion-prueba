@@ -1,6 +1,8 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import type { z } from "zod";
 import { pool } from "../../config/Db.js";
+import type { AuthUser } from "../../types/express.js";
+import { canSeeCosts } from "../../types/roles.js";
 import { HttpError } from "../../utils/http-error.js";
 import { buildSet } from "../../utils/sql.js";
 import type {
@@ -9,7 +11,7 @@ import type {
   updateProductSchema,
 } from "./products.schema.js";
 
-export async function listProducts(query: z.infer<typeof listQuerySchema>) {
+export async function listProducts(query: z.infer<typeof listQuerySchema>, actor: AuthUser) {
   const where: string[] = [];
   const params: (string | number)[] = [];
 
@@ -34,9 +36,12 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>) {
     `SELECT COUNT(*) AS total FROM products p ${clause}`,
     params
   );
+  // El operador no ve costos: se devuelve NULL en lugar de omitir la columna
+  const costoColumn = canSeeCosts(actor.rol) ? "p.costo" : "NULL AS costo";
+
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT p.id, p.sku, p.nombre, p.category_id, c.nombre AS categoria,
-            p.precio, p.stock_actual, p.stock_minimo, p.activo, p.created_at
+            p.precio, ${costoColumn}, p.stock_actual, p.stock_minimo, p.activo, p.created_at
      FROM products p
      JOIN categories c ON c.id = p.category_id
      ${clause}
@@ -48,21 +53,30 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>) {
   return { data, total, page: query.page, pageSize: query.pageSize };
 }
 
-export async function createProduct(input: z.infer<typeof createProductSchema>) {
+export async function createProduct(input: z.infer<typeof createProductSchema>, actor: AuthUser) {
+  // Solo admin fija el costo; el operador crea con costo 0 y no lo ve
+  const costo = actor.rol === "admin" ? (input.costo ?? 0) : 0;
+
   const [res] = await pool.query<ResultSetHeader>(
-    `INSERT INTO products (sku, nombre, category_id, precio, stock_minimo)
-     VALUES (?, ?, ?, ?, ?)`,
-    [input.sku, input.nombre, input.category_id, input.precio, input.stock_minimo]
+    `INSERT INTO products (sku, nombre, category_id, precio, costo, stock_minimo)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [input.sku, input.nombre, input.category_id, input.precio, costo, input.stock_minimo]
   );
   return { id: res.insertId };
 }
 
-export async function updateProduct(id: number, input: z.infer<typeof updateProductSchema>) {
+export async function updateProduct(
+  id: number,
+  input: z.infer<typeof updateProductSchema>,
+  actor: AuthUser
+) {
   const { sql, params } = buildSet({
     sku: input.sku,
     nombre: input.nombre,
     category_id: input.category_id,
     precio: input.precio,
+    // Ver el costo no es lo mismo que poder fijarlo: solo admin lo modifica
+    costo: actor.rol === "admin" ? input.costo : undefined,
     stock_minimo: input.stock_minimo,
   });
   if (!sql) throw new HttpError(400, "No hay nada que actualizar");

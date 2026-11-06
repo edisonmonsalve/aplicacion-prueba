@@ -1,21 +1,23 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { z } from "zod";
 import { pool } from "../../config/Db.js";
+import type { AuthUser } from "../../types/express.js";
+import { canSeeCosts } from "../../types/roles.js";
 import { HttpError } from "../../utils/http-error.js";
 import type { createMovementSchema, listQuerySchema } from "./movements.schema.js";
 
 export async function registerMovement(
   input: z.infer<typeof createMovementSchema>,
-  userId: number,
+  actor: AuthUser,
   externalConn?: PoolConnection
 ) {
   // Con conexión externa, la transacción (begin/commit/rollback) la maneja quien llama
-  if (externalConn) return applyMovement(input, userId, externalConn);
+  if (externalConn) return applyMovement(input, actor, externalConn);
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const result = await applyMovement(input, userId, conn);
+    const result = await applyMovement(input, actor, conn);
     await conn.commit();
     return result;
   } catch (err) {
@@ -28,11 +30,11 @@ export async function registerMovement(
 
 async function applyMovement(
   input: z.infer<typeof createMovementSchema>,
-  userId: number,
+  actor: AuthUser,
   conn: PoolConnection
 ) {
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT id, stock_actual, activo FROM products WHERE id = ? FOR UPDATE",
+    "SELECT id, stock_actual, costo, activo FROM products WHERE id = ? FOR UPDATE",
     [input.product_id]
   );
   const product = rows[0];
@@ -50,16 +52,29 @@ async function applyMovement(
 
   await conn.query("UPDATE products SET stock_actual = ? WHERE id = ?", [nuevoStock, input.product_id]);
 
+  // Solo una entrada lleva costo. Si el actor no ve costos, no puede imponer uno:
+  // se usa el costo del producto. Las salidas no llevan costo unitario.
+  const costoUnitario =
+    input.tipo === "entrada"
+      ? actor.rol === "admin" && input.costo_unitario !== undefined
+        ? input.costo_unitario
+        : Number(product.costo ?? 0)
+      : null;
+
   const [res] = await conn.query<ResultSetHeader>(
-    `INSERT INTO stock_movements (product_id, user_id, tipo, cantidad, motivo)
-     VALUES (?, ?, ?, ?, ?)`,
-    [input.product_id, userId, input.tipo, input.cantidad, input.motivo ?? null]
+    `INSERT INTO stock_movements (product_id, user_id, tipo, cantidad, costo_unitario, motivo)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [input.product_id, actor.id, input.tipo, input.cantidad, costoUnitario, input.motivo ?? null]
   );
 
-  return { id: res.insertId, stock_actual: nuevoStock };
+  return {
+    id: res.insertId,
+    stock_actual: nuevoStock,
+    ...(canSeeCosts(actor.rol) && { costo_unitario: costoUnitario }),
+  };
 }
 
-export async function listMovements(query: z.infer<typeof listQuerySchema>) {
+export async function listMovements(query: z.infer<typeof listQuerySchema>, actor: AuthUser) {
   const where: string[] = [];
   const params: (string | number)[] = [];
 
@@ -77,9 +92,11 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>) {
     `SELECT COUNT(*) AS total FROM stock_movements m ${clause}`,
     params
   );
+  const costoColumn = canSeeCosts(actor.rol) ? "m.costo_unitario" : "NULL AS costo_unitario";
+
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT m.id, m.product_id, p.sku, p.nombre AS producto, m.tipo,
-            m.cantidad, m.motivo, u.nombre AS usuario, m.created_at
+            m.cantidad, ${costoColumn}, m.motivo, u.nombre AS usuario, m.created_at
      FROM stock_movements m
      JOIN products p ON p.id = m.product_id
      JOIN users u ON u.id = m.user_id

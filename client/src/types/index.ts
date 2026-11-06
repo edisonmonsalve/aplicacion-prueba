@@ -1,4 +1,4 @@
-export type Rol = "admin" | "operador";
+export type Rol = "admin" | "contador" | "operador" | "consulta";
 
 export interface AuthUser {
   id: number;
@@ -36,6 +36,7 @@ export interface Product {
   category_id: number;
   categoria: string;
   precio: number;
+  costo: number | null; // oculto (null) para el rol operador
   stock_actual: number;
   stock_minimo: number;
   activo: number;
@@ -51,6 +52,7 @@ export interface StockMovement {
   producto: string;
   tipo: MovementTipo;
   cantidad: number;
+  costo_unitario: number | null; // solo entradas; oculto (null) para el rol operador
   motivo: string | null;
   usuario: string;
   created_at: string;
@@ -130,9 +132,13 @@ export interface QuotesQuery {
 export interface QuoteLineInput {
   product_id: number;
   cantidad: number;
-  precio_unitario: number;
   descuento_pct: number;
   impuesto_pct: number;
+}
+
+// Solo para el formulario: el precio se toma del catálogo y el servidor lo ignora
+export interface QuoteLineForm extends QuoteLineInput {
+  precio_unitario: number;
 }
 
 export interface QuoteInput {
