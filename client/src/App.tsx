@@ -13,6 +13,7 @@ import QuoteDetailPage from "./pages/quotes/QuoteDetailPage";
 import QuoteFormPage from "./pages/quotes/QuoteFormPage";
 import QuotePrintPage from "./pages/quotes/QuotePrintPage";
 import ProfilePage from "@/pages/ProfilePage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
   return (
@@ -47,9 +48,8 @@ export default function App() {
             <Route path="/presupuestos/:id/editar" element={<QuoteFormPage />} />
             <Route path="/presupuestos/:id/imprimir" element={<QuotePrintPage />} />
             <Route path="/perfil" element={<ProfilePage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

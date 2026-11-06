@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { deleteCategory, getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
 import type { Category } from "@/types";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function CategoriesPage() {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ export default function CategoriesPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+
+  useDocumentTitle("Categorías");
 
   useEffect(() => {
     let ignore = false;
@@ -118,11 +121,7 @@ export default function CategoriesPage() {
       />
 
       {modalOpen && (
-        <CategoryFormModal
-          category={editing}
-          onClose={() => setModalOpen(false)}
-          onSaved={handleSaved}
-        />
+        <CategoryFormModal category={editing} onClose={() => setModalOpen(false)} onSaved={handleSaved} />
       )}
     </div>
   );

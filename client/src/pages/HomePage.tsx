@@ -21,6 +21,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
 import { STATUS_OPTIONS } from "@/pages/quotes/quoteUtils";
 import type { Dashboard } from "@/types";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const ESTADO_COLOR: Record<string, string> = {
   borrador: "#8c8c8c",
@@ -42,6 +43,8 @@ export default function HomePage() {
   const { token } = theme.useToken();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useDocumentTitle("Inicio");
 
   useEffect(() => {
     let ignore = false;

@@ -6,13 +6,16 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import "@fontsource-variable/plus-jakarta-sans";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 dayjs.locale("es");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </ThemeProvider>
   </React.StrictMode>
 );

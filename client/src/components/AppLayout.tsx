@@ -18,6 +18,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const { Sider, Header, Content } = Layout;
 
@@ -115,7 +116,9 @@ export default function AppLayout() {
         </Header>
 
         <Content style={{ margin: 24 }}>
-          <Outlet />
+          <ErrorBoundary key={pathname}>
+            <Outlet />
+          </ErrorBoundary>
           {contextHolder}
           {passwordOpen && (
             <ChangePasswordModal

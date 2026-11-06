@@ -4,16 +4,13 @@ import type { TableProps } from "antd";
 import ProductFormModal from "@/components/ProductFormModal";
 import { useAuth } from "@/context/AuthContext";
 import { getCategories } from "@/services/categoriesService";
-import {
-  getProducts,
-  setProductActivo,
-  type ProductsQuery,
-} from "@/services/productsService";
+import { getProducts, setProductActivo, type ProductsQuery } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
 import type { Category, Product } from "@/types";
 import { useNavigate } from "react-router-dom";
 import MovementFormModal from "@/components/MovementFormModal";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -30,6 +27,8 @@ export default function ProductsPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+
+  useDocumentTitle("Productos");
 
   // Las categorías se cargan una vez: alimentan el filtro y el formulario
   useEffect(() => {

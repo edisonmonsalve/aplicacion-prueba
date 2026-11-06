@@ -8,6 +8,7 @@ import type { Quote, QuoteStatus } from "@/types";
 import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/quoteUtils";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const FMT = "YYYY-MM-DD";
 
@@ -28,6 +29,35 @@ export default function QuotesPage() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState(q);
   const [exporting, setExporting] = useState(false);
+
+  useDocumentTitle("Presupuestos");
+
+  // Debounce: busca 400 ms después de dejar de escribir
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (text.trim() !== q) update({ q: text.trim() || undefined });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listQuotes({ q: q || undefined, estado, desde, hasta, page, pageSize })
+      .then((r) => {
+        if (cancelled) return;
+        setRows(r.data);
+        setTotal(r.total);
+      })
+      .catch(() => message.error("No se pudo cargar los presupuestos"))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [q, estado, desde, hasta, page, pageSize, message]);
 
   const exportCsv = async () => {
     setExporting(true);
@@ -71,33 +101,6 @@ export default function QuotesPage() {
       },
       { replace: true }
     );
-
-  // Debounce: busca 400 ms después de dejar de escribir
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (text.trim() !== q) update({ q: text.trim() || undefined });
-    }, 400);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    listQuotes({ q: q || undefined, estado, desde, hasta, page, pageSize })
-      .then((r) => {
-        if (cancelled) return;
-        setRows(r.data);
-        setTotal(r.total);
-      })
-      .catch(() => message.error("No se pudo cargar los presupuestos"))
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [q, estado, desde, hasta, page, pageSize, message]);
 
   const hasFilters = !!(q || estado || desde || hasta);
 

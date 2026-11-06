@@ -28,6 +28,7 @@ import {
 } from "../../services/quotesService";
 import type { QuoteDetail, QuoteLine, QuoteStatus, StockFailure } from "../../types";
 import { StatusTag, money, fmtDate, fmtDateTime } from "./quoteUtils";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const FLOW: QuoteStatus[] = ["borrador", "enviado", "aprobado", "entregado"];
 
@@ -39,6 +40,8 @@ export default function QuoteDetailPage() {
   const { message, modal } = App.useApp();
   const [quote, setQuote] = useState<QuoteDetail | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useDocumentTitle(quote?.numero ?? "Presupuesto");
 
   const load = useCallback(async () => {
     try {

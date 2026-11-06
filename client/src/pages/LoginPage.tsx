@@ -5,6 +5,7 @@ import { InboxOutlined, LockOutlined, MailOutlined, MoonOutlined, SunOutlined } 
 import { isAxiosError } from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { useThemeMode } from "@/context/ThemeContext";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function LoginPage() {
   const { user, signIn } = useAuth();
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(() =>
     sessionStorage.getItem("session-expired") ? "Tu sesión expiró. Inicia sesión de nuevo." : null
   );
+  useDocumentTitle("Iniciar sesión");
 
   useEffect(() => {
     sessionStorage.removeItem("session-expired");

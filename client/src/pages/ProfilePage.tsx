@@ -4,6 +4,7 @@ import { KeyOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { useAuth } from "@/context/AuthContext";
 import { useThemeMode } from "@/context/ThemeContext";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -11,6 +12,8 @@ export default function ProfilePage() {
   const { token } = theme.useToken();
   const { message } = App.useApp();
   const [passwordOpen, setPasswordOpen] = useState(false);
+
+  useDocumentTitle("Mi perfil");
 
   if (!user) return null;
 
