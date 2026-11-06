@@ -9,6 +9,11 @@ export const PASSWORD = "Clave12345";
 
 // Orden respetando las claves foráneas
 export async function resetDb() {
+  // La auto-referencia de anulaciones impide borrar en bloque sin soltarla primero
+  await pool.query("UPDATE transactions SET anulada_de = NULL");
+  await pool.query("DELETE FROM transactions");
+  await pool.query("DELETE FROM budget_lines");
+  await pool.query("DELETE FROM budgets");
   await pool.query("DELETE FROM quote_audit_log");
   await pool.query("DELETE FROM quote_status_history");
   await pool.query("DELETE FROM quote_items");

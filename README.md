@@ -1,6 +1,6 @@
 # Sistema de Usuarios e Inventario
 
-Aplicación fullstack para gestionar usuarios, productos, categorías, movimientos de stock y cotizaciones. Está en preparación un módulo financiero (presupuestos por periodo, transacciones, capital, ejecución y márgenes). Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio, transacciones SQL, cálculos monetarios y máquinas de estado.
+Aplicación fullstack para gestionar usuarios, productos, categorías, movimientos de stock y cotizaciones. Ya está creado el esquema base del módulo financiero (presupuestos por periodo, transacciones y capital); la API y la UI vienen en el siguiente paso. Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio, transacciones SQL, cálculos monetarios y máquinas de estado.
 
 El módulo de finanzas tiene su propio documento de requisitos: [`docs/REQUISITOS-FINANZAS.md`](docs/REQUISITOS-FINANZAS.md). El módulo de cotizaciones está documentado en [`docs/requisitos-cotizaciones.md`](docs/requisitos-cotizaciones.md).
 
@@ -15,6 +15,7 @@ El módulo de finanzas tiene su propio documento de requisitos: [`docs/REQUISITO
 - **Movimientos de stock:** registrar entradas y salidas con motivo, e historial filtrable por producto y tipo.
 - **Alertas:** indicador visual de productos con stock por debajo del mínimo.
 - **Presupuestos:** crear y editar borradores con datos del cliente (email y notas incluidos) y líneas dinámicas de productos; totales calculados en el servidor (descuentos e impuestos, redondeo a 2 decimales); enviar, aprobar, rechazar y entregar con historial de estados; la entrega descuenta stock en una sola transacción; duplicar; auditoría de las ediciones; vista de impresión / PDF. El operador solo ve y duplica los suyos; el admin ve todos.
+- **Base financiera (esquema):** presupuestos por periodo (`budgets`), líneas planeadas por categoría y producto (`budget_lines`) y transacciones reales inmutables con anulación (`transactions`). La API y la UI del módulo financiero se implementan en el siguiente paso.
 
 ## Stack
 
@@ -215,20 +216,16 @@ Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuan
 Las pruebas del servidor usan Vitest y Supertest contra una base de datos aparte (`inventario_test`), para no tocar los datos de desarrollo.
 
 1. Crea `server/.env.test` con las mismas variables que `.env`, pero con `DB_NAME=inventario_test`.
-2. Crea la base de pruebas (una sola vez, o cuando cambien las migraciones):
+2. Ejecuta las pruebas. La suite aplica automáticamente las migraciones pendientes sobre `inventario_test` antes de empezar:
 
    ```bash
    cd server
-   npm run test:db
-   ```
-
-3. Ejecuta las pruebas:
-
-   ```bash
    npm test
    ```
 
-Cubren autenticación y permisos por rol, las reglas del inventario (SKU único, categorías con productos, precios válidos) y los movimientos de stock, incluida una prueba de concurrencia. Del módulo de presupuestos: validación y cálculo de totales, reglas de líneas, visibilidad por rol, auditoría de ediciones, historial, transiciones de estado y la entrega (todo o nada y dos entregas simultáneas).
+   Si necesitas recrear la base de pruebas desde cero (por ejemplo, tras un cambio de esquema), ejecuta `npm run test:db`.
+
+Cubren autenticación y permisos por rol, las reglas del inventario (SKU único, categorías con productos, precios válidos), los movimientos de stock (incluida concurrencia) y la visibilidad de costos por rol. Del módulo de presupuestos/cotizaciones: validación y cálculo de totales, reglas de líneas, visibilidad por rol, auditoría de ediciones, historial, transiciones de estado y la entrega (todo o nada y dos entregas simultáneas). Del esquema financiero: presupuesto activo único por periodo, borrado en cascada de líneas y transacciones inmutables con anulación única.
 
 ## Decisiones técnicas
 
