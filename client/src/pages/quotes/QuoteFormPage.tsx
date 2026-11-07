@@ -206,6 +206,10 @@ export default function QuoteFormPage() {
           <Input.TextArea rows={3} maxLength={2000} showCount />
         </Form.Item>
 
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+          Agrega productos a la cotización. El precio se toma del catálogo y no es editable. Descuento e impuesto se
+          aplican por línea.
+        </Typography.Paragraph>
         <Form.List
           name="lineas"
           rules={[
@@ -220,7 +224,7 @@ export default function QuoteFormPage() {
             <>
               {fields.map(({ key, name }) => (
                 <Space key={key} align="start" wrap>
-                  <Form.Item name={[name, "product_id"]} rules={[{ required: true, message: "Producto" }]}>
+                  <Form.Item name={[name, "product_id"]} rules={[{ required: true, message: "Producto" }]} tooltip="Producto cotizado.">
                     <Select
                       showSearch
                       filterOption={false}
@@ -234,20 +238,21 @@ export default function QuoteFormPage() {
                       }))}
                     />
                   </Form.Item>
-                  <Form.Item name={[name, "cantidad"]} rules={[{ required: true, message: "Cant." }]}>
+                  <Form.Item name={[name, "cantidad"]} rules={[{ required: true, message: "Cant." }]} tooltip="Cantidad de unidades.">
                     <InputNumber min={1} placeholder="Cant." />
                   </Form.Item>
                   <Form.Item
                     name={[name, "precio_unitario"]}
                     rules={[{ required: true, message: "Precio" }]}
                     extra="Tomado del catálogo"
+                    tooltip="Precio unitario del catálogo (solo lectura)."
                   >
                     <InputNumber min={0} placeholder="Precio" style={{ width: 130 }} disabled />
                   </Form.Item>
-                  <Form.Item name={[name, "descuento_pct"]} initialValue={0}>
+                  <Form.Item name={[name, "descuento_pct"]} initialValue={0} tooltip="Descuento porcentual de la línea.">
                     <InputNumber min={0} max={100} addonAfter="% desc." />
                   </Form.Item>
-                  <Form.Item name={[name, "impuesto_pct"]} initialValue={0}>
+                  <Form.Item name={[name, "impuesto_pct"]} initialValue={0} tooltip="Impuesto porcentual de la línea.">
                     <InputNumber min={0} max={100} addonAfter="% imp." />
                   </Form.Item>
                   <Typography.Text
