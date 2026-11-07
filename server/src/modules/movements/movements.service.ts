@@ -44,6 +44,13 @@ async function applyMovement(
   if (!product) throw new HttpError(404, "Producto no encontrado");
   if (!product.activo) throw new HttpError(409, "El producto está inactivo");
 
+  if (input.tipo === "entrada" && !["compra", "ajuste"].includes(input.origen)) {
+    throw new HttpError(400, "El origen no corresponde a una entrada");
+  }
+  if (input.tipo === "salida" && !["venta", "entrega", "merma", "ajuste"].includes(input.origen)) {
+    throw new HttpError(400, "El origen no corresponde a una salida");
+  }
+
   const delta = input.tipo === "entrada" ? input.cantidad : -input.cantidad;
   const nuevoStock = product.stock_actual + delta;
 
@@ -64,13 +71,13 @@ async function applyMovement(
       : null;
 
   const [res] = await conn.query<ResultSetHeader>(
-    `INSERT INTO stock_movements (product_id, user_id, tipo, cantidad, costo_unitario, motivo)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [input.product_id, actor.id, input.tipo, input.cantidad, costoUnitario, input.motivo ?? null]
+    `INSERT INTO stock_movements (product_id, user_id, tipo, origen, cantidad, costo_unitario, motivo)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [input.product_id, actor.id, input.tipo, input.origen, input.cantidad, costoUnitario, input.motivo ?? null]
   );
 
-  // RF-03: una entrada con costo genera el egreso real de la compra.
-  if (input.tipo === "entrada" && costoUnitario && costoUnitario > 0) {
+  // Generacion automatica de asientos financieros segun el origen
+  if (input.tipo === "entrada" && input.origen === "compra" && costoUnitario && costoUnitario > 0) {
     await createAutoTransaction(conn, {
       tipo: "gasto",
       monto: costoUnitario * input.cantidad,
@@ -78,9 +85,25 @@ async function applyMovement(
       categoriaNombre: "Compra de inventario",
       productId: input.product_id,
       stockMovementId: res.insertId,
-      descripcion: `Entrada de stock #${res.insertId}`,
+      descripcion: `Entrada de stock #${res.insertId} (compra)`,
       userId: actor.id,
     });
+  }
+
+  if (input.tipo === "salida" && input.origen === "venta") {
+    const precio = Number(product.precio ?? 0);
+    if (precio > 0) {
+      await createAutoTransaction(conn, {
+        tipo: "ingreso",
+        monto: precio * input.cantidad,
+        fecha: today(),
+        categoriaNombre: "Ventas",
+        productId: input.product_id,
+        stockMovementId: res.insertId,
+        descripcion: `Salida de stock #${res.insertId} (venta)`,
+        userId: actor.id,
+      });
+    }
   }
 
   return {

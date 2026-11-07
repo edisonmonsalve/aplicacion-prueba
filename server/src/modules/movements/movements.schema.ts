@@ -7,6 +7,7 @@ export const createMovementSchema = z.object({
   // Costo unitario de la entrada. Si se omite, se usa products.costo.
   costo_unitario: z.number().min(0).max(9_999_999_999).optional(),
   motivo: z.string().trim().max(255).optional(),
+  origen: z.enum(["compra", "venta", "entrega", "merma", "ajuste"]).default("ajuste"),
 });
 
 export const listQuerySchema = z.object({

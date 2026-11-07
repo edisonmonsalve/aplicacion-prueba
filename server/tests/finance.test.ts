@@ -290,6 +290,7 @@ describe("Finanzas: API", () => {
       tipo: "entrada",
       cantidad: 10,
       costo_unitario: 400,
+      origen: "compra",
     });
     expect(movement.status).toBe(201);
 

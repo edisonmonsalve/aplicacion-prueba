@@ -9,8 +9,8 @@ Cada regla indica si esta implementada (OK), parcialmente (PARCIAL) o pendiente 
 
 Usuario: nombre, correo, contrasena cifrada (bcrypt), rol (admin, contador, operador, consulta), estado (activo/inactivo), fecha de creacion.
 Categoria: nombre y estado, con productos asociados.
-Producto: SKU, nombre, categoria, precio, costo, stock actual, stock minimo, estado.
-Movimiento de stock: producto, usuario, tipo (entrada/salida), cantidad, costo unitario, motivo, fecha.
+Producto: SKU, nombre, categoría, precio, costo, stock actual, stock mínimo, estado.
+Movimiento de stock: producto, usuario, tipo (entrada/salida), origen (compra/venta/entrega/merma/ajuste), cantidad, costo unitario, motivo, fecha.
 Cotizacion: cliente (nombre, documento, email), fecha de validez, estado, lineas, totales, historial de estados, auditoria.
 Presupuesto: nombre, tipo de periodo (dia/semana/mes/anio), rango de fechas, meta de ingresos, alerta (%), estado, lineas.
 Transaccion financiera: tipo (ingreso/gasto), monto, fecha, categoria financiera, cuenta, producto/cotizacion/movimiento asociado, descripcion, anulada_de.
@@ -100,12 +100,13 @@ PARCIAL  Revertir un asiento automatico no revierte stock ni cotizacion (bloquea
 7. MOVIMIENTOS DE STOCK Y FINANZAS
 ============================================================
 
-OK  Una entrada con costo genera automaticamente el egreso real de la compra en finanzas.
-OK  Ese egreso respeta el periodo cerrado (se bloquea si hoy esta en un periodo cerrado).
-OK  La disponibilidad presupuestaria se consulta por producto y presupuesto activo.
-OK  Si la compra supera el disponible, solo un administrador puede confirmarla.
-PARCIAL  Movimientos con costo cero en periodo cerrado: se permiten (no generan transaccion). Decision pendiente si deben bloquearse.
-PARCIAL  Movimiento con costo cero no genera asiento financiero (por diseno).
+OK  Una entrada con costo y origen="compra" genera automaticamente el egreso real de la compra en finanzas (gasto "Compra de inventario").
+OK  Una salida con origen="venta" genera un ingreso en finanzas (ingreso "Ventas") por precio × cantidad.
+OK  Salidas con origen="entrega/merma/ajuste" actualizan solo stock, sin asiento financiero.
+OK  El origen es obligatorio en todos los movimientos y se valida en el servicio (entrada → compra/ajuste; salida → venta/entrega/merma/ajuste).
+OK  El costo unitario en entradas con origen="compra" actualiza el costo del producto al confirmar factura compra.
+OK  Movimientos con costo cero: se permiten pero no generan asiento financiero (por diseno).
+OK  El origen determina si se genera asiento financiero automático o solo movimiento de stock.
 
 ============================================================
 8. CONCURRENCIA Y ATOMICIDAD
@@ -148,7 +149,20 @@ OK  Sugerencias basadas en ejecucion del presupuesto activo.
 - Productos inactivos con toggle concurrente: mitigado con FOR UPDATE, monitorear.
 
 ============================================================
-12. NOTAS DE DISENO
+12. MODULO DE FACTURACIÓN
+============================================================
+
+OK  Facturas con tipo "venta" (FAC-0001) y "compra" (COM-0001), numeración consecutiva por tipo.
+OK  Cabecera: tipo, fecha, contraparte, documento, email, estado (borrador/confirmada/anulada), total, notas.
+OK  Líneas: producto, cantidad, precio unitario, descuento %, impuesto %, total por línea (calculado servidor).
+OK  Confirmar factura de venta: valida stock suficiente, registra salida de stock con origen="venta", genera asiento ingreso "Ventas".
+OK  Confirmar factura de compra: registra entrada de stock con origen="compra", actualiza costo del producto, genera asiento gasto "Compra de inventario".
+OK  Anular factura: revierte stock y registra contrapartida financiera (salvo asientos automáticos).
+OK  Listado con filtros por tipo, estado, fecha y contraparte; detalle con totales de líneas.
+OK  El módulo de facturación es la fuente principal de movimientos de stock y asientos financieros, reutilizando el campo `origen` en stock_movements.
+
+============================================================
+13. NOTAS DE DISEÑO
 ============================================================
 
 - stock_actual se guarda en el producto para consulta rapida; los movimientos son el historial.
@@ -156,3 +170,6 @@ OK  Sugerencias basadas en ejecucion del presupuesto activo.
 - Las operaciones criticas usan transacciones y bloqueos (FOR UPDATE).
 - Los asientos automaticos son idempotentes gracias a indices unicos.
 - El sistema prioriza consistencia sobre conveniencia en operaciones financieras.
+- El módulo de facturación usa numeración consecutiva por tipo (FAC/COM) para trazabilidad.
+- Las facturas de compra actualizan tanto stock como costo unitario del producto.
+- El campo `origen` en stock_movements es la fuente única de verdad para distinguir compras, ventas y ajustes.

@@ -427,6 +427,7 @@ export async function deliverQuote(id: number, actor: AuthUser) {
           product_id: i.product_id as number,
           tipo: "salida",
           cantidad: i.cantidad,
+          origen: "entrega",
           motivo: `Presupuesto ${formatQuoteNumber(quote.id)}`,
         },
         actor,
