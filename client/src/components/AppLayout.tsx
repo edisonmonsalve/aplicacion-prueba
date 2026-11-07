@@ -1,4 +1,4 @@
-import { Avatar, Dropdown, Layout, Menu, Space, Switch, Typography, message, theme } from "antd";
+import { Avatar, Button, Dropdown, Layout, Menu, Space, Switch, Tooltip, Typography, message, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
@@ -15,6 +15,7 @@ import {
   SunOutlined,
   KeyOutlined,
   LogoutOutlined,
+  MenuOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
@@ -31,6 +32,8 @@ export default function AppLayout() {
   const { token } = theme.useToken();
   const [messageApi, contextHolder] = message.useMessage();
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
@@ -68,10 +71,30 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
+      {isMobile && !collapsed && (
+        <div
+          onClick={() => setCollapsed(true)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 19 }}
+        />
+      )}
       <Sider
         breakpoint="lg"
-        collapsedWidth={0}
-        style={{ position: "sticky", top: 0, alignSelf: "flex-start", height: "100vh", overflow: "auto" }}
+        collapsedWidth={isMobile ? 0 : 80}
+        collapsed={collapsed}
+        onBreakpoint={(broken) => {
+          setIsMobile(broken);
+          setCollapsed(broken);
+        }}
+        trigger={null}
+        style={{
+          position: isMobile ? "fixed" : "sticky",
+          top: 0,
+          left: 0,
+          alignSelf: "flex-start",
+          height: "100vh",
+          overflow: "auto",
+          zIndex: isMobile ? 20 : undefined,
+        }}
       >
         <div style={{ color: "#fff", padding: 16, fontWeight: 600 }}>Inventario</div>
         <Menu
@@ -80,7 +103,10 @@ export default function AppLayout() {
           selectedKeys={[selected]}
           items={items}
           onClick={({ key }) => {
-            if (typeof key === "string" && key.startsWith("/")) navigate(key);
+            if (typeof key === "string" && key.startsWith("/")) {
+              navigate(key);
+              if (isMobile) setCollapsed(true);
+            }
           }}
         />
       </Sider>
@@ -89,7 +115,7 @@ export default function AppLayout() {
         <Header
           style={{
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             alignItems: "center",
             background: token.colorBgContainer,
             padding: "0 24px",
@@ -98,13 +124,24 @@ export default function AppLayout() {
             zIndex: 10,
           }}
         >
-          <Space size="middle">
-            <Switch
-              checked={mode === "dark"}
-              onChange={toggle}
-              checkedChildren={<MoonOutlined />}
-              unCheckedChildren={<SunOutlined />}
+          <Tooltip title={collapsed ? "Mostrar el menú" : "Ocultar el menú"}>
+            <Button
+              type="text"
+              icon={<MenuOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              aria-label="Mostrar u ocultar el menú"
             />
+          </Tooltip>
+          <Space size="middle">
+            <Tooltip title="Cambiar entre tema claro y oscuro">
+              <Switch
+                checked={mode === "dark"}
+                onChange={toggle}
+                checkedChildren={<MoonOutlined />}
+                unCheckedChildren={<SunOutlined />}
+                aria-label="Cambiar entre tema claro y oscuro"
+              />
+            </Tooltip>
             <Dropdown
               trigger={["click"]}
               menu={{
