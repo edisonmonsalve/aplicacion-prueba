@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Alert, Button, Form, Grid, Input, Switch, Typography, theme } from "antd";
+import { Alert, Button, Form, Grid, Input, Switch, Tooltip, Typography, theme } from "antd";
 import { InboxOutlined, LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { isAxiosError } from "axios";
 import { useAuth } from "@/context/AuthContext";
@@ -79,12 +79,15 @@ export default function LoginPage() {
         }}
       >
         <div style={{ position: "absolute", top: 16, right: 16 }}>
-          <Switch
-            checked={mode === "dark"}
-            onChange={toggle}
-            checkedChildren={<MoonOutlined />}
-            unCheckedChildren={<SunOutlined />}
-          />
+          <Tooltip title="Cambiar entre tema claro y oscuro">
+            <Switch
+              checked={mode === "dark"}
+              onChange={toggle}
+              checkedChildren={<MoonOutlined />}
+              unCheckedChildren={<SunOutlined />}
+              aria-label="Cambiar entre tema claro y oscuro"
+            />
+          </Tooltip>
         </div>
 
         <div style={{ width: "100%", maxWidth: 380 }}>
@@ -99,6 +102,7 @@ export default function LoginPage() {
             <Form.Item
               label="Correo"
               name="email"
+              tooltip="Usa el correo con el que te dieron acceso al sistema."
               rules={[
                 { required: true, message: "Ingresa tu correo" },
                 { type: "email", message: "Correo no válido" },
@@ -114,6 +118,7 @@ export default function LoginPage() {
             <Form.Item
               label="Contraseña"
               name="password"
+              tooltip="Si no la recuerdas, pide a un administrador que la restablezca."
               rules={[{ required: true, message: "Ingresa tu contraseña" }]}
             >
               <Input.Password

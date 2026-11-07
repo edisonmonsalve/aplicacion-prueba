@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Select, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { getMovements, type MovementsQuery } from "@/services/movementsService";
@@ -63,16 +63,16 @@ export default function MovementsPage() {
 
   const columns: TableProps<StockMovement>["columns"] = [
     {
-      title: "Fecha",
+      title: <Tooltip title="Fecha y hora en que se registró el movimiento">Fecha</Tooltip>,
       dataIndex: "created_at",
       render: (value: string) => dayjs(value).format("DD/MM/YYYY HH:mm"),
     },
     {
-      title: "Producto",
+      title: <Tooltip title="Producto afectado por el movimiento">Producto</Tooltip>,
       render: (_, m) => `${m.sku} · ${m.producto}`,
     },
     {
-      title: "Tipo",
+      title: <Tooltip title="Entrada (suma stock) o salida (resta stock)">Tipo</Tooltip>,
       dataIndex: "tipo",
       render: (tipo: StockMovement["tipo"]) =>
         tipo === "entrada" ? <Tag color="green">Entrada</Tag> : <Tag color="orange">Salida</Tag>,
@@ -98,8 +98,8 @@ export default function MovementsPage() {
           },
         ] as NonNullable<TableProps<StockMovement>["columns"]>)
       : []),
-    { title: "Motivo", dataIndex: "motivo", render: (v: string | null) => v ?? "—" },
-    { title: "Usuario", dataIndex: "usuario" },
+    { title: <Tooltip title="Motivo o referencia del movimiento">Motivo</Tooltip>, dataIndex: "motivo", render: (v: string | null) => v ?? "—" },
+    { title: <Tooltip title="Usuario que registró el movimiento">Usuario</Tooltip>, dataIndex: "usuario" },
   ];
 
   return (
@@ -112,28 +112,42 @@ export default function MovementsPage() {
         </Typography.Text>
       </div>
 
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Select
-          placeholder="Producto"
-          allowClear
-          showSearch
-          optionFilterProp="label"
-          style={{ width: 280 }}
-          value={query.product_id}
-          options={products.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }))}
-          onChange={(product_id) => updateFilters({ product_id })}
-        />
-        <Select
-          placeholder="Tipo"
-          allowClear
-          style={{ width: 140 }}
-          options={[
-            { value: "entrada", label: "Entradas" },
-            { value: "salida", label: "Salidas" },
-          ]}
-          onChange={(tipo) => updateFilters({ tipo })}
-        />
-      </Space>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Producto
+          </Typography.Text>
+          <Select
+            placeholder="Todos"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 280 }}
+            value={query.product_id}
+            options={products.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }))}
+            onChange={(product_id) => updateFilters({ product_id })}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Tipo de movimiento
+          </Typography.Text>
+          <Select
+            placeholder="Todos"
+            allowClear
+            style={{ width: 160 }}
+            value={query.tipo}
+            options={[
+              { value: "entrada", label: "Entradas" },
+              { value: "salida", label: "Salidas" },
+            ]}
+            onChange={(tipo) => updateFilters({ tipo })}
+          />
+        </div>
+        {(query.product_id !== undefined || query.tipo !== undefined) && (
+          <Button onClick={() => updateFilters({ product_id: undefined, tipo: undefined })}>Limpiar filtros</Button>
+        )}
+      </div>
 
       <Table<StockMovement>
         rowKey="id"

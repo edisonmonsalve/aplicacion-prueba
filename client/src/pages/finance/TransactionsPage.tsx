@@ -157,6 +157,21 @@ export default function TransactionsPage() {
     },
   ];
 
+  const defaultDesde = dayjs().startOf("month").format("YYYY-MM-DD");
+  const defaultHasta = dayjs().format("YYYY-MM-DD");
+  const hasFilters = Boolean(
+    tipo || categoryId || accountId || desde !== defaultDesde || hasta !== defaultHasta
+  );
+
+  const clearFilters = () => {
+    setTipo(undefined);
+    setCategoryId(undefined);
+    setAccountId(undefined);
+    setDesde(defaultDesde);
+    setHasta(defaultHasta);
+    setPage(1);
+  };
+
   const firstLoad = loading && rows.length === 0;
 
   return (
@@ -186,43 +201,66 @@ export default function TransactionsPage() {
         message="Algunas transacciones se generan automáticamente: las entradas de stock con costo y la entrega de cotizaciones."
       />
 
-      <Space wrap style={{ marginBottom: 16 }}>
-        <Select
-          allowClear
-          placeholder="Tipo"
-          style={{ width: 140 }}
-          options={TIPO_OPTIONS}
-          value={tipo}
-          onChange={(v) => { setTipo(v); setPage(1); }}
-        />
-        <Select
-          allowClear
-          placeholder="Categoría"
-          style={{ width: 220 }}
-          value={categoryId}
-          onChange={(v) => { setCategoryId(v); setPage(1); }}
-          options={categories.map((c) => ({ value: c.id, label: `${c.tipo === "ingreso" ? "Ingreso" : "Gasto"} · ${c.nombre}` }))}
-          showSearch
-          optionFilterProp="label"
-        />
-        <Select
-          allowClear
-          placeholder="Cuenta"
-          style={{ width: 200 }}
-          value={accountId}
-          onChange={(v) => { setAccountId(v); setPage(1); }}
-          options={accounts.map((a) => ({ value: a.id, label: a.nombre }))}
-        />
-        <DatePicker.RangePicker
-          format="YYYY-MM-DD"
-          value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-          onChange={(v) => {
-            setDesde(v?.[0]?.format("YYYY-MM-DD"));
-            setHasta(v?.[1]?.format("YYYY-MM-DD"));
-            setPage(1);
-          }}
-        />
-      </Space>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Tipo
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todos"
+            style={{ width: 140 }}
+            options={TIPO_OPTIONS}
+            value={tipo}
+            onChange={(v) => { setTipo(v); setPage(1); }}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Categoría
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todas"
+            style={{ width: 220 }}
+            value={categoryId}
+            onChange={(v) => { setCategoryId(v); setPage(1); }}
+            options={categories.map((c) => ({ value: c.id, label: `${c.tipo === "ingreso" ? "Ingreso" : "Gasto"} · ${c.nombre}` }))}
+            showSearch
+            optionFilterProp="label"
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Cuenta
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todas"
+            style={{ width: 200 }}
+            value={accountId}
+            onChange={(v) => { setAccountId(v); setPage(1); }}
+            options={accounts.map((a) => ({ value: a.id, label: a.nombre }))}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Rango de fechas
+          </Typography.Text>
+          <DatePicker.RangePicker
+            format="YYYY-MM-DD"
+            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
+            onChange={(v) => {
+              setDesde(v?.[0]?.format("YYYY-MM-DD"));
+              setHasta(v?.[1]?.format("YYYY-MM-DD"));
+              setPage(1);
+            }}
+          />
+        </div>
+        {hasFilters && (
+          <Button onClick={clearFilters}>Limpiar filtros</Button>
+        )}
+      </div>
 
       {firstLoad ? (
         <TableSkeleton />
