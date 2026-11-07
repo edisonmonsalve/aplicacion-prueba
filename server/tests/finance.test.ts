@@ -338,4 +338,59 @@ describe("Finanzas: API", () => {
       margen_bruto_pct: 60,
     });
   });
+
+  it("GET /finance/availability devuelve null si no hay presupuesto activo", async () => {
+    const { admin, productId } = await setup();
+    const res = await request(app)
+      .get(`/api/finance/availability?product_id=${productId}`)
+      .set(bearer(admin.token));
+    expect(res.status).toBe(200);
+    expect(res.body).toBeNull();
+  });
+
+  it("GET /finance/availability devuelve la línea activa correspondiente", async () => {
+    const { admin, productId, gastoCat } = await setup();
+    const created = await post("/api/finance/budgets", admin.token, budgetBody(gastoCat, {
+      lineas: [{ finance_category_id: gastoCat, product_id: productId, monto_planeado: 1000 }],
+    }));
+    expect(created.status).toBe(201);
+    const activated = await post(`/api/finance/budgets/${created.body.id}/activate`, admin.token);
+    expect(activated.status).toBe(200);
+
+    const res = await request(app)
+      .get(`/api/finance/availability?product_id=${productId}`)
+      .set(bearer(admin.token));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      budget_id: created.body.id,
+      finance_category_id: gastoCat,
+      product_id: productId,
+      planeado: 1000,
+      disponible: 1000,
+    });
+  });
+
+  it("GET /finance/suggestions devuelve sugerencias para líneas excedidas", async () => {
+    const { admin, gastoCat, accountId } = await setup();
+    const created = await post("/api/finance/budgets", admin.token, budgetBody(gastoCat));
+    const id = created.body.id as number;
+    await post(`/api/finance/budgets/${id}/activate`, admin.token);
+
+    await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(accountId, gastoCat, { tipo: "gasto", monto: 1_500_000 })
+    );
+
+    const res = await request(app).get("/api/finance/suggestions").set(bearer(admin.token));
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.some((s: { tipo: string }) => s.tipo === "subir")).toBe(true);
+  });
+
+  it("GET /finance/availability y /finance/suggestions respetan permisos", async () => {
+    const { admin, operador, productId } = await setup();
+    expect((await request(app).get(`/api/finance/availability?product_id=${productId}`).set(bearer(operador.token))).status).toBe(403);
+    expect((await request(app).get("/api/finance/suggestions").set(bearer(operador.token))).status).toBe(403);
+  });
 });

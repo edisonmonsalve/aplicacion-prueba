@@ -58,6 +58,12 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
       gasto > availability.disponible &&
       !confirmedExceed
     ) {
+      if (user?.rol !== "admin") {
+        messageApi.error(
+          "Esta compra supera el disponible del presupuesto y solo un administrador puede confirmarla"
+        );
+        return;
+      }
       Modal.confirm({
         title: "Presupuesto excedido",
         content: `Esta compra (${gasto.toLocaleString("es-CO")}) supera el disponible (${availability.disponible.toLocaleString("es-CO")}) de la línea "${availability.budget_nombre}". ¿Deseas continuar?`,

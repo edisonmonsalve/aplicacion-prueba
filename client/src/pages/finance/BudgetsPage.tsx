@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, Empty, Input, Select, Space, Table, Typography } from "antd";
+import { App, Button, Empty, Input, Select, Space, Table, Tooltip, Typography } from "antd";
 import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { listBudgets } from "@/services/financeService";
@@ -56,9 +56,9 @@ export default function BudgetsPage() {
       render: (_: unknown, r: BudgetListItem) => `${fmtDate(r.fecha_inicio)} → ${fmtDate(r.fecha_fin)}`,
     },
     { title: "Estado", dataIndex: "estado", render: (e: BudgetEstado) => <BudgetEstadoTag estado={e} /> },
-    { title: "Líneas", dataIndex: "lineas", align: "right" as const },
-    { title: "Planeado", dataIndex: "planeado_total", align: "right" as const, render: (v: number) => money(v) },
-    { title: "Meta ingresos", dataIndex: "ingreso_meta", align: "right" as const, render: (v: number) => money(v) },
+    { title: <Tooltip title="Cantidad de líneas planeadas en el presupuesto">Líneas</Tooltip>, dataIndex: "lineas", align: "right" as const },
+    { title: <Tooltip title="Monto total planeado en todas las líneas">Planeado</Tooltip>, dataIndex: "planeado_total", align: "right" as const, render: (v: number) => money(v) },
+    { title: <Tooltip title="Ingreso total esperado para el periodo">Meta ingresos</Tooltip>, dataIndex: "ingreso_meta", align: "right" as const, render: (v: number) => money(v) },
     { title: "Creado por", dataIndex: "creador" },
     {
       title: "",

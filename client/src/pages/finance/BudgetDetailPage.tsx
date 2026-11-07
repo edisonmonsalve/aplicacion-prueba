@@ -9,6 +9,7 @@ import {
   Row,
   Space,
   Table,
+  Tooltip,
   Typography,
 } from "antd";
 import { EditOutlined, CheckOutlined, LockOutlined, DeleteOutlined } from "@ant-design/icons";
@@ -116,11 +117,11 @@ export default function BudgetDetailPage() {
   const columns = [
     { title: "Categoría", dataIndex: "categoria" },
     { title: "Producto", dataIndex: "producto", render: (v: string | null) => v ?? "—" },
-    { title: "Planeado", dataIndex: "monto_planeado", align: "right" as const, render: (v: number) => money(v) },
-    { title: "Real", dataIndex: "real", align: "right" as const, render: (v: number) => money(v) },
-    { title: "Disponible", dataIndex: "disponible", align: "right" as const, render: (v: number) => money(v) },
-    { title: "Ejecución", dataIndex: "ejecucion_pct", align: "right" as const, render: (v: number) => `${v.toFixed(0)}%` },
-    { title: "Estado", dataIndex: "estado", render: (e: EjecucionEstado) => <EjecucionTag estado={e} /> },
+    { title: <Tooltip title="Monto planeado para la línea">Planeado</Tooltip>, dataIndex: "monto_planeado", align: "right" as const, render: (v: number) => money(v) },
+    { title: <Tooltip title="Monto real ejecutado en el periodo">Real</Tooltip>, dataIndex: "real", align: "right" as const, render: (v: number) => money(v) },
+    { title: <Tooltip title="Monto disponible (planeado - real)">Disponible</Tooltip>, dataIndex: "disponible", align: "right" as const, render: (v: number) => money(v) },
+    { title: <Tooltip title="Porcentaje de ejecución (real / planeado)">Ejecución</Tooltip>, dataIndex: "ejecucion_pct", align: "right" as const, render: (v: number) => `${v.toFixed(0)}%` },
+    { title: <Tooltip title="Estado según el porcentaje de ejecución">Estado</Tooltip>, dataIndex: "estado", render: (e: EjecucionEstado) => <EjecucionTag estado={e} /> },
   ];
 
   return (

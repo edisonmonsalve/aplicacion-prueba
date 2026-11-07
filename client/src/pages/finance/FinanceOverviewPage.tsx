@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
-import { App, Card, Col, Row, Space, Statistic, Table, Typography, DatePicker, Alert, List } from "antd";
+import { App, Card, Col, Row, Space, Statistic, Table, Tooltip, Typography, DatePicker, Alert, List } from "antd";
 const { RangePicker } = DatePicker;
 import { getFinanceSummary, getFinanceAccounts, getSuggestions } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
@@ -75,7 +75,7 @@ export default function FinanceOverviewPage() {
         </Col>
         <Col span={6}>
           <Card loading={loading}>
-            <Statistic title="Capital disponible" value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
+            <Statistic title={<Tooltip title="Saldo de caja y bancos (saldo inicial + ingresos - egresos)">Capital disponible</Tooltip>} value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
       </Row>

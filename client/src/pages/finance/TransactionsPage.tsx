@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, DatePicker, Empty, Select, Space, Table, Tag, Typography } from "antd";
+import { App, Button, DatePicker, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { listTransactions, reverseTransaction, getFinanceAccounts, getFinanceCategories } from "@/services/financeService";
@@ -120,13 +120,13 @@ export default function TransactionsPage() {
     { title: "Cuenta", dataIndex: "cuenta" },
     { title: "Producto", dataIndex: "producto", render: (v: string | null) => v ?? "—" },
     { title: "Descripción", dataIndex: "descripcion", render: (v: string | null) => v ?? "—" },
-    { title: "Monto", dataIndex: "monto", align: "right" as const, render: (v: number, r: FinanceTransaction) => (
+    { title: <Tooltip title="Importe de la transacción (ingreso suma, gasto resta)">Monto</Tooltip>, dataIndex: "monto", align: "right" as const, render: (v: number, r: FinanceTransaction) => (
       <Typography.Text type={r.tipo === "ingreso" ? "success" : "danger"} strong>
         {r.tipo === "ingreso" ? "+" : "-"}{money(v)}
       </Typography.Text>
     ) },
     {
-      title: "Estado",
+      title: <Tooltip title="Vigente, anulada o anulación">Estado</Tooltip>,
       render: (_: unknown, r: FinanceTransaction) =>
         r.anulada_de !== null ? (
           <Tag color="default">Anulación</Tag>
