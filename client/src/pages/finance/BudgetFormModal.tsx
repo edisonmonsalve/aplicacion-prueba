@@ -8,6 +8,7 @@ import {
   Modal,
   Select,
   Space,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -17,7 +18,7 @@ import { getFinanceCategories } from "@/services/financeService";
 import { getProducts } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
 import type { BudgetDetail, BudgetInput, FinanceCategory } from "@/types";
-import { periodLabel } from "./FinanceUtils";
+import { money, periodLabel } from "./FinanceUtils";
 
 interface Props {
   open: boolean;
@@ -47,6 +48,13 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [productOptions, setProductOptions] = useState<{ value: number; label: string }[]>([]);
+  const lineasWatch = Form.useWatch<LineValues[] | undefined>("lineas", form);
+
+  const totalPlaneado = (lineasWatch ?? []).reduce(
+    (sum: number, l: LineValues | undefined) =>
+      sum + (typeof l?.monto_planeado === "number" ? l.monto_planeado : 0),
+    0
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -176,17 +184,44 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
           </Form.Item>
         </Space>
 
-        <Typography.Title level={5} style={{ marginTop: 8 }}>
-          Líneas del presupuesto
-        </Typography.Title>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <Typography.Title level={5} style={{ marginTop: 8 }}>
+            Líneas del presupuesto
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            Total planeado: <strong>{money(totalPlaneado)}</strong>
+          </Typography.Text>
+        </div>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
           Añade una línea por cada categoría o producto que quieras planificar. Si eliges un producto, el monto se
           asocia a ese producto; si no, cubre toda la categoría. No mezcles líneas generales y por producto en la
           misma categoría (evita doble conteo).
         </Typography.Paragraph>
 
-        <Form.List name="lineas">
-          {(fields, { add, remove }) => (
+        <Form.List
+          name="lineas"
+          rules={[
+            {
+              validator: async (_, v) => {
+                const validas = (v ?? []).some(
+                  (l: LineValues) => l && l.finance_category_id && typeof l.monto_planeado === "number"
+                );
+                if (!validas) {
+                  throw new Error("Agrega al menos una línea con categoría y monto");
+                }
+              },
+            },
+          ]}
+        >
+          {(fields, { add, remove }, { errors }) => (
             <>
               {fields.map(({ key, name, ...rest }) => (
                 <Space key={key} align="baseline" style={{ display: "flex", marginBottom: 8 }} wrap>
@@ -227,12 +262,21 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                   >
                     <InputNumber min={0} style={{ width: "100%" }} placeholder="Monto" />
                   </Form.Item>
-                  <MinusCircleOutlined onClick={() => remove(name)} style={{ color: "#ff4d4f" }} />
+                  <Tooltip title="Quitar esta línea">
+                    <Button
+                      type="text"
+                      danger
+                      aria-label="Quitar línea"
+                      icon={<MinusCircleOutlined />}
+                      onClick={() => remove(name)}
+                    />
+                  </Tooltip>
                 </Space>
               ))}
               <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} block>
                 Añadir línea
               </Button>
+              <Form.ErrorList errors={errors} />
             </>
           )}
         </Form.List>
