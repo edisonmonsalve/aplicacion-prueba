@@ -156,6 +156,7 @@ export default function UsersPage() {
         columns={columns}
         dataSource={users}
         loading={loading}
+        locale={{ emptyText: "No hay usuarios que coincidan" }}
         pagination={{
           current: query.page,
           pageSize: query.pageSize,

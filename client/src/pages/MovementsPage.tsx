@@ -136,6 +136,7 @@ export default function MovementsPage() {
         dataSource={movements}
         loading={loading}
         scroll={{ x: "max-content" }}
+        locale={{ emptyText: "No hay movimientos que coincidan" }}
         pagination={{
           current: query.page,
           pageSize: query.pageSize,

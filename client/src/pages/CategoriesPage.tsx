@@ -117,6 +117,7 @@ export default function CategoriesPage() {
         columns={columns}
         dataSource={categories}
         loading={loading}
+        locale={{ emptyText: "No hay categorías" }}
         pagination={false}
       />
 

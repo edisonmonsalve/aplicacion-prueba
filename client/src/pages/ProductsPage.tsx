@@ -217,6 +217,7 @@ export default function ProductsPage() {
         dataSource={products}
         loading={loading}
         scroll={{ x: "max-content" }}
+        locale={{ emptyText: "No hay productos que coincidan" }}
         pagination={{
           current: query.page,
           pageSize: query.pageSize,
