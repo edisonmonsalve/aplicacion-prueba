@@ -60,17 +60,17 @@ export default function FinanceOverviewPage() {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card loading={loading}>
-            <Statistic title="Ingresos" value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
+            <Statistic title={<Tooltip title="Total de ingresos del periodo">Ingresos</Tooltip>} value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card loading={loading}>
-            <Statistic title="Egresos" value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
+            <Statistic title={<Tooltip title="Total de gastos del periodo">Egresos</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card loading={loading}>
-            <Statistic title="Utilidad" value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
+            <Statistic title={<Tooltip title="Ingresos menos egresos">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
         <Col span={6}>
@@ -83,17 +83,17 @@ export default function FinanceOverviewPage() {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card loading={loading}>
-            <Statistic title="Costo de ventas" value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
+            <Statistic title={<Tooltip title="Costo de los productos vendidos">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
         <Col span={6}>
           <Card loading={loading}>
-            <Statistic title="Margen bruto" value={s?.margen_bruto ?? 0} formatter={(v) => money(Number(v))} />
+            <Statistic title={<Tooltip title="Ingresos menos costo de ventas">Margen bruto</Tooltip>} value={s?.margen_bruto ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
         <Col span={6}>
           <Card loading={loading}>
-            <Statistic title="Margen bruto %" value={s?.margen_bruto_pct ?? 0} suffix="%" precision={0} />
+            <Statistic title={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>} value={s?.margen_bruto_pct ?? 0} suffix="%" precision={0} />
           </Card>
         </Col>
       </Row>
