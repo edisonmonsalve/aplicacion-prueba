@@ -12,6 +12,8 @@ import {
   Steps,
   Table,
   Timeline,
+  Tooltip,
+  Typography,
 } from "antd";
 import { DownOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -116,7 +118,7 @@ export default function QuoteDetailPage() {
     label: string,
     fn: (id: number) => Promise<unknown>,
     ok: string,
-    opts: { danger?: boolean; primary?: boolean } = {}
+    opts: { danger?: boolean; primary?: boolean; tooltip?: string } = {}
   ) => (
     <Popconfirm
       title={`¿${label} esta cotización?`}
@@ -124,9 +126,11 @@ export default function QuoteDetailPage() {
       cancelText="No"
       onConfirm={() => run(fn, ok)}
     >
-      <Button type={opts.primary ? "primary" : "default"} danger={opts.danger} disabled={busy}>
-        {label}
-      </Button>
+      <Tooltip title={opts.tooltip}>
+        <Button type={opts.primary ? "primary" : "default"} danger={opts.danger} disabled={busy}>
+          {label}
+        </Button>
+      </Tooltip>
     </Popconfirm>
   );
 
@@ -137,24 +141,49 @@ export default function QuoteDetailPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+      <div>
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          Cotización {quote.numero}
+        </Typography.Title>
+        <Typography.Text type="secondary">
+          Consulta el detalle, avanza el estado y revisa el historial de cambios.
+        </Typography.Text>
+      </div>
+
       <Space wrap>
-        <Button onClick={() => navigate("/cotizaciones")}>Volver</Button>
+        <Tooltip title="Volver a la lista de cotizaciones">
+          <Button onClick={() => navigate("/cotizaciones")}>Volver</Button>
+        </Tooltip>
         {canAct &&
           quote.estado === "borrador" &&
-          confirm("Enviar", sendQuote, "Cotización enviada", { primary: true })}
+          confirm("Enviar", sendQuote, "Cotización enviada", {
+            primary: true,
+            tooltip: "Marca la cotización como enviada al cliente y activa el control de vencimiento.",
+          })}
         {canAct &&
           quote.estado === "enviado" &&
-          confirm("Aprobar", approveQuote, "Cotización aprobada", { primary: true })}
+          confirm("Aprobar", approveQuote, "Cotización aprobada", {
+            primary: true,
+            tooltip: "Registra que el cliente aceptó la cotización.",
+          })}
         {canAct &&
           quote.estado === "enviado" &&
-          confirm("Rechazar", rejectQuote, "Cotización rechazada", { danger: true })}
+          confirm("Rechazar", rejectQuote, "Cotización rechazada", {
+            danger: true,
+            tooltip: "Marca la cotización como rechazada; ya no podrá entregarse.",
+          })}
         {canAct &&
           quote.estado === "aprobado" &&
-          confirm("Entregar", deliverQuote, "Cotización entregada", { primary: true })}
+          confirm("Entregar", deliverQuote, "Cotización entregada", {
+            primary: true,
+            tooltip: "Descuenta el stock de cada línea y genera el ingreso correspondiente en finanzas.",
+          })}
         {canAct && quote.estado === "borrador" && (
-          <Button onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)} disabled={busy}>
-            Editar
-          </Button>
+          <Tooltip title="Editar las líneas y datos de la cotización mientras siga en borrador">
+            <Button onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)} disabled={busy}>
+              Editar
+            </Button>
+          </Tooltip>
         )}
         <Dropdown
           menu={{
@@ -185,6 +214,11 @@ export default function QuoteDetailPage() {
                 ? "Esta cotización vence hoy"
                 : `Esta cotización vence en ${daysLeft} día(s)`
           }
+          description={
+            daysLeft < 0
+              ? "Puedes duplicarla para crear una nueva versión con fecha vigente."
+              : "Revisa la fecha de validez antes de enviarla o aprobarla."
+          }
         />
       )}
 
@@ -193,11 +227,16 @@ export default function QuoteDetailPage() {
           size="small"
           current={stepIdx === -1 ? 1 : stepIdx}
           status={failed ? "error" : quote.estado === "entregado" ? "finish" : "process"}
-          items={[{ title: "Borrador" }, { title: "Enviado" }, { title: "Aprobado" }, { title: "Entregado" }]}
+          items={[
+            { title: <Tooltip title="La cotización aún no se ha enviado al cliente">Borrador</Tooltip> },
+            { title: <Tooltip title="Enviada al cliente, pendiente de respuesta">Enviado</Tooltip> },
+            { title: <Tooltip title="El cliente aceptó la cotización">Aprobado</Tooltip> },
+            { title: <Tooltip title="Se descontó el stock y se registró el ingreso">Entregado</Tooltip> },
+          ]}
         />
       </Card>
 
-      <Card title={quote.numero} extra={<StatusTag estado={quote.estado} />}>
+      <Card title="Resumen" extra={<StatusTag estado={quote.estado} />}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "space-between" }}>
           <Descriptions column={{ xs: 1, md: 2 }} size="small" style={{ flex: "1 1 420px" }}>
             <Descriptions.Item label="Cliente">{quote.customer_nombre}</Descriptions.Item>
@@ -209,11 +248,24 @@ export default function QuoteDetailPage() {
               {quote.notas ?? "—"}
             </Descriptions.Item>
           </Descriptions>
-          <div style={{ display: "flex", gap: 32 }}>
-            <Statistic title="Subtotal" value={money(quote.subtotal)} />
-            <Statistic title="Descuento" value={money(quote.descuento_total)} />
-            <Statistic title="Impuesto" value={money(quote.impuesto_total)} />
-            <Statistic title="Total" value={money(quote.total)} valueStyle={{ fontWeight: 700 }} />
+          <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+            <Statistic
+              title={<Tooltip title="Suma de las líneas antes de descuentos e impuestos">Subtotal</Tooltip>}
+              value={money(quote.subtotal)}
+            />
+            <Statistic
+              title={<Tooltip title="Descuentos aplicados por línea">Descuento</Tooltip>}
+              value={money(quote.descuento_total)}
+            />
+            <Statistic
+              title={<Tooltip title="Impuestos aplicados por línea">Impuesto</Tooltip>}
+              value={money(quote.impuesto_total)}
+            />
+            <Statistic
+              title={<Tooltip title="Total final de la cotización">Total</Tooltip>}
+              value={money(quote.total)}
+              valueStyle={{ fontWeight: 700 }}
+            />
           </div>
         </div>
       </Card>
@@ -225,13 +277,13 @@ export default function QuoteDetailPage() {
           scroll={{ x: "max-content" }}
           dataSource={quote.items}
           columns={[
-            { title: "SKU", dataIndex: "sku" },
-            { title: "Nombre", dataIndex: "nombre" },
-            { title: "Cant.", dataIndex: "cantidad", align: "right" },
-            { title: "Precio unit.", dataIndex: "precio_unitario", align: "right", render: money },
-            { title: "Desc. %", dataIndex: "descuento_pct", align: "right" },
-            { title: "Imp. %", dataIndex: "impuesto_pct", align: "right" },
-            { title: "Total línea", dataIndex: "total_linea", align: "right", render: money },
+            { title: <Tooltip title="Código del producto">SKU</Tooltip>, dataIndex: "sku" },
+            { title: <Tooltip title="Nombre del producto">Nombre</Tooltip>, dataIndex: "nombre" },
+            { title: <Tooltip title="Unidades cotizadas">Cant.</Tooltip>, dataIndex: "cantidad", align: "right" },
+            { title: <Tooltip title="Precio unitario del catálogo">Precio unit.</Tooltip>, dataIndex: "precio_unitario", align: "right", render: money },
+            { title: <Tooltip title="Descuento porcentual de la línea">Desc. %</Tooltip>, dataIndex: "descuento_pct", align: "right" },
+            { title: <Tooltip title="Impuesto porcentual de la línea">Imp. %</Tooltip>, dataIndex: "impuesto_pct", align: "right" },
+            { title: <Tooltip title="Precio por cantidad con descuento e impuesto">Total línea</Tooltip>, dataIndex: "total_linea", align: "right", render: money },
           ]}
         />
       </Card>
