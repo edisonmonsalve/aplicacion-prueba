@@ -377,6 +377,10 @@ export async function deliverQuote(id: number, actor: AuthUser) {
       );
     }
 
+    if (quote.fecha_validez < today()) {
+      throw new HttpError(409, "La cotización está vencida y ya no puede entregarse");
+    }
+
     const [items] = await conn.query<RowDataPacket[]>(
       "SELECT product_id, sku, nombre, cantidad FROM quote_items WHERE quote_id = ? ORDER BY product_id ASC",
       [id]

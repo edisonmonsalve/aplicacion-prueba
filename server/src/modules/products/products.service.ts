@@ -89,6 +89,25 @@ export async function updateProduct(
 }
 
 export async function setProductActivo(id: number, activo: boolean) {
+  if (!activo) {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT stock_actual FROM products WHERE id = ?",
+      [id]
+    );
+    const stock = Number((rows as RowDataPacket[])[0]?.stock_actual ?? 0);
+    if (stock > 0) {
+      throw new HttpError(409, `No se puede desactivar: el producto tiene ${stock} unidades en stock`);
+    }
+    const [q] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS c FROM quote_items qi
+       JOIN quotes q ON q.id = qi.quote_id
+       WHERE qi.product_id = ? AND q.estado IN ('enviado','aprobado')`,
+      [id]
+    );
+    if (Number((q as RowDataPacket[])[0].c) > 0) {
+      throw new HttpError(409, "No se puede desactivar: el producto está en cotizaciones enviadas o aprobadas");
+    }
+  }
   const [res] = await pool.query<ResultSetHeader>(
     "UPDATE products SET activo = ? WHERE id = ?",
     [activo ? 1 : 0, id]

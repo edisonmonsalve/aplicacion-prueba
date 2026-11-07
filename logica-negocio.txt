@@ -62,10 +62,21 @@ Ese egreso respeta el periodo cerrado (se bloquea si hoy esta en un periodo cerr
 La disponibilidad presupuestaria se consulta por producto y presupuesto activo.
 Si la compra supera el disponible, solo un administrador puede confirmarla.
 
-Auditoria
+Disponibilidad
 
-Registrar en audit_log la creacion, edicion, activacion, cierre y eliminacion de presupuestos, y la creacion y anulacion de transacciones.
-No duplicar registros de auditoria en inserciones idempotentes (ON DUPLICATE KEY).
+La disponibilidad se consulta por presupuesto activo cuyo rango contenga hoy, sin limite arbitrario, prefiriendo el presupuesto mas especifico y la linea del producto si existe.
+
+Productos
+
+No se puede desactivar un producto con stock disponible ni si esta en cotizaciones enviadas o aprobadas.
+
+Presupuestos
+
+Dos presupuestos activos no pueden solaparse en fechas (solapamiento estandar).
+
+Cotizaciones
+
+No se puede entregar una cotizacion vencida.
 
 Concurrencia
 
@@ -74,10 +85,6 @@ Las operaciones de movimiento y stock se ejecutan en una misma transaccion.
 
 Pendientes de decision (documentados, no implementados)
 
-- Disponibilidad: consultar directamente los presupuestos activos cuyo rango contenga hoy, sin limite arbitrario de 100, y preferir el mas especifico.
-- Desactivar un producto: advertir o bloquear si tiene stock o cotizaciones aprobadas/enviadas.
-- Presupuestos: decidir si dos presupuestos activos pueden solaparse en fechas o deben ser exactamente iguales.
-- Cotizaciones: decidir si se puede rechazar o entregar una cotizacion vencida.
 - Movimientos con costo cero en periodo cerrado: decidir si se permiten o se bloquean.
 
 Un buen siguiente ejercicio seria convertir cada regla en una funcion pequena y probar casos como: "una salida valida reduce el stock" y "una salida mayor al stock se rechaza sin cambiar nada". Luego conectamos esas reglas con los formularios y la API.

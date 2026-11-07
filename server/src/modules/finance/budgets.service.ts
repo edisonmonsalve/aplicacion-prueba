@@ -118,13 +118,14 @@ async function assertNoActivePeriod(
 ) {
   const [rows] = await conn.query<RowDataPacket[]>(
     `SELECT id FROM budgets
-     WHERE estado = 'activo' AND tipo_periodo = ? AND fecha_inicio = ? AND fecha_fin = ?
+     WHERE estado = 'activo' AND tipo_periodo = ?
+       AND fecha_inicio <= ? AND fecha_fin >= ?
        AND (? IS NULL OR id <> ?)
      LIMIT 1`,
     [
       budget.tipo_periodo,
-      budget.fecha_inicio,
       budget.fecha_fin,
+      budget.fecha_inicio,
       excludeId ?? null,
       excludeId ?? null,
     ]
@@ -443,20 +444,29 @@ export async function getAvailability(productId: number) {
   if (!financeCategoryId) return null;
 
   const now = today();
-  const { data: budgets } = await listBudgets({ page: 1, pageSize: 100, estado: "activo" });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const active = (budgets as any[]).filter((b: any) => b.fecha_inicio <= now && b.fecha_fin >= now);
+  // Consulta directa (sin límite arbitrario) de presupuestos activos que contengan hoy.
+  const [budgets] = await pool.query<RowDataPacket[]>(
+    `SELECT id, nombre, fecha_inicio, fecha_fin
+     FROM budgets
+     WHERE estado = 'activo' AND ? BETWEEN fecha_inicio AND fecha_fin
+     ORDER BY fecha_inicio DESC, id DESC`,
+    [now]
+  );
 
-  for (const b of active) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const detail = (await getBudget(b.id)) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const line = (detail.lineas as any[]).find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Preferir el presupuesto más específico (fecha de inicio más cercana) y, dentro de él,
+  // la línea del producto; si no existe, la línea general de la categoría.
+  for (const b of budgets as RowDataPacket[]) {
+    const detail = (await getBudget(b.id as number)) as any;
+    const lines = detail.lineas as any[];
+    const productLine = lines.find(
       (l: any) =>
-        l.finance_category_id === financeCategoryId &&
-        (l.product_id === productId || l.product_id === null)
+        l.finance_category_id === financeCategoryId && l.product_id === productId
     );
+    const generalLine = lines.find(
+      (l: any) =>
+        l.finance_category_id === financeCategoryId && l.product_id === null
+    );
+    const line = productLine ?? generalLine;
     if (!line) continue;
     return {
       budget_id: detail.id,
