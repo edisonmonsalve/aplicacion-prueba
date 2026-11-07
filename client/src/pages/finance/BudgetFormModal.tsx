@@ -68,7 +68,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
         tipo_periodo: "mes",
         alerta_pct: 80,
         ingreso_meta: 0,
-        lineas: [],
+        lineas: [{}],
       });
       return;
     }
@@ -180,7 +180,9 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
           Líneas del presupuesto
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-          Una categoría se planifica o por categoría completa o por productos, no mezclando ambas (evita doble conteo).
+          Añade una línea por cada categoría o producto que quieras planificar. Si eliges un producto, el monto se
+          asocia a ese producto; si no, cubre toda la categoría. No mezcles líneas generales y por producto en la
+          misma categoría (evita doble conteo).
         </Typography.Paragraph>
 
         <Form.List name="lineas">
@@ -191,7 +193,8 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                   <Form.Item
                     {...rest}
                     name={[name, "finance_category_id"]}
-                    tooltip="Categoría financiera de la línea."
+                    label="Categoría"
+                    tooltip="Categoría financiera que se planifica."
                     rules={[{ required: true, message: "Categoría" }]}
                     style={{ flex: 2, minWidth: 220 }}
                   >
@@ -205,7 +208,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                       optionFilterProp="label"
                     />
                   </Form.Item>
-                  <Form.Item {...rest} name={[name, "product_id"]} tooltip="Producto específico de la línea (opcional)." style={{ flex: 2, minWidth: 220 }}>
+                  <Form.Item {...rest} name={[name, "product_id"]} label="Producto" tooltip="Producto específico de la línea (opcional)." style={{ flex: 2, minWidth: 220 }}>
                     <Select
                       placeholder="Producto (opcional)"
                       allowClear
@@ -217,6 +220,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                   <Form.Item
                     {...rest}
                     name={[name, "monto_planeado"]}
+                    label="Monto planeado"
                     tooltip="Monto planeado para la línea."
                     rules={[{ required: true, message: "Monto" }, { type: "number", min: 0 }]}
                     style={{ width: 160 }}
