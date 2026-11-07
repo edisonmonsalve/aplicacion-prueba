@@ -7,6 +7,7 @@ import { getAvailability, listBudgets } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { canEditCosts } from "@/utils/roles";
+import { formatCurrency } from "@/utils/format";
 import type { BudgetAvailability, BudgetListItem, Product } from "@/types";
 
 interface Props {
@@ -26,7 +27,17 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
   const [closedPeriod, setClosedPeriod] = useState<BudgetListItem | undefined>();
   const [confirmedExceed, setConfirmedExceed] = useState(false);
   const tipo = Form.useWatch("tipo", form);
+  const cantidadWatch = Form.useWatch("cantidad", form);
+  const costoWatch = Form.useWatch("costo_unitario", form);
   const puedeFijarCosto = canEditCosts(user?.rol);
+
+  const costoEfectivo =
+    puedeFijarCosto && tipo === "entrada" && costoWatch !== undefined
+      ? costoWatch
+      : (product.costo ?? 0);
+  const costoTotal = tipo === "entrada" ? costoEfectivo * (cantidadWatch ?? 0) : 0;
+  const excedeDisponible =
+    !!availability && costoTotal > 0 && costoTotal > availability.disponible;
 
   useEffect(() => {
     let ignore = false;
@@ -146,8 +157,20 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
 
       {availability && tipo !== "salida" && (
         <Alert
+          showIcon
           type="info"
-          message={`Presupuesto activo: ${availability.budget_nombre}. Disponible: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(availability.disponible)}. Planeado: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(availability.planeado)}.`}
+          message={`Presupuesto activo: ${availability.budget_nombre}`}
+          description={`Disponible ${formatCurrency(availability.disponible)} de ${formatCurrency(availability.planeado)} planeados.`}
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
+      {excedeDisponible && (
+        <Alert
+          showIcon
+          type="warning"
+          message="Esta entrada supera el disponible del presupuesto"
+          description={`El costo de la entrada es ${formatCurrency(costoTotal)} y el disponible es ${formatCurrency(availability!.disponible)}. Solo un administrador puede confirmarla.`}
           style={{ marginBottom: 12 }}
         />
       )}
@@ -200,6 +223,13 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
           >
             <InputNumber min={0} step={100} style={{ width: "100%" }} />
           </Form.Item>
+        )}
+
+        {tipo !== "salida" && costoTotal > 0 && (
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            Esta entrada generará un egreso automático de <b>{formatCurrency(costoTotal)}</b> por el costo del
+            stock.
+          </Typography.Paragraph>
         )}
       </Form>
     </Modal>
