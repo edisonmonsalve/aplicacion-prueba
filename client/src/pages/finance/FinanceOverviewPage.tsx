@@ -121,12 +121,12 @@ export default function FinanceOverviewPage() {
           dataSource={accounts}
           pagination={false}
           columns={[
-            { title: "Cuenta", dataIndex: "nombre" },
-            { title: "Tipo", dataIndex: "tipo" },
-            { title: "Saldo inicial", dataIndex: "saldo_inicial", align: "right", render: (v: number) => money(v) },
-            { title: "Ingresos", dataIndex: "ingresos", align: "right", render: (v: number) => money(v) },
-            { title: "Egresos", dataIndex: "egresos", align: "right", render: (v: number) => money(v) },
-            { title: "Saldo actual", dataIndex: "saldo_actual", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Nombre de la cuenta">Cuenta</Tooltip>, dataIndex: "nombre" },
+            { title: <Tooltip title="Tipo de cuenta">Tipo</Tooltip>, dataIndex: "tipo" },
+            { title: <Tooltip title="Saldo inicial de la cuenta">Saldo inicial</Tooltip>, dataIndex: "saldo_inicial", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Ingresos de la cuenta">Ingresos</Tooltip>, dataIndex: "ingresos", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Egresos de la cuenta">Egresos</Tooltip>, dataIndex: "egresos", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Saldo actual de la cuenta">Saldo actual</Tooltip>, dataIndex: "saldo_actual", align: "right", render: (v: number) => money(v) },
           ]}
         />
       </Card>
@@ -137,9 +137,9 @@ export default function FinanceOverviewPage() {
           dataSource={s?.por_categoria ?? []}
           pagination={false}
           columns={[
-            { title: "Categoría", dataIndex: "nombre" },
-            { title: "Tipo", dataIndex: "tipo", render: (t: string) => (t === "ingreso" ? "Ingreso" : "Gasto") },
-            { title: "Total", dataIndex: "total", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Categoría financiera">Categoría</Tooltip>, dataIndex: "nombre" },
+            { title: <Tooltip title="Tipo de categoría">Tipo</Tooltip>, dataIndex: "tipo", render: (t: string) => (t === "ingreso" ? "Ingreso" : "Gasto") },
+            { title: <Tooltip title="Total del periodo">Total</Tooltip>, dataIndex: "total", align: "right", render: (v: number) => money(v) },
           ]}
         />
       </Card>

@@ -191,6 +191,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                   <Form.Item
                     {...rest}
                     name={[name, "finance_category_id"]}
+                    tooltip="Categoría financiera de la línea."
                     rules={[{ required: true, message: "Categoría" }]}
                     style={{ flex: 2, minWidth: 220 }}
                   >
@@ -204,7 +205,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                       optionFilterProp="label"
                     />
                   </Form.Item>
-                  <Form.Item {...rest} name={[name, "product_id"]} style={{ flex: 2, minWidth: 220 }}>
+                  <Form.Item {...rest} name={[name, "product_id"]} tooltip="Producto específico de la línea (opcional)." style={{ flex: 2, minWidth: 220 }}>
                     <Select
                       placeholder="Producto (opcional)"
                       allowClear
@@ -216,6 +217,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                   <Form.Item
                     {...rest}
                     name={[name, "monto_planeado"]}
+                    tooltip="Monto planeado para la línea."
                     rules={[{ required: true, message: "Monto" }, { type: "number", min: 0 }]}
                     style={{ width: 160 }}
                   >

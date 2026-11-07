@@ -158,32 +158,32 @@ export default function BudgetDetailPage() {
       </div>
 
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
-        <Descriptions.Item label="Periodo">{periodLabel(budget.tipo_periodo)}</Descriptions.Item>
-        <Descriptions.Item label="Rango">
+        <Descriptions.Item label={<Tooltip title="Granularidad del periodo">Periodo</Tooltip>}>{periodLabel(budget.tipo_periodo)}</Descriptions.Item>
+        <Descriptions.Item label={<Tooltip title="Fechas del periodo">Rango</Tooltip>}>
           {fmtDate(budget.fecha_inicio)} → {fmtDate(budget.fecha_fin)}
         </Descriptions.Item>
-        <Descriptions.Item label="Meta de ingresos">{money(budget.ingreso_meta)}</Descriptions.Item>
-        <Descriptions.Item label="Alerta (%)">{budget.alerta_pct}%</Descriptions.Item>
-        <Descriptions.Item label="Creado por">{budget.creador}</Descriptions.Item>
-        <Descriptions.Item label="Ingresos reales">{money(r.ingresos_reales)}</Descriptions.Item>
+        <Descriptions.Item label={<Tooltip title="Ingreso esperado en el periodo">Meta de ingresos</Tooltip>}>{money(budget.ingreso_meta)}</Descriptions.Item>
+        <Descriptions.Item label={<Tooltip title="Porcentaje a partir del cual se alerta">Alerta (%)</Tooltip>}>{budget.alerta_pct}%</Descriptions.Item>
+        <Descriptions.Item label={<Tooltip title="Usuario creador">Creado por</Tooltip>}>{budget.creador}</Descriptions.Item>
+        <Descriptions.Item label={<Tooltip title="Ingresos reales del periodo">Ingresos reales</Tooltip>}>{money(r.ingresos_reales)}</Descriptions.Item>
       </Descriptions>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
-            <Typography.Text type="secondary">Planeado total</Typography.Text>
+            <Tooltip title="Monto total planeado"><Typography.Text type="secondary">Planeado total</Typography.Text></Tooltip>
             <Typography.Title level={4} style={{ margin: 0 }}>{money(r.planeado_total)}</Typography.Title>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Typography.Text type="secondary">Real total</Typography.Text>
+            <Tooltip title="Monto real ejecutado"><Typography.Text type="secondary">Real total</Typography.Text></Tooltip>
             <Typography.Title level={4} style={{ margin: 0 }}>{money(r.real_total)}</Typography.Title>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Typography.Text type="secondary">Disponible total</Typography.Text>
+            <Tooltip title="Monto disponible (planeado - real)"><Typography.Text type="secondary">Disponible total</Typography.Text></Tooltip>
             <Typography.Title level={4} style={{ margin: 0 }}>{money(r.disponible_total)}</Typography.Title>
           </Card>
         </Col>
@@ -202,15 +202,15 @@ export default function BudgetDetailPage() {
       <Card style={{ marginBottom: 16 }}>
         <Space size="large">
           <div>
-            <Typography.Text type="secondary">Proyección de cierre</Typography.Text>
+            <Tooltip title="Proyección de gasto al cierre del periodo"><Typography.Text type="secondary">Proyección de cierre</Typography.Text></Tooltip>
             <div>{r.proyeccion === null ? "—" : money(r.proyeccion)}</div>
           </div>
           <div>
-            <Typography.Text type="secondary">Cumplimiento de ingreso</Typography.Text>
+            <Tooltip title="Porcentaje de la meta de ingresos alcanzada"><Typography.Text type="secondary">Cumplimiento de ingreso</Typography.Text></Tooltip>
             <div>{r.cumplimiento_ingreso_pct.toFixed(0)}%</div>
           </div>
           <div>
-            <Typography.Text type="secondary">Estado de ejecución</Typography.Text>
+            <Tooltip title="Estado según el porcentaje de ejecución"><Typography.Text type="secondary">Estado de ejecución</Typography.Text></Tooltip>
             <div>
               <EjecucionTag estado={r.estado} />
             </div>

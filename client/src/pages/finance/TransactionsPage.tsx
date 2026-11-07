@@ -108,18 +108,18 @@ export default function TransactionsPage() {
   };
 
   const columns = [
-    { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
+    { title: <Tooltip title="Fecha de la transacción">Fecha</Tooltip>, dataIndex: "fecha", render: (v: string) => fmtDate(v) },
     {
-      title: "Tipo",
+      title: <Tooltip title="Ingreso o gasto">Tipo</Tooltip>,
       dataIndex: "tipo",
       render: (t: FinanceTransaction["tipo"]) => (
         <Tag color={t === "ingreso" ? "green" : "red"}>{t === "ingreso" ? "Ingreso" : "Gasto"}</Tag>
       ),
     },
-    { title: "Categoría", dataIndex: "categoria" },
-    { title: "Cuenta", dataIndex: "cuenta" },
-    { title: "Producto", dataIndex: "producto", render: (v: string | null) => v ?? "—" },
-    { title: "Descripción", dataIndex: "descripcion", render: (v: string | null) => v ?? "—" },
+    { title: <Tooltip title="Categoría financiera">Categoría</Tooltip>, dataIndex: "categoria" },
+    { title: <Tooltip title="Cuenta financiera">Cuenta</Tooltip>, dataIndex: "cuenta" },
+    { title: <Tooltip title="Producto asociado">Producto</Tooltip>, dataIndex: "producto", render: (v: string | null) => v ?? "—" },
+    { title: <Tooltip title="Descripción de la transacción">Descripción</Tooltip>, dataIndex: "descripcion", render: (v: string | null) => v ?? "—" },
     { title: <Tooltip title="Importe de la transacción (ingreso suma, gasto resta)">Monto</Tooltip>, dataIndex: "monto", align: "right" as const, render: (v: number, r: FinanceTransaction) => (
       <Typography.Text type={r.tipo === "ingreso" ? "success" : "danger"} strong>
         {r.tipo === "ingreso" ? "+" : "-"}{money(v)}
@@ -137,7 +137,7 @@ export default function TransactionsPage() {
         ),
     },
     {
-      title: "Acciones",
+      title: <Tooltip title="Acciones disponibles">Acciones</Tooltip>,
       key: "actions",
       render: (_: unknown, r: FinanceTransaction) =>
         canWrite &&

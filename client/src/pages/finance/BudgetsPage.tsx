@@ -49,17 +49,17 @@ export default function BudgetsPage() {
   }, [page, pageSize, q, estado, tipo, message]);
 
   const columns = [
-    { title: "Nombre", dataIndex: "nombre" },
-    { title: "Periodo", dataIndex: "tipo_periodo", render: (p: BudgetPeriodo) => periodLabel(p) },
+    { title: <Tooltip title="Nombre del presupuesto">Nombre</Tooltip>, dataIndex: "nombre" },
+    { title: <Tooltip title="Granularidad del periodo">Periodo</Tooltip>, dataIndex: "tipo_periodo", render: (p: BudgetPeriodo) => periodLabel(p) },
     {
-      title: "Rango",
+      title: <Tooltip title="Fechas de inicio y fin del periodo">Rango</Tooltip>,
       render: (_: unknown, r: BudgetListItem) => `${fmtDate(r.fecha_inicio)} → ${fmtDate(r.fecha_fin)}`,
     },
-    { title: "Estado", dataIndex: "estado", render: (e: BudgetEstado) => <BudgetEstadoTag estado={e} /> },
+    { title: <Tooltip title="Estado del presupuesto">Estado</Tooltip>, dataIndex: "estado", render: (e: BudgetEstado) => <BudgetEstadoTag estado={e} /> },
     { title: <Tooltip title="Cantidad de líneas planeadas en el presupuesto">Líneas</Tooltip>, dataIndex: "lineas", align: "right" as const },
     { title: <Tooltip title="Monto total planeado en todas las líneas">Planeado</Tooltip>, dataIndex: "planeado_total", align: "right" as const, render: (v: number) => money(v) },
     { title: <Tooltip title="Ingreso total esperado para el periodo">Meta ingresos</Tooltip>, dataIndex: "ingreso_meta", align: "right" as const, render: (v: number) => money(v) },
-    { title: "Creado por", dataIndex: "creador" },
+    { title: <Tooltip title="Usuario que creó el presupuesto">Creado por</Tooltip>, dataIndex: "creador" },
     {
       title: "",
       key: "actions",

@@ -112,23 +112,23 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
         <Form.Item label="Monto" name="monto" tooltip="Importe de la transacción en COP." rules={[{ required: true }, { type: "number", min: 0.01 }]}>
           <InputNumber min={0.01} style={{ width: "100%" }} />
         </Form.Item>
-        <Form.Item label="Fecha" name="fecha" rules={[{ required: true }]}>
+        <Form.Item label="Fecha" name="fecha" tooltip="Fecha de la transacción." rules={[{ required: true }]}>
           <DatePicker format="YYYY-MM-DD" style={{ width: "100%" }} />
         </Form.Item>
-        <Form.Item label="Categoría" name="finance_category_id" rules={[{ required: true }]}>
+        <Form.Item label="Categoría" name="finance_category_id" tooltip="Categoría financiera de la transacción." rules={[{ required: true }]}>
           <Select
             showSearch
             optionFilterProp="label"
             options={filteredCategories.map((c) => ({ value: c.id, label: c.nombre }))}
           />
         </Form.Item>
-        <Form.Item label="Cuenta" name="account_id" rules={[{ required: true }]}>
+        <Form.Item label="Cuenta" name="account_id" tooltip="Cuenta financiera afectada." rules={[{ required: true }]}>
           <Select options={accounts.map((a) => ({ value: a.id, label: a.nombre }))} />
         </Form.Item>
-        <Form.Item label="Producto (opcional)" name="product_id">
+        <Form.Item label="Producto (opcional)" name="product_id" tooltip="Producto asociado a la transacción (opcional).">
           <Select allowClear showSearch optionFilterProp="label" options={productOptions} />
         </Form.Item>
-        <Form.Item label="Descripción (opcional)" name="descripcion" rules={[{ max: 255 }]}>
+        <Form.Item label="Descripción (opcional)" name="descripcion" tooltip="Descripción libre de la transacción." rules={[{ max: 255 }]}>
           <Input.TextArea rows={2} />
         </Form.Item>
       </Form>
