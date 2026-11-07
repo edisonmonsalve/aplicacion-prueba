@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Select, Space, Table, Tag, Tooltip, message } from "antd";
+import { Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { getMovements, type MovementsQuery } from "@/services/movementsService";
@@ -105,7 +105,12 @@ export default function MovementsPage() {
   return (
     <div>
       {contextHolder}
-      <h2>Movimientos de stock</h2>
+      <div style={{ marginBottom: 16 }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>Movimientos de stock</Typography.Title>
+        <Typography.Text type="secondary">
+          Consulta el historial de entradas y salidas. El stock solo cambia registrando movimientos.
+        </Typography.Text>
+      </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
         <Select

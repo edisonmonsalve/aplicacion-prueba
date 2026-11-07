@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Checkbox, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, message } from "antd";
+import { Button, Checkbox, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import ProductFormModal from "@/components/ProductFormModal";
 import { useAuth } from "@/context/AuthContext";
@@ -174,7 +174,10 @@ export default function ProductsPage() {
     <div>
       {contextHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2>Productos</h2>
+        <div>
+          <Typography.Title level={3} style={{ margin: 0 }}>Productos</Typography.Title>
+          <Typography.Text type="secondary">Gestiona el catálogo, precios, costos y stock.</Typography.Text>
+        </div>
         {canOperate && (
           <Button type="primary" onClick={openCreate}>
             Nuevo producto

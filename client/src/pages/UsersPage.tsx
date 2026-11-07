@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, message } from "antd";
+import { Button, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
@@ -119,7 +119,10 @@ export default function UsersPage() {
     <div>
       {contextHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2>Usuarios</h2>
+        <div>
+          <Typography.Title level={3} style={{ margin: 0 }}>Usuarios</Typography.Title>
+          <Typography.Text type="secondary">Administra accesos, roles y estado de los usuarios.</Typography.Text>
+        </div>
         <Button type="primary" onClick={openCreate}>
           Nuevo usuario
         </Button>

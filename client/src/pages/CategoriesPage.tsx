@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Popconfirm, Space, Table, Tooltip, message } from "antd";
+import { Button, Popconfirm, Space, Table, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import CategoryFormModal from "@/components/CategoryFormModal";
 import { useAuth } from "@/context/AuthContext";
@@ -104,7 +104,10 @@ export default function CategoriesPage() {
     <div>
       {contextHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2>Categorías</h2>
+        <div>
+          <Typography.Title level={3} style={{ margin: 0 }}>Categorías</Typography.Title>
+          <Typography.Text type="secondary">Organiza los productos del catálogo por categorías.</Typography.Text>
+        </div>
         {isAdmin && (
           <Button type="primary" onClick={openCreate}>
             Nueva categoría
