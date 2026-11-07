@@ -65,8 +65,8 @@ export default function CategoriesPage() {
   };
 
   const columns: TableProps<Category>["columns"] = [
-    { title: "Nombre", dataIndex: "nombre" },
-    { title: "Productos", dataIndex: "productos", width: 120 },
+    { title: <Tooltip title="Nombre de la categoría">Nombre</Tooltip>, dataIndex: "nombre" },
+    { title: <Tooltip title="Cantidad de productos en la categoría">Productos</Tooltip>, dataIndex: "productos", width: 120 },
     ...(isAdmin
       ? [
           {
