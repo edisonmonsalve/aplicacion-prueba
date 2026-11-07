@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button, Select, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Empty, Select, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { getMovements, type MovementsQuery } from "@/services/movementsService";
@@ -60,6 +60,10 @@ export default function MovementsPage() {
 
   const updateFilters = (changes: Partial<MovementsQuery>) =>
     setQuery((prev) => ({ ...prev, ...changes, page: 1 }));
+
+  const hasFilters = query.product_id !== undefined || query.tipo !== undefined;
+
+  const clearFilters = () => updateFilters({ product_id: undefined, tipo: undefined });
 
   const columns: TableProps<StockMovement>["columns"] = [
     {
@@ -144,9 +148,7 @@ export default function MovementsPage() {
             onChange={(tipo) => updateFilters({ tipo })}
           />
         </div>
-        {(query.product_id !== undefined || query.tipo !== undefined) && (
-          <Button onClick={() => updateFilters({ product_id: undefined, tipo: undefined })}>Limpiar filtros</Button>
-        )}
+        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
 
       <Table<StockMovement>
@@ -155,7 +157,19 @@ export default function MovementsPage() {
         dataSource={movements}
         loading={loading}
         scroll={{ x: "max-content" }}
-        locale={{ emptyText: "No hay movimientos que coincidan" }}
+        locale={{
+          emptyText: (
+            <Empty
+              description={
+                hasFilters
+                  ? "No hay movimientos que coincidan con los filtros"
+                  : "Aún no hay movimientos"
+              }
+            >
+              {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
+            </Empty>
+          ),
+        }}
         pagination={{
           current: query.page,
           pageSize: query.pageSize,

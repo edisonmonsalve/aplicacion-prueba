@@ -273,11 +273,21 @@ export default function TransactionsPage() {
           scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
-              <Empty description="Aún no hay transacciones">
-                {canWrite && (
-                  <Button type="primary" onClick={() => setModalOpen(true)}>
-                    Registrar la primera
-                  </Button>
+              <Empty
+                description={
+                  hasFilters
+                    ? "No hay transacciones que coincidan con los filtros"
+                    : "Aún no hay transacciones"
+                }
+              >
+                {hasFilters ? (
+                  <Button onClick={clearFilters}>Limpiar filtros</Button>
+                ) : (
+                  canWrite && (
+                    <Button type="primary" onClick={() => setModalOpen(true)}>
+                      Registrar la primera
+                    </Button>
+                  )
                 )}
               </Empty>
             ),

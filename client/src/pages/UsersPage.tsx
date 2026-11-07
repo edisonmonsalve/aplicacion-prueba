@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Empty, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
@@ -191,7 +191,23 @@ export default function UsersPage() {
         columns={columns}
         dataSource={users}
         loading={loading}
-        locale={{ emptyText: "No hay usuarios que coincidan" }}
+        locale={{
+          emptyText: (
+            <Empty
+              description={
+                hasFilters ? "No hay usuarios que coincidan con los filtros" : "Aún no hay usuarios"
+              }
+            >
+              {hasFilters ? (
+                <Button onClick={clearFilters}>Limpiar filtros</Button>
+              ) : (
+                <Button type="primary" onClick={openCreate}>
+                  Crear el primero
+                </Button>
+              )}
+            </Empty>
+          ),
+        }}
         pagination={{
           current: query.page,
           pageSize: query.pageSize,

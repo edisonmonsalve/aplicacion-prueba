@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, Empty, Input, Select, Space, Table, Tooltip, Typography } from "antd";
+import { App, Button, Empty, Input, Select, Table, Tooltip, Typography } from "antd";
 import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { listBudgets } from "@/services/financeService";
@@ -13,7 +13,10 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import BudgetFormModal from "./BudgetFormModal";
 
 const PERIOD_OPTIONS = ["dia", "semana", "mes", "anio"].map((p) => ({ value: p, label: periodLabel(p as "dia" | "semana" | "mes" | "anio") }));
-const STATUS_OPTIONS = (["borrador", "activo", "cerrado"] as BudgetEstado[]).map((e) => ({ value: e, label: e }));
+const STATUS_OPTIONS = (["borrador", "activo", "cerrado"] as BudgetEstado[]).map((e) => ({
+  value: e,
+  label: e.charAt(0).toUpperCase() + e.slice(1),
+}));
 
 export default function BudgetsPage() {
   const navigate = useNavigate();
@@ -26,9 +29,20 @@ export default function BudgetsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [q, setQ] = useState("");
+  const [searchText, setSearchText] = useState("");
   const [estado, setEstado] = useState<BudgetEstado | undefined>();
   const [tipo, setTipo] = useState<BudgetPeriodo | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
+
+  const hasFilters = Boolean(q || estado || tipo);
+
+  const clearFilters = () => {
+    setQ("");
+    setSearchText("");
+    setEstado(undefined);
+    setTipo(undefined);
+    setPage(1);
+  };
 
   useDocumentTitle("Presupuestos");
 
@@ -90,11 +104,48 @@ export default function BudgetsPage() {
         por periodo.
       </Typography.Paragraph>
 
-      <Space wrap style={{ marginBottom: 16 }}>
-        <Input.Search allowClear placeholder="Nombre" onSearch={(v) => { setQ(v); setPage(1); }} style={{ width: 240 }} />
-        <Select allowClear placeholder="Estado" style={{ width: 140 }} options={STATUS_OPTIONS} onChange={(v) => { setEstado(v); setPage(1); }} />
-        <Select allowClear placeholder="Periodo" style={{ width: 140 }} options={PERIOD_OPTIONS} onChange={(v) => { setTipo(v); setPage(1); }} />
-      </Space>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Buscar
+          </Typography.Text>
+          <Input.Search
+            allowClear
+            placeholder="Nombre del presupuesto"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onSearch={(v) => { setQ(v); setPage(1); }}
+            style={{ width: 240 }}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Estado
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todos"
+            style={{ width: 140 }}
+            value={estado}
+            options={STATUS_OPTIONS}
+            onChange={(v) => { setEstado(v); setPage(1); }}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Periodo
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todos"
+            style={{ width: 140 }}
+            value={tipo}
+            options={PERIOD_OPTIONS}
+            onChange={(v) => { setTipo(v); setPage(1); }}
+          />
+        </div>
+        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
+      </div>
 
       {firstLoad ? (
         <TableSkeleton />
@@ -108,11 +159,21 @@ export default function BudgetsPage() {
           onRow={(r) => ({ onClick: () => navigate(`/finanzas/presupuestos/${r.id}`), style: { cursor: "pointer" } })}
           locale={{
             emptyText: (
-              <Empty description="Aún no hay presupuestos">
-                {canWrite && (
-                  <Button type="primary" onClick={() => setModalOpen(true)}>
-                    Crear el primero
-                  </Button>
+              <Empty
+                description={
+                  hasFilters
+                    ? "No hay presupuestos que coincidan con los filtros"
+                    : "Aún no hay presupuestos"
+                }
+              >
+                {hasFilters ? (
+                  <Button onClick={clearFilters}>Limpiar filtros</Button>
+                ) : (
+                  canWrite && (
+                    <Button type="primary" onClick={() => setModalOpen(true)}>
+                      Crear el primero
+                    </Button>
+                  )
                 )}
               </Empty>
             ),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Checkbox, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Checkbox, Empty, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import ProductFormModal from "@/components/ProductFormModal";
 import { useAuth } from "@/context/AuthContext";
@@ -257,7 +257,25 @@ export default function ProductsPage() {
         dataSource={products}
         loading={loading}
         scroll={{ x: "max-content" }}
-        locale={{ emptyText: "No hay productos que coincidan" }}
+        locale={{
+          emptyText: (
+            <Empty
+              description={
+                hasFilters ? "No hay productos que coincidan con los filtros" : "Aún no hay productos"
+              }
+            >
+              {hasFilters ? (
+                <Button onClick={clearFilters}>Limpiar filtros</Button>
+              ) : (
+                canOperate && (
+                  <Button type="primary" onClick={openCreate}>
+                    Crear el primero
+                  </Button>
+                )
+              )}
+            </Empty>
+          ),
+        }}
         pagination={{
           current: query.page,
           pageSize: query.pageSize,

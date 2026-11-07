@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Popconfirm, Space, Table, Tooltip, Typography, message } from "antd";
+import { Button, Empty, Popconfirm, Space, Table, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import CategoryFormModal from "@/components/CategoryFormModal";
 import { useAuth } from "@/context/AuthContext";
@@ -122,7 +122,17 @@ export default function CategoriesPage() {
         columns={columns}
         dataSource={categories}
         loading={loading}
-        locale={{ emptyText: "No hay categorías" }}
+        locale={{
+          emptyText: (
+            <Empty description="Aún no hay categorías">
+              {isAdmin && (
+                <Button type="primary" onClick={openCreate}>
+                  Crear la primera
+                </Button>
+              )}
+            </Empty>
+          ),
+        }}
         pagination={false}
       />
 
