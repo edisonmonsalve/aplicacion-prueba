@@ -8,6 +8,7 @@ import { getErrorMessage } from "@/utils/errors";
 import type { User } from "@/types";
 import UserFormModal from "@/components/UserFormModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import TableSkeleton from "@/components/TableSkeleton";
 import { ROLES, roleColor, roleLabel } from "@/utils/roles";
 
 export default function UsersPage() {
@@ -127,6 +128,8 @@ export default function UsersPage() {
     },
   ];
 
+  const firstLoad = loading && users.length === 0;
+
   return (
     <div>
       {contextHolder}
@@ -148,7 +151,8 @@ export default function UsersPage() {
           <Input.Search
             placeholder="Nombre o correo"
             allowClear
-            value={searchText}
+            aria-label="Buscar usuarios"
+value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onSearch={(q) => updateFilters({ q: q || undefined })}
             style={{ width: 280 }}
@@ -186,36 +190,40 @@ export default function UsersPage() {
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
 
-      <Table<User>
-        rowKey="id"
-        columns={columns}
-        dataSource={users}
-        loading={loading}
-        locale={{
-          emptyText: (
-            <Empty
-              description={
-                hasFilters ? "No hay usuarios que coincidan con los filtros" : "Aún no hay usuarios"
-              }
-            >
-              {hasFilters ? (
-                <Button onClick={clearFilters}>Limpiar filtros</Button>
-              ) : (
-                <Button type="primary" onClick={openCreate}>
-                  Crear el primero
-                </Button>
-              )}
-            </Empty>
-          ),
-        }}
-        pagination={{
-          current: query.page,
-          pageSize: query.pageSize,
-          total,
-          showSizeChanger: true,
-          onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
-        }}
-      />
+      {firstLoad ? (
+        <TableSkeleton />
+      ) : (
+        <Table<User>
+          rowKey="id"
+          columns={columns}
+          dataSource={users}
+          loading={loading}
+          locale={{
+            emptyText: (
+              <Empty
+                description={
+                  hasFilters ? "No hay usuarios que coincidan con los filtros" : "Aún no hay usuarios"
+                }
+              >
+                {hasFilters ? (
+                  <Button onClick={clearFilters}>Limpiar filtros</Button>
+                ) : (
+                  <Button type="primary" onClick={openCreate}>
+                    Crear el primero
+                  </Button>
+                )}
+              </Empty>
+            ),
+          }}
+          pagination={{
+            current: query.page,
+            pageSize: query.pageSize,
+            total,
+            showSizeChanger: true,
+            onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
+          }}
+        />
+      )}
       {modalOpen && (
         <UserFormModal
           user={editingUser}

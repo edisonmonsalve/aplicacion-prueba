@@ -7,6 +7,7 @@ import { deleteCategory, getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
 import type { Category } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import TableSkeleton from "@/components/TableSkeleton";
 
 export default function CategoriesPage() {
   const { user } = useAuth();
@@ -102,6 +103,8 @@ export default function CategoriesPage() {
       : []),
   ];
 
+  const firstLoad = loading && categories.length === 0;
+
   return (
     <div>
       {contextHolder}
@@ -117,24 +120,28 @@ export default function CategoriesPage() {
         )}
       </div>
 
-      <Table<Category>
-        rowKey="id"
-        columns={columns}
-        dataSource={categories}
-        loading={loading}
-        locale={{
-          emptyText: (
-            <Empty description="Aún no hay categorías">
-              {isAdmin && (
-                <Button type="primary" onClick={openCreate}>
-                  Crear la primera
-                </Button>
-              )}
-            </Empty>
-          ),
-        }}
-        pagination={false}
-      />
+      {firstLoad ? (
+        <TableSkeleton />
+      ) : (
+        <Table<Category>
+          rowKey="id"
+          columns={columns}
+          dataSource={categories}
+          loading={loading}
+          locale={{
+            emptyText: (
+              <Empty description="Aún no hay categorías">
+                {isAdmin && (
+                  <Button type="primary" onClick={openCreate}>
+                    Crear la primera
+                  </Button>
+                )}
+              </Empty>
+            ),
+          }}
+          pagination={false}
+        />
+      )}
 
       {modalOpen && (
         <CategoryFormModal category={editing} onClose={() => setModalOpen(false)} onSaved={handleSaved} />

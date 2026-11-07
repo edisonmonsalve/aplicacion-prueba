@@ -10,6 +10,7 @@ import { formatCurrency } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
 import type { Category, Product } from "@/types";
 import { useNavigate } from "react-router-dom";
+import TableSkeleton from "@/components/TableSkeleton";
 import MovementFormModal from "@/components/MovementFormModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -184,6 +185,8 @@ export default function ProductsPage() {
     },
   ];
 
+  const firstLoad = loading && products.length === 0;
+
   return (
     <div>
       {contextHolder}
@@ -207,7 +210,8 @@ export default function ProductsPage() {
           <Input.Search
             placeholder="Nombre o SKU"
             allowClear
-            value={searchText}
+            aria-label="Buscar productos"
+value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onSearch={(q) => updateFilters({ q: q || undefined })}
             style={{ width: 280 }}
@@ -251,39 +255,43 @@ export default function ProductsPage() {
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
 
-      <Table<Product>
-        rowKey="id"
-        columns={columns}
-        dataSource={products}
-        loading={loading}
-        scroll={{ x: "max-content" }}
-        locale={{
-          emptyText: (
-            <Empty
-              description={
-                hasFilters ? "No hay productos que coincidan con los filtros" : "Aún no hay productos"
-              }
-            >
-              {hasFilters ? (
-                <Button onClick={clearFilters}>Limpiar filtros</Button>
-              ) : (
-                canOperate && (
-                  <Button type="primary" onClick={openCreate}>
-                    Crear el primero
-                  </Button>
-                )
-              )}
-            </Empty>
-          ),
-        }}
-        pagination={{
-          current: query.page,
-          pageSize: query.pageSize,
-          total,
-          showSizeChanger: true,
-          onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
-        }}
-      />
+      {firstLoad ? (
+        <TableSkeleton />
+      ) : (
+        <Table<Product>
+          rowKey="id"
+          columns={columns}
+          dataSource={products}
+          loading={loading}
+          scroll={{ x: "max-content" }}
+          locale={{
+            emptyText: (
+              <Empty
+                description={
+                  hasFilters ? "No hay productos que coincidan con los filtros" : "Aún no hay productos"
+                }
+              >
+                {hasFilters ? (
+                  <Button onClick={clearFilters}>Limpiar filtros</Button>
+                ) : (
+                  canOperate && (
+                    <Button type="primary" onClick={openCreate}>
+                      Crear el primero
+                    </Button>
+                  )
+                )}
+              </Empty>
+            ),
+          }}
+          pagination={{
+            current: query.page,
+            pageSize: query.pageSize,
+            total,
+            showSizeChanger: true,
+            onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
+          }}
+        />
+      )}
 
       {modalOpen && (
         <ProductFormModal

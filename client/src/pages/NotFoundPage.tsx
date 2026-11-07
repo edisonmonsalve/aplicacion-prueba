@@ -10,7 +10,7 @@ export default function NotFoundPage() {
     <Result
       status="404"
       title="404"
-      subTitle="La página que buscas no existe."
+      subTitle="La página que buscas no existe o fue movida."
       extra={
         <Button type="primary" onClick={() => navigate("/")}>
           Volver al inicio

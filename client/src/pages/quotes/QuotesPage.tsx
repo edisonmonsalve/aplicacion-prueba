@@ -141,7 +141,8 @@ export default function QuotesPage() {
           <Input.Search
             allowClear
             placeholder="Número, cliente o documento"
-            value={text}
+            aria-label="Buscar cotizaciones"
+value={text}
             onChange={(e) => setText(e.target.value)}
             style={{ width: 280 }}
           />

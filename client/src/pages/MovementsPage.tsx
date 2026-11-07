@@ -11,6 +11,7 @@ import { formatCurrency } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
 import type { Product, StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import TableSkeleton from "@/components/TableSkeleton";
 
 export default function MovementsPage() {
   const { user } = useAuth();
@@ -62,6 +63,8 @@ export default function MovementsPage() {
     setQuery((prev) => ({ ...prev, ...changes, page: 1 }));
 
   const hasFilters = query.product_id !== undefined || query.tipo !== undefined;
+
+  const firstLoad = loading && movements.length === 0;
 
   const clearFilters = () => updateFilters({ product_id: undefined, tipo: undefined });
 
@@ -151,33 +154,37 @@ export default function MovementsPage() {
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
 
-      <Table<StockMovement>
-        rowKey="id"
-        columns={columns}
-        dataSource={movements}
-        loading={loading}
-        scroll={{ x: "max-content" }}
-        locale={{
-          emptyText: (
-            <Empty
-              description={
-                hasFilters
-                  ? "No hay movimientos que coincidan con los filtros"
-                  : "Aún no hay movimientos"
-              }
-            >
-              {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-            </Empty>
-          ),
-        }}
-        pagination={{
-          current: query.page,
-          pageSize: query.pageSize,
-          total,
-          showSizeChanger: true,
-          onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
-        }}
-      />
+      {firstLoad ? (
+        <TableSkeleton />
+      ) : (
+        <Table<StockMovement>
+          rowKey="id"
+          columns={columns}
+          dataSource={movements}
+          loading={loading}
+          scroll={{ x: "max-content" }}
+          locale={{
+            emptyText: (
+              <Empty
+                description={
+                  hasFilters
+                    ? "No hay movimientos que coincidan con los filtros"
+                    : "Aún no hay movimientos"
+                }
+              >
+                {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
+              </Empty>
+            ),
+          }}
+          pagination={{
+            current: query.page,
+            pageSize: query.pageSize,
+            total,
+            showSizeChanger: true,
+            onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
+          }}
+        />
+      )}
     </div>
   );
 }
