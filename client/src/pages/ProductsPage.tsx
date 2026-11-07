@@ -141,17 +141,23 @@ export default function ProductsPage() {
       render: (_, p) => (
         <Space>
           {canOperate && (
-            <Button size="small" type="primary" disabled={!p.activo} onClick={() => setMovementProduct(p)}>
-              Movimiento
-            </Button>
+            <Tooltip title="Registrar una entrada o salida de stock">
+              <Button size="small" type="primary" disabled={!p.activo} onClick={() => setMovementProduct(p)}>
+                Movimiento
+              </Button>
+            </Tooltip>
           )}
-          <Button size="small" onClick={() => navigate(`/movements?product_id=${p.id}`)}>
-            Historial
-          </Button>
-          {canOperate && (
-            <Button size="small" onClick={() => openEdit(p)}>
-              Editar
+          <Tooltip title="Ver el historial de movimientos del producto">
+            <Button size="small" onClick={() => navigate(`/movements?product_id=${p.id}`)}>
+              Historial
             </Button>
+          </Tooltip>
+          {canOperate && (
+            <Tooltip title="Editar los datos del producto">
+              <Button size="small" onClick={() => openEdit(p)}>
+                Editar
+              </Button>
+            </Tooltip>
           )}
           {isAdmin && (
             <Popconfirm
