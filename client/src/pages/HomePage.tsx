@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, App, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Typography, theme } from "antd";
+import { Alert, App, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, SwapOutlined, WarningOutlined } from "@ant-design/icons";
 import {
   Bar,
@@ -22,6 +22,13 @@ import { formatCurrency } from "@/utils/format";
 import { STATUS_OPTIONS } from "@/pages/quotes/QuoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+
+const HOME_TOOLTIPS: Record<string, string> = {
+  "Productos activos": "Productos activos en el catálogo",
+  "Con stock bajo": "Productos cuyo stock está por debajo del mínimo",
+  "Movimientos hoy": "Movimientos de stock registrados hoy",
+  "Valor del inventario": "Suma del precio × stock actual de los productos activos",
+};
 
 const ESTADO_COLOR: Record<string, string> = {
   borrador: "#8c8c8c",
@@ -173,7 +180,7 @@ export default function HomePage() {
                     >
                       {s.icon}
                     </div>
-                    <Statistic title={s.title} value={s.value} />
+                    <Statistic title={<AntTooltip title={HOME_TOOLTIPS[s.title] ?? s.title}>{s.title}</AntTooltip>} value={s.value} />
                   </div>
                 </Card>
               </Col>
@@ -260,7 +267,7 @@ export default function HomePage() {
                     { title: "SKU", dataIndex: "sku" },
                     { title: "Producto", dataIndex: "nombre" },
                     {
-                      title: "Stock / mínimo",
+                      title: <AntTooltip title="Stock actual y stock mínimo del producto">Stock / mínimo</AntTooltip>,
                       render: (_, p) => <Tag color="red">{`${p.stock_actual} / ${p.stock_minimo}`}</Tag>,
                     },
                   ]}
