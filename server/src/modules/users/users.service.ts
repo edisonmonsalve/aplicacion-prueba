@@ -60,6 +60,24 @@ export async function updateUser(
     throw new HttpError(400, "No puedes quitarte el rol de administrador");
   }
 
+  // No dejar al sistema sin administradores activos al cambiar el rol
+  if (input.rol && input.rol !== "admin") {
+    const [targetRows] = await pool.query<RowDataPacket[]>(
+      "SELECT rol, activo FROM users WHERE id = ?",
+      [id]
+    );
+    const target = (targetRows as RowDataPacket[])[0];
+    if (target && target.rol === "admin" && target.activo === 1) {
+      const [cntRows] = await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS c FROM users WHERE rol = 'admin' AND activo = 1 AND id <> ?",
+        [id]
+      );
+      if (Number((cntRows as RowDataPacket[])[0].c) === 0) {
+        throw new HttpError(409, "No se puede quitar el rol al último administrador activo");
+      }
+    }
+  }
+
   const sets: string[] = [];
   const params: (string | number)[] = [];
 
@@ -72,17 +90,42 @@ export async function updateUser(
   }
   if (sets.length === 0) throw new HttpError(400, "No hay nada que actualizar");
 
-  const [res] = await pool.query<ResultSetHeader>(
-    `UPDATE users SET ${sets.join(", ")} WHERE id = ?`,
-    [...params, id]
-  );
-  if (res.affectedRows === 0) throw new HttpError(404, "Usuario no encontrado");
+  try {
+    const [res] = await pool.query<ResultSetHeader>(
+      `UPDATE users SET ${sets.join(", ")} WHERE id = ?`,
+      [...params, id]
+    );
+    if (res.affectedRows === 0) throw new HttpError(404, "Usuario no encontrado");
+  } catch (err: any) {
+    if (err?.code === "ER_DUP_ENTRY") {
+      throw new HttpError(409, "El email ya está registrado");
+    }
+    throw err;
+  }
 }
 
 export async function setActivo(id: number, activo: boolean, actorId: number) {
   // RN-06: un usuario no puede desactivarse a sí mismo
   if (id === actorId && !activo) {
     throw new HttpError(400, "No puedes desactivarte a ti mismo");
+  }
+
+  // No desactivar al último administrador activo
+  if (!activo) {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT rol FROM users WHERE id = ?",
+      [id]
+    );
+    const u = (rows as RowDataPacket[])[0];
+    if (u && u.rol === "admin") {
+      const [cnt] = await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS c FROM users WHERE rol = 'admin' AND activo = 1 AND id <> ?",
+        [id]
+      );
+      if (Number((cnt as RowDataPacket[])[0].c) === 0) {
+        throw new HttpError(409, "No se puede desactivar al último administrador activo");
+      }
+    }
   }
   const [res] = await pool.query<ResultSetHeader>(
     "UPDATE users SET activo = ? WHERE id = ?",

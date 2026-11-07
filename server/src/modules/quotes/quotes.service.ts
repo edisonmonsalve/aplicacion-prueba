@@ -44,7 +44,7 @@ async function buildLines(conn: PoolConnection, items: QuoteInput["items"]) {
   if (items.length === 0) return { lines: [], totals: calcTotals([]) };
 
   const [products] = await conn.query<RowDataPacket[]>(
-    "SELECT id, sku, nombre, precio, activo FROM products WHERE id IN (?)",
+    "SELECT id, sku, nombre, precio, activo FROM products WHERE id IN (?) FOR UPDATE",
     [items.map((i) => i.product_id)]
   );
   const byId = new Map(products.map((p) => [p.id as number, p]));

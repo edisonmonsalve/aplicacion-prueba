@@ -161,6 +161,11 @@ export async function reverseTransaction(id: number, actor: AuthUser) {
     );
     if (reversals[0]) throw new HttpError(409, "La transacción ya fue anulada");
 
+    // Las transacciones automáticas (origen stock/cotización) no se anulan manualmente
+    if (original.stock_movement_id !== null || original.quote_id !== null) {
+      throw new HttpError(409, "Las transacciones automáticas no se pueden anular manualmente");
+    }
+
     await assertPeriodOpen(conn, original.fecha);
 
     // RN-02: no se edita ni se borra; se anula con la contrapartida del mismo importe.
@@ -230,6 +235,7 @@ export async function getSummary(query: SummaryQuery) {
                 SELECT SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE -t.monto END)
                 FROM transactions t
                 WHERE ${VALID_TRANSACTION}
+                  AND t.account_id IN (SELECT id FROM finance_accounts WHERE activo = 1)
               ), 0) AS capital
      FROM finance_accounts a
      WHERE a.activo = 1`

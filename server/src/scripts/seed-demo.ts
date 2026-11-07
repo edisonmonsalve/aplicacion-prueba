@@ -183,9 +183,9 @@ async function main() {
     });
     log(`  + presupuesto cerrado creado: id ${closedBudget.id}`);
     try {
-      await post(`/finance/budgets/${closedBudget.id}/activate`);
-      await post(`/finance/budgets/${closedBudget.id}/close`);
-      log("  ✓ presupuesto anterior cerrado");
+      await post(`/finance/budgets/${closedBudget.id}/activate`, {});
+      await post(`/finance/budgets/${closedBudget.id}/close`, {});
+      log("  OK presupuesto anterior cerrado");
     } catch (e: any) {
       log(`  · no se pudo activar/cerrar: ${e.message}`);
     }
@@ -223,7 +223,7 @@ async function main() {
         })),
       });
       log(`  + presupuesto activo creado: id ${activeBudget.id}`);
-      await post(`/finance/budgets/${activeBudget.id}/activate`);
+      await post(`/finance/budgets/${activeBudget.id}/activate`, {});
       log("  ✓ presupuesto actual activado");
     } catch (e: any) {
       log(`  · no se pudo crear/activar presupuesto actual: ${e.message}`);
@@ -393,14 +393,14 @@ async function main() {
   // Transiciones: enviar todas, aprobar algunas, rechazar una, entregar algunas
   for (let i = 0; i < quoteIds.length; i++) {
     const id = quoteIds[i];
-    await post(`/quotes/${id}/send`);
+    await post(`/quotes/${id}/send`, {});
     if (i === 2) {
-      await post(`/quotes/${id}/reject`);
+      await post(`/quotes/${id}/reject`, {});
       log(`  · cotización ${id} rechazada`);
     } else if (i === 0 || i === 3) {
-      await post(`/quotes/${id}/approve`);
+      await post(`/quotes/${id}/approve`, {});
       if (i === 0) {
-        await post(`/quotes/${id}/deliver`);
+        await post(`/quotes/${id}/deliver`, {});
         log(`  · cotización ${id} entregada (stock descontado)`);
       } else {
         log(`  · cotización ${id} aprobada`);
@@ -421,3 +421,4 @@ main().catch((e) => {
   console.error("Fallo en seed:", e.message);
   process.exit(1);
 });
+

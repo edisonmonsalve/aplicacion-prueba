@@ -113,18 +113,20 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
     ]
   );
 
-  await auditFinance(conn, input.userId, "transaction", res.insertId, "crear", null, {
-    tipo: input.tipo,
-    monto,
-    fecha: input.fecha,
-    finance_category_id: categoriaId,
-    account_id: accountId,
-    product_id: input.productId ?? null,
-    quote_id: input.quoteId ?? null,
-    stock_movement_id: input.stockMovementId ?? null,
-    descripcion: input.descripcion,
-    origen: "automatico",
-  });
+  if (res.affectedRows === 1) {
+    await auditFinance(conn, input.userId, "transaction", res.insertId, "crear", null, {
+      tipo: input.tipo,
+      monto,
+      fecha: input.fecha,
+      finance_category_id: categoriaId,
+      account_id: accountId,
+      product_id: input.productId ?? null,
+      quote_id: input.quoteId ?? null,
+      stock_movement_id: input.stockMovementId ?? null,
+      descripcion: input.descripcion,
+      origen: "automatico",
+    });
+  }
 
   return res.insertId;
 }
