@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Alert,
   App,
   Button,
   Card,
@@ -160,6 +161,34 @@ export default function BudgetDetailPage() {
         Consulta la ejecución del presupuesto por línea, las alertas, la proyección de cierre y el cumplimiento
         de la meta de ingresos.
       </Typography.Paragraph>
+
+      {budget.estado === "borrador" && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Este presupuesto está en borrador"
+          description="Puedes editarlo o activarlo. Al activarlo empezará a comparar las transacciones reales contra las líneas planeadas."
+        />
+      )}
+      {budget.estado === "activo" && (
+        <Alert
+          type="success"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Periodo activo"
+          description="Las transacciones con fecha dentro del periodo se comparan automáticamente contra las líneas de este presupuesto."
+        />
+      )}
+      {budget.estado === "cerrado" && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Periodo cerrado"
+          description="Este periodo ya no admite nuevas transacciones. Consulta la ejecución histórica o crea un presupuesto para el siguiente periodo."
+        />
+      )}
 
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
         <Descriptions.Item label={<Tooltip title="Granularidad del periodo">Periodo</Tooltip>}>{periodLabel(budget.tipo_periodo)}</Descriptions.Item>
