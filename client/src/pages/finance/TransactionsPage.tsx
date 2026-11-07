@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, DatePicker, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, DatePicker, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { listTransactions, reverseTransaction, getFinanceAccounts, getFinanceCategories } from "@/services/financeService";
@@ -176,6 +176,13 @@ export default function TransactionsPage() {
         Registra y consulta los ingresos y gastos reales. Las transacciones no se editan ni se borran: se anulan
         con una contrapartida.
       </Typography.Paragraph>
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Algunas transacciones se generan automáticamente: las entradas de stock con costo y la entrega de cotizaciones."
+      />
 
       <Space wrap style={{ marginBottom: 16 }}>
         <Select
