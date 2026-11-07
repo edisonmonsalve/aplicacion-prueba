@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Form, Input, InputNumber, Modal, Radio, Typography, message, Alert } from "antd";
 import { isAxiosError } from "axios";
+import dayjs from "dayjs";
 import { createMovement, type MovementInput } from "@/services/movementsService";
-import { getAvailability } from "@/services/financeService";
+import { getAvailability, listBudgets } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { canEditCosts } from "@/utils/roles";
-import type { Product } from "@/types";
-import type { BudgetAvailability } from "@/types";
+import type { BudgetAvailability, BudgetListItem, Product } from "@/types";
 
 interface Props {
   product: Product;
@@ -23,6 +23,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
   const [messageApi, contextHolder] = message.useMessage();
   const [saving, setSaving] = useState(false);
   const [availability, setAvailability] = useState<BudgetAvailability | null>(null);
+  const [closedPeriod, setClosedPeriod] = useState<BudgetListItem | undefined>();
   const [confirmedExceed, setConfirmedExceed] = useState(false);
   const tipo = Form.useWatch("tipo", form);
   const puedeFijarCosto = canEditCosts(user?.rol);
@@ -31,6 +32,13 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
     let ignore = false;
     getAvailability(product.id)
       .then((a) => { if (!ignore) setAvailability(a); })
+      .catch(() => {});
+    listBudgets({ page: 1, pageSize: 100, estado: "cerrado" })
+      .then((r) => {
+        if (ignore) return;
+        const hoy = dayjs().format("YYYY-MM-DD");
+        setClosedPeriod(r.data.find((b) => b.fecha_inicio <= hoy && b.fecha_fin >= hoy));
+      })
       .catch(() => {});
     return () => { ignore = true; };
   }, [product.id]);
@@ -50,6 +58,13 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
           ? product.costo ?? 0
           : 0;
     const gasto = values.tipo === "entrada" ? costoUnitario * values.cantidad : 0;
+
+    if (closedPeriod && values.tipo === "entrada" && gasto > 0) {
+      messageApi.error(
+        `El periodo "${closedPeriod.nombre}" está cerrado y no admite el egreso automático de esta entrada`
+      );
+      return;
+    }
 
     if (
       availability &&
@@ -118,6 +133,16 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
         <br />
         Stock actual: <b>{product.stock_actual}</b>
       </Typography.Paragraph>
+
+      {closedPeriod && tipo === "entrada" && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={`Hoy está dentro del periodo cerrado "${closedPeriod.nombre}"`}
+          description="Las entradas con costo generan un egreso automático y no se podrán registrar hasta que el periodo se reabra o se cree uno nuevo."
+        />
+      )}
 
       {availability && tipo !== "salida" && (
         <Alert
