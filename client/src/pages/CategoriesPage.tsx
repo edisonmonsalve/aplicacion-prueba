@@ -74,9 +74,11 @@ export default function CategoriesPage() {
             width: 200,
             render: (_: unknown, c: Category) => (
               <Space>
-                <Button size="small" onClick={() => openEdit(c)}>
-                  Editar
-                </Button>
+                <Tooltip title="Editar el nombre de la categoría">
+                  <Button size="small" onClick={() => openEdit(c)}>
+                    Editar
+                  </Button>
+                </Tooltip>
                 <Tooltip title={c.productos > 0 ? "Tiene productos asociados" : ""}>
                   {/* El span permite que el Tooltip funcione sobre un botón deshabilitado */}
                   <span>

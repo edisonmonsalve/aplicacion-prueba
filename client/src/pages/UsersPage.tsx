@@ -95,9 +95,11 @@ export default function UsersPage() {
       title: "Acciones",
       render: (_, u) => (
         <Space>
-          <Button size="small" onClick={() => openEdit(u)}>
-            Editar
-          </Button>
+          <Tooltip title="Editar los datos del usuario">
+            <Button size="small" onClick={() => openEdit(u)}>
+              Editar
+            </Button>
+          </Tooltip>
           <Popconfirm
             title={u.activo ? "¿Desactivar usuario?" : "¿Activar usuario?"}
             okText="Sí"
@@ -106,9 +108,11 @@ export default function UsersPage() {
             disabled={u.id === me?.id}
           >
             {/* RN-06: no puedes desactivarte a ti mismo */}
-            <Button size="small" danger={!!u.activo} disabled={u.id === me?.id}>
-              {u.activo ? "Desactivar" : "Activar"}
-            </Button>
+            <Tooltip title={u.activo ? "Desactivar el acceso del usuario" : "Activar el acceso del usuario"}>
+              <Button size="small" danger={!!u.activo} disabled={u.id === me?.id}>
+                {u.activo ? "Desactivar" : "Activar"}
+              </Button>
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),

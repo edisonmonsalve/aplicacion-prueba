@@ -143,14 +143,16 @@ export default function TransactionsPage() {
         canWrite &&
         r.anulada_de === null &&
         !r.anulada && (
-          <Button
-            size="small"
-            danger
-            loading={reversing === r.id}
-            onClick={() => handleReverse(r.id)}
-          >
-            Anular
-          </Button>
+          <Tooltip title="Anular con una contrapartida del mismo importe">
+            <Button
+              size="small"
+              danger
+              loading={reversing === r.id}
+              onClick={() => handleReverse(r.id)}
+            >
+              Anular
+            </Button>
+          </Tooltip>
         ),
     },
   ];
