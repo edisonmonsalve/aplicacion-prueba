@@ -172,6 +172,10 @@ export default function TransactionsPage() {
           )}
         </Space>
       </div>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+        Registra y consulta los ingresos y gastos reales. Las transacciones no se editan ni se borran: se anulan
+        con una contrapartida.
+      </Typography.Paragraph>
 
       <Space wrap style={{ marginBottom: 16 }}>
         <Select
@@ -220,7 +224,17 @@ export default function TransactionsPage() {
           dataSource={rows}
           columns={columns}
           scroll={{ x: "max-content" }}
-          locale={{ emptyText: <Empty description="Aún no hay transacciones" /> }}
+          locale={{
+            emptyText: (
+              <Empty description="Aún no hay transacciones">
+                {canWrite && (
+                  <Button type="primary" onClick={() => setModalOpen(true)}>
+                    Registrar la primera
+                  </Button>
+                )}
+              </Empty>
+            ),
+          }}
           pagination={{
             current: page,
             pageSize,

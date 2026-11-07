@@ -156,6 +156,10 @@ export default function BudgetDetailPage() {
           </Space>
         )}
       </div>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+        Consulta la ejecución del presupuesto por línea, las alertas, la proyección de cierre y el cumplimiento
+        de la meta de ingresos.
+      </Typography.Paragraph>
 
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
         <Descriptions.Item label={<Tooltip title="Granularidad del periodo">Periodo</Tooltip>}>{periodLabel(budget.tipo_periodo)}</Descriptions.Item>
@@ -169,25 +173,25 @@ export default function BudgetDetailPage() {
       </Descriptions>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Tooltip title="Monto total planeado"><Typography.Text type="secondary">Planeado total</Typography.Text></Tooltip>
             <Typography.Title level={4} style={{ margin: 0 }}>{money(r.planeado_total)}</Typography.Title>
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Tooltip title="Monto real ejecutado"><Typography.Text type="secondary">Real total</Typography.Text></Tooltip>
             <Typography.Title level={4} style={{ margin: 0 }}>{money(r.real_total)}</Typography.Title>
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Tooltip title="Monto disponible (planeado - real)"><Typography.Text type="secondary">Disponible total</Typography.Text></Tooltip>
             <Typography.Title level={4} style={{ margin: 0 }}>{money(r.disponible_total)}</Typography.Title>
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Typography.Text type="secondary">Ejecución</Typography.Text>
             <Progress

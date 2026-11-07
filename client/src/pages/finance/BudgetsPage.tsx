@@ -83,6 +83,10 @@ export default function BudgetsPage() {
           </Button>
         )}
       </div>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+        Planifica cuánto puedes gastar por periodo, categoría o producto. Solo puede haber un presupuesto activo
+        por periodo.
+      </Typography.Paragraph>
 
       <Space wrap style={{ marginBottom: 16 }}>
         <Input.Search allowClear placeholder="Nombre" onSearch={(v) => { setQ(v); setPage(1); }} style={{ width: 240 }} />
@@ -100,7 +104,17 @@ export default function BudgetsPage() {
           columns={columns}
           scroll={{ x: "max-content" }}
           onRow={(r) => ({ onClick: () => navigate(`/finanzas/presupuestos/${r.id}`), style: { cursor: "pointer" } })}
-          locale={{ emptyText: <Empty description="Aún no hay presupuestos" /> }}
+          locale={{
+            emptyText: (
+              <Empty description="Aún no hay presupuestos">
+                {canWrite && (
+                  <Button type="primary" onClick={() => setModalOpen(true)}>
+                    Crear el primero
+                  </Button>
+                )}
+              </Empty>
+            ),
+          }}
           pagination={{
             current: page,
             pageSize,
