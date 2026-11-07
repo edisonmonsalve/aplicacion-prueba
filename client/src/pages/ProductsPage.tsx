@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Checkbox, Input, Popconfirm, Select, Space, Table, Tag, message } from "antd";
+import { Button, Checkbox, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, message } from "antd";
 import type { TableProps } from "antd";
 import ProductFormModal from "@/components/ProductFormModal";
 import { useAuth } from "@/context/AuthContext";
@@ -105,13 +105,13 @@ export default function ProductsPage() {
     ...(verCosto
       ? ([
           {
-            title: "Costo",
+            title: <Tooltip title="Costo del producto (solo roles con permiso)">Costo</Tooltip>,
             dataIndex: "costo",
             align: "right",
             render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
           },
           {
-            title: "Margen",
+            title: <Tooltip title="Margen bruto porcentual (precio - costo) / precio">Margen</Tooltip>,
             align: "right",
             render: (_: unknown, p: Product) => {
               if (p.costo === null || p.precio <= 0) return "—";
@@ -122,14 +122,14 @@ export default function ProductsPage() {
         ] as NonNullable<TableProps<Product>["columns"]>)
       : []),
     {
-      title: "Stock",
+      title: <Tooltip title="Stock actual del producto">Stock</Tooltip>,
       dataIndex: "stock_actual",
       align: "right",
       render: (stock: number, p) =>
         // RF-11: alerta visual de stock por debajo del mínimo
         stock < p.stock_minimo ? <Tag color="red">{stock} · Bajo</Tag> : stock,
     },
-    { title: "Mínimo", dataIndex: "stock_minimo", align: "right" },
+    { title: <Tooltip title="Stock mínimo para generar alerta">Mínimo</Tooltip>, dataIndex: "stock_minimo", align: "right" },
     {
       title: "Estado",
       dataIndex: "activo",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, DatePicker, Empty, Input, Select, Space, Table, Typography } from "antd";
+import { App, Button, DatePicker, Empty, Input, Select, Space, Table, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -196,9 +196,9 @@ export default function QuotesPage() {
           columns={[
             { title: "Número", dataIndex: "numero" },
             { title: "Cliente", dataIndex: "customer_nombre" },
-            { title: "Estado", dataIndex: "estado", render: (e: QuoteStatus) => <StatusTag estado={e} /> },
+            { title: <Tooltip title="Estado actual de la cotización">Estado</Tooltip>, dataIndex: "estado", render: (e: QuoteStatus) => <StatusTag estado={e} /> },
             {
-              title: "Total",
+              title: <Tooltip title="Total de la cotización con descuentos e impuestos">Total</Tooltip>,
               dataIndex: "total",
               align: "right",
               render: (v: number) => <strong>{money(v)}</strong>,

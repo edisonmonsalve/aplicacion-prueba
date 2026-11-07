@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Select, Space, Table, Tag, message } from "antd";
+import { Select, Space, Table, Tag, Tooltip, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { getMovements, type MovementsQuery } from "@/services/movementsService";
@@ -78,20 +78,20 @@ export default function MovementsPage() {
         tipo === "entrada" ? <Tag color="green">Entrada</Tag> : <Tag color="orange">Salida</Tag>,
     },
     {
-      title: "Cantidad",
+      title: <Tooltip title="Unidades del movimiento">Cantidad</Tooltip>,
       align: "right",
       render: (_, m) => (m.tipo === "entrada" ? `+${m.cantidad}` : `-${m.cantidad}`),
     },
     ...(verCosto
       ? ([
           {
-            title: "Costo unitario",
+            title: <Tooltip title="Costo por unidad (entrada); en salidas se estima con el costo actual del producto">Costo unitario</Tooltip>,
             dataIndex: "costo_unitario",
             align: "right",
             render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
           },
           {
-            title: "Costo total",
+            title: <Tooltip title="Costo unitario multiplicado por la cantidad">Costo total</Tooltip>,
             align: "right",
             render: (_: unknown, m: StockMovement) =>
               m.costo_unitario === null ? "—" : formatCurrency(m.costo_unitario * m.cantidad),

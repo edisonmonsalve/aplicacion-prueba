@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Popconfirm, Select, Space, Table, Tag, message } from "antd";
+import { Button, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
@@ -76,12 +76,12 @@ export default function UsersPage() {
     { title: "Nombre", dataIndex: "nombre" },
     { title: "Correo", dataIndex: "email" },
     {
-      title: "Rol",
+      title: <Tooltip title="Rol de acceso del usuario">Rol</Tooltip>,
       dataIndex: "rol",
       render: (rol: User["rol"]) => <Tag color={roleColor(rol)}>{roleLabel(rol)}</Tag>,
     },
     {
-      title: "Estado",
+      title: <Tooltip title="Activo o inactivo">Estado</Tooltip>,
       dataIndex: "activo",
       render: (activo: number) =>
         activo ? <Tag color="green">Activo</Tag> : <Tag color="red">Inactivo</Tag>,
