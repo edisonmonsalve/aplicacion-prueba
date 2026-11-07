@@ -1,19 +1,83 @@
 Entidades principales
-Usuario: nombre, correo, contraseña cifrada, rol (admin u operador) y estado (activo o inactivo).
-Categoría: nombre y estado, más los productos asociados.
-Producto: SKU, nombre, categoría, precio, stock actual, stock mínimo y estado.
-Movimiento de stock: producto, usuario que lo registró, tipo (entrada o salida), cantidad, motivo y fecha.
+
+Usuario: nombre, correo, contrasena cifrada, rol (admin, contador, operador o consulta) y estado (activo o inactivo).
+Categoria: nombre y estado, mas los productos asociados.
+Producto: SKU, nombre, categoria, precio, costo, stock actual, stock minimo y estado.
+Movimiento de stock: producto, usuario que lo registro, tipo (entrada o salida), cantidad, costo unitario, motivo y fecha.
+Cotizacion: cliente, fecha de validez, estado, lineas de producto, totales y historial de estados.
+Presupuesto: nombre, periodo, rango de fechas, meta de ingresos, alerta (%), estado y lineas.
+Transaccion financiera: tipo (ingreso o gasto), monto, fecha, categoria financiera, cuenta, producto/cotizacion/movimiento asociado, descripcion.
+Cuenta financiera: nombre, tipo, saldo inicial, ingresos, egresos y saldo actual.
+Categoria financiera: nombre, tipo (ingreso o gasto), estado y contadores.
+
 Reglas de negocio esenciales
-Identificadores únicos: no repetir el correo de un usuario ni el SKU de un producto. Conviene comparar correos sin distinguir mayúsculas y minúsculas.
-Cantidades válidas: precio y cantidad deben ser mayores que cero.
+
+Identificadores unicos: no repetir el correo de un usuario ni el SKU de un producto. Comparar correos sin distinguir mayusculas y minusculas.
+Cantidades validas: precio y cantidad deben ser mayores que cero.
 Salidas seguras: rechazar una salida si la cantidad supera el stock disponible.
-Trazabilidad: al crear un producto con stock inicial, registrar una entrada inicial; así el stock tiene un historial explicable.
-Movimientos atómicos: guardar el movimiento y actualizar el stock juntos. Si una operación falla, no debe quedar guardada solo una de las dos cosas.
-Borrado lógico: si un producto tiene movimientos, desactivarlo en vez de eliminarlo. No eliminar una categoría que aún tenga productos.
-Protección del administrador: no permitir que un administrador se desactive a sí mismo ni que se quite el rol de administrador a sí mismo.
-Permisos por rol: el admin puede gestionar usuarios e inventario; el operador puede registrar productos y movimientos, pero no gestionar usuarios. Los permisos deben validarse en el servidor, no solo ocultando botones en React.
+Trazabilidad: al crear un producto con stock inicial, registrar una entrada inicial; asi el stock tiene un historial explicable.
+Movimientos atomicos: guardar el movimiento y actualizar el stock juntos. Si una operacion falla, no debe quedar guardada solo una de las dos cosas.
+Borrado logico: si un producto tiene movimientos, desactivarlo en vez de eliminarlo. No eliminar una categoria que aun tenga productos.
+Proteccion del administrador: no permitir que un administrador se desactive a si mismo ni que se quite el rol de administrador a si mismo. Tampoco dejar al sistema sin administradores activos.
+Permisos por rol: el admin gestiona usuarios e inventario; el contador gestiona finanzas; el operador registra productos, movimientos y cotizaciones; la consulta solo lee. Los permisos se validan en el servidor, no solo ocultando botones en React.
 Productos inactivos: no permitir registrar movimientos para un producto desactivado.
-Para el stock, recomiendo guardar stock_actual en el producto para consultarlo fácilmente y conservar los movimientos como historial. Ambos se actualizan en una sola transacción. Así practicas consistencia de datos sin tener que calcular el stock sumando todo el historial en cada consulta.
+Stock: guardar stock_actual en el producto para consultarlo facilmente y conservar los movimientos como historial. Ambos se actualizan en una sola transaccion.
 
-Un buen siguiente ejercicio sería convertir cada regla en una función pequeña y probar casos como: “una salida válida reduce el stock” y “una salida mayor al stock se rechaza sin cambiar nada”. Luego conectamos esas reglas con los formularios y la API.
+Cotizaciones
 
+Estados: borrador, enviado, aprobado, entregado, rechazado, vencido.
+Solo se editan cotizaciones en borrador.
+El precio se toma del catalogo; el servidor es la autoridad.
+Un producto no puede repetirse en las lineas de una cotizacion.
+Descuentos mayores al limite requieren rol admin.
+No se puede aprobar una cotizacion vencida.
+Entregar descuenta el stock de cada linea y genera el ingreso correspondiente en finanzas.
+Duplicar crea un nuevo borrador con las mismas lineas.
+Anular no aplica: las cotizaciones se rechazan o vencen.
+
+Presupuestos
+
+Estados: borrador, activo, cerrado. Solo un presupuesto activo por periodo.
+Solo se editan presupuestos en borrador.
+Activar bloquea si ya existe un presupuesto activo para el mismo periodo.
+Cerrar impide nuevas transacciones en el periodo.
+Las lineas se validan por categoria financiera y monto mayor que cero.
+No mezclar lineas generales y por producto en la misma categoria (evita doble conteo).
+La disponibilidad se calcula por presupuesto activo cuyo rango contenga la fecha.
+
+Transacciones financieras
+
+Ingreso suma capital, gasto lo reduce.
+No se editan ni se borran: se anulan con una contrapartida del mismo importe.
+Una transaccion de anulacion no se puede anular.
+Las transacciones automaticas (origen stock o cotizacion) no se anulan manualmente.
+Un periodo cerrado no admite transacciones.
+El capital disponible se calcula solo con cuentas activas.
+El resumen excluye asientos anulados.
+
+Movimientos de stock y finanzas
+
+Una entrada con costo genera automaticamente el egreso real de la compra en finanzas.
+Ese egreso respeta el periodo cerrado (se bloquea si hoy esta en un periodo cerrado).
+La disponibilidad presupuestaria se consulta por producto y presupuesto activo.
+Si la compra supera el disponible, solo un administrador puede confirmarla.
+
+Auditoria
+
+Registrar en audit_log la creacion, edicion, activacion, cierre y eliminacion de presupuestos, y la creacion y anulacion de transacciones.
+No duplicar registros de auditoria en inserciones idempotentes (ON DUPLICATE KEY).
+
+Concurrencia
+
+Bloquear productos con FOR UPDATE al registrar movimientos y al construir lineas de cotizacion.
+Las operaciones de movimiento y stock se ejecutan en una misma transaccion.
+
+Pendientes de decision (documentados, no implementados)
+
+- Disponibilidad: consultar directamente los presupuestos activos cuyo rango contenga hoy, sin limite arbitrario de 100, y preferir el mas especifico.
+- Desactivar un producto: advertir o bloquear si tiene stock o cotizaciones aprobadas/enviadas.
+- Presupuestos: decidir si dos presupuestos activos pueden solaparse en fechas o deben ser exactamente iguales.
+- Cotizaciones: decidir si se puede rechazar o entregar una cotizacion vencida.
+- Movimientos con costo cero en periodo cerrado: decidir si se permiten o se bloquean.
+
+Un buen siguiente ejercicio seria convertir cada regla en una funcion pequena y probar casos como: "una salida valida reduce el stock" y "una salida mayor al stock se rechaza sin cambiar nada". Luego conectamos esas reglas con los formularios y la API.
