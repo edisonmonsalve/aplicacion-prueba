@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Form, Input, InputNumber, Modal, Radio, Typography, message } from "antd";
+import { useState, useEffect } from "react";
+import { Form, Input, InputNumber, Modal, Radio, Typography, message, Alert } from "antd";
 import { isAxiosError } from "axios";
 import { createMovement, type MovementInput } from "@/services/movementsService";
+import { getAvailability } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { canEditCosts } from "@/utils/roles";
 import type { Product } from "@/types";
+import type { BudgetAvailability } from "@/types";
 
 interface Props {
   product: Product;
@@ -20,13 +22,54 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
   const [form] = Form.useForm<FormValues>();
   const [messageApi, contextHolder] = message.useMessage();
   const [saving, setSaving] = useState(false);
+  const [availability, setAvailability] = useState<BudgetAvailability | null>(null);
+  const [confirmedExceed, setConfirmedExceed] = useState(false);
   const tipo = Form.useWatch("tipo", form);
-  // Solo admin puede fijar el costo de una entrada; el operador ni siquiera lo ve
   const puedeFijarCosto = canEditCosts(user?.rol);
+
+  useEffect(() => {
+    let ignore = false;
+    getAvailability(product.id)
+      .then((a) => { if (!ignore) setAvailability(a); })
+      .catch(() => {});
+    return () => { ignore = true; };
+  }, [product.id]);
+
+  useEffect(() => {
+    setConfirmedExceed(false);
+  }, [tipo]);
 
   const handleOk = async () => {
     const values = await form.validateFields().catch(() => null);
     if (!values) return;
+
+    const costoUnitario =
+      puedeFijarCosto && values.tipo === "entrada" && values.costo_unitario !== undefined
+        ? values.costo_unitario
+        : values.tipo === "entrada"
+          ? product.costo ?? 0
+          : 0;
+    const gasto = values.tipo === "entrada" ? costoUnitario * values.cantidad : 0;
+
+    if (
+      availability &&
+      values.tipo === "entrada" &&
+      gasto > 0 &&
+      gasto > availability.disponible &&
+      !confirmedExceed
+    ) {
+      Modal.confirm({
+        title: "Presupuesto excedido",
+        content: `Esta compra (${gasto.toLocaleString("es-CO")}) supera el disponible (${availability.disponible.toLocaleString("es-CO")}) de la línea "${availability.budget_nombre}". ¿Deseas continuar?`,
+        okText: "Continuar",
+        cancelText: "Cancelar",
+        onOk: () => {
+          setConfirmedExceed(true);
+          handleOk();
+        },
+      });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -70,6 +113,13 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
         Stock actual: <b>{product.stock_actual}</b>
       </Typography.Paragraph>
 
+      {availability && tipo !== "salida" && (
+        <Alert
+          type="info"
+          message={`Presupuesto activo: ${availability.budget_nombre}. Disponible: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(availability.disponible)}. Planeado: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(availability.planeado)}.`}
+          style={{ marginBottom: 12 }}
+        />
+      )}
       <Form form={form} layout="vertical" initialValues={{ tipo: "entrada" }}>
         <Form.Item label="Tipo" name="tipo">
           <Radio.Group

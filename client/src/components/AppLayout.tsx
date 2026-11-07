@@ -1,4 +1,3 @@
-// import { Button, Layout, Menu, Space, Switch, Typography, message, theme } from "antd";
 import { Avatar, Dropdown, Layout, Menu, Space, Switch, Typography, message, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +10,7 @@ import {
   TagsOutlined,
   FileTextOutlined,
   TeamOutlined,
+  DollarOutlined,
   MoonOutlined,
   SunOutlined,
   KeyOutlined,
@@ -18,6 +18,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
+import { canAccessFinance } from "@/utils/roles";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { roleLabel } from "@/utils/roles";
 
@@ -33,7 +34,13 @@ export default function AppLayout() {
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
-  const selected = "/" + (pathname.split("/")[1] ?? "");
+  const selected = pathname.startsWith("/finanzas/transacciones")
+    ? "/finanzas/transacciones"
+    : pathname.startsWith("/finanzas/presupuestos")
+      ? "/finanzas/presupuestos"
+      : pathname.startsWith("/finanzas")
+        ? "/finanzas"
+        : "/" + (pathname.split("/")[1] ?? "");
 
   const items = [
     { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
@@ -41,6 +48,20 @@ export default function AppLayout() {
     { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
     { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
     { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
+    ...(canAccessFinance(user?.rol)
+      ? [
+          {
+            key: "finanzas",
+            icon: <DollarOutlined />,
+            label: "Finanzas",
+            children: [
+              { key: "/finanzas", label: "Resumen" },
+              { key: "/finanzas/presupuestos", label: "Presupuestos" },
+              { key: "/finanzas/transacciones", label: "Transacciones" },
+            ],
+          },
+        ]
+      : []),
     ...(user?.rol === "admin" ? [{ key: "/users", icon: <TeamOutlined />, label: "Usuarios" }] : []),
     { key: "/perfil", icon: <UserOutlined />, label: "Mi perfil" },
   ];
@@ -58,7 +79,9 @@ export default function AppLayout() {
           mode="inline"
           selectedKeys={[selected]}
           items={items}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => {
+            if (typeof key === "string" && key.startsWith("/")) navigate(key);
+          }}
         />
       </Sider>
 

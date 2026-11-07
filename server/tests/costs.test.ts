@@ -169,7 +169,7 @@ describe("Costos: visibilidad y permisos", () => {
     expect(adminView.body.data[0].costo_unitario).toBe(400);
   });
 
-  it("las salidas nunca llevan costo unitario", async () => {
+  it("las salidas muestran el costo actual del producto (estimado)", async () => {
     const { admin, productId } = await setup();
     await move(admin.token, { product_id: productId, tipo: "entrada", cantidad: 10 });
 
@@ -183,7 +183,8 @@ describe("Costos: visibilidad y permisos", () => {
     const history = await request(app)
       .get("/api/movements?tipo=salida")
       .set(bearer(admin.token));
-    expect(history.body.data[0].costo_unitario).toBeNull();
+    // La salida no guarda costo_unitario, pero se muestra el costo actual del producto
+    expect(history.body.data[0].costo_unitario).toBe(400);
   });
 
   it("contador y consulta no pueden registrar movimientos", async () => {

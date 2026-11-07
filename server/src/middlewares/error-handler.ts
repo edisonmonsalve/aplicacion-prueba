@@ -16,7 +16,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
       ? "El SKU ya existe"
       : detail.includes("uq_categories_nombre")
         ? "La categoría ya existe"
-        : "El correo ya está registrado";
+        : detail.includes("uq_budgets_activo")
+          ? "Ya existe un presupuesto activo para ese periodo"
+          : detail.includes("uq_budget_lines")
+            ? "La línea de presupuesto ya existe"
+            : detail.includes("uq_transactions")
+              ? "La transacción ya existe"
+              : "El correo ya está registrado";
     res.status(409).json({ message });
   } else if (err?.code === "ER_NO_REFERENCED_ROW_2") {
     res.status(400).json({ message: "La categoría indicada no existe" });

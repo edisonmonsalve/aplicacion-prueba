@@ -15,7 +15,7 @@ El módulo de finanzas tiene su propio documento de requisitos: [`docs/REQUISITO
 - **Movimientos de stock:** registrar entradas y salidas con motivo, e historial filtrable por producto y tipo.
 - **Alertas:** indicador visual de productos con stock por debajo del mínimo.
 - **Presupuestos:** crear y editar borradores con datos del cliente (email y notas incluidos) y líneas dinámicas de productos; totales calculados en el servidor (descuentos e impuestos, redondeo a 2 decimales); enviar, aprobar, rechazar y entregar con historial de estados; la entrega descuenta stock en una sola transacción; duplicar; auditoría de las ediciones; vista de impresión / PDF. El operador solo ve y duplica los suyos; el admin ve todos.
-- **Base financiera (esquema):** presupuestos por periodo (`budgets`), líneas planeadas por categoría y producto (`budget_lines`) y transacciones reales inmutables con anulación (`transactions`). La API y la UI del módulo financiero se implementan en el siguiente paso.
+- **Base financiera (módulo completo):** presupuestos por periodo (`budgets`), líneas planeadas por categoría y producto (`budget_lines`) y transacciones reales inmutables con anulación (`transactions`). API en `/api/finance/*` (resumen, cuentas, categorías, presupuestos, transacciones) y UI en `/finanzas` (resumen, presupuestos y transacciones), con ejecución, alertas, proyección, anulación y asientos automáticos por entradas de stock y entrega de cotizaciones.
 
 ## Stack
 
@@ -208,6 +208,13 @@ Todas las rutas, salvo el login y `health`, requieren el encabezado `Authorizati
 | POST              | `/api/quotes/:id/reject`    | Creador o admin | Rechazar                                      |
 | GET               | `/api/quotes/:id/history`   | Autenticado     | Historial de estados                          |
 | POST              | `/api/quotes/:id/deliver`   | Creador o admin | Entregar (descuenta stock)                    |
+| GET, POST         | `/api/finance/accounts`, `/api/finance/categories` | Admin, contador, consulta | Cuentas y categorías financieras |
+| GET               | `/api/finance/summary`      | Admin, contador, consulta | Resumen (ingresos, egresos, utilidad, margen, capital) |
+| GET, POST         | `/api/finance/budgets`      | Lectura / escritura | Listar y crear presupuestos |
+| GET, PUT, DELETE  | `/api/finance/budgets/:id`  | Lectura / escritura | Detalle, editar, eliminar (solo borrador) |
+| POST              | `/api/finance/budgets/:id/activate`, `/close` | Admin, contador | Activar y cerrar |
+| GET, POST         | `/api/finance/transactions` | Lectura / escritura | Listar y registrar transacciones |
+| POST              | `/api/finance/transactions/:id/reverse` | Admin, contador | Anular (contrapartida) |
 
 Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuando hay detalle (validación Zod o líneas sin stock en la entrega), con códigos 400, 401, 403, 404, 409 y 500.
 
@@ -225,7 +232,7 @@ Las pruebas del servidor usan Vitest y Supertest contra una base de datos aparte
 
    Si necesitas recrear la base de pruebas desde cero (por ejemplo, tras un cambio de esquema), ejecuta `npm run test:db`.
 
-Cubren autenticación y permisos por rol, las reglas del inventario (SKU único, categorías con productos, precios válidos), los movimientos de stock (incluida concurrencia) y la visibilidad de costos por rol. Del módulo de presupuestos/cotizaciones: validación y cálculo de totales, reglas de líneas, visibilidad por rol, auditoría de ediciones, historial, transiciones de estado y la entrega (todo o nada y dos entregas simultáneas). Del esquema financiero: presupuesto activo único por periodo, borrado en cascada de líneas y transacciones inmutables con anulación única.
+Cubren autenticación y permisos por rol, las reglas del inventario (SKU único, categorías con productos, precios válidos), los movimientos de stock (incluida concurrencia) y la visibilidad de costos por rol. Del módulo de presupuestos/cotizaciones: validación y cálculo de totales, reglas de líneas, visibilidad por rol, auditoría de ediciones, historial, transiciones de estado y la entrega (todo o nada y dos entregas simultáneas). Del módulo financiero: permisos, CRUD y ciclo de vida de presupuestos, ejecución y alertas, anulación de transacciones, resumen, asientos automáticos por entradas de stock y entrega de cotizaciones. Del esquema: presupuesto activo único por periodo, borrado en cascada de líneas y transacciones inmutables con anulación única.
 
 ## Decisiones técnicas
 

@@ -53,3 +53,25 @@
 
 - El ingreso se reconoce al entregar la cotización (cobros y cartera en fase 3).
 - Una sola empresa por instalación.
+
+# Tablas
+
+## budgets — presupuesto por periodo
+
+- tipo_periodo: dia | semana | mes | anio
+- fecha_inicio, fecha_fin, ingreso_meta, alerta_pct (80 % por defecto)
+- estado: borrador | activo | cerrado
+- RN-03 garantizada en base de datos: columna generada activo_key con índice único, de modo que solo puede haber un presupuesto activo por periodo, pero sí varios borradores/cerrados.
+
+## budget_lines — montos planeados
+
+- Categoría financiera obligatoria, producto opcional, monto_planeado.
+- Índice único por presupuesto + categoría + producto, incluso cuando product_id es NULL.
+- Al borrar un presupuesto, sus líneas se eliminan en cascada.
+
+## transactions — movimientos reales
+
+- tipo: ingreso | gasto, monto DECIMAL(18,2), fecha, cuenta y categoría financiera.
+- Vínculos opcionales a producto, cotización y movimiento de stock.
+- anulada_de autorreferente: una transacción solo puede anularse una vez.
+- Idempotencia: una cotización genera máximo un ingreso y un gasto; un movimiento de stock máximo un egreso.

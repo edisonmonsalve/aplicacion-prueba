@@ -1,0 +1,239 @@
+import { useEffect, useState } from "react";
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Progress,
+  Row,
+  Space,
+  Table,
+  Typography,
+} from "antd";
+import { EditOutlined, CheckOutlined, LockOutlined, DeleteOutlined } from "@ant-design/icons";
+import { useNavigate, useParams } from "react-router-dom";
+import { getBudget, deleteBudget, activateBudget, closeBudget } from "@/services/financeService";
+import { useAuth } from "@/context/AuthContext";
+import { getErrorMessage } from "@/utils/errors";
+import { money, BudgetEstadoTag, EjecucionTag, periodLabel, fmtDate } from "./FinanceUtils";
+import { canWriteFinance } from "@/utils/roles";
+import type { BudgetDetail, BudgetLine, EjecucionEstado } from "@/types";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import BudgetFormModal from "./BudgetFormModal";
+
+const EJECUCION_COLOR: Record<EjecucionEstado, string> = {
+  ok: "#52c41a",
+  alerta: "#fa8c16",
+  excedido: "#ff4d4f",
+};
+
+export default function BudgetDetailPage() {
+  const { id } = useParams();
+  const budgetId = Number(id);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { message, modal } = App.useApp();
+  const canWrite = canWriteFinance(user?.rol);
+  const [budget, setBudget] = useState<BudgetDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useDocumentTitle("Detalle de presupuesto");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const b = await getBudget(budgetId);
+      setBudget(b);
+    } catch (err) {
+      message.error(getErrorMessage(err, "No se pudo cargar el presupuesto"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [budgetId]);
+
+  if (loading || !budget) return <Typography.Paragraph>Cargando…</Typography.Paragraph>;
+
+  const r = budget.resumen;
+  const isBorrador = budget.estado === "borrador";
+  const isActivo = budget.estado === "activo";
+
+  const doActivate = () => {
+    modal.confirm({
+      title: "Activar presupuesto",
+      content: "Al activar, no podrá haber otro presupuesto activo en el mismo periodo.",
+      onOk: async () => {
+        try {
+          await activateBudget(budget.id);
+          message.success("Presupuesto activado");
+          await load();
+        } catch (err) {
+          message.error(getErrorMessage(err));
+        }
+      },
+    });
+  };
+
+  const doClose = () => {
+    modal.confirm({
+      title: "Cerrar presupuesto",
+      content: "Un periodo cerrado no admite transacciones.",
+      onOk: async () => {
+        try {
+          await closeBudget(budget.id);
+          message.success("Presupuesto cerrado");
+          await load();
+        } catch (err) {
+          message.error(getErrorMessage(err));
+        }
+      },
+    });
+  };
+
+  const doDelete = () => {
+    modal.confirm({
+      title: "Eliminar presupuesto",
+      content: "Esta acción no se puede deshacer.",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteBudget(budget.id);
+          message.success("Presupuesto eliminado");
+          navigate("/finanzas/presupuestos");
+        } catch (err) {
+          message.error(getErrorMessage(err));
+        }
+      },
+    });
+  };
+
+  const columns = [
+    { title: "Categoría", dataIndex: "categoria" },
+    { title: "Producto", dataIndex: "producto", render: (v: string | null) => v ?? "—" },
+    { title: "Planeado", dataIndex: "monto_planeado", align: "right" as const, render: (v: number) => money(v) },
+    { title: "Real", dataIndex: "real", align: "right" as const, render: (v: number) => money(v) },
+    { title: "Disponible", dataIndex: "disponible", align: "right" as const, render: (v: number) => money(v) },
+    { title: "Ejecución", dataIndex: "ejecucion_pct", align: "right" as const, render: (v: number) => `${v.toFixed(0)}%` },
+    { title: "Estado", dataIndex: "estado", render: (e: EjecucionEstado) => <EjecucionTag estado={e} /> },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <Space>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            {budget.nombre}
+          </Typography.Title>
+          <BudgetEstadoTag estado={budget.estado} />
+        </Space>
+        {canWrite && (
+          <Space>
+            {isBorrador && (
+              <>
+                <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
+                  Editar
+                </Button>
+                <Button type="primary" icon={<CheckOutlined />} onClick={doActivate}>
+                  Activar
+                </Button>
+                <Button danger icon={<DeleteOutlined />} onClick={doDelete}>
+                  Eliminar
+                </Button>
+              </>
+            )}
+            {isActivo && (
+              <Button icon={<LockOutlined />} onClick={doClose}>
+                Cerrar
+              </Button>
+            )}
+          </Space>
+        )}
+      </div>
+
+      <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
+        <Descriptions.Item label="Periodo">{periodLabel(budget.tipo_periodo)}</Descriptions.Item>
+        <Descriptions.Item label="Rango">
+          {fmtDate(budget.fecha_inicio)} → {fmtDate(budget.fecha_fin)}
+        </Descriptions.Item>
+        <Descriptions.Item label="Meta de ingresos">{money(budget.ingreso_meta)}</Descriptions.Item>
+        <Descriptions.Item label="Alerta (%)">{budget.alerta_pct}%</Descriptions.Item>
+        <Descriptions.Item label="Creado por">{budget.creador}</Descriptions.Item>
+        <Descriptions.Item label="Ingresos reales">{money(r.ingresos_reales)}</Descriptions.Item>
+      </Descriptions>
+
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card>
+            <Typography.Text type="secondary">Planeado total</Typography.Text>
+            <Typography.Title level={4} style={{ margin: 0 }}>{money(r.planeado_total)}</Typography.Title>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Typography.Text type="secondary">Real total</Typography.Text>
+            <Typography.Title level={4} style={{ margin: 0 }}>{money(r.real_total)}</Typography.Title>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Typography.Text type="secondary">Disponible total</Typography.Text>
+            <Typography.Title level={4} style={{ margin: 0 }}>{money(r.disponible_total)}</Typography.Title>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Typography.Text type="secondary">Ejecución</Typography.Text>
+            <Progress
+              percent={Math.min(r.ejecucion_pct, 100)}
+              strokeColor={EJECUCION_COLOR[r.estado]}
+              format={() => `${r.ejecucion_pct.toFixed(0)}%`}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card style={{ marginBottom: 16 }}>
+        <Space size="large">
+          <div>
+            <Typography.Text type="secondary">Proyección de cierre</Typography.Text>
+            <div>{r.proyeccion === null ? "—" : money(r.proyeccion)}</div>
+          </div>
+          <div>
+            <Typography.Text type="secondary">Cumplimiento de ingreso</Typography.Text>
+            <div>{r.cumplimiento_ingreso_pct.toFixed(0)}%</div>
+          </div>
+          <div>
+            <Typography.Text type="secondary">Estado de ejecución</Typography.Text>
+            <div>
+              <EjecucionTag estado={r.estado} />
+            </div>
+          </div>
+        </Space>
+      </Card>
+
+      <Table<BudgetLine>
+        rowKey="id"
+        dataSource={budget.lineas}
+        columns={columns}
+        pagination={false}
+        scroll={{ x: "max-content" }}
+      />
+
+      <BudgetFormModal
+        open={modalOpen}
+        budget={budget}
+        onClose={() => setModalOpen(false)}
+        onSaved={() => {
+          setModalOpen(false);
+          load();
+        }}
+      />
+    </div>
+  );
+}

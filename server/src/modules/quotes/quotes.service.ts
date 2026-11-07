@@ -14,6 +14,7 @@ import { getQuoteAuditHeader, getQuoteAuditItems } from "./audit/quotes.audit.qu
 import { auditQuoteUpdate } from "./audit/quotes.audit.service.js";
 import type { QuoteAuditSnapshot } from "./audit/quotes.audit.types.js";
 import { registerMovement } from "../movements/movements.service.js";
+import { createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
 import { formatQuoteNumber } from "./quotes.format.js";
 
 type QuoteInput = z.infer<typeof quoteSchema>;
@@ -113,7 +114,7 @@ async function insertItems(
 // Bloquea el presupuesto y comprueba que se puede modificar
 async function lockQuote(conn: PoolConnection, id: number, actor: AuthUser) {
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT id, estado, created_by, fecha_validez FROM quotes WHERE id = ? FOR UPDATE",
+    "SELECT id, estado, created_by, fecha_validez, subtotal, descuento_total FROM quotes WHERE id = ? FOR UPDATE",
     [id]
   );
   const quote = rows[0];
@@ -388,7 +389,7 @@ export async function deliverQuote(id: number, actor: AuthUser) {
     // RN-P09: bloquear productos en orden de id (items ya viene ordenado)
     const ids = items.map((i) => i.product_id as number);
     const [products] = await conn.query<RowDataPacket[]>(
-      "SELECT id, stock_actual, activo FROM products WHERE id IN (?) ORDER BY id ASC FOR UPDATE",
+      "SELECT id, stock_actual, costo, activo FROM products WHERE id IN (?) ORDER BY id ASC FOR UPDATE",
       [ids]
     );
     const byId = new Map(products.map((p) => [p.id as number, p]));
@@ -435,6 +436,39 @@ export async function deliverQuote(id: number, actor: AuthUser) {
        VALUES (?, 'aprobado', 'entregado', ?)`,
       [id, actor.id] // RN-P12
     );
+
+    // RF-04: al entregar se reconoce el ingreso (sin IVA) y el costo de lo vendido.
+    const ingresoNeto = roundMoney(Number(quote.subtotal) - Number(quote.descuento_total));
+    const costoVentas = roundMoney(
+      items.reduce(
+        (sum, item) =>
+          sum + item.cantidad * Number(byId.get(item.product_id as number)?.costo ?? 0),
+        0
+      )
+    );
+
+    if (ingresoNeto > 0) {
+      await createAutoTransaction(conn, {
+        tipo: "ingreso",
+        monto: ingresoNeto,
+        fecha: today(),
+        categoriaNombre: "Ventas",
+        quoteId: id,
+        descripcion: `Cotización ${formatQuoteNumber(id)}`,
+        userId: actor.id,
+      });
+    }
+    if (costoVentas > 0) {
+      await createAutoTransaction(conn, {
+        tipo: "gasto",
+        monto: costoVentas,
+        fecha: today(),
+        categoriaNombre: "Costo de ventas",
+        quoteId: id,
+        descripcion: `Costo de ventas ${formatQuoteNumber(id)}`,
+        userId: actor.id,
+      });
+    }
 
     return { id, estado: "entregado" as const };
   });

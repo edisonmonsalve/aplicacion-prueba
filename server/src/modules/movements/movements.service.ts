@@ -3,7 +3,9 @@ import type { z } from "zod";
 import { pool } from "../../config/Db.js";
 import type { AuthUser } from "../../types/express.js";
 import { canSeeCosts } from "../../types/roles.js";
+import { today } from "../../utils/dates.js";
 import { HttpError } from "../../utils/http-error.js";
+import { createAutoTransaction } from "../finance/finance.shared.js";
 import type { createMovementSchema, listQuerySchema } from "./movements.schema.js";
 
 export async function registerMovement(
@@ -67,6 +69,20 @@ async function applyMovement(
     [input.product_id, actor.id, input.tipo, input.cantidad, costoUnitario, input.motivo ?? null]
   );
 
+  // RF-03: una entrada con costo genera el egreso real de la compra.
+  if (input.tipo === "entrada" && costoUnitario && costoUnitario > 0) {
+    await createAutoTransaction(conn, {
+      tipo: "gasto",
+      monto: costoUnitario * input.cantidad,
+      fecha: today(),
+      categoriaNombre: "Compra de inventario",
+      productId: input.product_id,
+      stockMovementId: res.insertId,
+      descripcion: `Entrada de stock #${res.insertId}`,
+      userId: actor.id,
+    });
+  }
+
   return {
     id: res.insertId,
     stock_actual: nuevoStock,
@@ -92,7 +108,9 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>, acto
     `SELECT COUNT(*) AS total FROM stock_movements m ${clause}`,
     params
   );
-  const costoColumn = canSeeCosts(actor.rol) ? "m.costo_unitario" : "NULL AS costo_unitario";
+  const costoColumn = canSeeCosts(actor.rol)
+    ? "COALESCE(m.costo_unitario, p.costo) AS costo_unitario"
+    : "NULL AS costo_unitario";
 
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT m.id, m.product_id, p.sku, p.nombre AS producto, m.tipo,

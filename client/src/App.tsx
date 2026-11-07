@@ -14,6 +14,10 @@ import QuoteFormPage from "./pages/quotes/QuoteFormPage";
 import QuotePrintPage from "./pages/quotes/QuotePrintPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
+import FinanceOverviewPage from "@/pages/finance/FinanceOverviewPage";
+import BudgetsPage from "@/pages/finance/BudgetsPage";
+import BudgetDetailPage from "@/pages/finance/BudgetDetailPage";
+import TransactionsPage from "@/pages/finance/TransactionsPage";
 import RequireOperate from "./components/RequireOperate";
 
 export default function App() {
@@ -50,6 +54,38 @@ export default function App() {
               <Route path="cotizaciones/:id/editar" element={<QuoteFormPage />} />
             </Route>
             <Route path="/cotizaciones/:id/imprimir" element={<QuotePrintPage />} />
+            <Route
+              path="/finanzas"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <FinanceOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/presupuestos"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <BudgetsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/presupuestos/:id"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <BudgetDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/transacciones"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <TransactionsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

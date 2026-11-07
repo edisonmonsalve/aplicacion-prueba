@@ -23,3 +23,6 @@ export const roleColor = (r: Rol) => ROLES.find((x) => x.value === r)?.color ?? 
 // El operador no ve costos ni márgenes; el resto de roles sí (solo lectura salvo admin)
 export const canSeeCosts = (r: Rol | undefined) => !!r && r !== "operador";
 export const canEditCosts = (r: Rol | undefined) => r === "admin";
+export const canAccessFinance = (r: Rol | undefined) =>
+  !!r && (r === "admin" || r === "contador" || r === "consulta");
+export const canWriteFinance = (r: Rol | undefined) => r === "admin" || r === "contador";
