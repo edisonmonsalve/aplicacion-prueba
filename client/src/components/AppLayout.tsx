@@ -9,6 +9,7 @@ import {
   SwapOutlined,
   TagsOutlined,
   FileTextOutlined,
+  FileDoneOutlined,
   TeamOutlined,
   DollarOutlined,
   MoonOutlined,
@@ -51,6 +52,7 @@ export default function AppLayout() {
     { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
     { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
     { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
+    { key: "/facturas", icon: <FileDoneOutlined />, label: "Facturas" },
     ...(canAccessFinance(user?.rol)
       ? [
           {

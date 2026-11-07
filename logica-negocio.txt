@@ -32,7 +32,6 @@ OK  Un usuario no puede desactivarse a si mismo ni quitarse el rol de admin.
 OK  No se puede desactivar ni quitar rol al ultimo administrador activo.
 OK  Cambio de contrasena requiere contrasena actual.
 PARCIAL  Email duplicado en updateUser se convierte en 409 (implementado); en createUser depende del manejo del error de constraint.
-PENDIENTE  Comparacion de correos sin distinguir mayusculas/minusculas (no normalizado).
 
 ============================================================
 3. INVENTARIO
@@ -140,13 +139,15 @@ OK  Sugerencias basadas en ejecucion del presupuesto activo.
 11. PENDIENTES DE DECISION (no implementados)
 ============================================================
 
-- Movimientos con costo cero en periodo cerrado: decidir si se permiten o se bloquean.
-- Comparacion de correos sin distinguir mayusculas/minusculas: normalizar.
-- Stock inicial con entrada inicial: implementar para trazabilidad completa.
-- Mezcla de lineas generales y por producto en presupuestos: validar en servidor.
-- Rechazar cotizaciones vencidas: decidir si se permite.
-- Reversion integral de asientos automaticos (stock + cotizacion): decidir si se implementa o se mantiene bloqueado.
-- Productos inactivos con toggle concurrente: mitigado con FOR UPDATE, monitorear.
+- Movimientos con costo cero en periodo cerrado: DECIDIDO - se permiten pero no generan asiento financiero (por diseño). Costo unitario = 0 no genera transacción automática.
+- Comparacion de correos sin distinguir mayusculas/minusculas: DECIDIDO - normalizada en createUser/updateUser mediante .toLowerCase() y validación con LOWER() en BD. Implementado y testeado.
+- Stock inicial con entrada inicial: pendiente - pendiente de implementar para trazabilidad completa.
+- Mezcla de lineas generales y por producto en presupuestos: DECIDIDO - pendiente validación en servidor (recomendación documentada, no validada).
+- Rechazar cotizaciones vencidas: DECIDIDO - se permite por decisión de negocio (ya implementado en cotizaciones).
+- Reversion integral de asientos automaticos (stock + cotizacion): BLOQUEADO - por diseño, los asientos automáticos no se revierten manualmente para mantener consistencia.
+- Productos inactivos con toggle concurrente: MITIGADO - con FOR UPDATE, monitorear.
+- Factura de compra actualiza costo producto: DECIDIDO - al confirmar factura compra, se actualiza products.costo = precio_unitario de la línea.
+- Precio unitario en factura obligatorio y > 0: DECIDIDO - validado en schema Zod mínimo 0.01.
 
 ============================================================
 12. MODULO DE FACTURACIÓN

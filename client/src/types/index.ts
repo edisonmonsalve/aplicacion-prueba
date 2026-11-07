@@ -334,3 +334,67 @@ export interface TransactionsQuery {
   product_id?: number;
   quote_id?: number;
 }
+
+// ---------- Módulo de facturación ----------
+
+export type InvoiceTipo = "venta" | "compra";
+export type InvoiceEstado = "borrador" | "confirmada" | "anulada";
+
+export interface Invoice {
+  id: number;
+  tipo: InvoiceTipo;
+  numero: string;
+  fecha: string;
+  contraparte: string;
+  estado: InvoiceEstado;
+  total: number;
+  created_at: string;
+  creador: string;
+}
+
+export interface InvoiceItem {
+  id?: number;
+  product_id: number;
+  sku?: string;
+  producto?: string;
+  cantidad: number;
+  precio_unitario: number;
+  descuento_pct: number;
+  impuesto_pct: number;
+  total_linea: number;
+}
+
+export interface InvoiceDetail extends Invoice {
+  documento: string | null;
+  email: string | null;
+  notas: string | null;
+  created_by: number;
+  items: InvoiceItem[];
+}
+
+export interface InvoiceItemInput {
+  product_id: number;
+  cantidad: number;
+  precio_unitario: number;
+  descuento_pct?: number;
+  impuesto_pct?: number;
+}
+
+export interface InvoiceInput {
+  tipo: InvoiceTipo;
+  fecha: string;
+  contraparte: string;
+  documento?: string;
+  email?: string;
+  notas?: string;
+  items: InvoiceItemInput[];
+}
+
+export interface InvoicesQuery {
+  page: number;
+  pageSize: number;
+  tipo?: InvoiceTipo;
+  estado?: InvoiceEstado;
+  desde?: string;
+  hasta?: string;
+}

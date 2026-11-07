@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import type { ResultSetHeader } from "mysql2";
+import type { OkPacket, ResultSetHeader, RowDataPacket } from "mysql2";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
@@ -12,6 +12,9 @@ export async function resetDb() {
   // La auto-referencia de anulaciones impide borrar en bloque sin soltarla primero
   await pool.query("UPDATE transactions SET anulada_de = NULL");
   await pool.query("DELETE FROM transactions");
+  await pool.query("DELETE FROM invoice_items");
+  await pool.query("DELETE FROM invoices");
+  await pool.query("DELETE FROM invoice_counters");
   await pool.query("DELETE FROM budget_lines");
   await pool.query("DELETE FROM budgets");
   await pool.query("DELETE FROM quote_audit_log");
@@ -27,10 +30,26 @@ export async function resetDb() {
 
 export async function createUser(rol: Rol, email = `${rol}@test.com`) {
   const hash = await bcrypt.hash(PASSWORD, 4); // pocas rondas: pruebas más rápidas
+  // INSERT IGNORE: si ya existe, no falla y affectedRows será 0
   const [res] = await pool.query<ResultSetHeader>(
-    "INSERT INTO users (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)",
+    "INSERT IGNORE INTO users (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)",
     [rol, email, hash, rol]
   );
+  // Si INSERT no insertó (usuario existente), obtener su ID
+  if (res.affectedRows === 0) {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT id FROM users WHERE email = ?",
+      [email]
+    );
+    const id = rows[0]?.id;
+    if (id) return { id, email };
+    // Si por alguna razón no se encontró, insertamos de nuevo forzado
+    const [res2] = await pool.query<ResultSetHeader>(
+      "INSERT INTO users (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)",
+      [rol, email, hash, rol]
+    );
+    return { id: res2.insertId, email };
+  }
   return { id: res.insertId, email };
 }
 

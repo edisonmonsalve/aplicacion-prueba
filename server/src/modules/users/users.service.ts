@@ -42,10 +42,22 @@ export async function listUsers(query: z.infer<typeof listQuerySchema>) {
 }
 
 export async function createUser(input: z.infer<typeof createUserSchema>) {
+  // Normalizar email a minúsculas para evitar duplicados con mayúsculas
+  const email = input.email.toLowerCase();
+
+  // Verificar si ya existe un usuario con ese email (comparando en minúsculas)
+  const [existing] = await pool.query<RowDataPacket[]>(
+    "SELECT id FROM users WHERE LOWER(email) = ?",
+    [email]
+  );
+  if (existing[0]) {
+    throw new HttpError(409, "El email ya está registrado");
+  }
+
   const hash = await bcrypt.hash(input.password, 10);
   const [res] = await pool.query<ResultSetHeader>(
     "INSERT INTO users (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)",
-    [input.nombre, input.email, hash, input.rol]
+    [input.nombre, email, hash, input.rol]
   );
   return { id: res.insertId };
 }
@@ -78,12 +90,28 @@ export async function updateUser(
     }
   }
 
+  // Normalizar email a minúsculas si se está actualizando
   const sets: string[] = [];
   const params: (string | number)[] = [];
 
   if (input.nombre !== undefined) { sets.push("nombre = ?"); params.push(input.nombre); }
-  if (input.email !== undefined) { sets.push("email = ?"); params.push(input.email); }
+
+  if (input.email !== undefined) {
+    const email = input.email.toLowerCase();
+    // Verificar que no exista otro usuario con ese email (excluir el actual)
+    const [existing] = await pool.query<RowDataPacket[]>(
+      "SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?",
+      [email, id]
+    );
+    if (existing[0]) {
+      throw new HttpError(409, "El email ya está registrado");
+    }
+    sets.push("email = ?");
+    params.push(email);
+  }
+
   if (input.rol !== undefined) { sets.push("rol = ?"); params.push(input.rol); }
+
   if (input.password !== undefined) {
     sets.push("password_hash = ?");
     params.push(await bcrypt.hash(input.password, 10));

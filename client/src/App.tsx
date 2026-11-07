@@ -12,6 +12,9 @@ import QuotesPage from "@/pages/quotes/QuotesPage";
 import QuoteDetailPage from "./pages/quotes/QuoteDetailPage";
 import QuoteFormPage from "./pages/quotes/QuoteFormPage";
 import QuotePrintPage from "./pages/quotes/QuotePrintPage";
+import InvoicesPage from "@/pages/invoices/InvoicesPage";
+import InvoiceDetailPage from "@/pages/invoices/InvoiceDetailPage";
+import InvoiceFormPage from "@/pages/invoices/InvoiceFormPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import FinanceOverviewPage from "@/pages/finance/FinanceOverviewPage";
@@ -54,6 +57,12 @@ export default function App() {
               <Route path="cotizaciones/:id/editar" element={<QuoteFormPage />} />
             </Route>
             <Route path="/cotizaciones/:id/imprimir" element={<QuotePrintPage />} />
+            <Route path="/facturas" element={<InvoicesPage />} />
+            <Route path="/facturas/:id" element={<InvoiceDetailPage />} />
+            <Route element={<RequireOperate />}>
+              <Route path="facturas/nuevo" element={<InvoiceFormPage />} />
+              <Route path="facturas/:id/editar" element={<InvoiceFormPage />} />
+            </Route>
             <Route
               path="/finanzas"
               element={
