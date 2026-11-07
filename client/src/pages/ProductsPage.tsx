@@ -22,6 +22,7 @@ export default function ProductsPage() {
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
 
   const [query, setQuery] = useState<ProductsQuery>({ page: 1, pageSize: 10 });
+  const [searchText, setSearchText] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
@@ -59,6 +60,13 @@ export default function ProductsPage() {
 
   const updateFilters = (changes: Partial<ProductsQuery>) =>
     setQuery((prev) => ({ ...prev, ...changes, page: 1 }));
+
+  const hasFilters = Boolean(query.q || query.category_id || query.activo || query.bajoStock);
+
+  const clearFilters = () => {
+    setSearchText("");
+    setQuery((prev) => ({ ...prev, q: undefined, category_id: undefined, activo: undefined, bajoStock: undefined, page: 1 }));
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -191,34 +199,57 @@ export default function ProductsPage() {
         )}
       </div>
 
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Input.Search
-          placeholder="Buscar por nombre o SKU"
-          allowClear
-          onSearch={(q) => updateFilters({ q: q || undefined })}
-          style={{ width: 280 }}
-        />
-        <Select
-          placeholder="Categoría"
-          allowClear
-          style={{ width: 180 }}
-          options={categories.map((c) => ({ value: c.id, label: c.nombre }))}
-          onChange={(category_id) => updateFilters({ category_id })}
-        />
-        <Select
-          placeholder="Estado"
-          allowClear
-          style={{ width: 140 }}
-          options={[
-            { value: "1", label: "Activos" },
-            { value: "0", label: "Inactivos" },
-          ]}
-          onChange={(activo) => updateFilters({ activo })}
-        />
-        <Checkbox onChange={(e) => updateFilters({ bajoStock: e.target.checked ? "1" : undefined })}>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Buscar
+          </Typography.Text>
+          <Input.Search
+            placeholder="Nombre o SKU"
+            allowClear
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onSearch={(q) => updateFilters({ q: q || undefined })}
+            style={{ width: 280 }}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Categoría
+          </Typography.Text>
+          <Select
+            placeholder="Todas"
+            allowClear
+            style={{ width: 180 }}
+            value={query.category_id}
+            options={categories.map((c) => ({ value: c.id, label: c.nombre }))}
+            onChange={(category_id) => updateFilters({ category_id })}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Estado
+          </Typography.Text>
+          <Select
+            placeholder="Todos"
+            allowClear
+            style={{ width: 140 }}
+            value={query.activo}
+            options={[
+              { value: "1", label: "Activos" },
+              { value: "0", label: "Inactivos" },
+            ]}
+            onChange={(activo) => updateFilters({ activo })}
+          />
+        </div>
+        <Checkbox
+          checked={query.bajoStock === "1"}
+          onChange={(e) => updateFilters({ bajoStock: e.target.checked ? "1" : undefined })}
+        >
           Solo stock bajo
         </Checkbox>
-      </Space>
+        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
+      </div>
 
       <Table<Product>
         rowKey="id"
