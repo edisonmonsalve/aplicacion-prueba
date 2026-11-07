@@ -264,8 +264,8 @@ export default function HomePage() {
                   dataSource={data.productosStockBajo}
                   locale={{ emptyText: "Todo el inventario está sobre su mínimo" }}
                   columns={[
-                    { title: "SKU", dataIndex: "sku" },
-                    { title: "Producto", dataIndex: "nombre" },
+                    { title: <AntTooltip title="Código del producto">SKU</AntTooltip>, dataIndex: "sku" },
+                    { title: <AntTooltip title="Nombre del producto">Producto</AntTooltip>, dataIndex: "nombre" },
                     {
                       title: <AntTooltip title="Stock actual y stock mínimo del producto">Stock / mínimo</AntTooltip>,
                       render: (_, p) => <Tag color="red">{`${p.stock_actual} / ${p.stock_minimo}`}</Tag>,
@@ -285,13 +285,13 @@ export default function HomePage() {
               locale={{ emptyText: "Aún no hay movimientos" }}
               columns={[
                 {
-                  title: "Fecha",
+                  title: <AntTooltip title="Fecha del movimiento">Fecha</AntTooltip>,
                   dataIndex: "created_at",
                   render: (v: string) => dayjs(v).format("DD/MM HH:mm"),
                 },
-                { title: "Producto", dataIndex: "producto" },
+                { title: <AntTooltip title="Producto">Producto</AntTooltip>, dataIndex: "producto" },
                 {
-                  title: "Movimiento",
+                  title: <AntTooltip title="Cantidad del movimiento">Movimiento</AntTooltip>,
                   render: (_, m) =>
                     m.tipo === "entrada" ? (
                       <Tag color="green">{`+${m.cantidad}`}</Tag>
