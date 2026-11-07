@@ -1,90 +1,158 @@
-Entidades principales
+LOGICA DE NEGOCIO REAL DE LA APLICACION (estado actual del codigo)
 
-Usuario: nombre, correo, contrasena cifrada, rol (admin, contador, operador o consulta) y estado (activo o inactivo).
-Categoria: nombre y estado, mas los productos asociados.
-Producto: SKU, nombre, categoria, precio, costo, stock actual, stock minimo y estado.
-Movimiento de stock: producto, usuario que lo registro, tipo (entrada o salida), cantidad, costo unitario, motivo y fecha.
-Cotizacion: cliente, fecha de validez, estado, lineas de producto, totales y historial de estados.
-Presupuesto: nombre, periodo, rango de fechas, meta de ingresos, alerta (%), estado y lineas.
-Transaccion financiera: tipo (ingreso o gasto), monto, fecha, categoria financiera, cuenta, producto/cotizacion/movimiento asociado, descripcion.
-Cuenta financiera: nombre, tipo, saldo inicial, ingresos, egresos y saldo actual.
-Categoria financiera: nombre, tipo (ingreso o gasto), estado y contadores.
+Este documento describe el comportamiento real implementado en el servidor, no aspiraciones.
+Cada regla indica si esta implementada (OK), parcialmente (PARCIAL) o pendiente (PENDIENTE).
 
-Reglas de negocio esenciales
+============================================================
+1. ENTIDADES Y DATOS
+============================================================
 
-Identificadores unicos: no repetir el correo de un usuario ni el SKU de un producto. Comparar correos sin distinguir mayusculas y minusculas.
-Cantidades validas: precio y cantidad deben ser mayores que cero.
-Salidas seguras: rechazar una salida si la cantidad supera el stock disponible.
-Trazabilidad: al crear un producto con stock inicial, registrar una entrada inicial; asi el stock tiene un historial explicable.
-Movimientos atomicos: guardar el movimiento y actualizar el stock juntos. Si una operacion falla, no debe quedar guardada solo una de las dos cosas.
-Borrado logico: si un producto tiene movimientos, desactivarlo en vez de eliminarlo. No eliminar una categoria que aun tenga productos.
-Proteccion del administrador: no permitir que un administrador se desactive a si mismo ni que se quite el rol de administrador a si mismo. Tampoco dejar al sistema sin administradores activos.
-Permisos por rol: el admin gestiona usuarios e inventario; el contador gestiona finanzas; el operador registra productos, movimientos y cotizaciones; la consulta solo lee. Los permisos se validan en el servidor, no solo ocultando botones en React.
-Productos inactivos: no permitir registrar movimientos para un producto desactivado.
-Stock: guardar stock_actual en el producto para consultarlo facilmente y conservar los movimientos como historial. Ambos se actualizan en una sola transaccion.
+Usuario: nombre, correo, contrasena cifrada (bcrypt), rol (admin, contador, operador, consulta), estado (activo/inactivo), fecha de creacion.
+Categoria: nombre y estado, con productos asociados.
+Producto: SKU, nombre, categoria, precio, costo, stock actual, stock minimo, estado.
+Movimiento de stock: producto, usuario, tipo (entrada/salida), cantidad, costo unitario, motivo, fecha.
+Cotizacion: cliente (nombre, documento, email), fecha de validez, estado, lineas, totales, historial de estados, auditoria.
+Presupuesto: nombre, tipo de periodo (dia/semana/mes/anio), rango de fechas, meta de ingresos, alerta (%), estado, lineas.
+Transaccion financiera: tipo (ingreso/gasto), monto, fecha, categoria financiera, cuenta, producto/cotizacion/movimiento asociado, descripcion, anulada_de.
+Cuenta financiera: nombre, tipo, saldo inicial, ingresos, egresos, saldo actual, estado.
+Categoria financiera: nombre, tipo (ingreso/gasto), estado, contadores.
 
-Cotizaciones
+============================================================
+2. AUTENTICACION Y ROLES
+============================================================
 
-Estados: borrador, enviado, aprobado, entregado, rechazado, vencido.
-Solo se editan cotizaciones en borrador.
-El precio se toma del catalogo; el servidor es la autoridad.
-Un producto no puede repetirse en las lineas de una cotizacion.
-Descuentos mayores al limite requieren rol admin.
-No se puede aprobar una cotizacion vencida.
-Entregar descuenta el stock de cada linea y genera el ingreso correspondiente en finanzas.
-Duplicar crea un nuevo borrador con las mismas lineas.
-Anular no aplica: las cotizaciones se rechazan o vencen.
+OK  Login con correo y contrasena, emite JWT (8h) con {id, rol}.
+OK  Roles: admin, contador, operador, consulta.
+OK  Permisos validados en servidor (middleware auth), no solo en UI.
+OK  Admin: gestiona usuarios, inventario, cotizaciones, finanzas.
+OK  Contador: gestiona finanzas (lectura de inventario/cotizaciones).
+OK  Operador: registra productos, movimientos, cotizaciones (lectura de finanzas).
+OK  Consulta: solo lectura.
+OK  Un usuario no puede desactivarse a si mismo ni quitarse el rol de admin.
+OK  No se puede desactivar ni quitar rol al ultimo administrador activo.
+OK  Cambio de contrasena requiere contrasena actual.
+PARCIAL  Email duplicado en updateUser se convierte en 409 (implementado); en createUser depende del manejo del error de constraint.
+PENDIENTE  Comparacion de correos sin distinguir mayusculas/minusculas (no normalizado).
 
-Presupuestos
+============================================================
+3. INVENTARIO
+============================================================
 
-Estados: borrador, activo, cerrado. Solo un presupuesto activo por periodo.
-Solo se editan presupuestos en borrador.
-Activar bloquea si ya existe un presupuesto activo para el mismo periodo.
-Cerrar impide nuevas transacciones en el periodo.
-Las lineas se validan por categoria financiera y monto mayor que cero.
-No mezclar lineas generales y por producto en la misma categoria (evita doble conteo).
-La disponibilidad se calcula por presupuesto activo cuyo rango contenga la fecha.
+OK  SKU y correo unicos (constraint de BD).
+OK  Precio y cantidad deben ser mayores que cero (validacion Zod).
+OK  Salida rechazada si la cantidad supera el stock disponible.
+OK  Movimiento y actualizacion de stock son atomicos (transaccion + FOR UPDATE).
+OK  Producto inactivo no admite movimientos.
+OK  Borrado logico: desactivar en vez de eliminar si tiene movimientos.
+OK  No eliminar categoria con productos asociados.
+OK  No desactivar producto con stock disponible ni si esta en cotizaciones enviadas/aprobadas.
+OK  Stock inicial con entrada inicial: PARCIAL (el sistema no crea automaticamente una entrada inicial al crear producto con stock; stock_actual se guarda directamente). Pendiente de implementar para trazabilidad completa.
+OK  stock_actual se guarda en el producto y se actualiza en la misma transaccion del movimiento.
 
-Transacciones financieras
+============================================================
+4. COTIZACIONES
+============================================================
 
-Ingreso suma capital, gasto lo reduce.
-No se editan ni se borran: se anulan con una contrapartida del mismo importe.
-Una transaccion de anulacion no se puede anular.
-Las transacciones automaticas (origen stock o cotizacion) no se anulan manualmente.
-Un periodo cerrado no admite transacciones.
-El capital disponible se calcula solo con cuentas activas.
-El resumen excluye asientos anulados.
+OK  Estados: borrador, enviado, aprobado, entregado, rechazado, vencido.
+OK  Solo se editan cotizaciones en borrador.
+OK  El precio se toma del catalogo (servidor es autoridad).
+OK  Un producto no puede repetirse en las lineas de una cotizacion.
+OK  Descuentos mayores al limite requieren rol admin.
+OK  No se puede aprobar una cotizacion vencida.
+OK  No se puede entregar una cotizacion vencida.
+OK  Entregar descuenta el stock de cada linea (FOR UPDATE, ordenado por id) y genera el ingreso en finanzas.
+OK  Si falla el stock, se informa que productos fallan sin mover nada (validacion previa).
+OK  Duplicar crea un nuevo borrador con las mismas lineas (lectura + creacion en transaccion).
+OK  Historial de estados y auditoria de cotizaciones.
+PARCIAL  Rechazar una cotizacion vencida esta permitido (decision de negocio pendiente).
+PARCIAL  buildLines usa FOR UPDATE (implementado). Lectura en duplicateQuote envuelta en transaccion (implementado).
+PENDIENTE  Productos inactivos se bloquean al construir lineas (implementado), pero un toggle concurrente puede dejar datos obsoletos (mitigado con FOR UPDATE).
 
-Movimientos de stock y finanzas
+============================================================
+5. PRESUPUESTOS
+============================================================
 
-Una entrada con costo genera automaticamente el egreso real de la compra en finanzas.
-Ese egreso respeta el periodo cerrado (se bloquea si hoy esta en un periodo cerrado).
-La disponibilidad presupuestaria se consulta por producto y presupuesto activo.
-Si la compra supera el disponible, solo un administrador puede confirmarla.
+OK  Estados: borrador, activo, cerrado.
+OK  Solo se editan presupuestos en borrador.
+OK  Solo un presupuesto activo por periodo (solapamiento de fechas bloqueado).
+OK  Activar bloquea si ya existe un presupuesto activo solapado.
+OK  Cerrar impide nuevas transacciones en el periodo.
+OK  Lineas validadas por categoria financiera y monto mayor que cero.
+PARCIAL  No mezclar lineas generales y por producto en la misma categoria: es recomendacion documentada, no validada por servidor.
+OK  Disponibilidad calculada por presupuesto activo cuyo rango contenga la fecha, sin limite arbitrario, prefiriendo el mas especifico y la linea del producto.
+OK  Auditoria de presupuestos (crear, editar, activar, cerrar, eliminar).
 
-Disponibilidad
+============================================================
+6. TRANSACCIONES FINANCIERAS
+============================================================
 
-La disponibilidad se consulta por presupuesto activo cuyo rango contenga hoy, sin limite arbitrario, prefiriendo el presupuesto mas especifico y la linea del producto si existe.
+OK  Ingreso suma capital, gasto lo reduce.
+OK  No se editan ni se borran: se anulan con una contrapartida del mismo importe.
+OK  Una transaccion de anulacion no se puede anular.
+OK  Las transacciones automaticas (origen stock o cotizacion) no se anulan manualmente.
+OK  Un periodo cerrado no admite transacciones.
+OK  El capital disponible se calcula solo con cuentas activas.
+OK  El resumen excluye asientos anulados.
+OK  Auditoria de transacciones (crear, anular).
+PARCIAL  Revertir un asiento automatico no revierte stock ni cotizacion (bloqueado por ahora).
 
-Productos
+============================================================
+7. MOVIMIENTOS DE STOCK Y FINANZAS
+============================================================
 
-No se puede desactivar un producto con stock disponible ni si esta en cotizaciones enviadas o aprobadas.
+OK  Una entrada con costo genera automaticamente el egreso real de la compra en finanzas.
+OK  Ese egreso respeta el periodo cerrado (se bloquea si hoy esta en un periodo cerrado).
+OK  La disponibilidad presupuestaria se consulta por producto y presupuesto activo.
+OK  Si la compra supera el disponible, solo un administrador puede confirmarla.
+PARCIAL  Movimientos con costo cero en periodo cerrado: se permiten (no generan transaccion). Decision pendiente si deben bloquearse.
+PARCIAL  Movimiento con costo cero no genera asiento financiero (por diseno).
 
-Presupuestos
+============================================================
+8. CONCURRENCIA Y ATOMICIDAD
+============================================================
 
-Dos presupuestos activos no pueden solaparse en fechas (solapamiento estandar).
+OK  Bloquear productos con FOR UPDATE al registrar movimientos.
+OK  Bloquear productos con FOR UPDATE al construir lineas de cotizacion.
+OK  Movimiento y actualizacion de stock en una misma transaccion.
+OK  Entrega de cotizacion valida todo antes de mover stock.
+OK  createAutoTransaction es idempotente por indices unicos (quote_id/tipo y stock_movement_id).
+OK  Auditoria no se duplica en inserciones idempotentes.
 
-Cotizaciones
+============================================================
+9. AUDITORIA
+============================================================
 
-No se puede entregar una cotizacion vencida.
+OK  audit_log para presupuestos y transacciones.
+OK  quote_audit_log y quote_status_history para cotizaciones.
+OK  Auditoria sin duplicados en asientos automaticos.
 
-Concurrencia
+============================================================
+10. REPORTES
+============================================================
 
-Bloquear productos con FOR UPDATE al registrar movimientos y al construir lineas de cotizacion.
-Las operaciones de movimiento y stock se ejecutan en una misma transaccion.
+OK  Resumen financiero por rango de fechas: ingresos, egresos, utilidad, capital, costo de ventas, margen.
+OK  Capital disponible solo con cuentas activas.
+OK  Por categoria y por cuenta.
+OK  Sugerencias basadas en ejecucion del presupuesto activo.
 
-Pendientes de decision (documentados, no implementados)
+============================================================
+11. PENDIENTES DE DECISION (no implementados)
+============================================================
 
 - Movimientos con costo cero en periodo cerrado: decidir si se permiten o se bloquean.
+- Comparacion de correos sin distinguir mayusculas/minusculas: normalizar.
+- Stock inicial con entrada inicial: implementar para trazabilidad completa.
+- Mezcla de lineas generales y por producto en presupuestos: validar en servidor.
+- Rechazar cotizaciones vencidas: decidir si se permite.
+- Reversion integral de asientos automaticos (stock + cotizacion): decidir si se implementa o se mantiene bloqueado.
+- Productos inactivos con toggle concurrente: mitigado con FOR UPDATE, monitorear.
 
-Un buen siguiente ejercicio seria convertir cada regla en una funcion pequena y probar casos como: "una salida valida reduce el stock" y "una salida mayor al stock se rechaza sin cambiar nada". Luego conectamos esas reglas con los formularios y la API.
+============================================================
+12. NOTAS DE DISENO
+============================================================
+
+- stock_actual se guarda en el producto para consulta rapida; los movimientos son el historial.
+- Los permisos se validan en servidor, no solo en la UI.
+- Las operaciones criticas usan transacciones y bloqueos (FOR UPDATE).
+- Los asientos automaticos son idempotentes gracias a indices unicos.
+- El sistema prioriza consistencia sobre conveniencia en operaciones financieras.
