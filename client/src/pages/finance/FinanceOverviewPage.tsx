@@ -49,11 +49,14 @@ export default function FinanceOverviewPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>Resumen financiero</Typography.Title>
         <Space>
-          <RangePicker
-            value={range}
-            onChange={(v) => v && setRange([v[0]!, v[1]!])}
-            format="YYYY-MM-DD"
-          />
+          <Tooltip title="Rango de fechas que se resume en las tarjetas y tablas">
+            <RangePicker
+              value={range}
+              onChange={(v) => v && setRange([v[0]!, v[1]!])}
+              format="YYYY-MM-DD"
+              allowClear={false}
+            />
+          </Tooltip>
         </Space>
       </div>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
@@ -61,7 +64,7 @@ export default function FinanceOverviewPage() {
         presupuesto activo.
       </Typography.Paragraph>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Total de ingresos del periodo">Ingresos</Tooltip>} value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
@@ -84,7 +87,7 @@ export default function FinanceOverviewPage() {
         </Col>
       </Row>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Costo de los productos vendidos">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
@@ -103,7 +106,14 @@ export default function FinanceOverviewPage() {
       </Row>
 
       {suggestions.length > 0 && (
-        <Card title="Sugerencias" style={{ marginBottom: 16 }}>
+        <Card
+          title={
+            <Tooltip title="Recomendaciones generadas a partir de la ejecución del presupuesto activo">
+              <span>Sugerencias</span>
+            </Tooltip>
+          }
+          style={{ marginBottom: 16 }}
+        >
           <List
             dataSource={suggestions}
             renderItem={(s) => (
@@ -119,11 +129,20 @@ export default function FinanceOverviewPage() {
           />
         </Card>
       )}
-      <Card title="Cuentas" style={{ marginBottom: 16 }}>
+      <Card
+        title={
+          <Tooltip title="Saldos y movimientos acumulados de cada cuenta">
+            <span>Cuentas</span>
+          </Tooltip>
+        }
+        style={{ marginBottom: 16 }}
+      >
         <Table<FinanceAccount>
           rowKey="id"
           dataSource={accounts}
           pagination={false}
+          scroll={{ x: "max-content" }}
+          locale={{ emptyText: "Aún no hay cuentas financieras" }}
           columns={[
             { title: <Tooltip title="Nombre de la cuenta">Cuenta</Tooltip>, dataIndex: "nombre" },
             { title: <Tooltip title="Tipo de cuenta">Tipo</Tooltip>, dataIndex: "tipo" },
@@ -135,11 +154,19 @@ export default function FinanceOverviewPage() {
         />
       </Card>
 
-      <Card title="Por categoría">
+      <Card
+        title={
+          <Tooltip title="Totales del periodo agrupados por categoría financiera">
+            <span>Por categoría</span>
+          </Tooltip>
+        }
+      >
         <Table
           rowKey="id"
           dataSource={s?.por_categoria ?? []}
           pagination={false}
+          scroll={{ x: "max-content" }}
+          locale={{ emptyText: "No hay movimientos en el periodo seleccionado" }}
           columns={[
             { title: <Tooltip title="Categoría financiera">Categoría</Tooltip>, dataIndex: "nombre" },
             { title: <Tooltip title="Tipo de categoría">Tipo</Tooltip>, dataIndex: "tipo", render: (t: string) => (t === "ingreso" ? "Ingreso" : "Gasto") },
