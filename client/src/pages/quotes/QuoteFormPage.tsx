@@ -10,6 +10,7 @@ import {
   Select,
   Space,
   Tag,
+  Tooltip,
   Typography,
   message,
   theme,
@@ -181,12 +182,17 @@ export default function QuoteFormPage() {
           >
             <Input style={{ width: 280 }} />
           </Form.Item>
-          <Form.Item name="cliente_documento" label="Documento">
+          <Form.Item
+            name="cliente_documento"
+            label="Documento"
+            tooltip="Documento de identidad o NIT del cliente (opcional)."
+          >
             <Input style={{ width: 180 }} />
           </Form.Item>
           <Form.Item
             name="cliente_email"
             label="Email"
+            tooltip="Correo de contacto del cliente (opcional)."
             rules={[{ type: "email", message: "Email inválido" }, { max: 150 }]}
           >
             <Input style={{ width: 280 }} />
@@ -202,7 +208,12 @@ export default function QuoteFormPage() {
           </Form.Item>
         </Space>
 
-        <Form.Item name="notas" label="Notas" rules={[{ max: 2000 }]}>
+        <Form.Item
+          name="notas"
+          label="Notas"
+          tooltip="Observaciones o condiciones adicionales para el cliente."
+          rules={[{ max: 2000 }]}
+        >
           <Input.TextArea rows={3} maxLength={2000} showCount />
         </Form.Item>
 
@@ -224,7 +235,12 @@ export default function QuoteFormPage() {
             <>
               {fields.map(({ key, name }) => (
                 <Space key={key} align="start" wrap>
-                  <Form.Item name={[name, "product_id"]} rules={[{ required: true, message: "Producto" }]} tooltip="Producto cotizado.">
+                  <Form.Item
+                    name={[name, "product_id"]}
+                    label="Producto"
+                    rules={[{ required: true, message: "Producto" }]}
+                    tooltip="Producto cotizado."
+                  >
                     <Select
                       showSearch
                       filterOption={false}
@@ -238,38 +254,66 @@ export default function QuoteFormPage() {
                       }))}
                     />
                   </Form.Item>
-                  <Form.Item name={[name, "cantidad"]} rules={[{ required: true, message: "Cant." }]} tooltip="Cantidad de unidades.">
+                  <Form.Item
+                    name={[name, "cantidad"]}
+                    label="Cantidad"
+                    rules={[{ required: true, message: "Cant." }]}
+                    tooltip="Cantidad de unidades."
+                  >
                     <InputNumber min={1} placeholder="Cant." />
                   </Form.Item>
                   <Form.Item
                     name={[name, "precio_unitario"]}
+                    label="Precio unit."
                     rules={[{ required: true, message: "Precio" }]}
                     extra="Tomado del catálogo"
                     tooltip="Precio unitario del catálogo (solo lectura)."
                   >
                     <InputNumber min={0} placeholder="Precio" style={{ width: 130 }} disabled />
                   </Form.Item>
-                  <Form.Item name={[name, "descuento_pct"]} initialValue={0} tooltip="Descuento porcentual de la línea.">
+                  <Form.Item
+                    name={[name, "descuento_pct"]}
+                    label="Descuento"
+                    initialValue={0}
+                    tooltip="Descuento porcentual de la línea."
+                  >
                     <InputNumber min={0} max={100} addonAfter="% desc." />
                   </Form.Item>
-                  <Form.Item name={[name, "impuesto_pct"]} initialValue={0} tooltip="Impuesto porcentual de la línea.">
+                  <Form.Item
+                    name={[name, "impuesto_pct"]}
+                    label="Impuesto"
+                    initialValue={0}
+                    tooltip="Impuesto porcentual de la línea."
+                  >
                     <InputNumber min={0} max={100} addonAfter="% imp." />
                   </Form.Item>
-                  <Typography.Text
-                    style={{ lineHeight: "32px", minWidth: 110, display: "inline-block", textAlign: "right" }}
-                  >
-                    {money(lineTotal(lineas[name] ?? {}))}
-                  </Typography.Text>
+                  <div style={{ minWidth: 110, textAlign: "right" }}>
+                    <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8, fontSize: 12 }}>
+                      Total línea
+                    </Typography.Text>
+                    <Typography.Text strong style={{ lineHeight: "32px" }}>
+                      {money(lineTotal(lineas[name] ?? {}))}
+                    </Typography.Text>
+                  </div>
                   {(() => {
                     const l = lineas[name];
                     const p = l?.product_id ? products[l.product_id] : undefined;
                     return p?.stock_actual !== undefined && (l?.cantidad ?? 0) > p.stock_actual ? (
-                      <Tag color="orange" style={{ lineHeight: "30px" }}>
+                      <Tag color="orange" style={{ lineHeight: "30px", marginTop: 30 }}>
                         Stock: {p.stock_actual}
                       </Tag>
                     ) : null;
                   })()}
-                  <MinusCircleOutlined onClick={() => remove(name)} style={{ lineHeight: "32px" }} />
+                  <Tooltip title="Quitar esta línea">
+                    <Button
+                      type="text"
+                      danger
+                      aria-label="Quitar línea"
+                      icon={<MinusCircleOutlined />}
+                      onClick={() => remove(name)}
+                      style={{ marginTop: 30 }}
+                    />
+                  </Tooltip>
                 </Space>
               ))}
               <Form.ErrorList errors={errors} />
@@ -288,13 +332,15 @@ export default function QuoteFormPage() {
 
         <Card size="small" style={{ maxWidth: 360, marginLeft: "auto", marginBottom: 16 }}>
           {[
-            ["Subtotal", t.subtotal],
-            ["Descuento", -t.descuento],
-            ["Impuestos", t.impuesto],
-          ].map(([label, value]) => (
-            <div key={label as string} style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>{label}</span>
-              <span>{money(value as number)}</span>
+            { label: "Subtotal", value: t.subtotal, hint: "Suma de cantidad × precio de cada línea" },
+            { label: "Descuento", value: -t.descuento, hint: "Descuentos aplicados por línea" },
+            { label: "Impuestos", value: t.impuesto, hint: "Impuestos aplicados por línea" },
+          ].map(({ label, value, hint }) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
+              <Tooltip title={hint}>
+                <span>{label}</span>
+              </Tooltip>
+              <span>{money(value)}</span>
             </div>
           ))}
           <div
@@ -308,7 +354,9 @@ export default function QuoteFormPage() {
               fontSize: 18,
             }}
           >
-            <span>Total</span>
+            <Tooltip title="Total final de la cotización">
+              <span>Total</span>
+            </Tooltip>
             <span>{money(t.total)}</span>
           </div>
         </Card>
