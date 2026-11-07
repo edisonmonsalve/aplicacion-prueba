@@ -20,9 +20,12 @@ export default function ProfilePage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%", maxWidth: 720 }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        Mi perfil
-      </Typography.Title>
+      <div>
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          Mi perfil
+        </Typography.Title>
+        <Typography.Text type="secondary">Consulta tus datos, cambia tu contraseña y ajusta la apariencia.</Typography.Text>
+      </div>
 
       <Card>
         <Space size="large">
