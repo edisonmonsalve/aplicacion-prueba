@@ -73,6 +73,7 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         <Form.Item
           label="Nombre"
           name="nombre"
+          tooltip="Nombre completo del usuario."
           rules={[
             { required: true, message: "Ingresa el nombre" },
             { min: 2, message: "Mínimo 2 caracteres" },
@@ -85,6 +86,7 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         <Form.Item
           label="Correo"
           name="email"
+          tooltip="Correo electrónico para iniciar sesión."
           rules={[
             { required: true, message: "Ingresa el correo" },
             { type: "email", message: "Correo no válido" },
@@ -96,6 +98,7 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         <Form.Item
           label={isEdit ? "Nueva contraseña (opcional)" : "Contraseña"}
           name="password"
+          tooltip="Mínimo 8 caracteres. En edición, dejar vacío para no cambiarla."
           rules={[
             { required: !isEdit, message: "Ingresa la contraseña" },
             { min: 8, message: "Mínimo 8 caracteres" },
@@ -108,6 +111,7 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         <Form.Item
           label="Rol"
           name="rol"
+          tooltip="Rol de acceso del usuario."
           rules={[{ required: true }]}
           extra={ROLES.find((r) => r.value === rol)?.desc}
         >

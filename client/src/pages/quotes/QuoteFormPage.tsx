@@ -173,6 +173,7 @@ export default function QuoteFormPage() {
           <Form.Item
             name="cliente_nombre"
             label="Cliente"
+            tooltip="Nombre del cliente para la cotización."
             rules={[
               { required: true, message: "Requerido" },
               { min: 2, message: "Mínimo 2 caracteres" },
@@ -194,6 +195,7 @@ export default function QuoteFormPage() {
           <Form.Item
             name="fecha_validez"
             label="Válido hasta"
+            tooltip="Fecha hasta la que la cotización es válida."
             rules={[{ required: true, message: "Requerido" }]}
           >
             <DatePicker format="YYYY-MM-DD" />

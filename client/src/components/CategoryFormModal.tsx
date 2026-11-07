@@ -58,6 +58,7 @@ export default function CategoryFormModal({ category, onClose, onSaved }: Props)
         <Form.Item
           label="Nombre"
           name="nombre"
+          tooltip="Nombre de la categoría (único)."
           rules={[
             { required: true, message: "Ingresa el nombre" },
             { min: 2, message: "Mínimo 2 caracteres" },

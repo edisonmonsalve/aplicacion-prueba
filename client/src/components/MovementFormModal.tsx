@@ -127,7 +127,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
         />
       )}
       <Form form={form} layout="vertical" initialValues={{ tipo: "entrada" }}>
-        <Form.Item label="Tipo" name="tipo">
+        <Form.Item label="Tipo" name="tipo" tooltip="Entrada suma stock, salida lo descuenta.">
           <Radio.Group
             optionType="button"
             buttonStyle="solid"
@@ -141,6 +141,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
         <Form.Item
           label="Cantidad"
           name="cantidad"
+          tooltip="Unidades a registrar en el movimiento."
           dependencies={["tipo"]} // revalida al cambiar entre entrada y salida
           rules={[
             { required: true, message: "Ingresa la cantidad" },
@@ -160,7 +161,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
           <InputNumber min={1} precision={0} style={{ width: "100%" }} />
         </Form.Item>
 
-        <Form.Item label="Motivo (opcional)" name="motivo" rules={[{ max: 255 }]}>
+        <Form.Item label="Motivo (opcional)" name="motivo" rules={[{ max: 255 }]} tooltip="Motivo del movimiento de stock.">
           <Input.TextArea rows={2} />
         </Form.Item>
 
@@ -168,6 +169,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
           <Form.Item
             label="Costo unitario (opcional)"
             name="costo_unitario"
+            tooltip="Costo por unidad de esta entrada (solo admin)."
             rules={[{ type: "number", min: 0, message: "No puede ser negativo" }]}
             extra="Si lo dejas vacío se usa el costo del producto."
           >

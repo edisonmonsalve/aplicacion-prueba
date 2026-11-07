@@ -76,6 +76,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
         <Form.Item
           label="SKU"
           name="sku"
+          tooltip="Código único del producto (no se puede repetir)."
           rules={[
             { required: true, message: "Ingresa el SKU" },
             { max: 50, message: "Máximo 50 caracteres" },
@@ -87,6 +88,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
         <Form.Item
           label="Nombre"
           name="nombre"
+          tooltip="Nombre descriptivo del producto."
           rules={[
             { required: true, message: "Ingresa el nombre" },
             { min: 2, message: "Mínimo 2 caracteres" },
@@ -99,6 +101,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
         <Form.Item
           label="Categoría"
           name="category_id"
+          tooltip="Categoría a la que pertenece el producto."
           rules={[{ required: true, message: "Selecciona una categoría" }]}
         >
           <Select
@@ -110,6 +113,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
         <Form.Item
           label="Precio"
           name="precio"
+          tooltip="Precio de venta al público."
           rules={[
             { required: true, message: "Ingresa el precio" },
             { type: "number", min: 0.01, message: "Debe ser mayor que cero" }, // RN-07
@@ -122,6 +126,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
           <Form.Item
             label="Costo"
             name="costo"
+            tooltip="Costo del producto (solo admin puede modificarlo)."
             rules={[{ type: "number", min: 0, message: "No puede ser negativo" }]}
             extra={
               editarCosto
@@ -136,6 +141,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
         <Form.Item
           label="Stock mínimo"
           name="stock_minimo"
+          tooltip="Umbral para marcar el producto con stock bajo."
           rules={[{ required: true, message: "Ingresa el stock mínimo" }]}
           extra="El stock actual solo cambia registrando movimientos."
         >
