@@ -69,7 +69,8 @@ export default function BudgetDetailPage() {
   const doActivate = () => {
     modal.confirm({
       title: "Activar presupuesto",
-      content: "Al activar, no podrá haber otro presupuesto activo en el mismo periodo.",
+      content:
+        "Desde este momento las transacciones del periodo se compararán contra las líneas planeadas. Solo puede haber un presupuesto activo por periodo.",
       onOk: async () => {
         try {
           await activateBudget(budget.id);
@@ -85,7 +86,9 @@ export default function BudgetDetailPage() {
   const doClose = () => {
     modal.confirm({
       title: "Cerrar presupuesto",
-      content: "Un periodo cerrado no admite transacciones.",
+      content:
+        "El periodo dejará de admitir nuevas transacciones y no podrás reabrirlo. La ejecución quedará disponible solo para consulta.",
+      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await closeBudget(budget.id);
@@ -101,7 +104,8 @@ export default function BudgetDetailPage() {
   const doDelete = () => {
     modal.confirm({
       title: "Eliminar presupuesto",
-      content: "Esta acción no se puede deshacer.",
+      content:
+        "Se eliminarán el presupuesto y sus líneas. Las transacciones ya registradas no se modifican. Esta acción no se puede deshacer.",
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
@@ -116,8 +120,8 @@ export default function BudgetDetailPage() {
   };
 
   const columns = [
-    { title: "Categoría", dataIndex: "categoria" },
-    { title: "Producto", dataIndex: "producto", render: (v: string | null) => v ?? "—" },
+    { title: <Tooltip title="Categoría financiera planificada">Categoría</Tooltip>, dataIndex: "categoria" },
+    { title: <Tooltip title="Producto específico de la línea">Producto</Tooltip>, dataIndex: "producto", render: (v: string | null) => v ?? "—" },
     { title: <Tooltip title="Monto planeado para la línea">Planeado</Tooltip>, dataIndex: "monto_planeado", align: "right" as const, render: (v: number) => money(v) },
     { title: <Tooltip title="Monto real ejecutado en el periodo">Real</Tooltip>, dataIndex: "real", align: "right" as const, render: (v: number) => money(v) },
     { title: <Tooltip title="Monto disponible (planeado - real)">Disponible</Tooltip>, dataIndex: "disponible", align: "right" as const, render: (v: number) => money(v) },
@@ -135,24 +139,32 @@ export default function BudgetDetailPage() {
           <BudgetEstadoTag estado={budget.estado} />
         </Space>
         {canWrite && (
-          <Space>
+          <Space wrap>
             {isBorrador && (
               <>
-                <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
-                  Editar
-                </Button>
-                <Button type="primary" icon={<CheckOutlined />} onClick={doActivate}>
-                  Activar
-                </Button>
-                <Button danger icon={<DeleteOutlined />} onClick={doDelete}>
-                  Eliminar
-                </Button>
+                <Tooltip title="Editar datos y líneas mientras el presupuesto siga en borrador">
+                  <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
+                    Editar
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Comenzar a comparar las transacciones del periodo contra este presupuesto">
+                  <Button type="primary" icon={<CheckOutlined />} onClick={doActivate}>
+                    Activar
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Eliminar el presupuesto y sus líneas">
+                  <Button danger icon={<DeleteOutlined />} onClick={doDelete}>
+                    Eliminar
+                  </Button>
+                </Tooltip>
               </>
             )}
             {isActivo && (
-              <Button icon={<LockOutlined />} onClick={doClose}>
-                Cerrar
-              </Button>
+              <Tooltip title="Cerrar el periodo para que no admita más transacciones">
+                <Button icon={<LockOutlined />} onClick={doClose}>
+                  Cerrar
+                </Button>
+              </Tooltip>
             )}
           </Space>
         )}
@@ -190,7 +202,7 @@ export default function BudgetDetailPage() {
         />
       )}
 
-      <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
+      <Descriptions bordered size="small" column={{ xs: 1, md: 2 }} style={{ marginBottom: 16 }}>
         <Descriptions.Item label={<Tooltip title="Granularidad del periodo">Periodo</Tooltip>}>{periodLabel(budget.tipo_periodo)}</Descriptions.Item>
         <Descriptions.Item label={<Tooltip title="Fechas del periodo">Rango</Tooltip>}>
           {fmtDate(budget.fecha_inicio)} → {fmtDate(budget.fecha_fin)}
@@ -201,7 +213,7 @@ export default function BudgetDetailPage() {
         <Descriptions.Item label={<Tooltip title="Ingresos reales del periodo">Ingresos reales</Tooltip>}>{money(r.ingresos_reales)}</Descriptions.Item>
       </Descriptions>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Tooltip title="Monto total planeado"><Typography.Text type="secondary">Planeado total</Typography.Text></Tooltip>
@@ -222,7 +234,9 @@ export default function BudgetDetailPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Typography.Text type="secondary">Ejecución</Typography.Text>
+            <Tooltip title="Porcentaje del monto planeado que ya se ejecutó">
+              <Typography.Text type="secondary">Ejecución</Typography.Text>
+            </Tooltip>
             <Progress
               percent={Math.min(r.ejecucion_pct, 100)}
               strokeColor={EJECUCION_COLOR[r.estado]}
@@ -233,7 +247,7 @@ export default function BudgetDetailPage() {
       </Row>
 
       <Card style={{ marginBottom: 16 }}>
-        <Space size="large">
+        <Space size="large" wrap>
           <div>
             <Tooltip title="Proyección de gasto al cierre del periodo"><Typography.Text type="secondary">Proyección de cierre</Typography.Text></Tooltip>
             <div>{r.proyeccion === null ? "—" : money(r.proyeccion)}</div>
@@ -257,6 +271,7 @@ export default function BudgetDetailPage() {
         columns={columns}
         pagination={false}
         scroll={{ x: "max-content" }}
+        locale={{ emptyText: "Este presupuesto aún no tiene líneas" }}
       />
 
       <BudgetFormModal
