@@ -15,6 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import dayjs from "dayjs";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { getDashboard } from "@/services/dashboardService";
 import { getErrorMessage } from "@/utils/errors";
@@ -126,7 +127,12 @@ export default function HomePage() {
       <Typography.Title level={2} style={{ marginBottom: 4 }}>
         {greeting()}, {user?.nombre}
       </Typography.Title>
-      <Typography.Paragraph type="secondary">{dayjs().format("dddd, D [de] MMMM")}</Typography.Paragraph>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 4 }}>
+        {dayjs().format("dddd, D [de] MMMM")}
+      </Typography.Paragraph>
+      <Typography.Paragraph type="secondary">
+        Resumen de tu inventario, cotizaciones y presupuestos.
+      </Typography.Paragraph>
 
       {loading && (
         <Row gutter={[16, 16]}>
@@ -158,6 +164,7 @@ export default function HomePage() {
               showIcon
               style={{ marginBottom: 16 }}
               message={`Hay ${data.stockBajo} producto(s) con stock por debajo del mínimo`}
+              action={<Link to="/products">Ver productos</Link>}
             />
           )}
 
@@ -189,7 +196,13 @@ export default function HomePage() {
 
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} lg={14}>
-              <Card title="Movimientos de los últimos 7 días">
+              <Card
+                title={
+                  <AntTooltip title="Entradas y salidas de stock registradas en los últimos 7 días">
+                    <span>Movimientos de los últimos 7 días</span>
+                  </AntTooltip>
+                }
+              >
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={dias}>
                     <CartesianGrid strokeDasharray="3 3" stroke={token.colorSplit} vertical={false} />
@@ -204,7 +217,13 @@ export default function HomePage() {
               </Card>
             </Col>
             <Col xs={24} lg={10}>
-              <Card title="Cotizaciones por estado">
+              <Card
+                title={
+                  <AntTooltip title="Cantidad de cotizaciones agrupadas por estado actual">
+                    <span>Cotizaciones por estado</span>
+                  </AntTooltip>
+                }
+              >
                 {estados.length === 0 ? (
                   <Empty description="Aún no hay cotizaciones" />
                 ) : (
@@ -234,7 +253,13 @@ export default function HomePage() {
 
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} lg={12}>
-              <Card title="Top productos cotizados">
+              <Card
+                title={
+                  <AntTooltip title="Productos con más unidades en cotizaciones aprobadas o entregadas">
+                    <span>Top productos cotizados</span>
+                  </AntTooltip>
+                }
+              >
                 {data.topProductos.length === 0 ? (
                   <Empty description="Se llenará con cotizaciones aprobadas o entregadas" />
                 ) : (
@@ -256,7 +281,14 @@ export default function HomePage() {
               </Card>
             </Col>
             <Col xs={24} lg={12}>
-              <Card title="Productos con stock bajo">
+              <Card
+                title={
+                  <AntTooltip title="Productos cuyo stock está por debajo del mínimo">
+                    <span>Productos con stock bajo</span>
+                  </AntTooltip>
+                }
+                extra={<Link to="/products">Ver todos</Link>}
+              >
                 <Table
                   size="small"
                   rowKey="id"
@@ -276,7 +308,15 @@ export default function HomePage() {
             </Col>
           </Row>
 
-          <Card title="Últimos movimientos" style={{ marginTop: 16 }}>
+          <Card
+            title={
+              <AntTooltip title="Últimos movimientos de stock registrados">
+                <span>Últimos movimientos</span>
+              </AntTooltip>
+            }
+            extra={<Link to="/movements">Ver todos</Link>}
+            style={{ marginTop: 16 }}
+          >
             <Table
               size="small"
               rowKey="id"
