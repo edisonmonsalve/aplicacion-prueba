@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { Form, Input, InputNumber, Modal, Select, message, DatePicker } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Form, Input, InputNumber, Modal, Select, message, DatePicker } from "antd";
 import dayjs from "dayjs";
-import { getFinanceAccounts, getFinanceCategories } from "@/services/financeService";
+import { getFinanceAccounts, getFinanceCategories, listBudgets } from "@/services/financeService";
 import { getProducts } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
-import type { FinanceAccount, FinanceCategory, TransactionInput } from "@/types";
+import type { BudgetListItem, FinanceAccount, FinanceCategory, TransactionInput } from "@/types";
 import type { Product } from "@/types";
 
 interface Props {
@@ -30,7 +30,15 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [productOptions, setProductOptions] = useState<{ value: number; label: string }[]>([]);
+  const [closedBudgets, setClosedBudgets] = useState<BudgetListItem[]>([]);
   const tipo = Form.useWatch("tipo", form) ?? "ingreso";
+  const fecha = Form.useWatch("fecha", form);
+
+  const closedPeriod = useMemo(() => {
+    if (!fecha) return undefined;
+    const day = fecha.format("YYYY-MM-DD");
+    return closedBudgets.find((b) => b.fecha_inicio <= day && b.fecha_fin >= day);
+  }, [fecha, closedBudgets]);
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +51,9 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
     getProducts({ page: 1, pageSize: 100 })
       .then((r) => setProductOptions(r.data.map((p: Product) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }))))
       .catch(() => messageApi.error("No se pudieron cargar los productos"));
+    listBudgets({ page: 1, pageSize: 100, estado: "cerrado" })
+      .then((r) => setClosedBudgets(r.data))
+      .catch(() => {});
   }, [open, messageApi]);
 
   useEffect(() => {
@@ -62,6 +73,10 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
   const handleOk = async () => {
     const values = await form.validateFields().catch(() => null);
     if (!values) return;
+    if (closedPeriod) {
+      messageApi.error(`El periodo "${closedPeriod.nombre}" está cerrado y no admite transacciones`);
+      return;
+    }
     const input: TransactionInput = {
       tipo: values.tipo,
       monto: values.monto,
@@ -100,6 +115,15 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
       destroyOnClose
     >
       {contextHolder}
+      {closedPeriod && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={`El periodo "${closedPeriod.nombre}" está cerrado`}
+          description="No admite nuevas transacciones. Elige una fecha fuera de ese periodo."
+        />
+      )}
       <Form form={form} layout="vertical" initialValues={{ tipo: "ingreso", fecha: dayjs() }}>
         <Form.Item label="Tipo" name="tipo" tooltip="Ingreso suma capital, gasto lo reduce." rules={[{ required: true }]}>
           <Select
@@ -113,7 +137,14 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
           <InputNumber min={0.01} style={{ width: "100%" }} />
         </Form.Item>
         <Form.Item label="Fecha" name="fecha" tooltip="Fecha de la transacción." rules={[{ required: true }]}>
-          <DatePicker format="YYYY-MM-DD" style={{ width: "100%" }} />
+          <DatePicker
+            format="YYYY-MM-DD"
+            style={{ width: "100%" }}
+            disabledDate={(current) => {
+              const day = current.format("YYYY-MM-DD");
+              return closedBudgets.some((b) => b.fecha_inicio <= day && b.fecha_fin >= day);
+            }}
+          />
         </Form.Item>
         <Form.Item label="Categoría" name="finance_category_id" tooltip="Categoría financiera de la transacción." rules={[{ required: true }]}>
           <Select
