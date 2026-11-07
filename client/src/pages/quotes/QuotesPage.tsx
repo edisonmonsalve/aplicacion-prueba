@@ -113,9 +113,14 @@ export default function QuotesPage() {
       <div
         style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}
       >
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Cotizaciones
-        </Typography.Title>
+        <div>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            Cotizaciones
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            Crea, envía y da seguimiento a las cotizaciones de tus clientes.
+          </Typography.Text>
+        </div>
         <Space>
           <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
             Exportar CSV
@@ -128,27 +133,42 @@ export default function QuotesPage() {
         </Space>
       </div>
 
-      <Space wrap style={{ marginBottom: 16 }}>
-        <Input.Search
-          allowClear
-          placeholder="Número, cliente o documento"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{ width: 280 }}
-        />
-        <Select
-          allowClear
-          placeholder="Estado"
-          style={{ width: 160 }}
-          value={estado}
-          options={STATUS_OPTIONS}
-          onChange={(v) => update({ estado: v })}
-        />
-        <DatePicker.RangePicker
-          format={FMT}
-          value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-          onChange={(v) => update({ desde: v?.[0]?.format(FMT), hasta: v?.[1]?.format(FMT) })}
-        />
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Buscar
+          </Typography.Text>
+          <Input.Search
+            allowClear
+            placeholder="Número, cliente o documento"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{ width: 280 }}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Estado
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todos"
+            style={{ width: 160 }}
+            value={estado}
+            options={STATUS_OPTIONS}
+            onChange={(v) => update({ estado: v })}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Rango de fechas
+          </Typography.Text>
+          <DatePicker.RangePicker
+            format={FMT}
+            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
+            onChange={(v) => update({ desde: v?.[0]?.format(FMT), hasta: v?.[1]?.format(FMT) })}
+          />
+        </div>
         {hasFilters && (
           <Button
             onClick={() => {
@@ -159,7 +179,7 @@ export default function QuotesPage() {
             Limpiar filtros
           </Button>
         )}
-      </Space>
+      </div>
 
       {firstLoad ? (
         <TableSkeleton />
@@ -177,10 +197,21 @@ export default function QuotesPage() {
                   hasFilters ? "Ninguna cotización coincide con los filtros" : "Aún no hay cotizaciones"
                 }
               >
-                {!hasFilters && canOperate && (
-                  <Button type="primary" onClick={() => navigate("/cotizaciones/nuevo")}>
-                    Crear el primero
+                {hasFilters ? (
+                  <Button
+                    onClick={() => {
+                      setText("");
+                      setSp({}, { replace: true });
+                    }}
+                  >
+                    Limpiar filtros
                   </Button>
+                ) : (
+                  canOperate && (
+                    <Button type="primary" onClick={() => navigate("/cotizaciones/nuevo")}>
+                      Crear el primero
+                    </Button>
+                  )
                 )}
               </Empty>
             ),
@@ -194,8 +225,8 @@ export default function QuotesPage() {
             onChange: (p, s) => update({ page: String(p), pageSize: String(s) }, false),
           }}
           columns={[
-            { title: "Número", dataIndex: "numero" },
-            { title: "Cliente", dataIndex: "customer_nombre" },
+            { title: <Tooltip title="Número único de la cotización">Número</Tooltip>, dataIndex: "numero" },
+            { title: <Tooltip title="Cliente al que se dirige la cotización">Cliente</Tooltip>, dataIndex: "customer_nombre" },
             { title: <Tooltip title="Estado actual de la cotización">Estado</Tooltip>, dataIndex: "estado", render: (e: QuoteStatus) => <StatusTag estado={e} /> },
             {
               title: <Tooltip title="Total de la cotización con descuentos e impuestos">Total</Tooltip>,
@@ -204,7 +235,7 @@ export default function QuotesPage() {
               render: (v: number) => <strong>{money(v)}</strong>,
             },
             {
-              title: "Válido hasta",
+              title: <Tooltip title="Fecha límite de validez de la cotización">Válido hasta</Tooltip>,
               dataIndex: "fecha_validez",
               responsive: ["md"],
               render: (v: string, r) => {
@@ -213,7 +244,7 @@ export default function QuotesPage() {
                 return <Typography.Text type={late ? "danger" : undefined}>{fmtDate(v)}</Typography.Text>;
               },
             },
-            { title: "Creado por", dataIndex: "creador", responsive: ["lg"] },
+            { title: <Tooltip title="Usuario que creó la cotización">Creado por</Tooltip>, dataIndex: "creador", responsive: ["lg"] },
           ]}
         />
       )}
