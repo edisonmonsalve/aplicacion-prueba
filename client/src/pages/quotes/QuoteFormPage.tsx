@@ -282,8 +282,8 @@ export default function QuoteFormPage() {
                   <Form.Item
                     name={[name, "impuesto_pct"]}
                     label="Impuesto"
-                    initialValue={0}
-                    tooltip="Impuesto porcentual de la línea."
+                    initialValue={19}
+                    tooltip="Impuesto porcentual de la línea (IVA 19 % por defecto, editable)."
                   >
                     <InputNumber min={0} max={100} addonAfter="% imp." />
                   </Form.Item>
@@ -321,7 +321,7 @@ export default function QuoteFormPage() {
                 <Button
                   type="dashed"
                   icon={<PlusOutlined />}
-                  onClick={() => add({ descuento_pct: 0, impuesto_pct: 0 })}
+                  onClick={() => add({ descuento_pct: 0, impuesto_pct: 19 })}
                 >
                   Agregar línea
                 </Button>

@@ -5,7 +5,7 @@ const invoiceItemSchema = z.object({
   cantidad: z.number().int().positive(),
   precio_unitario: z.number().min(0.01, "El precio unitario debe ser mayor que cero").max(9_999_999_999),
   descuento_pct: z.number().min(0).max(100).default(0),
-  impuesto_pct: z.number().min(0).max(100).default(0),
+  impuesto_pct: z.number().min(0).max(100).default(19),
 });
 
 const uniqueProducts = (items: { product_id: number }[]) =>

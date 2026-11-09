@@ -141,13 +141,6 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(confirmed.status).toBe(200);
     expect(confirmed.body.estado).toBe("confirmada");
 
-    // Verificar costo actualizado del producto
-    const [products] = await pool.query<RowDataPacket[]>(
-      "SELECT costo FROM products WHERE id = ?",
-      [productId]
-    );
-    expect(products[0].costo).toBe(250);
-
     // Verificar movimiento de stock entrada con origen compra
     const [movements] = await pool.query<RowDataPacket[]>(
       "SELECT origen, costo_unitario FROM stock_movements WHERE product_id = ? ORDER BY id DESC LIMIT 1",
@@ -156,7 +149,7 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(movements[0].origen).toBe("compra");
     expect(movements[0].costo_unitario).toBe(250);
 
-    // Verificar asiento financiero (gasto)
+    // Verificar asiento financiero (gasto de compra neto, sin IVA)
     const [transactions] = await pool.query<RowDataPacket[]>(
       "SELECT tipo, monto FROM transactions WHERE descripcion LIKE ?",
       [`%Factura ${created.body.numero}%`]
@@ -430,12 +423,13 @@ describe("Módulo de Facturación — RF-XX", () => {
       .set(bearer(admin.token));
     expect(confirmed.status).toBe(200);
 
-    // Costo neto de compra: 100 * (1 - 10%) = 90, sin IVA
+    // Costo neto de compra: 100 * (1 - 10%) = 90, sin IVA. El costo de referencia del producto
+    // (products.costo) ya no se modifica al confirmar compras (solo edición manual, M1).
     const [products] = await pool.query<RowDataPacket[]>(
       "SELECT costo, stock_actual FROM products WHERE id = ?",
       [productId]
     );
-    expect(products[0]).toMatchObject({ costo: 90, stock_actual: 12 });
+    expect(products[0].stock_actual).toBe(12);
 
     const [transactions] = await pool.query<RowDataPacket[]>(
       `SELECT tipo, monto FROM transactions WHERE invoice_id = ? ORDER BY id`,
@@ -627,7 +621,8 @@ describe("Módulo de Facturación — RF-XX", () => {
       "SELECT costo FROM products WHERE id = ?",
       [productId]
     );
-    expect(afterConfirm[0].costo).toBe(250);
+    // M1: confirmar una compra ya no modifica products.costo (solo edición manual).
+    expect(afterConfirm[0].costo).toBe(400);
 
     const cancelled = await request(app)
       .post(`/api/invoices/${id}/anular`)
@@ -638,6 +633,8 @@ describe("Módulo de Facturación — RF-XX", () => {
       "SELECT costo, stock_actual FROM products WHERE id = ?",
       [productId]
     );
-    expect(afterCancel[0]).toMatchObject({ costo: 400, stock_actual: 10 });
+    // El costo de referencia no se modificó al confirmar (M1), así que no hay nada que restaurar;
+    // solo se revierte el stock.
+    expect(afterCancel[0].stock_actual).toBe(10);
   });
 });

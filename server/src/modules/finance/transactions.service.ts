@@ -247,15 +247,18 @@ export async function getSummary(query: SummaryQuery) {
   const utilidad = ingresos - egresos;
   const margenBruto = ingresos - costoVentas;
 
-  // El capital de caja solo lo mueven ingresos y gastos. El IVA (activo/pasivo)
-  // y las cuentas por cobrar/pagar no afectan la disponibilidad de efectivo.
+  // M2: el costo de ventas es parte del asiento y del presupuesto, pero no reduce el capital de
+  // caja disponible dos veces (la compra ya impactó el capital al registrarse como gasto). El
+  // capital de caja solo considera ingresos y gastos de operación, excluyendo el costo de ventas.
   const [capitalRows] = await pool.query<RowDataPacket[]>(
     `SELECT COALESCE(SUM(a.saldo_inicial), 0)
             + COALESCE((
                 SELECT SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto
-                                WHEN t.tipo = 'gasto' THEN -t.monto
+                                WHEN t.tipo = 'gasto' AND fc.nombre <> 'Costo de ventas'
+                                THEN -t.monto
                                 ELSE 0 END)
                 FROM transactions t
+                JOIN finance_categories fc ON fc.id = t.finance_category_id
                 WHERE ${VALID_TRANSACTION}
                   AND t.account_id IN (SELECT id FROM finance_accounts WHERE activo = 1)
               ), 0) AS capital

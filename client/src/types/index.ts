@@ -101,6 +101,8 @@ export interface Quote {
   created_by: number;
   creador: string;
   created_at: string;
+  /** Cotización entregada que aún no tiene factura confirmada vinculada. */
+  pendiente_facturar?: boolean;
 }
 
 export interface QuoteLine {

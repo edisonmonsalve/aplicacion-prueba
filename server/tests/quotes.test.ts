@@ -39,7 +39,7 @@ describe("Presupuestos: borradores", () => {
     const { admin, a } = await setup();
     const res = await createQuote(
       admin.token,
-      draft([{ product_id: a, cantidad: 1, precio_unitario: 1, total_linea: 1 }], { total: 1 })
+      draft([{ product_id: a, cantidad: 1, impuesto_pct: 0 }], { total: 1 })
     );
     expect(res.body.total).toBe(1000);
 
@@ -100,7 +100,7 @@ describe("Presupuestos: borradores", () => {
 
   it("edita un borrador, reemplaza las líneas y recalcula (RN-P05)", async () => {
     const { admin, a, b } = await setup();
-    const created = await createQuote(admin.token, draft([{ product_id: a, cantidad: 1 }]));
+    const created = await createQuote(admin.token, draft([{ product_id: a, cantidad: 1, impuesto_pct: 0 }]));
     expect(created.body.total).toBe(1000);
 
     const res = await request(app)
@@ -109,8 +109,8 @@ describe("Presupuestos: borradores", () => {
       .send(
         draft(
           [
-            { product_id: a, cantidad: 3 },
-            { product_id: b, cantidad: 2 },
+            { product_id: a, cantidad: 3, impuesto_pct: 0 },
+            { product_id: b, cantidad: 2, impuesto_pct: 0 },
           ],
           { customer_nombre: "Otro Cliente" }
         )
@@ -310,6 +310,9 @@ describe("Presupuestos: historial de auditoría", () => {
     const send = await request(app).post(`/api/quotes/${id}/send`).set(bearer(operador.token));
 
     expect(send.status).toBe(200);
+
+    // M4: la aprobación requiere stock suficiente.
+    await pool.query("UPDATE products SET stock_actual = 10 WHERE id = ?", [a]);
 
     const approve = await request(app).post(`/api/quotes/${id}/approve`).set(bearer(operador.token));
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Card,
@@ -16,10 +16,10 @@ import {
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { isAxiosError } from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { createInvoice, getInvoice, updateInvoice } from "@/services/invoicesService";
 import { getProducts } from "@/services/productsService";
-import { listQuotes } from "@/services/quotesService";
+import { listQuotes, getQuote } from "@/services/quotesService";
 import type { InvoiceTipo, Quote } from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
 
@@ -86,8 +86,29 @@ export default function InvoiceFormPage() {
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [saving, setSaving] = useState(false);
+  const loadedQuoteRef = useRef<number | null>(null);
   const lineas = Form.useWatch("items", form) ?? [];
   const tipo = Form.useWatch("tipo", form);
+  const quoteIdForm = Form.useWatch("quote_id", form);
+
+  // M3: retenciones prellenadas automáticamente según el tipo de factura.
+  // Los porcentajes son parámetros configurables (no tarifas legales hardcodeadas sin confirmar);
+  // por defecto 0 y siempre editables. Reducen el total_neto, son informativas.
+  const DEFAULT_RETENCIONES: Record<InvoiceTipo, { fuente: number; iva: number; ica: number }> = {
+    venta: { fuente: 0, iva: 0, ica: 0 },
+    compra: { fuente: 0, iva: 0, ica: 0 },
+  };
+
+  useEffect(() => {
+    if (editId) return;
+    const defaults = DEFAULT_RETENCIONES[tipo ?? "venta"];
+    form.setFieldsValue({
+      retencion_fuente: form.getFieldValue("retencion_fuente") ?? defaults.fuente,
+      retencion_iva: form.getFieldValue("retencion_iva") ?? defaults.iva,
+      retencion_ica: form.getFieldValue("retencion_ica") ?? defaults.ica,
+    });
+  }, [tipo, editId, form]);
+
   const retencionFuente = Form.useWatch("retencion_fuente", form) ?? 0;
   const retencionIva = Form.useWatch("retencion_iva", form) ?? 0;
   const retencionIca = Form.useWatch("retencion_ica", form) ?? 0;
@@ -112,6 +133,64 @@ export default function InvoiceFormPage() {
       .then((r) => setQuotes(r.data.filter((x) => x.estado === "aprobado" || x.estado === "entregado")))
       .catch(() => {});
   }, [tipo]);
+
+  const [searchParams] = useSearchParams();
+  const urlQuoteId = searchParams.get("quote");
+
+  // M5/M6: al seleccionar (o llegar con ?quote=) una cotización en una factura de venta nueva,
+  // precarga cliente, email, notas y líneas con los mismos valores de la cotización. El cliente
+  // puede cambiar precios, cantidades y agregar productos (no se bloquean precios).
+  useEffect(() => {
+    if (editId) return; // edición: los datos ya vienen de la factura cargada
+    if (tipo === "compra") return;
+    const qid = quoteIdForm ?? (urlQuoteId ? Number(urlQuoteId) : null);
+    if (!qid || qid === loadedQuoteRef.current) return;
+    loadedQuoteRef.current = qid;
+
+    getQuote(qid)
+      .then((d) => {
+        if (d.estado !== "aprobado" && d.estado !== "entregado") {
+          message.warning("La cotización debe estar aprobada o entregada para facturarse");
+          form.setFieldsValue({ quote_id: null });
+          return;
+        }
+        form.setFieldsValue({
+          contraparte: d.customer_nombre,
+          email: d.customer_email ?? undefined,
+          quote_id: d.id,
+          notas: d.notas ?? undefined,
+        });
+        const items = d.items.map((l) => ({
+          product_id: l.product_id!,
+          cantidad: l.cantidad,
+          precio_unitario: l.precio_unitario,
+          descuento_pct: l.descuento_pct,
+          impuesto_pct: l.impuesto_pct,
+        }));
+        form.setFieldsValue({ items });
+        setProducts((prev) => ({
+          ...prev,
+          ...Object.fromEntries(
+            d.items
+              .filter((l) => l.product_id)
+              .map((l) => [
+                l.product_id!,
+                {
+                  id: l.product_id!,
+                  sku: l.sku,
+                  nombre: l.nombre,
+                  precio: l.precio_unitario,
+                  stock_actual: 0,
+                },
+              ])
+          ),
+        }));
+      })
+      .catch(() => {
+        message.error("No se pudo cargar la cotización");
+        loadedQuoteRef.current = null;
+      });
+  }, [quoteIdForm, urlQuoteId, editId, tipo, form, message]);
 
   useEffect(() => {
     search("");
@@ -324,7 +403,7 @@ export default function InvoiceFormPage() {
                   <Form.Item name={[name, "descuento_pct"]} label="Desc." initialValue={0}>
                     <InputNumber min={0} max={100} addonAfter="%" />
                   </Form.Item>
-                  <Form.Item name={[name, "impuesto_pct"]} label="Imp." initialValue={0}>
+                  <Form.Item name={[name, "impuesto_pct"]} label="Imp." initialValue={19}>
                     <InputNumber min={0} max={100} addonAfter="%" />
                   </Form.Item>
                   <div style={{ minWidth: 110, textAlign: "right" }}>
@@ -349,7 +428,7 @@ export default function InvoiceFormPage() {
               ))}
               <Form.ErrorList errors={errors} />
               <Form.Item>
-                <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ descuento_pct: 0, impuesto_pct: 0 })}>
+                <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ descuento_pct: 0, impuesto_pct: 19 })}>
                   Agregar línea
                 </Button>
               </Form.Item>

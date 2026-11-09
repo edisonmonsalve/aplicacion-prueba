@@ -178,6 +178,16 @@ export default function QuoteDetailPage() {
             primary: true,
             tooltip: "Descuenta el stock de cada línea y genera el ingreso correspondiente en finanzas.",
           })}
+        {canAct &&
+          (quote.estado === "aprobado" || quote.estado === "entregado") && (
+            <Button
+              onClick={() => navigate(`/facturas/nuevo?quote=${quoteId}`)}
+              disabled={busy}
+              style={{ marginLeft: 8 }}
+            >
+              Generar factura
+            </Button>
+          )}
         {canAct && quote.estado === "borrador" && (
           <Tooltip title="Editar las líneas y datos de la cotización mientras siga en borrador">
             <Button onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)} disabled={busy}>
@@ -202,6 +212,21 @@ export default function QuoteDetailPage() {
           </Button>
         </Dropdown>
       </Space>
+
+      {quote.estado === "entregado" && quote.pendiente_facturar && (
+        <Alert
+          showIcon
+          type="warning"
+          message="Esta cotización está entregada pero aún no tiene una factura vinculada."
+          description={
+            <>
+              Puede generar una factura desde este documento (los datos se precargan) o crear una
+              factura manualmente vinculándola. La suma de todas las facturas de una cotización no
+              debe superar el total cotizado.
+            </>
+          }
+        />
+      )}
 
       {open && daysLeft <= 3 && (
         <Alert

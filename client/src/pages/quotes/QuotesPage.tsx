@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, DatePicker, Empty, Input, Select, Space, Table, Tooltip, Typography } from "antd";
+import { App, Button, DatePicker, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -229,6 +229,12 @@ value={text}
             { title: <Tooltip title="Número único de la cotización">Número</Tooltip>, dataIndex: "numero" },
             { title: <Tooltip title="Cliente al que se dirige la cotización">Cliente</Tooltip>, dataIndex: "customer_nombre" },
             { title: <Tooltip title="Estado actual de la cotización">Estado</Tooltip>, dataIndex: "estado", render: (e: QuoteStatus) => <StatusTag estado={e} /> },
+            {
+              title: <Tooltip title="Cotización entregada que aún no tiene una factura confirmada vinculada">Pendiente de facturar</Tooltip>,
+              dataIndex: "pendiente_facturar",
+              responsive: ["md"],
+              render: (v: boolean) => (v === true ? <Tag color="orange">Pendiente de facturar</Tag> : <Tag color="default">—</Tag>),
+            },
             {
               title: <Tooltip title="Total de la cotización con descuentos e impuestos">Total</Tooltip>,
               dataIndex: "total",

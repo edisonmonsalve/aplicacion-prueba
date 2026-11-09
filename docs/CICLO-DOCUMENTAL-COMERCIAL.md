@@ -425,3 +425,5 @@ Antes de programar un pago se debe verificar:
 ---
 
 *Implementación completada sobre la rama `feat/base-financiera`. Los tests del servidor y el build del cliente deben permanecer en verde.*
+
+> **Siguiente iteración:** ver `docs/MEJORAS-FACTURACION-CONTABILIDAD.md` para el backlog de costeo, costo de ventas vs capital, alertas de stock, IVA/retenciones automáticas, aprobación con stock y autocompletado de facturas desde cotización.

@@ -23,7 +23,9 @@ describe("Presupuestos: estados", () => {
   afterAll(() => pool.end());
 
   it("recorre borrador, enviado y aprobado dejando historial (RN-P12)", async () => {
-    const { operador, id } = await newQuote();
+    const { operador, id, a } = await newQuote();
+    // M4: la aprobación requiere stock suficiente para las líneas cotizadas.
+    await pool.query("UPDATE products SET stock_actual = 10 WHERE id = ?", [a]);
     expect((await act(operador.token, id, "send")).body.estado).toBe("enviado");
     expect((await act(operador.token, id, "approve")).body.estado).toBe("aprobado");
 

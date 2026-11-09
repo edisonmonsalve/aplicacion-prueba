@@ -53,8 +53,11 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
 
   // El ? del CASE en el SELECT va antes que los parámetros del WHERE
   const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT q.id, q.customer_nombre, ${EFFECTIVE_ESTADO} AS estado, q.fecha_validez,
-            q.total, q.created_by, u.nombre AS creador, q.created_at
+    `SELECT q.id, q.customer_nombre, ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw,
+            q.fecha_validez, q.total, q.created_by, u.nombre AS creador, q.created_at,
+            (SELECT COUNT(*) FROM invoices i
+             WHERE i.quote_id = q.id AND i.tipo = 'venta' AND i.estado = 'confirmada')
+              AS facturas_confirmadas
      FROM quotes q
      JOIN users u ON u.id = q.created_by
      ${clause}
@@ -64,7 +67,12 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
   );
 
   return {
-    data: data.map((row) => ({ ...row, numero: formatQuoteNumber(row.id) })),
+    data: data.map((row) => ({
+      ...row,
+      numero: formatQuoteNumber(row.id),
+      pendiente_facturar:
+        row.estado_raw === "entregado" && Number(row.facturas_confirmadas ?? 0) === 0,
+    })),
     total,
     page: query.page,
     pageSize: query.pageSize,
@@ -74,9 +82,12 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
 export async function getQuote(id: number, actor: AuthUser) {
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT q.id, q.customer_nombre, q.customer_documento, q.customer_email,
-            ${EFFECTIVE_ESTADO} AS estado, q.fecha_validez, q.notas,
+            ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw, q.fecha_validez, q.notas,
             q.subtotal, q.descuento_total, q.impuesto_total, q.total,
-            q.created_by, u.nombre AS creador, q.created_at, q.updated_at
+            q.created_by, u.nombre AS creador, q.created_at, q.updated_at,
+            (SELECT COUNT(*) FROM invoices i
+             WHERE i.quote_id = q.id AND i.tipo = 'venta' AND i.estado = 'confirmada')
+              AS facturas_confirmadas
      FROM quotes q
      JOIN users u ON u.id = q.created_by
      WHERE q.id = ?`,
@@ -88,6 +99,9 @@ export async function getQuote(id: number, actor: AuthUser) {
   if (actor.rol === "operador" && quote.created_by !== actor.id) {
     throw new HttpError(403, "No tienes acceso a este presupuesto");
   }
+
+  const pendienteFacturar =
+    quote.estado_raw === "entregado" && Number(quote.facturas_confirmadas ?? 0) === 0;
 
   const [items, history] = await Promise.all([
     pool.query<RowDataPacket[]>(
@@ -105,7 +119,13 @@ export async function getQuote(id: number, actor: AuthUser) {
     ),
   ]);
 
-  return { ...quote, numero: formatQuoteNumber(quote.id), items: items[0], historial: history[0] };
+  return {
+    ...quote,
+    numero: formatQuoteNumber(quote.id),
+    items: items[0],
+    historial: history[0],
+    pendiente_facturar: pendienteFacturar,
+  };
 }
 
 export async function getQuoteHistory(id: number) {

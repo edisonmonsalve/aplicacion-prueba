@@ -82,7 +82,7 @@ describe("Presupuestos: consulta", () => {
     const { admin, a } = await setup();
     const created = await createQuote(
       admin.token,
-      draft([{ product_id: a, cantidad: 2, descuento_pct: 10 }], { customer_nombre: "Acme" })
+      draft([{ product_id: a, cantidad: 2, descuento_pct: 10, impuesto_pct: 0 }], { customer_nombre: "Acme" })
     );
 
     const res = await get(admin.token, `/api/quotes/${created.body.id}`);
@@ -110,8 +110,8 @@ describe("Presupuestos: consulta", () => {
     const created = await createQuote(
       operador.token,
       draft([
-        { product_id: a, cantidad: 2, descuento_pct: 10 },
-        { product_id: b, cantidad: 1 },
+        { product_id: a, cantidad: 2, descuento_pct: 10, impuesto_pct: 0 },
+        { product_id: b, cantidad: 1, impuesto_pct: 0 },
       ])
     );
     await request(app)

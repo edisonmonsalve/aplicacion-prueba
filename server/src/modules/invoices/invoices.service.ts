@@ -372,6 +372,26 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     const baseTotal = roundMoney(totals.subtotal - totals.descuento_total);
     const ivaTotal = totals.impuesto_total;
 
+    // M5: una cotización aprobada puede vincularse a varias facturas (facturación por hitos),
+    // pero la suma de los montos facturados no debe superar el total cotizado.
+    if (inv.quote_id) {
+      const [existing] = await conn.query<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(i.total), 0) AS facturado
+         FROM invoices i
+         WHERE i.quote_id = ? AND i.tipo = 'venta' AND i.estado = 'confirmada'`,
+        [inv.quote_id]
+      );
+      const facturado = Number((existing as RowDataPacket[])[0]?.facturado ?? 0);
+      const nuevoTotal = roundMoney(totals.subtotal - totals.descuento_total + totals.impuesto_total);
+      const quoteTotal = quote ? Number(quote.total) : 0;
+      if (quoteTotal > 0 && roundMoney(facturado + nuevoTotal) > quoteTotal) {
+        throw new HttpError(
+          409,
+          `La factura excede el total cotizado: facturado ${facturado} + esta factura ${nuevoTotal} > cotizado ${quoteTotal}`
+        );
+      }
+    }
+
     const costByItem = new Map<number, number>();
 
     if (isVenta) {
@@ -422,7 +442,8 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           );
         }
       } else {
-        // La cotización ya movió el stock: usar el costo histórico de esas salidas.
+        // La cotización ya movió el stock (entrega): la factura solo contabiliza, no mueve
+        // stock de nuevo. Se recupera el costo histórico de esas salidas para el costo de ventas.
         const [costs] = await conn.query<RowDataPacket[]>(
           `SELECT product_id, SUM(costo_unitario * cantidad) / NULLIF(SUM(cantidad), 0) AS costo_prom
            FROM stock_movements
@@ -444,14 +465,11 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
         }
       }
     } else {
-      // Compra: entra stock, se actualiza el costo neto y se guarda el costo anterior.
+      // Compra: entra stock. El costo de referencia del producto (products.costo) SOLO se
+      // modifica con edición manual; una compra no lo sobrescribe (M1). El costo neto de la
+      // línea se guarda como costo histórico del movimiento de entrada.
       for (const it of items) {
         const netCost = netUnitCost(it);
-        const [prows] = await conn.query<RowDataPacket[]>(
-          "SELECT costo FROM products WHERE id = ? FOR UPDATE",
-          [it.product_id]
-        );
-        const previous = Number(prows[0]?.costo ?? 0);
 
         await registerMovement(
           {
@@ -467,16 +485,6 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           { id: actor.id, rol: "admin" } as any,
           conn
         );
-
-        await conn.query("UPDATE invoice_items SET costo_anterior = ? WHERE id = ?", [
-          previous,
-          it.id,
-        ]);
-        await conn.query("UPDATE products SET costo = ? WHERE id = ?", [
-          netCost,
-          it.product_id,
-        ]);
-        costByItem.set(it.id, netCost);
       }
     }
 
@@ -511,6 +519,10 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           userId: actor.id,
         });
       }
+      // M2: el costo de ventas se registra como gasto "Costo de ventas" vinculado a la factura
+      // (asiento real, parte del presupuesto y del asiento), pero NO reduce el capital de caja
+      // disponible: la compra ya impactó el capital al registrarse como gasto, así que no se
+      // descuenta dos veces. El capital de caja solo considera ingresos y gastos de operación.
       const cogs = roundMoney(
         items.reduce(
           (sum, it) => sum + (costByItem.get(it.id) ?? 0) * Number(it.cantidad),
@@ -630,26 +642,8 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
       }
     }
 
-    // 2. Restaurar el costo anterior de las compras, si nadie lo cambió después.
-    if (inv.tipo === "compra") {
-      for (const it of items) {
-        const netCost = netUnitCost(it);
-        const [prows] = await conn.query<RowDataPacket[]>(
-          "SELECT costo FROM products WHERE id = ? FOR UPDATE",
-          [it.product_id]
-        );
-        if (
-          prows[0] &&
-          Number(prows[0].costo) === netCost &&
-          it.costo_anterior !== null
-        ) {
-          await conn.query("UPDATE products SET costo = ? WHERE id = ?", [
-            it.costo_anterior,
-            it.product_id,
-          ]);
-        }
-      }
-    }
+    // 2. (M1) No se restaura products.costo al anular una compra: la compra nunca lo modificó.
+    // El costo de referencia solo cambia con edición manual del producto.
 
     // 3. Revertir todos los asientos de la factura con contrapartidas.
     const [originals] = await conn.query<RowDataPacket[]>(
