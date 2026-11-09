@@ -105,6 +105,27 @@ export default function QuoteFormPage() {
               ])
           ),
         }));
+        // Completar el stock real de los productos de las líneas para mostrar
+        // alertas de stock bajo / insuficiente también al editar.
+        const ids = d.items
+          .filter((l) => l.product_id)
+          .map((l) => l.product_id!);
+        if (ids.length > 0) {
+          getProducts({ q: "", page: 1, pageSize: 200 }).then((r) => {
+            const byId = Object.fromEntries(
+              (r.data as ProductOpt[]).map((p) => [p.id, p])
+            );
+            setProducts((prev) => ({
+              ...prev,
+              ...Object.fromEntries(
+                ids.map((id) => [
+                  id,
+                  { ...prev[id], ...(byId[id] ?? {}) },
+                ])
+              ),
+            }));
+          });
+        }
         form.setFieldsValue({
           cliente_nombre: d.customer_nombre,
           cliente_documento: d.customer_documento ?? undefined,

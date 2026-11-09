@@ -30,8 +30,8 @@ interface ProductOpt {
   nombre: string;
   precio: number;
   costo: number | null;
-  stock_actual: number;
-  stock_minimo: number;
+  stock_actual?: number;
+  stock_minimo?: number;
 }
 
 interface LineForm {
@@ -208,11 +208,31 @@ export default function InvoiceFormPage() {
                   sku: l.sku,
                   nombre: l.nombre,
                   precio: l.precio_unitario,
-                  stock_actual: 0,
                 },
               ])
           ),
         }));
+        // Completar el stock real de los productos para mostrar alertas de
+        // stock bajo / insuficiente también al editar.
+        const ids = d.items
+          .filter((l) => l.product_id)
+          .map((l) => l.product_id!);
+        if (ids.length > 0) {
+          getProducts({ q: "", page: 1, pageSize: 200 }).then((r) => {
+            const byId = Object.fromEntries(
+              (r.data as ProductOpt[]).map((p) => [p.id, p])
+            );
+            setProducts((prev) => ({
+              ...prev,
+              ...Object.fromEntries(
+                ids.map((id) => [
+                  id,
+                  { ...prev[id], ...(byId[id] ?? {}) },
+                ])
+              ),
+            }));
+          });
+        }
       })
       .catch(() => {
         message.error("No se pudo cargar la cotización");
@@ -237,10 +257,31 @@ export default function InvoiceFormPage() {
               .filter((l) => l.product_id)
               .map((l) => [
                 l.product_id,
-                { id: l.product_id, sku: l.sku ?? "", nombre: l.producto ?? "", precio: l.precio_unitario, costo: l.precio_unitario, stock_actual: 0 },
+                { id: l.product_id, sku: l.sku ?? "", nombre: l.producto ?? "", precio: l.precio_unitario, costo: l.precio_unitario },
               ])
           ),
         }));
+        // Completar el stock real de los productos para mostrar alertas de
+        // stock bajo / insuficiente también al editar.
+        const ids = d.items
+          .filter((l) => l.product_id)
+          .map((l) => l.product_id);
+        if (ids.length > 0) {
+          getProducts({ q: "", page: 1, pageSize: 200 }).then((r) => {
+            const byId = Object.fromEntries(
+              (r.data as ProductOpt[]).map((p) => [p.id, p])
+            );
+            setProducts((prev) => ({
+              ...prev,
+              ...Object.fromEntries(
+                ids.map((id) => [
+                  id,
+                  { ...prev[id], ...(byId[id] ?? {}) },
+                ])
+              ),
+            }));
+          });
+        }
         form.setFieldsValue({
           tipo: d.tipo,
           fecha: dayjs(d.fecha),
@@ -413,7 +454,7 @@ export default function InvoiceFormPage() {
                       style={{ width: 280 }}
                       options={Object.values(products).map((p) => ({
                         value: p.id,
-                        label: `${p.sku} — ${p.nombre} (stock: ${p.stock_actual}${p.stock_actual <= p.stock_minimo ? ' · stock bajo' : ''})`,
+                        label: `${p.sku} — ${p.nombre}${p.stock_actual !== undefined ? ` (stock: ${p.stock_actual}${p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo ? ' · stock bajo' : ''})` : ''}`,
                       }))}
                     />
                   </Form.Item>
@@ -445,9 +486,9 @@ export default function InvoiceFormPage() {
                   {(() => {
                     const l = lineas[name];
                     const p = l?.product_id ? products[l.product_id] : undefined;
-                    if (!p) return null;
+                    if (!p || p.stock_actual === undefined) return null;
                     const excede = (l?.cantidad ?? 0) > p.stock_actual;
-                    const bajo = p.stock_actual <= p.stock_minimo;
+                    const bajo = p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo;
                     if (excede) {
                       return (
                         <Tag color="red" style={{ lineHeight: "30px", marginTop: 30 }}>
