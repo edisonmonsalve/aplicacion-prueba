@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, App, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
+import { Alert, App, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, SwapOutlined, WarningOutlined } from "@ant-design/icons";
 import {
   Bar,
@@ -15,7 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import dayjs from "dayjs";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { getDashboard } from "@/services/dashboardService";
 import { getErrorMessage } from "@/utils/errors";
@@ -49,6 +49,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const { message } = App.useApp();
   const { token } = theme.useToken();
+  const navigate = useNavigate();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -301,6 +302,20 @@ export default function HomePage() {
                     {
                       title: <AntTooltip title="Stock actual y stock mínimo del producto">Stock / mínimo</AntTooltip>,
                       render: (_, p) => <Tag color="red">{`${p.stock_actual} / ${p.stock_minimo}`}</Tag>,
+                    },
+                    {
+                      title: <AntTooltip title="Crear una factura de compra para reabastecer este producto">Acción</AntTooltip>,
+                      dataIndex: "id",
+                      align: "center",
+                      render: (id) => (
+                        <Button
+                          type="primary"
+                          size="small"
+                          onClick={() => navigate(`/facturas/nuevo?tipo=compra&product=${id}`)}
+                        >
+                          Comprar
+                        </Button>
+                      ),
                     },
                   ]}
                 />

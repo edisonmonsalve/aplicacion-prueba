@@ -138,6 +138,32 @@ export default function InvoiceFormPage() {
 
   const [searchParams] = useSearchParams();
   const urlQuoteId = searchParams.get("quote");
+  const urlProductId = searchParams.get("product");
+
+  const loadedProductRef = useRef<number | null>(null);
+
+  // Reabastecimiento: al llegar desde un producto con stock bajo (?tipo=compra&product=id),
+  // precarga una línea de compra con ese producto y su costo como precio unitario.
+  useEffect(() => {
+    if (editId) return;
+    if (tipo !== "compra") return;
+    const pid = urlProductId ? Number(urlProductId) : null;
+    if (!pid || pid === loadedProductRef.current) return;
+    const p = products[pid];
+    if (!p) return;
+    loadedProductRef.current = pid;
+    const arr = [...(form.getFieldValue("items") ?? [])];
+    if (arr.length === 1 && !arr[0]?.product_id) {
+      arr[0] = {
+        product_id: pid,
+        cantidad: 1,
+        precio_unitario: p.costo ?? p.precio,
+        descuento_pct: 0,
+        impuesto_pct: 0,
+      };
+      form.setFieldsValue({ items: arr });
+    }
+  }, [tipo, editId, urlProductId, products, form]);
 
   // M5/M6: al seleccionar (o llegar con ?quote=) una cotización en una factura de venta nueva,
   // precarga cliente, email, notas y líneas con los mismos valores de la cotización. El cliente
