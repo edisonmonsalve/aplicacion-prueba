@@ -8,6 +8,7 @@ import {
   InputNumber,
   Select,
   Space,
+  Tag,
   Tooltip,
   Typography,
   message,
@@ -30,6 +31,7 @@ interface ProductOpt {
   precio: number;
   costo: number | null;
   stock_actual: number;
+  stock_minimo: number;
 }
 
 interface LineForm {
@@ -385,7 +387,7 @@ export default function InvoiceFormPage() {
                       style={{ width: 280 }}
                       options={Object.values(products).map((p) => ({
                         value: p.id,
-                        label: `${p.sku} — ${p.nombre} (stock: ${p.stock_actual})`,
+                        label: `${p.sku} — ${p.nombre} (stock: ${p.stock_actual}${p.stock_actual <= p.stock_minimo ? ' · stock bajo' : ''})`,
                       }))}
                     />
                   </Form.Item>
@@ -414,6 +416,28 @@ export default function InvoiceFormPage() {
                       {money(lineTotal(lineas[name] ?? {}))}
                     </Typography.Text>
                   </div>
+                  {(() => {
+                    const l = lineas[name];
+                    const p = l?.product_id ? products[l.product_id] : undefined;
+                    if (!p) return null;
+                    const excede = (l?.cantidad ?? 0) > p.stock_actual;
+                    const bajo = p.stock_actual <= p.stock_minimo;
+                    if (excede) {
+                      return (
+                        <Tag color="red" style={{ lineHeight: "30px", marginTop: 30 }}>
+                          ¡Stock insuficiente! disponible {p.stock_actual}, solicitado {l.cantidad}
+                        </Tag>
+                      );
+                    }
+                    if (bajo) {
+                      return (
+                        <Tag color="orange" style={{ lineHeight: "30px", marginTop: 30 }}>
+                          Stock bajo: {p.stock_actual}
+                        </Tag>
+                      );
+                    }
+                    return null;
+                  })()}
                   <Tooltip title="Quitar esta línea">
                     <Button
                       type="text"

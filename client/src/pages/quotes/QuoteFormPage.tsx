@@ -30,6 +30,7 @@ interface ProductOpt {
   nombre: string;
   precio: number;
   stock_actual?: number;
+  stock_minimo?: number;
 }
 interface FormValues {
   cliente_nombre: string;
@@ -250,7 +251,7 @@ export default function QuoteFormPage() {
                       style={{ width: 280 }}
                       options={Object.values(products).map((p) => ({
                         value: p.id,
-                        label: `${p.sku} — ${p.nombre}`,
+                        label: `${p.sku} — ${p.nombre}${p.stock_actual !== undefined ? ` (stock: ${p.stock_actual}${p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo ? ' · stock bajo' : ''})` : ''}`,
                       }))}
                     />
                   </Form.Item>
@@ -298,11 +299,24 @@ export default function QuoteFormPage() {
                   {(() => {
                     const l = lineas[name];
                     const p = l?.product_id ? products[l.product_id] : undefined;
-                    return p?.stock_actual !== undefined && (l?.cantidad ?? 0) > p.stock_actual ? (
-                      <Tag color="orange" style={{ lineHeight: "30px", marginTop: 30 }}>
-                        Stock: {p.stock_actual}
-                      </Tag>
-                    ) : null;
+                    if (!p || p.stock_actual === undefined) return null;
+                    const excede = (l?.cantidad ?? 0) > p.stock_actual;
+                    const bajo = p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo;
+                    if (excede) {
+                      return (
+                        <Tag color="red" style={{ lineHeight: "30px", marginTop: 30 }}>
+                          ¡Stock insuficiente! disponible {p.stock_actual}, solicitado {l.cantidad}
+                        </Tag>
+                      );
+                    }
+                    if (bajo) {
+                      return (
+                        <Tag color="orange" style={{ lineHeight: "30px", marginTop: 30 }}>
+                          Stock bajo: {p.stock_actual}
+                        </Tag>
+                      );
+                    }
+                    return null;
                   })()}
                   <Tooltip title="Quitar esta línea">
                     <Button
