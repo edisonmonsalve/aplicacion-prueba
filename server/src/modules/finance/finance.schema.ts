@@ -20,11 +20,17 @@ const pct = z
 
 export const idSchema = z.coerce.number().int().positive();
 
-export const budgetLineSchema = z.object({
-  finance_category_id: z.number().int().positive(),
-  product_id: z.number().int().positive().nullable().optional(),
-  monto_planeado: money,
-});
+export const budgetLineSchema = z
+  .object({
+    finance_category_id: z.number().int().positive(),
+    product_id: z.number().int().positive().nullable().optional(),
+    product_category_id: z.number().int().positive().nullable().optional(),
+    monto_planeado: money,
+  })
+  .refine((l) => !(l.product_id && l.product_category_id), {
+    message: "Una línea no puede ser a la vez por producto y por categoría de producto",
+    path: ["product_category_id"],
+  });
 
 export const budgetSchema = z
   .object({
@@ -52,7 +58,7 @@ export const listBudgetsQuerySchema = z.object({
 });
 
 export const transactionSchema = z.object({
-  tipo: z.enum(["ingreso", "gasto"]),
+  tipo: z.enum(["ingreso", "gasto", "activo", "pasivo"]),
   monto: money.refine((v) => v > 0, "Debe ser mayor que cero"),
   fecha: isoDate,
   finance_category_id: z.number().int().positive(),
@@ -61,16 +67,24 @@ export const transactionSchema = z.object({
   descripcion: z.string().trim().max(255).optional(),
 });
 
+export const accountSchema = z.object({
+  nombre: z.string().trim().min(2).max(100),
+  tipo: z.enum(["caja", "banco"]),
+  saldo_inicial: money.default(0),
+  activo: z.boolean().optional(),
+});
+
 export const listTransactionsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
-  tipo: z.enum(["ingreso", "gasto"]).optional(),
+  tipo: z.enum(["ingreso", "gasto", "activo", "pasivo"]).optional(),
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
   finance_category_id: z.coerce.number().int().positive().optional(),
   account_id: z.coerce.number().int().positive().optional(),
   product_id: z.coerce.number().int().positive().optional(),
   quote_id: z.coerce.number().int().positive().optional(),
+  invoice_id: z.coerce.number().int().positive().optional(),
 });
 
 export const summaryQuerySchema = z.object({

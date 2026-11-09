@@ -13,32 +13,48 @@ type BudgetListQuery = z.infer<typeof listBudgetsQuerySchema>;
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-// Regla de convivencia de líneas: una categoría se planifica o por categoría
-// completa o por productos, pero no mezclando ambas para no duplicar la ejecución.
+// Regla de convivencia de líneas: para una misma categoría financiera se
+// planifica en un solo nivel (general, por producto o por categoría de producto)
+// para no duplicar la ejecución real.
+type BudgetScope = "general" | "producto" | "categoria";
+
+const scopeOf = (line: BudgetInput["lineas"][number]): BudgetScope =>
+  line.product_id != null ? "producto" : line.product_category_id != null ? "categoria" : "general";
+
+const scopeKey = (line: BudgetInput["lineas"][number]) =>
+  line.product_id != null
+    ? `P:${line.product_id}`
+    : line.product_category_id != null
+      ? `C:${line.product_category_id}`
+      : "ALL";
+
 function validateLines(lines: BudgetInput["lineas"]) {
   const seen = new Set<string>();
-  const withProduct = new Map<number, number>();
-  const categoryOnly = new Set<number>();
+  const scopes = new Map<number, Set<BudgetScope>>();
 
   for (const line of lines) {
-    const key = `${line.finance_category_id}:${line.product_id ?? 0}`;
+    const key = `${line.finance_category_id}:${scopeKey(line)}`;
     if (seen.has(key)) {
-      throw new HttpError(400, "Hay una línea repetida para la misma categoría y producto");
+      throw new HttpError(400, "Hay una línea repetida para la misma categoría y alcance");
     }
     seen.add(key);
 
-    if (line.product_id == null) {
-      categoryOnly.add(line.finance_category_id);
-    } else {
-      withProduct.set(line.finance_category_id, (withProduct.get(line.finance_category_id) ?? 0) + 1);
-    }
+    const kinds = scopes.get(line.finance_category_id) ?? new Set<BudgetScope>();
+    kinds.add(scopeOf(line));
+    scopes.set(line.finance_category_id, kinds);
   }
 
-  for (const categoryId of categoryOnly) {
-    if ((withProduct.get(categoryId) ?? 0) > 0) {
+  for (const kinds of scopes.values()) {
+    if (kinds.has("general") && kinds.size > 1) {
       throw new HttpError(
         400,
-        "Una categoría no puede tener a la vez una línea general y líneas por producto"
+        "Una categoría no puede tener a la vez una línea general y líneas por producto o categoría de producto"
+      );
+    }
+    if (kinds.has("producto") && kinds.has("categoria")) {
+      throw new HttpError(
+        400,
+        "Una categoría no puede mezclar líneas por producto y por categoría de producto"
       );
     }
   }
@@ -62,28 +78,46 @@ async function assertEntities(conn: PoolConnection, lines: BudgetInput["lineas"]
   }
 
   const productIds = [...new Set(lines.flatMap((l) => (l.product_id ? [l.product_id] : [])))];
-  if (productIds.length === 0) return;
+  if (productIds.length > 0) {
+    const [products] = await conn.query<RowDataPacket[]>(
+      "SELECT id FROM products WHERE id IN (?)",
+      [productIds]
+    );
+    const validProducts = new Set(products.map((p) => p.id as number));
+    for (const id of productIds) {
+      if (!validProducts.has(id)) throw new HttpError(400, `El producto ${id} no existe`);
+    }
+  }
 
-  const [products] = await conn.query<RowDataPacket[]>(
-    "SELECT id FROM products WHERE id IN (?)",
-    [productIds]
-  );
-  const validProducts = new Set(products.map((p) => p.id as number));
-  for (const id of productIds) {
-    if (!validProducts.has(id)) throw new HttpError(400, `El producto ${id} no existe`);
+  const productCategoryIds = [
+    ...new Set(lines.flatMap((l) => (l.product_category_id ? [l.product_category_id] : []))),
+  ];
+  if (productCategoryIds.length > 0) {
+    const [categories] = await conn.query<RowDataPacket[]>(
+      "SELECT id FROM categories WHERE id IN (?)",
+      [productCategoryIds]
+    );
+    const valid = new Set(categories.map((c) => c.id as number));
+    for (const id of productCategoryIds) {
+      if (!valid.has(id)) {
+        throw new HttpError(400, `La categoría de producto ${id} no existe`);
+      }
+    }
   }
 }
 
 async function insertLines(conn: PoolConnection, budgetId: number, lines: BudgetInput["lineas"]) {
   if (lines.length === 0) return;
   await conn.query(
-    `INSERT INTO budget_lines (budget_id, finance_category_id, product_id, monto_planeado)
+    `INSERT INTO budget_lines
+       (budget_id, finance_category_id, product_id, product_category_id, monto_planeado)
      VALUES ?`,
     [
       lines.map((l) => [
         budgetId,
         l.finance_category_id,
         l.product_id ?? null,
+        l.product_category_id ?? null,
         l.monto_planeado,
       ]),
     ]
@@ -198,36 +232,82 @@ export async function getBudget(id: number) {
   if (!budget) throw new HttpError(404, "Presupuesto no encontrado");
 
   const [lines] = await pool.query<RowDataPacket[]>(
-    `SELECT bl.id, bl.finance_category_id, bl.product_id, bl.monto_planeado,
-            fc.nombre AS categoria, fc.tipo AS tipo_categoria,
-            p.sku, p.nombre AS producto
+    `SELECT bl.id, bl.finance_category_id, bl.product_id, bl.product_category_id,
+            bl.monto_planeado, fc.nombre AS categoria, fc.tipo AS tipo_categoria,
+            p.sku, p.nombre AS producto, pc.nombre AS producto_categoria
      FROM budget_lines bl
      JOIN finance_categories fc ON fc.id = bl.finance_category_id
      LEFT JOIN products p ON p.id = bl.product_id
+     LEFT JOIN categories pc ON pc.id = bl.product_category_id
      WHERE bl.budget_id = ?
-     ORDER BY fc.nombre, p.nombre`,
+     ORDER BY fc.nombre, pc.nombre, p.nombre`,
     [id]
   );
 
-  const [reals] = await pool.query<RowDataPacket[]>(
-    `SELECT t.finance_category_id, t.product_id, SUM(t.monto) AS monto_real
+  // Ejecución real: los asientos de cabecera de factura se distribuyen por
+  // producto/categoría en transaction_allocations. Los asientos manuales sin
+  // distribución se imputan directamente a su product_id (o al total).
+  const [txRows] = await pool.query<RowDataPacket[]>(
+    `SELECT t.id, t.finance_category_id, t.product_id, t.monto
      FROM transactions t
      WHERE t.fecha BETWEEN ? AND ?
        AND t.anulada_de IS NULL
-       AND NOT EXISTS (SELECT 1 FROM transactions r WHERE r.anulada_de = t.id)
-     GROUP BY t.finance_category_id, t.product_id`,
+       AND NOT EXISTS (SELECT 1 FROM transactions r WHERE r.anulada_de = t.id)`,
     [budget.fecha_inicio, budget.fecha_fin]
   );
 
+  const [allocRows] = await pool.query<RowDataPacket[]>(
+    `SELECT a.transaction_id, a.product_id, a.monto
+     FROM transaction_allocations a
+     JOIN transactions t ON t.id = a.transaction_id
+     WHERE t.fecha BETWEEN ? AND ?
+       AND t.anulada_de IS NULL
+       AND NOT EXISTS (SELECT 1 FROM transactions r WHERE r.anulada_de = t.id)`,
+    [budget.fecha_inicio, budget.fecha_fin]
+  );
+
+  const [productRows] = await pool.query<RowDataPacket[]>(
+    "SELECT id, category_id FROM products"
+  );
+  const categoryOfProduct = new Map<number, number>();
+  for (const p of productRows) {
+    categoryOfProduct.set(p.id as number, p.category_id as number);
+  }
+
+  const allocations = new Map<number, { productId: number | null; monto: number }[]>();
+  for (const a of allocRows) {
+    const txId = a.transaction_id as number;
+    const list = allocations.get(txId) ?? [];
+    list.push({ productId: (a.product_id as number | null) ?? null, monto: Number(a.monto) });
+    allocations.set(txId, list);
+  }
+
   const categoryTotal = new Map<number, number>();
   const productTotal = new Map<string, number>();
-  for (const row of reals) {
-    const categoryId = row.finance_category_id as number;
-    const productId = row.product_id as number | null;
-    categoryTotal.set(categoryId, (categoryTotal.get(categoryId) ?? 0) + Number(row.monto_real));
-    if (productId !== null) {
-      const key = `${categoryId}:${productId}`;
-      productTotal.set(key, (productTotal.get(key) ?? 0) + Number(row.monto_real));
+  const productCategoryTotal = new Map<string, number>();
+
+  const addProduct = (categoryId: number, productId: number, monto: number) => {
+    const pk = `${categoryId}:${productId}`;
+    productTotal.set(pk, (productTotal.get(pk) ?? 0) + monto);
+    const productCategoryId = categoryOfProduct.get(productId);
+    if (productCategoryId !== undefined) {
+      const ck = `${categoryId}:${productCategoryId}`;
+      productCategoryTotal.set(ck, (productCategoryTotal.get(ck) ?? 0) + monto);
+    }
+  };
+
+  for (const tx of txRows) {
+    const categoryId = tx.finance_category_id as number;
+    const monto = Number(tx.monto);
+    categoryTotal.set(categoryId, (categoryTotal.get(categoryId) ?? 0) + monto);
+
+    const txAllocations = allocations.get(tx.id as number);
+    if (txAllocations && txAllocations.length > 0) {
+      for (const a of txAllocations) {
+        if (a.productId !== null) addProduct(categoryId, a.productId, a.monto);
+      }
+    } else if (tx.product_id !== null) {
+      addProduct(categoryId, tx.product_id as number, monto);
     }
   }
 
@@ -237,11 +317,14 @@ export async function getBudget(id: number) {
   const lineas = lines.map((line) => {
     const categoryId = line.finance_category_id as number;
     const productId = line.product_id as number | null;
+    const productCategoryId = line.product_category_id as number | null;
     const planeado = Number(line.monto_planeado);
     const real =
-      productId === null
-        ? (categoryTotal.get(categoryId) ?? 0)
-        : (productTotal.get(`${categoryId}:${productId}`) ?? 0);
+      productId !== null
+        ? (productTotal.get(`${categoryId}:${productId}`) ?? 0)
+        : productCategoryId !== null
+          ? (productCategoryTotal.get(`${categoryId}:${productCategoryId}`) ?? 0)
+          : (categoryTotal.get(categoryId) ?? 0);
 
     const ejecucionPct = planeado > 0 ? round2((real / planeado) * 100) : real > 0 ? 100 : 0;
     const estado =
@@ -443,6 +526,12 @@ export async function getAvailability(productId: number) {
   })();
   if (!financeCategoryId) return null;
 
+  const [[product]] = await pool.query<RowDataPacket[]>(
+    "SELECT category_id FROM products WHERE id = ?",
+    [productId]
+  );
+  const productCategoryId = (product?.category_id as number | undefined) ?? null;
+
   const now = today();
   // Consulta directa (sin límite arbitrario) de presupuestos activos que contengan hoy.
   const [budgets] = await pool.query<RowDataPacket[]>(
@@ -454,7 +543,7 @@ export async function getAvailability(productId: number) {
   );
 
   // Preferir el presupuesto más específico (fecha de inicio más cercana) y, dentro de él,
-  // la línea del producto; si no existe, la línea general de la categoría.
+  // la línea del producto; si no existe, la de su categoría; por último, la general.
   for (const b of budgets as RowDataPacket[]) {
     const detail = (await getBudget(b.id as number)) as any;
     const lines = detail.lineas as any[];
@@ -462,17 +551,33 @@ export async function getAvailability(productId: number) {
       (l: any) =>
         l.finance_category_id === financeCategoryId && l.product_id === productId
     );
+    const categoryLine = productCategoryId
+      ? lines.find(
+          (l: any) =>
+            l.finance_category_id === financeCategoryId &&
+            l.product_category_id === productCategoryId
+        )
+      : undefined;
     const generalLine = lines.find(
       (l: any) =>
-        l.finance_category_id === financeCategoryId && l.product_id === null
+        l.finance_category_id === financeCategoryId &&
+        l.product_id === null &&
+        l.product_category_id === null
     );
-    const line = productLine ?? generalLine;
+    const line = productLine ?? categoryLine ?? generalLine;
     if (!line) continue;
     return {
       budget_id: detail.id,
       budget_nombre: detail.nombre,
       finance_category_id: financeCategoryId,
       product_id: productId,
+      product_category_id: line.product_category_id ?? null,
+      alcance:
+        line.product_id !== null
+          ? "producto"
+          : line.product_category_id !== null
+            ? "categoria"
+            : "general",
       planeado: Number(line.monto_planeado),
       real: Number(line.real),
       disponible: Number(line.disponible),

@@ -6,6 +6,7 @@ import type {
   BudgetListItem,
   BudgetsQuery,
   FinanceAccount,
+  FinanceAccountInput,
   FinanceCategory,
   FinanceSummary,
   FinanceTransaction,
@@ -16,6 +17,12 @@ import type {
 } from "@/types";
 
 export const getFinanceAccounts = async () => (await api.get<FinanceAccount[]>("/finance/accounts")).data;
+export const createFinanceAccount = async (input: FinanceAccountInput) =>
+  (await api.post<{ id: number }>("/finance/accounts", input)).data;
+export const updateFinanceAccount = async (id: number, input: FinanceAccountInput) =>
+  (await api.put<{ id: number }>(`/finance/accounts/${id}`, input)).data;
+export const deleteFinanceAccount = async (id: number) =>
+  api.delete(`/finance/accounts/${id}`);
 export const getFinanceCategories = async () => (await api.get<FinanceCategory[]>("/finance/categories")).data;
 
 export const listBudgets = async (q: BudgetsQuery) =>

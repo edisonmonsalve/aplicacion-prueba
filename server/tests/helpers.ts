@@ -11,8 +11,17 @@ export const PASSWORD = "Clave12345";
 export async function resetDb() {
   // La auto-referencia de anulaciones impide borrar en bloque sin soltarla primero
   await pool.query("UPDATE transactions SET anulada_de = NULL");
+  await pool.query("DELETE FROM transaction_allocations");
   await pool.query("DELETE FROM transactions");
+  // Las cuentas creadas por las pruebas no forman parte del seed: se limpian y
+  // se deja la cuenta base que crea la migración V007.
+  await pool.query("DELETE FROM finance_accounts WHERE nombre <> 'Caja principal'");
+  await pool.query(
+    "UPDATE finance_accounts SET saldo_inicial = 0, activo = 1, tipo = 'caja' WHERE nombre = 'Caja principal'"
+  );
   await pool.query("DELETE FROM invoice_items");
+  // stock_movements referencia invoices y quotes: debe borrarse antes que ambos
+  await pool.query("DELETE FROM stock_movements");
   await pool.query("DELETE FROM invoices");
   await pool.query("DELETE FROM invoice_counters");
   await pool.query("DELETE FROM budget_lines");
@@ -21,7 +30,6 @@ export async function resetDb() {
   await pool.query("DELETE FROM quote_status_history");
   await pool.query("DELETE FROM quote_items");
   await pool.query("DELETE FROM quotes");
-  await pool.query("DELETE FROM stock_movements");
   await pool.query("DELETE FROM products");
   await pool.query("DELETE FROM categories");
   await pool.query("DELETE FROM audit_log");

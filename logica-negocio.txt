@@ -10,12 +10,13 @@ Cada regla indica si esta implementada (OK), parcialmente (PARCIAL) o pendiente 
 Usuario: nombre, correo, contrasena cifrada (bcrypt), rol (admin, contador, operador, consulta), estado (activo/inactivo), fecha de creacion.
 Categoria: nombre y estado, con productos asociados.
 Producto: SKU, nombre, categoría, precio, costo, stock actual, stock mínimo, estado.
-Movimiento de stock: producto, usuario, tipo (entrada/salida), origen (compra/venta/entrega/merma/ajuste), cantidad, costo unitario, motivo, fecha.
+Movimiento de stock: producto, usuario, tipo (entrada/salida), origen (compra/venta/entrega/merma/ajuste), cantidad, costo unitario histórico, precio unitario de venta, factura/cotización vinculada, motivo, fecha.
 Cotizacion: cliente (nombre, documento, email), fecha de validez, estado, lineas, totales, historial de estados, auditoria.
-Presupuesto: nombre, tipo de periodo (dia/semana/mes/anio), rango de fechas, meta de ingresos, alerta (%), estado, lineas.
-Transaccion financiera: tipo (ingreso/gasto), monto, fecha, categoria financiera, cuenta, producto/cotizacion/movimiento asociado, descripcion, anulada_de.
+Presupuesto: nombre, tipo de periodo (dia/semana/mes/anio), rango de fechas, meta de ingresos, alerta (%), estado, lineas por categoría/producto/categoría de producto.
+Transaccion financiera: tipo (ingreso/gasto/activo/pasivo), monto, fecha, categoria financiera, cuenta, producto/cotizacion/factura/movimiento asociado, descripcion, anulada_de.
 Cuenta financiera: nombre, tipo, saldo inicial, ingresos, egresos, saldo actual, estado.
-Categoria financiera: nombre, tipo (ingreso/gasto), estado, contadores.
+Categoria financiera: nombre, tipo (ingreso/gasto/activo/pasivo), estado, contadores.
+Distribucion analitica: transaction_allocations (asiento, producto, monto) para ejecutar presupuestos sin doble conteo.
 
 ============================================================
 2. AUTENTICACION Y ROLES
@@ -59,7 +60,7 @@ OK  Un producto no puede repetirse en las lineas de una cotizacion.
 OK  Descuentos mayores al limite requieren rol admin.
 OK  No se puede aprobar una cotizacion vencida.
 OK  No se puede entregar una cotizacion vencida.
-OK  Entregar descuenta el stock de cada linea (FOR UPDATE, ordenado por id) y genera el ingreso en finanzas.
+OK  Entregar descuenta el stock de cada linea (FOR UPDATE, ordenado por id) y NO genera contabilidad: la cotizacion es pre-contractual. La salida queda con origen="entrega" y quote_id.
 OK  Si falla el stock, se informa que productos fallan sin mover nada (validacion previa).
 OK  Duplicar crea un nuevo borrador con las mismas lineas (lectura + creacion en transaccion).
 OK  Historial de estados y auditoria de cotizaciones.
@@ -77,35 +78,36 @@ OK  Solo un presupuesto activo por periodo (solapamiento de fechas bloqueado).
 OK  Activar bloquea si ya existe un presupuesto activo solapado.
 OK  Cerrar impide nuevas transacciones en el periodo.
 OK  Lineas validadas por categoria financiera y monto mayor que cero.
-PARCIAL  No mezclar lineas generales y por producto en la misma categoria: es recomendacion documentada, no validada por servidor.
-OK  Disponibilidad calculada por presupuesto activo cuyo rango contenga la fecha, sin limite arbitrario, prefiriendo el mas especifico y la linea del producto.
+OK  Una categoria no puede mezclar alcances general, producto y categoria de producto en el servidor (validateLines).
+OK  Disponibilidad calculada por presupuesto activo cuyo rango contenga la fecha, sin limite arbitrario, prefiriendo el alcance mas especifico: producto > categoria de producto > general.
 OK  Auditoria de presupuestos (crear, editar, activar, cerrar, eliminar).
 
 ============================================================
 6. TRANSACCIONES FINANCIERAS
 ============================================================
 
-OK  Ingreso suma capital, gasto lo reduce.
+OK  Ingreso suma capital, gasto lo reduce. Activo y pasivo no afectan la caja.
 OK  No se editan ni se borran: se anulan con una contrapartida del mismo importe.
 OK  Una transaccion de anulacion no se puede anular.
-OK  Las transacciones automaticas (origen stock o cotizacion) no se anulan manualmente.
+OK  Los asientos automaticos (stock, cotizacion o factura) no se anulan manualmente; se anulan desde su documento de origen.
 OK  Un periodo cerrado no admite transacciones.
-OK  El capital disponible se calcula solo con cuentas activas.
-OK  El resumen excluye asientos anulados.
+OK  El capital disponible se calcula solo con cuentas activas y solo con ingresos/gastos.
+OK  El resumen excluye asientos anulados y expone IVA por pagar y IVA descontable.
 OK  Auditoria de transacciones (crear, anular).
-PARCIAL  Revertir un asiento automatico no revierte stock ni cotizacion (bloqueado por ahora).
+OK  Revertir un asiento automatico no revierte stock ni cotizacion porque esta bloqueado; la factura se anula completa.
 
 ============================================================
 7. MOVIMIENTOS DE STOCK Y FINANZAS
 ============================================================
 
-OK  Una entrada con costo y origen="compra" genera automaticamente el egreso real de la compra en finanzas (gasto "Compra de inventario").
-OK  Una salida con origen="venta" genera un ingreso en finanzas (ingreso "Ventas") por precio × cantidad.
+OK  Una entrada con costo y origen="compra" genera el egreso real de la compra (gasto "Compra de inventario") cuando el movimiento es manual.
+OK  Una salida con origen="venta" genera un ingreso en finanzas (ingreso "Ventas") por precio × cantidad cuando el movimiento es manual.
 OK  Salidas con origen="entrega/merma/ajuste" actualizan solo stock, sin asiento financiero.
 OK  El origen es obligatorio en todos los movimientos y se valida en el servicio (entrada → compra/ajuste; salida → venta/entrega/merma/ajuste).
 OK  El costo unitario en entradas con origen="compra" actualiza el costo del producto al confirmar factura compra.
 OK  Movimientos con costo cero: se permiten pero no generan asiento financiero (por diseno).
-OK  El origen determina si se genera asiento financiero automático o solo movimiento de stock.
+OK  En salidas se guarda el costo historico (costo del producto al momento de la salida) y el precio de venta separado en precio_unitario.
+OK  Las llamadas internas de cotizacion/factura usan skipFinance para no duplicar asientos; la factura crea sus asientos de cabecera.
 
 ============================================================
 8. CONCURRENCIA Y ATOMICIDAD
@@ -130,8 +132,8 @@ OK  Auditoria sin duplicados en asientos automaticos.
 10. REPORTES
 ============================================================
 
-OK  Resumen financiero por rango de fechas: ingresos, egresos, utilidad, capital, costo de ventas, margen.
-OK  Capital disponible solo con cuentas activas.
+OK  Resumen financiero por rango de fechas: ingresos, egresos, utilidad, capital, costo de ventas, margen, IVA por pagar e IVA descontable.
+OK  Capital disponible solo con cuentas activas y solo ingresos/gastos (activo/pasivo no son dinero).
 OK  Por categoria y por cuenta.
 OK  Sugerencias basadas en ejecucion del presupuesto activo.
 
@@ -142,25 +144,34 @@ OK  Sugerencias basadas en ejecucion del presupuesto activo.
 - Movimientos con costo cero en periodo cerrado: DECIDIDO - se permiten pero no generan asiento financiero (por diseño). Costo unitario = 0 no genera transacción automática.
 - Comparacion de correos sin distinguir mayusculas/minusculas: DECIDIDO - normalizada en createUser/updateUser mediante .toLowerCase() y validación con LOWER() en BD. Implementado y testeado.
 - Stock inicial con entrada inicial: pendiente - pendiente de implementar para trazabilidad completa.
-- Mezcla de lineas generales y por producto en presupuestos: DECIDIDO - pendiente validación en servidor (recomendación documentada, no validada).
+- Mezcla de lineas generales, por producto y por categoria de producto en presupuestos: DECIDIDO - validado en servidor (una categoria financiera usa un solo nivel de alcance).
 - Rechazar cotizaciones vencidas: DECIDIDO - se permite por decisión de negocio (ya implementado en cotizaciones).
-- Reversion integral de asientos automaticos (stock + cotizacion): BLOQUEADO - por diseño, los asientos automáticos no se revierten manualmente para mantener consistencia.
+- Reversion integral de asientos automaticos: DECIDIDO - no se anulan manualmente; la factura revierte todos sus asientos y stock al anularse.
 - Productos inactivos con toggle concurrente: MITIGADO - con FOR UPDATE, monitorear.
-- Factura de compra actualiza costo producto: DECIDIDO - al confirmar factura compra, se actualiza products.costo = precio_unitario de la línea.
+- Factura de compra actualiza costo producto: DECIDIDO - al confirmar factura compra, se actualiza products.costo = precio_unitario neto (sin IVA).
 - Precio unitario en factura obligatorio y > 0: DECIDIDO - validado en schema Zod mínimo 0.01.
+- IVA: DECIDIDO - opción B. Venta: ingreso neto + IVA por pagar (pasivo). Compra: gasto neto + IVA descontable (activo).
+- Cabecera de factura: DECIDIDO - varios asientos agrupados por factura (neto, IVA y costo de ventas) con invoice_id.
+- Retenciones: DECIDIDO - solo campos informativos; reducen total_neto, no generan asientos.
+- Orden de compra: DECIDIDO - solo campo de referencia en la factura, sin modulo completo.
+- Precio de venta en movimientos: DECIDIDO - restringido por rol con canSeeCosts (todos menos operador).
+- Cotizacion -> factura: DECIDIDO - invoices.quote_id evita doble reconocimiento; si la cotizacion ya fue entregada, la factura no vuelve a mover stock.
+- Cuentas financieras: DECIDIDO - CRUD con saldo inicial; editar el saldo queda auditado; no se elimina una cuenta con transacciones.
 
 ============================================================
 12. MODULO DE FACTURACIÓN
 ============================================================
 
 OK  Facturas con tipo "venta" (FAC-0001) y "compra" (COM-0001), numeración consecutiva por tipo.
-OK  Cabecera: tipo, fecha, contraparte, documento, email, estado (borrador/confirmada/anulada), total, notas.
-OK  Líneas: producto, cantidad, precio unitario, descuento %, impuesto %, total por línea (calculado servidor).
-OK  Confirmar factura de venta: valida stock suficiente, registra salida de stock con origen="venta", genera asiento ingreso "Ventas".
-OK  Confirmar factura de compra: registra entrada de stock con origen="compra", actualiza costo del producto, genera asiento gasto "Compra de inventario".
-OK  Anular factura: revierte stock y registra contrapartida financiera (salvo asientos automáticos).
-OK  Listado con filtros por tipo, estado, fecha y contraparte; detalle con totales de líneas.
-OK  El módulo de facturación es la fuente principal de movimientos de stock y asientos financieros, reutilizando el campo `origen` en stock_movements.
+OK  Cabecera: tipo, fecha, contraparte, documento, orden_compra, email, estado (borrador/confirmada/anulada), subtotal, descuento_total, impuesto_total, total, retenciones informativas, total_neto, quote_id, notas.
+OK  Líneas: producto, cantidad, precio unitario, descuento %, impuesto %, total por línea y costo_anterior (para restaurar tras anular compra).
+OK  Confirmar factura de venta directa: valida stock, registra salida con origen="venta" e invoice_id, y crea asientos de cabecera: ingreso neto "Ventas", IVA por pagar (pasivo) y costo de ventas (gasto histórico).
+OK  Confirmar factura de compra: registra entrada con origen="compra" e invoice_id, actualiza costo neto del producto y crea gasto neto "Compra de inventario" + IVA descontable (activo).
+OK  Factura vinculada a cotización aprobada: mueve stock una vez y deja la cotización en "entregado"; si ya estaba entregada, no vuelve a mover stock y usa el costo histórico de la entrega.
+OK  Anular factura confirmada: revierte stock (si la factura lo movió), restaura el costo anterior en compras y anula todos sus asientos con contrapartidas.
+OK  Los asientos de cabecera se distribuyen por producto/categoría en transaction_allocations para ejecutar presupuestos.
+OK  Listado con filtros por tipo, estado, fecha y contraparte; detalle con desglose tributario, cotización vinculada y asientos.
+OK  El módulo de facturación es la fuente principal de asientos financieros; las cotizaciones no contabilizan.
 
 ============================================================
 13. NOTAS DE DISEÑO
@@ -174,3 +185,19 @@ OK  El módulo de facturación es la fuente principal de movimientos de stock y 
 - El módulo de facturación usa numeración consecutiva por tipo (FAC/COM) para trazabilidad.
 - Las facturas de compra actualizan tanto stock como costo unitario del producto.
 - El campo `origen` en stock_movements es la fuente única de verdad para distinguir compras, ventas y ajustes.
+
+============================================================
+14. CONTABILIDAD CON IVA Y TRAZABILIDAD (V012)
+============================================================
+
+OK  Naturalezas contables: ingreso, gasto, activo y pasivo. IVA por pagar es pasivo; IVA descontable es activo.
+OK  Venta: base neta = subtotal - descuento_total; IVA = base_neta × impuesto_pct; total = base_neta + IVA.
+OK  Compra: costo unitario neto = precio_unitario × (1 - descuento_pct / 100), sin IVA.
+OK  Costo de ventas = costo histórico de la salida × cantidad.
+OK  Asientos de factura agrupados por documento con invoice_id, no por línea. El detalle por producto está en Movimientos y en transaction_allocations.
+OK  El resumen separa resultados (ingreso/gasto) de impuestos (activo/pasivo); el capital solo usa ingresos/gastos.
+OK  Presupuesto por categoría de producto: budget_lines.product_category_id y ejecución por allocations.
+OK  Las retenciones de la factura son informativas y reducen total_neto.
+OK  La orden de compra es solo una referencia textual en la factura.
+OK  Cuentas: CRUD con saldo inicial, activación/desactivación y saldo actual = saldo_inicial + ingresos - gastos.
+OK  Operador no ve costos ni precio de venta en movimientos (canSeeCosts).

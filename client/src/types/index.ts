@@ -44,6 +44,7 @@ export interface Product {
 }
 
 export type MovementTipo = "entrada" | "salida";
+export type MovementOrigen = "compra" | "venta" | "entrega" | "merma" | "ajuste";
 
 export interface StockMovement {
   id: number;
@@ -51,9 +52,13 @@ export interface StockMovement {
   sku: string;
   producto: string;
   tipo: MovementTipo;
+  origen: MovementOrigen;
   cantidad: number;
-  costo_unitario: number | null; // solo entradas; oculto (null) para el rol operador
+  costo_unitario: number | null; // costo histórico; oculto (null) para el rol operador
+  precio_unitario: number | null; // precio de venta; oculto (null) para el rol operador
   motivo: string | null;
+  invoice_id: number | null;
+  quote_id: number | null;
   usuario: string;
   created_at: string;
 }
@@ -152,7 +157,7 @@ export interface QuoteInput {
 
 // ---------- Módulo financiero ----------
 
-export type FinanceCategoryTipo = "ingreso" | "gasto";
+export type FinanceCategoryTipo = "ingreso" | "gasto" | "activo" | "pasivo";
 export type BudgetEstado = "borrador" | "activo" | "cerrado";
 export type BudgetPeriodo = "dia" | "semana" | "mes" | "anio";
 export type EjecucionEstado = "ok" | "alerta" | "excedido";
@@ -169,12 +174,19 @@ export interface FinanceCategory {
 export interface FinanceAccount {
   id: number;
   nombre: string;
-  tipo: string;
+  tipo: "caja" | "banco" | string;
   saldo_inicial: number;
   activo: number;
   ingresos: number;
   egresos: number;
   saldo_actual: number;
+}
+
+export interface FinanceAccountInput {
+  nombre: string;
+  tipo: "caja" | "banco";
+  saldo_inicial: number;
+  activo?: boolean;
 }
 
 export interface BudgetListItem {
@@ -198,11 +210,13 @@ export interface BudgetLine {
   id: number;
   finance_category_id: number;
   product_id: number | null;
+  product_category_id: number | null;
   monto_planeado: number;
   categoria: string;
   tipo_categoria: FinanceCategoryTipo;
   sku: string | null;
   producto: string | null;
+  producto_categoria: string | null;
   real: number;
   disponible: number;
   ejecucion_pct: number;
@@ -229,6 +243,7 @@ export interface BudgetDetail extends Omit<BudgetListItem, "lineas" | "planeado_
 export interface BudgetLineInput {
   finance_category_id: number;
   product_id?: number | null;
+  product_category_id?: number | null;
   monto_planeado: number;
 }
 
@@ -244,7 +259,7 @@ export interface BudgetInput {
 
 export interface FinanceTransaction {
   id: number;
-  tipo: "ingreso" | "gasto";
+  tipo: FinanceCategoryTipo;
   monto: number;
   fecha: string;
   finance_category_id: number;
@@ -255,6 +270,7 @@ export interface FinanceTransaction {
   sku: string | null;
   producto: string | null;
   quote_id: number | null;
+  invoice_id: number | null;
   stock_movement_id: number | null;
   descripcion: string | null;
   anulada_de: number | null;
@@ -265,7 +281,7 @@ export interface FinanceTransaction {
 }
 
 export interface TransactionInput {
-  tipo: "ingreso" | "gasto";
+  tipo: FinanceCategoryTipo;
   monto: number;
   fecha: string;
   finance_category_id: number;
@@ -283,6 +299,8 @@ export interface FinanceSummary {
   costo_ventas: number;
   margen_bruto: number;
   margen_bruto_pct: number;
+  iva_por_pagar: number;
+  iva_descontable: number;
   capital_disponible: number;
   por_categoria: { id: number; nombre: string; tipo: FinanceCategoryTipo; total: number }[];
 }
@@ -307,6 +325,8 @@ export interface BudgetAvailability {
   budget_nombre: string;
   finance_category_id: number;
   product_id: number;
+  product_category_id: number | null;
+  alcance: "producto" | "categoria" | "general";
   planeado: number;
   real: number;
   disponible: number;
@@ -326,13 +346,14 @@ export interface BudgetsQuery {
 export interface TransactionsQuery {
   page: number;
   pageSize: number;
-  tipo?: "ingreso" | "gasto";
+  tipo?: FinanceCategoryTipo;
   desde?: string;
   hasta?: string;
   finance_category_id?: number;
   account_id?: number;
   product_id?: number;
   quote_id?: number;
+  invoice_id?: number;
 }
 
 // ---------- Módulo de facturación ----------
@@ -347,9 +368,27 @@ export interface Invoice {
   fecha: string;
   contraparte: string;
   estado: InvoiceEstado;
+  subtotal: number;
+  descuento_total: number;
+  impuesto_total: number;
   total: number;
+  retencion_fuente: number;
+  retencion_iva: number;
+  retencion_ica: number;
+  total_neto: number;
+  quote_id: number | null;
+  orden_compra: string | null;
   created_at: string;
   creador: string;
+}
+
+export interface InvoiceTransaction {
+  id: number;
+  tipo: FinanceCategoryTipo;
+  monto: number;
+  descripcion: string | null;
+  categoria: string;
+  cuenta: string;
 }
 
 export interface InvoiceItem {
@@ -362,14 +401,17 @@ export interface InvoiceItem {
   descuento_pct: number;
   impuesto_pct: number;
   total_linea: number;
+  costo_anterior?: number | null;
 }
 
 export interface InvoiceDetail extends Invoice {
   documento: string | null;
   email: string | null;
   notas: string | null;
+  quote_numero: string | null;
   created_by: number;
   items: InvoiceItem[];
+  transacciones: InvoiceTransaction[];
 }
 
 export interface InvoiceItemInput {
@@ -385,14 +427,20 @@ export interface InvoiceInput {
   fecha: string;
   contraparte: string;
   documento?: string;
+  orden_compra?: string;
   email?: string;
   notas?: string;
+  quote_id?: number | null;
+  retencion_fuente?: number;
+  retencion_iva?: number;
+  retencion_ica?: number;
   items: InvoiceItemInput[];
 }
 
 export interface InvoicesQuery {
   page: number;
   pageSize: number;
+  q?: string;
   tipo?: InvoiceTipo;
   estado?: InvoiceEstado;
   desde?: string;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Empty, Select, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
@@ -13,19 +13,32 @@ import type { Product, StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
 
+const ORIGEN_META: Record<StockMovement["origen"], { color: string; label: string }> = {
+  compra: { color: "blue", label: "Compra" },
+  venta: { color: "green", label: "Venta" },
+  entrega: { color: "cyan", label: "Entrega" },
+  merma: { color: "red", label: "Merma" },
+  ajuste: { color: "default", label: "Ajuste" },
+};
+
 export default function MovementsPage() {
   const { user } = useAuth();
   const verCosto = canSeeCosts(user?.rol);
+  const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const [searchParams] = useSearchParams();
 
   // Si se llega desde "Historial" en productos, viene ?product_id=...
   const initialProduct = Number(searchParams.get("product_id")) || undefined;
+  const initialInvoice = Number(searchParams.get("invoice_id")) || undefined;
+  const initialQuote = Number(searchParams.get("quote_id")) || undefined;
 
   const [query, setQuery] = useState<MovementsQuery>({
     page: 1,
     pageSize: 10,
     product_id: initialProduct,
+    invoice_id: initialInvoice,
+    quote_id: initialQuote,
   });
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -62,11 +75,23 @@ export default function MovementsPage() {
   const updateFilters = (changes: Partial<MovementsQuery>) =>
     setQuery((prev) => ({ ...prev, ...changes, page: 1 }));
 
-  const hasFilters = query.product_id !== undefined || query.tipo !== undefined;
+  const hasFilters =
+    query.product_id !== undefined ||
+    query.tipo !== undefined ||
+    query.origen !== undefined ||
+    query.invoice_id !== undefined ||
+    query.quote_id !== undefined;
 
   const firstLoad = loading && movements.length === 0;
 
-  const clearFilters = () => updateFilters({ product_id: undefined, tipo: undefined });
+  const clearFilters = () =>
+    updateFilters({
+      product_id: undefined,
+      tipo: undefined,
+      origen: undefined,
+      invoice_id: undefined,
+      quote_id: undefined,
+    });
 
   const columns: TableProps<StockMovement>["columns"] = [
     {
@@ -85,6 +110,14 @@ export default function MovementsPage() {
         tipo === "entrada" ? <Tag color="green">Entrada</Tag> : <Tag color="orange">Salida</Tag>,
     },
     {
+      title: <Tooltip title="Documento que originó el movimiento">Origen</Tooltip>,
+      dataIndex: "origen",
+      render: (origen: StockMovement["origen"]) => {
+        const meta = ORIGEN_META[origen] ?? ORIGEN_META.ajuste;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
       title: <Tooltip title="Unidades del movimiento">Cantidad</Tooltip>,
       align: "right",
       render: (_, m) => (m.tipo === "entrada" ? `+${m.cantidad}` : `-${m.cantidad}`),
@@ -92,19 +125,48 @@ export default function MovementsPage() {
     ...(verCosto
       ? ([
           {
-            title: <Tooltip title="Costo por unidad (entrada); en salidas se estima con el costo actual del producto">Costo unitario</Tooltip>,
+            title: (
+              <Tooltip title="Costo histórico por unidad: en entradas es el costo de compra; en salidas, el costo del producto al momento de la salida (base del costo de ventas)">
+                Costo unitario
+              </Tooltip>
+            ),
             dataIndex: "costo_unitario",
             align: "right",
             render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
           },
           {
-            title: <Tooltip title="Costo unitario multiplicado por la cantidad">Costo total</Tooltip>,
+            title: <Tooltip title="Costo histórico por unidad multiplicado por la cantidad">Costo total</Tooltip>,
             align: "right",
             render: (_: unknown, m: StockMovement) =>
               m.costo_unitario === null ? "—" : formatCurrency(m.costo_unitario * m.cantidad),
           },
+          {
+            title: (
+              <Tooltip title="Precio comercial de la venta (no es costo). Solo se muestra en salidas con precio registrado">
+                Precio unitario
+              </Tooltip>
+            ),
+            dataIndex: "precio_unitario",
+            align: "right",
+            render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
+          },
         ] as NonNullable<TableProps<StockMovement>["columns"]>)
       : []),
+    {
+      title: <Tooltip title="Factura o cotización vinculada">Documento</Tooltip>,
+      render: (_, m) =>
+        m.invoice_id ? (
+          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/facturas/${m.invoice_id}`)}>
+            Factura #{m.invoice_id}
+          </Button>
+        ) : m.quote_id ? (
+          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/cotizaciones/${m.quote_id}`)}>
+            Cotización #{m.quote_id}
+          </Button>
+        ) : (
+          "—"
+        ),
+    },
     { title: <Tooltip title="Motivo o referencia del movimiento">Motivo</Tooltip>, dataIndex: "motivo", render: (v: string | null) => v ?? "—" },
     { title: <Tooltip title="Usuario que registró el movimiento">Usuario</Tooltip>, dataIndex: "usuario" },
   ];
@@ -151,6 +213,27 @@ export default function MovementsPage() {
             onChange={(tipo) => updateFilters({ tipo })}
           />
         </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Origen
+          </Typography.Text>
+          <Select
+            placeholder="Todos"
+            allowClear
+            style={{ width: 160 }}
+            value={query.origen}
+            options={(Object.keys(ORIGEN_META) as StockMovement["origen"][]).map((o) => ({
+              value: o,
+              label: ORIGEN_META[o].label,
+            }))}
+            onChange={(origen) => updateFilters({ origen })}
+          />
+        </div>
+        {(query.invoice_id !== undefined || query.quote_id !== undefined) && (
+          <Tag color="processing" style={{ marginBottom: 6 }}>
+            {query.invoice_id ? `Factura #${query.invoice_id}` : `Cotización #${query.quote_id}`}
+          </Tag>
+        )}
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
 

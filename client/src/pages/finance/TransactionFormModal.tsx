@@ -15,7 +15,7 @@ interface Props {
 }
 
 interface FormValues {
-  tipo: "ingreso" | "gasto";
+  tipo: FinanceCategory["tipo"];
   monto: number;
   fecha: dayjs.Dayjs;
   finance_category_id?: number;
@@ -126,11 +126,13 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
         />
       )}
       <Form form={form} layout="vertical" initialValues={{ tipo: "ingreso", fecha: dayjs() }}>
-        <Form.Item label="Tipo" name="tipo" tooltip="Ingreso suma capital, gasto lo reduce." rules={[{ required: true }]}>
+        <Form.Item label="Tipo" name="tipo" tooltip="Ingreso suma capital, gasto lo reduce. Activo y pasivo son asientos de balance (por ejemplo IVA) y no afectan la caja." rules={[{ required: true }]}>
           <Select
             options={[
               { value: "ingreso", label: "Ingreso" },
               { value: "gasto", label: "Gasto" },
+              { value: "activo", label: "Activo" },
+              { value: "pasivo", label: "Pasivo" },
             ]}
           />
         </Form.Item>
@@ -158,7 +160,7 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
           label="Cuenta"
           name="account_id"
           tooltip="Cuenta financiera afectada."
-          extra="El saldo de la cuenta se actualizará automáticamente."
+          extra="El saldo de caja se actualiza solo con ingresos y gastos; activo y pasivo no lo modifican."
           rules={[{ required: true }]}
         >
           <Select

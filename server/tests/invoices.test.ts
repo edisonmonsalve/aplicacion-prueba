@@ -344,4 +344,300 @@ describe("Módulo de Facturación — RF-XX", () => {
     // Debería fallar porque solo se anulan confirmadas
     expect(result.status).toBe(409);
   });
+
+  it("RF-11: factura de venta con IVA genera asientos de cabecera vinculados", async () => {
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-15",
+        contraparte: "Cliente Test",
+        items: [
+          { product_id: productId, cantidad: 2, precio_unitario: 100, impuesto_pct: 19 },
+        ],
+      });
+    const id = created.body.id as number;
+
+    const confirmed = await request(app)
+      .post(`/api/invoices/${id}/confirmar`)
+      .set(bearer(admin.token));
+    expect(confirmed.status).toBe(200);
+
+    const [transactions] = await pool.query<RowDataPacket[]>(
+      `SELECT tipo, monto, invoice_id FROM transactions WHERE invoice_id = ? ORDER BY id`,
+      [id]
+    );
+    expect(transactions).toHaveLength(3);
+    expect(transactions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tipo: "ingreso", monto: 200 }),
+        expect.objectContaining({ tipo: "pasivo", monto: 38 }),
+        expect.objectContaining({ tipo: "gasto", monto: 800 }),
+      ])
+    );
+    expect(transactions.every((t) => Number(t.invoice_id) === id)).toBe(true);
+
+    // Desglose tributario guardado en la cabecera
+    const [headers] = await pool.query<RowDataPacket[]>(
+      "SELECT subtotal, descuento_total, impuesto_total, total FROM invoices WHERE id = ?",
+      [id]
+    );
+    expect(headers[0]).toMatchObject({
+      subtotal: 200,
+      descuento_total: 0,
+      impuesto_total: 38,
+      total: 238,
+    });
+
+    // El detalle muestra los asientos vinculados a la factura
+    const detail = await request(app)
+      .get(`/api/invoices/${id}`)
+      .set(bearer(admin.token));
+    expect(detail.body.transacciones).toHaveLength(3);
+
+    // La lista de transacciones permite filtrar por factura
+    const filtered = await request(app)
+      .get(`/api/finance/transactions?invoice_id=${id}`)
+      .set(bearer(admin.token));
+    expect(filtered.body.total).toBe(3);
+  });
+
+  it("RF-12: factura de compra con descuento e IVA registra gasto neto e IVA descontable", async () => {
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "compra",
+        fecha: "2024-01-15",
+        contraparte: "Proveedor Test",
+        orden_compra: "OC-123",
+        items: [
+          {
+            product_id: productId,
+            cantidad: 2,
+            precio_unitario: 100,
+            descuento_pct: 10,
+            impuesto_pct: 19,
+          },
+        ],
+      });
+    const id = created.body.id as number;
+    expect(created.status).toBe(201);
+
+    const confirmed = await request(app)
+      .post(`/api/invoices/${id}/confirmar`)
+      .set(bearer(admin.token));
+    expect(confirmed.status).toBe(200);
+
+    // Costo neto de compra: 100 * (1 - 10%) = 90, sin IVA
+    const [products] = await pool.query<RowDataPacket[]>(
+      "SELECT costo, stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(products[0]).toMatchObject({ costo: 90, stock_actual: 12 });
+
+    const [transactions] = await pool.query<RowDataPacket[]>(
+      `SELECT tipo, monto FROM transactions WHERE invoice_id = ? ORDER BY id`,
+      [id]
+    );
+    expect(transactions).toHaveLength(2);
+    expect(transactions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tipo: "gasto", monto: 180 }),
+        expect.objectContaining({ tipo: "activo", monto: 34.2 }),
+      ])
+    );
+
+    const [headers] = await pool.query<RowDataPacket[]>(
+      "SELECT subtotal, descuento_total, impuesto_total, total, orden_compra FROM invoices WHERE id = ?",
+      [id]
+    );
+    expect(headers[0]).toMatchObject({
+      subtotal: 200,
+      descuento_total: 20,
+      impuesto_total: 34.2,
+      total: 214.2,
+      orden_compra: "OC-123",
+    });
+  });
+
+  it("RF-13: factura desde cotización entregada no duplica stock ni ingreso", async () => {
+    // Cotización aprobada y entregada: mueve stock, sin contabilidad
+    const createdQuote = await request(app)
+      .post("/api/quotes")
+      .set(bearer(admin.token))
+      .send({
+        customer_nombre: "Cliente Cotización",
+        fecha_validez: "2099-01-01",
+        items: [{ product_id: productId, cantidad: 2 }],
+      });
+    const quoteId = createdQuote.body.id as number;
+    for (const action of ["send", "approve", "deliver"]) {
+      const r = await request(app)
+        .post(`/api/quotes/${quoteId}/${action}`)
+        .set(bearer(admin.token));
+      expect(r.status).toBe(200);
+    }
+
+    const [afterDelivery] = await pool.query<RowDataPacket[]>(
+      "SELECT stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(afterDelivery[0].stock_actual).toBe(8);
+
+    // Factura vinculada a la cotización ya entregada
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-15",
+        contraparte: "Cliente Cotización",
+        quote_id: quoteId,
+        items: [{ product_id: productId, cantidad: 2, precio_unitario: 1000 }],
+      });
+    const id = created.body.id as number;
+    const confirmed = await request(app)
+      .post(`/api/invoices/${id}/confirmar`)
+      .set(bearer(admin.token));
+    expect(confirmed.status).toBe(200);
+
+    // El stock no se movió dos veces
+    const [afterInvoice] = await pool.query<RowDataPacket[]>(
+      "SELECT stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(afterInvoice[0].stock_actual).toBe(8);
+
+    const [invoiceMovements] = await pool.query<RowDataPacket[]>(
+      "SELECT id FROM stock_movements WHERE invoice_id = ?",
+      [id]
+    );
+    expect(invoiceMovements).toHaveLength(0);
+
+    // Solo se reconoce el ingreso una vez, en la factura
+    const [income] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS total FROM transactions WHERE tipo = 'ingreso' AND anulada_de IS NULL"
+    );
+    expect(Number(income[0].total)).toBe(1);
+
+    const [transactions] = await pool.query<RowDataPacket[]>(
+      "SELECT tipo, monto FROM transactions WHERE invoice_id = ? ORDER BY id",
+      [id]
+    );
+    expect(transactions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tipo: "ingreso", monto: 2000 }),
+        expect.objectContaining({ tipo: "gasto", monto: 800 }),
+      ])
+    );
+  });
+
+  it("RF-14: factura desde cotización aprobada mueve stock una vez y anularla lo revierte", async () => {
+    const createdQuote = await request(app)
+      .post("/api/quotes")
+      .set(bearer(admin.token))
+      .send({
+        customer_nombre: "Cliente Cotización",
+        fecha_validez: "2099-01-01",
+        items: [{ product_id: productId, cantidad: 2 }],
+      });
+    const quoteId = createdQuote.body.id as number;
+    for (const action of ["send", "approve"]) {
+      await request(app).post(`/api/quotes/${quoteId}/${action}`).set(bearer(admin.token));
+    }
+
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-15",
+        contraparte: "Cliente Cotización",
+        quote_id: quoteId,
+        items: [{ product_id: productId, cantidad: 2, precio_unitario: 1000 }],
+      });
+    const id = created.body.id as number;
+    expect(
+      (await request(app).post(`/api/invoices/${id}/confirmar`).set(bearer(admin.token))).status
+    ).toBe(200);
+
+    const [afterConfirm] = await pool.query<RowDataPacket[]>(
+      "SELECT stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(afterConfirm[0].stock_actual).toBe(8);
+
+    const [invoiceMovements] = await pool.query<RowDataPacket[]>(
+      "SELECT invoice_id, quote_id FROM stock_movements WHERE invoice_id = ?",
+      [id]
+    );
+    expect(invoiceMovements).toHaveLength(1);
+    expect(invoiceMovements[0].quote_id).toBe(quoteId);
+
+    const [quoteState] = await pool.query<RowDataPacket[]>(
+      "SELECT estado FROM quotes WHERE id = ?",
+      [quoteId]
+    );
+    expect(quoteState[0].estado).toBe("entregado");
+
+    // Anular: revierte stock, estado de la cotización y todos los asientos
+    const cancelled = await request(app)
+      .post(`/api/invoices/${id}/anular`)
+      .set(bearer(admin.token));
+    expect(cancelled.status).toBe(200);
+
+    const [afterCancel] = await pool.query<RowDataPacket[]>(
+      "SELECT stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(afterCancel[0].stock_actual).toBe(10);
+
+    const [quoteAfter] = await pool.query<RowDataPacket[]>(
+      "SELECT estado FROM quotes WHERE id = ?",
+      [quoteId]
+    );
+    expect(quoteAfter[0].estado).toBe("aprobado");
+
+    const [valid] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM transactions t
+       WHERE t.invoice_id = ?
+         AND t.anulada_de IS NULL
+         AND NOT EXISTS (SELECT 1 FROM transactions r WHERE r.anulada_de = t.id)`,
+      [id]
+    );
+    expect(Number(valid[0].total)).toBe(0);
+  });
+
+  it("RF-15: anular una factura de compra restaura el costo anterior", async () => {
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "compra",
+        fecha: "2024-01-15",
+        contraparte: "Proveedor Test",
+        items: [{ product_id: productId, cantidad: 1, precio_unitario: 250 }],
+      });
+    const id = created.body.id as number;
+    await request(app).post(`/api/invoices/${id}/confirmar`).set(bearer(admin.token));
+
+    const [afterConfirm] = await pool.query<RowDataPacket[]>(
+      "SELECT costo FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(afterConfirm[0].costo).toBe(250);
+
+    const cancelled = await request(app)
+      .post(`/api/invoices/${id}/anular`)
+      .set(bearer(admin.token));
+    expect(cancelled.status).toBe(200);
+
+    const [afterCancel] = await pool.query<RowDataPacket[]>(
+      "SELECT costo, stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(afterCancel[0]).toMatchObject({ costo: 400, stock_actual: 10 });
+  });
 });

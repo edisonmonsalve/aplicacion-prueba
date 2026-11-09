@@ -1,15 +1,28 @@
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
-import { App, Card, Col, Row, Space, Statistic, Table, Tooltip, Typography, DatePicker, Alert, List } from "antd";
+import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, DatePicker, Alert, List } from "antd";
 const { RangePicker } = DatePicker;
-import { getFinanceSummary, getFinanceAccounts, getSuggestions } from "@/services/financeService";
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggestions } from "@/services/financeService";
+import { useAuth } from "@/context/AuthContext";
+import { canWriteFinance } from "@/utils/roles";
 import { getErrorMessage } from "@/utils/errors";
 import { money } from "./FinanceUtils";
-import type { FinanceAccount, FinanceSummary, Suggestion } from "@/types";
+import type { FinanceAccount, FinanceCategoryTipo, FinanceSummary, Suggestion } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import AccountFormModal from "./AccountFormModal";
+
+const TIPO_LABEL: Record<FinanceCategoryTipo, string> = {
+  ingreso: "Ingreso",
+  gasto: "Gasto",
+  activo: "Activo",
+  pasivo: "Pasivo",
+};
 
 export default function FinanceOverviewPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
+  const { user } = useAuth();
+  const canWrite = canWriteFinance(user?.rol);
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -18,6 +31,8 @@ export default function FinanceOverviewPage() {
     dayjs().startOf("month"),
     dayjs(),
   ]);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<FinanceAccount | undefined>();
 
   useDocumentTitle("Finanzas");
 
@@ -41,6 +56,34 @@ export default function FinanceOverviewPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
+
+  const openNewAccount = () => {
+    setEditingAccount(undefined);
+    setAccountModalOpen(true);
+  };
+
+  const openEditAccount = (account: FinanceAccount) => {
+    setEditingAccount(account);
+    setAccountModalOpen(true);
+  };
+
+  const doDeleteAccount = (account: FinanceAccount) => {
+    modal.confirm({
+      title: `Eliminar cuenta "${account.nombre}"`,
+      content:
+        "Solo se puede eliminar una cuenta sin transacciones. Si tiene movimientos, desactívala para conservar el histórico.",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteFinanceAccount(account.id);
+          message.success("Cuenta eliminada");
+          await load();
+        } catch (err) {
+          message.error(getErrorMessage(err));
+        }
+      },
+    });
+  };
 
   const s = summary;
 
@@ -103,6 +146,16 @@ export default function FinanceOverviewPage() {
             <Statistic title={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>} value={s?.margen_bruto_pct ?? 0} suffix="%" precision={0} />
           </Card>
         </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title={<Tooltip title="IVA generado en ventas (pasivo). No es dinero disponible.">IVA por pagar</Tooltip>} value={s?.iva_por_pagar ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#722ed1" }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title={<Tooltip title="IVA pagado en compras (activo). No es dinero disponible.">IVA descontable</Tooltip>} value={s?.iva_descontable ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#1677ff" }} />
+          </Card>
+        </Col>
       </Row>
 
       {suggestions.length > 0 && (
@@ -135,6 +188,13 @@ export default function FinanceOverviewPage() {
             <span>Cuentas</span>
           </Tooltip>
         }
+        extra={
+          canWrite && (
+            <Button icon={<PlusOutlined />} onClick={openNewAccount}>
+              Nueva cuenta
+            </Button>
+          )
+        }
         style={{ marginBottom: 16 }}
       >
         <Table<FinanceAccount>
@@ -144,12 +204,48 @@ export default function FinanceOverviewPage() {
           scroll={{ x: "max-content" }}
           locale={{ emptyText: "Aún no hay cuentas financieras" }}
           columns={[
-            { title: <Tooltip title="Nombre de la cuenta">Cuenta</Tooltip>, dataIndex: "nombre" },
-            { title: <Tooltip title="Tipo de cuenta">Tipo</Tooltip>, dataIndex: "tipo" },
+            {
+              title: <Tooltip title="Nombre de la cuenta">Cuenta</Tooltip>,
+              dataIndex: "nombre",
+              render: (v: string, a) => (
+                <Space>
+                  {v}
+                  {a.activo !== 1 && <Tag>Inactiva</Tag>}
+                </Space>
+              ),
+            },
+            {
+              title: <Tooltip title="Tipo de cuenta">Tipo</Tooltip>,
+              dataIndex: "tipo",
+              render: (v: string) => (v === "banco" ? "Banco" : "Caja"),
+            },
             { title: <Tooltip title="Saldo inicial de la cuenta">Saldo inicial</Tooltip>, dataIndex: "saldo_inicial", align: "right", render: (v: number) => money(v) },
             { title: <Tooltip title="Ingresos de la cuenta">Ingresos</Tooltip>, dataIndex: "ingresos", align: "right", render: (v: number) => money(v) },
             { title: <Tooltip title="Egresos de la cuenta">Egresos</Tooltip>, dataIndex: "egresos", align: "right", render: (v: number) => money(v) },
             { title: <Tooltip title="Saldo actual de la cuenta">Saldo actual</Tooltip>, dataIndex: "saldo_actual", align: "right", render: (v: number) => money(v) },
+            ...(canWrite
+              ? [
+                  {
+                    title: <Tooltip title="Acciones">Acciones</Tooltip>,
+                    key: "actions",
+                    render: (_: unknown, a: FinanceAccount) => (
+                      <Space>
+                        <Tooltip title="Editar nombre, tipo, saldo inicial o estado">
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEditAccount(a)} />
+                        </Tooltip>
+                        <Tooltip title="Eliminar (solo si no tiene transacciones)">
+                          <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => doDeleteAccount(a)}
+                          />
+                        </Tooltip>
+                      </Space>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       </Card>
@@ -169,11 +265,25 @@ export default function FinanceOverviewPage() {
           locale={{ emptyText: "No hay movimientos en el periodo seleccionado" }}
           columns={[
             { title: <Tooltip title="Categoría financiera">Categoría</Tooltip>, dataIndex: "nombre" },
-            { title: <Tooltip title="Tipo de categoría">Tipo</Tooltip>, dataIndex: "tipo", render: (t: string) => (t === "ingreso" ? "Ingreso" : "Gasto") },
+            {
+              title: <Tooltip title="Tipo de categoría">Tipo</Tooltip>,
+              dataIndex: "tipo",
+              render: (t: FinanceCategoryTipo) => {
+                const color = t === "ingreso" ? "green" : t === "gasto" ? "red" : t === "activo" ? "blue" : "purple";
+                return <Tag color={color}>{TIPO_LABEL[t]}</Tag>;
+              },
+            },
             { title: <Tooltip title="Total del periodo">Total</Tooltip>, dataIndex: "total", align: "right", render: (v: number) => money(v) },
           ]}
         />
       </Card>
+
+      <AccountFormModal
+        open={accountModalOpen}
+        account={editingAccount}
+        onClose={() => setAccountModalOpen(false)}
+        onSaved={load}
+      />
     </div>
   );
 }

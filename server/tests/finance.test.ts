@@ -1,5 +1,6 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import type { RowDataPacket } from "mysql2";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
 import { today } from "../src/utils/dates.js";
@@ -307,7 +308,7 @@ describe("Finanzas: API", () => {
     });
   });
 
-  it("RF-04: entregar una cotización registra ingreso y costo de ventas", async () => {
+  it("RF-04: entregar una cotización solo mueve stock y no genera contabilidad", async () => {
     const { admin, productId } = await setup();
     await pool.query("UPDATE products SET stock_actual = 10 WHERE id = ?", [productId]);
 
@@ -317,27 +318,29 @@ describe("Finanzas: API", () => {
       expect((await post(`/api/quotes/${id}/${action}`, admin.token)).status).toBe(200);
     }
 
+    // La cotización es pre-contractual: no reconoce ingreso ni costo de ventas.
     const list = await request(app)
       .get("/api/finance/transactions")
       .set(bearer(admin.token));
-    expect(list.body.total).toBe(2);
-
-    const ingreso = list.body.data.find((t: { tipo: string }) => t.tipo === "ingreso");
-    const gasto = list.body.data.find((t: { tipo: string }) => t.tipo === "gasto");
-    expect(ingreso).toMatchObject({ monto: 2000, categoria: "Ventas", quote_id: id });
-    expect(gasto).toMatchObject({ monto: 800, categoria: "Costo de ventas", quote_id: id });
+    expect(list.body.total).toBe(0);
 
     const summary = await request(app)
       .get(`/api/finance/summary?desde=${today()}&hasta=${today()}`)
       .set(bearer(admin.token));
     expect(summary.body).toMatchObject({
-      ingresos: 2000,
-      egresos: 800,
-      costo_ventas: 800,
-      utilidad: 1200,
-      margen_bruto: 1200,
-      margen_bruto_pct: 60,
+      ingresos: 0,
+      egresos: 0,
+      costo_ventas: 0,
+      utilidad: 0,
+      margen_bruto: 0,
     });
+
+    // El stock sí se movió como entrega/remisión.
+    const [movements] = await pool.query<RowDataPacket[]>(
+      "SELECT origen, quote_id, cantidad FROM stock_movements WHERE product_id = ?",
+      [productId]
+    );
+    expect(movements[0]).toMatchObject({ origen: "entrega", quote_id: id, cantidad: 2 });
   });
 
   it("GET /finance/availability devuelve null si no hay presupuesto activo", async () => {
@@ -393,5 +396,120 @@ describe("Finanzas: API", () => {
     const { admin, operador, productId } = await setup();
     expect((await request(app).get(`/api/finance/availability?product_id=${productId}`).set(bearer(operador.token))).status).toBe(403);
     expect((await request(app).get("/api/finance/suggestions").set(bearer(operador.token))).status).toBe(403);
+  });
+
+  it("presupuesto por categoría de producto usa transaction_allocations sin doble conteo", async () => {
+    const { admin, productId, gastoCat } = await setup();
+
+    const [productRows] = await pool.query<RowDataPacket[]>(
+      "SELECT category_id FROM products WHERE id = ?",
+      [productId]
+    );
+    const productCategoryId = productRows[0].category_id as number;
+
+    const created = await post(
+      "/api/finance/budgets",
+      admin.token,
+      budgetBody(gastoCat, {
+        lineas: [
+          {
+            finance_category_id: gastoCat,
+            product_category_id: productCategoryId,
+            monto_planeado: 1000,
+          },
+        ],
+      })
+    );
+    expect(created.status).toBe(201);
+    const id = created.body.id as number;
+    expect((await post(`/api/finance/budgets/${id}/activate`, admin.token)).status).toBe(200);
+
+    // Compra: base neta 180 (2 x 100 - 10%), IVA 34.2 (no entra al gasto)
+    const invoice = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "compra",
+        fecha: today(),
+        contraparte: "Proveedor",
+        items: [
+          {
+            product_id: productId,
+            cantidad: 2,
+            precio_unitario: 100,
+            descuento_pct: 10,
+            impuesto_pct: 19,
+          },
+        ],
+      });
+    expect(
+      (await request(app)
+        .post(`/api/invoices/${invoice.body.id}/confirmar`)
+        .set(bearer(admin.token))).status
+    ).toBe(200);
+
+    const detail = await request(app)
+      .get(`/api/finance/budgets/${id}`)
+      .set(bearer(admin.token));
+    expect(detail.body.lineas[0]).toMatchObject({
+      product_category_id: productCategoryId,
+      real: 180,
+      disponible: 820,
+      ejecucion_pct: 18,
+    });
+
+    const availability = await request(app)
+      .get(`/api/finance/availability?product_id=${productId}`)
+      .set(bearer(admin.token));
+    expect(availability.body).toMatchObject({
+      product_category_id: productCategoryId,
+      alcance: "categoria",
+      real: 180,
+      disponible: 820,
+    });
+  });
+
+  it("cuentas: CRUD con saldo inicial y el IVA no afecta el saldo de caja", async () => {
+    const { admin } = await setup();
+
+    const created = await post("/api/finance/accounts", admin.token, {
+      nombre: "Banco Test",
+      tipo: "banco",
+      saldo_inicial: 5000,
+    });
+    expect(created.status).toBe(201);
+    const newId = created.body.id as number;
+
+    const list = await request(app).get("/api/finance/accounts").set(bearer(admin.token));
+    const account = list.body.find((a: { id: number }) => a.id === newId);
+    expect(account).toMatchObject({
+      saldo_inicial: 5000,
+      ingresos: 0,
+      egresos: 0,
+      saldo_actual: 5000,
+    });
+
+    const [iva] = await rows("SELECT id FROM finance_categories WHERE nombre = 'IVA por pagar'");
+    const tx = await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(newId, iva.id, { tipo: "pasivo", monto: 190 })
+    );
+    expect(tx.status).toBe(201);
+
+    const list2 = await request(app).get("/api/finance/accounts").set(bearer(admin.token));
+    const account2 = list2.body.find((a: { id: number }) => a.id === newId);
+    expect(account2).toMatchObject({ ingresos: 0, egresos: 0, saldo_actual: 5000 });
+
+    const updated = await request(app)
+      .put(`/api/finance/accounts/${newId}`)
+      .set(bearer(admin.token))
+      .send({ nombre: "Banco Test 2", tipo: "banco", saldo_inicial: 6000, activo: true });
+    expect(updated.status).toBe(200);
+
+    const removed = await request(app)
+      .delete(`/api/finance/accounts/${newId}`)
+      .set(bearer(admin.token));
+    expect(removed.status).toBe(409);
   });
 });

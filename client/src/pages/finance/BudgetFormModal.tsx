@@ -16,8 +16,9 @@ import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { getFinanceCategories } from "@/services/financeService";
 import { getProducts } from "@/services/productsService";
+import { getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
-import type { BudgetDetail, BudgetInput, FinanceCategory } from "@/types";
+import type { BudgetDetail, BudgetInput, Category, FinanceCategory } from "@/types";
 import { money, periodLabel } from "./FinanceUtils";
 
 interface Props {
@@ -30,6 +31,7 @@ interface Props {
 interface LineValues {
   finance_category_id?: number;
   product_id?: number;
+  product_category_id?: number;
   monto_planeado?: number;
 }
 
@@ -48,6 +50,9 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [productOptions, setProductOptions] = useState<{ value: number; label: string }[]>([]);
+  const [productCategoryOptions, setProductCategoryOptions] = useState<
+    { value: number; label: string }[]
+  >([]);
   const lineasWatch = Form.useWatch<LineValues[] | undefined>("lineas", form);
 
   const totalPlaneado = (lineasWatch ?? []).reduce(
@@ -66,6 +71,11 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
         setProductOptions(r.data.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` })));
       })
       .catch(() => messageApi.error("No se pudieron cargar los productos"));
+    getCategories()
+      .then((r: Category[]) => {
+        setProductCategoryOptions(r.map((c) => ({ value: c.id, label: c.nombre })));
+      })
+      .catch(() => messageApi.error("No se pudieron cargar las categorías de producto"));
   }, [open, messageApi]);
 
   useEffect(() => {
@@ -96,6 +106,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
       lineas: budget.lineas.map((l) => ({
         finance_category_id: l.finance_category_id,
         product_id: l.product_id ?? undefined,
+        product_category_id: l.product_category_id ?? undefined,
         monto_planeado: l.monto_planeado,
       })),
     });
@@ -117,6 +128,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
         .map((l) => ({
           finance_category_id: l.finance_category_id!,
           product_id: l.product_id ?? null,
+          product_category_id: l.product_category_id ?? null,
           monto_planeado: l.monto_planeado!,
         })),
     };
@@ -201,9 +213,9 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
           </Typography.Text>
         </div>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-          Añade una línea por cada categoría o producto que quieras planificar. Si eliges un producto, el monto se
-          asocia a ese producto; si no, cubre toda la categoría. No mezcles líneas generales y por producto en la
-          misma categoría (evita doble conteo).
+          Añade una línea por cada categoría financiera que quieras planificar. El alcance puede ser general (toda la
+          categoría), por producto o por categoría de producto. Para una misma categoría financiera no mezcles
+          alcances: evita el doble conteo de la ejecución.
         </Typography.Paragraph>
 
         <Form.List
@@ -237,19 +249,30 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                       placeholder="Categoría financiera"
                       options={categories.map((c) => ({
                         value: c.id,
-                        label: `${c.tipo === "ingreso" ? "Ingreso" : "Gasto"} · ${c.nombre}`,
+                        label: `${c.tipo === "ingreso" ? "Ingreso" : c.tipo === "gasto" ? "Gasto" : c.tipo === "activo" ? "Activo" : "Pasivo"} · ${c.nombre}`,
                       }))}
                       showSearch
                       optionFilterProp="label"
                     />
                   </Form.Item>
-                  <Form.Item {...rest} name={[name, "product_id"]} label="Producto" tooltip="Producto específico de la línea (opcional)." style={{ flex: 2, minWidth: 220 }}>
+                  <Form.Item {...rest} name={[name, "product_id"]} label="Producto" tooltip="Alcance por producto específico (opcional)." style={{ flex: 2, minWidth: 200 }}>
                     <Select
                       placeholder="Producto (opcional)"
                       allowClear
                       showSearch
                       optionFilterProp="label"
                       options={productOptions}
+                      onChange={() => form.setFieldValue(["lineas", name, "product_category_id"], undefined)}
+                    />
+                  </Form.Item>
+                  <Form.Item {...rest} name={[name, "product_category_id"]} label="Categoría de producto" tooltip="Alcance por categoría de producto (opcional)." style={{ flex: 2, minWidth: 200 }}>
+                    <Select
+                      placeholder="Categoría (opcional)"
+                      allowClear
+                      showSearch
+                      optionFilterProp="label"
+                      options={productCategoryOptions}
+                      onChange={() => form.setFieldValue(["lineas", name, "product_id"], undefined)}
                     />
                   </Form.Item>
                   <Form.Item

@@ -50,8 +50,10 @@ Resumen del estado de la empresa:
 
 ## 5. Movimientos de stock
 
-- Historial de entradas y salidas con fecha, producto, tipo, cantidad, costo y motivo.
-- **Filtros**: producto y tipo, con limpieza.
+- Historial de entradas y salidas con fecha, producto, tipo, origen, cantidad, costo histórico, precio de venta y motivo.
+- **Filtros**: producto, tipo, origen y, si se llega desde una factura/cotización, por ese documento.
+- La columna **Documento** enlaza a la factura o cotización que originó el movimiento.
+- El costo histórico y el precio de venta solo se muestran a admin, contador y consulta (el operador no los ve).
 - Registrar un movimiento desde Productos → “Movimiento”:
   - Entrada suma stock; salida lo descuenta y valida stock suficiente.
   - Si hay presupuesto activo, muestra el disponible y avisa si la compra lo excede.
@@ -72,47 +74,67 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
   - Alerta si la cantidad supera el stock disponible.
 - **Detalle**: pasos del flujo, datos del cliente, totales, líneas, historial de estados.
   - Acciones contextuales: Enviar, Aprobar, Rechazar, Entregar, Editar, Duplicar, Imprimir.
-  - “Entregar” descuenta el stock y registra el ingreso en finanzas.
+  - “Entregar” descuenta el stock y **no genera contabilidad**: la cotización es pre-contractual. La salida queda como origen “entrega”.
 - **Vencimiento**: alerta cuando quedan 3 días o menos, o si ya venció.
 
-## 8. Finanzas
+## 8. Facturación
 
-### 8.1 Resumen financiero
-- Tarjetas: ingresos, egresos, utilidad, capital disponible, costo de ventas, margen bruto.
+- **Lista**: filtros por texto, tipo (venta/compra), estado y rango de fechas.
+- **Nueva factura**: tipo, fecha, contraparte, documento, orden de compra (referencia), email y notas.
+  - Líneas con producto, cantidad, precio/costo unitario, descuento % e IVA %. El selector muestra el stock disponible.
+  - En ventas se puede **vincular una cotización** aprobada o entregada para no reconocer dos veces el ingreso.
+  - Retenciones (fuente, IVA, ICA) informativas: reducen el total neto a pagar pero no generan asientos.
+- **Confirmar**:
+  - Venta directa: descuenta stock y crea asientos de cabecera (ingreso neto, IVA por pagar y costo de ventas).
+  - Venta desde cotización aprobada: mueve stock una vez y deja la cotización entregada; si ya estaba entregada, no vuelve a mover stock.
+  - Compra: suma stock, actualiza el costo neto del producto y crea gasto neto + IVA descontable.
+- **Anular**: revierte el stock y todos los asientos con contrapartidas; en compras restaura el costo anterior.
+- **Detalle**: desglose tributario, link a la cotización y tabla de asientos financieros vinculados.
+
+## 9. Finanzas
+
+### 9.1 Resumen financiero
+- Tarjetas: ingresos, egresos, utilidad, capital disponible, costo de ventas, margen bruto, IVA por pagar e IVA descontable.
 - Selector de rango de fechas.
 - Sugerencias basadas en la ejecución del presupuesto activo.
-- Tablas de cuentas y totales por categoría.
+- Tabla de cuentas con saldo inicial, ingresos, egresos y saldo actual; crear/editar/eliminar cuentas sin movimientos.
+- Totales por categoría.
 
-### 8.2 Presupuestos
+### 9.2 Presupuestos
 - Planifica por periodo (día, semana, mes, año). Solo un presupuesto activo por periodo.
 - **Estados**: Borrador, Activo, Cerrado.
-- **Líneas**: por categoría financiera y producto opcional, con monto planeado. Se muestra el total planeado.
+- **Líneas**: por categoría financiera con alcance general, producto o categoría de producto, con monto planeado. Se muestra el total planeado.
 - **Activar**: comienza a comparar transacciones reales contra las líneas.
 - **Cerrar**: el periodo deja de admitir transacciones.
-- **Detalle**: ejecución por línea (planeado, real, disponible, %), alertas, proyección de cierre y cumplimiento de meta de ingresos.
+- **Detalle**: ejecución por línea (planeado, real, disponible, %, alcance), alertas, proyección de cierre y cumplimiento de meta de ingresos.
 
-### 8.3 Transacciones
-- Registro de ingresos y gastos reales. No se editan ni borran: se **anulan** con una contrapartida.
-- Algunas se generan automáticamente (entradas de stock con costo, entrega de cotizaciones).
+### 9.3 Transacciones
+- Registro de asientos reales: ingreso, gasto, activo y pasivo. No se editan ni borran: se **anulan** con una contrapartida.
+- Los asientos de factura se generan al confirmar la factura y se anulan desde ella; la cotización no contabiliza.
 - Filtros por tipo, categoría, cuenta y rango de fechas; exportar CSV.
-- El saldo de la cuenta se actualiza automáticamente.
+- La columna **Documento** enlaza a la factura o cotización de origen.
+- El saldo de caja solo cambia con ingresos y gastos; activo/pasivo (IVA) no lo afectan.
 
-## 9. Perfil
+## 10. Perfil
 
 - Datos del usuario, cambio de contraseña y ajuste de tema (claro/oscuro).
 
-## 10. Ayuda contextual y estados vacíos
+## 11. Ayuda contextual y estados vacíos
 
 - **Tooltips** en columnas, acciones y campos de formulario.
 - **Estados vacíos** diferencian “sin datos” vs “sin resultados” y ofrecen crear el primer registro o limpiar filtros.
 - **Alertas** para periodos cerrados, stock bajo, presupuesto excedido y vencimiento de cotizaciones.
 
-## 11. Glosario
+## 12. Glosario
 
 - **Disponible (presupuesto)**: monto planeado menos el ejecutado.
 - **Ejecución**: porcentaje del monto planeado ya gastado.
 - **Periodo cerrado**: no admite nuevas transacciones ni movimientos con costo.
 - **Contrapartida**: transacción inversa que anula otra.
+- **IVA por pagar**: pasivo generado por el IVA de las ventas; no es dinero disponible.
+- **IVA descontable**: activo generado por el IVA de las compras; no es dinero disponible.
+- **Costo histórico**: costo del producto al momento de la salida; base del costo de ventas.
+- **Asiento de cabecera**: fila financiera agrupada por factura (neto, IVA o costo de ventas).
 
 ---
 Generado como parte de las mejoras de UI/UX y datos de prueba del proyecto.

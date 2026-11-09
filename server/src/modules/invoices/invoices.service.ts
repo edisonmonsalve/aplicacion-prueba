@@ -2,25 +2,101 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/prom
 import type { z } from "zod";
 import { pool } from "../../config/Db.js";
 import { HttpError } from "../../utils/http-error.js";
-import { today } from "../../utils/dates.js";
-import { roundMoney } from "../finance/finance.shared.js";
-import { createAutoTransaction } from "../finance/finance.shared.js";
+import { createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
 import { registerMovement } from "../movements/movements.service.js";
+import { formatQuoteNumber } from "../quotes/quotes.format.js";
 import type {
   createInvoiceSchema,
   updateInvoiceSchema,
   listQuerySchema,
 } from "./invoices.schema.js";
 
-function calcLine(item: z.infer<typeof createInvoiceSchema>["items"][number]) {
-  const base = item.cantidad * item.precio_unitario;
-  const desc = (base * item.descuento_pct) / 100;
-  const imp = ((base - desc) * item.impuesto_pct) / 100;
-  return roundMoney(base - desc + imp);
+type InvoiceInput = z.infer<typeof createInvoiceSchema>;
+type InvoiceItemInput = InvoiceInput["items"][number];
+type LineCalc = {
+  bruto: number;
+  descuento: number;
+  base: number;
+  impuesto: number;
+  total: number;
+};
+
+function calcLine(item: {
+  cantidad: number;
+  precio_unitario: number;
+  descuento_pct: number;
+  impuesto_pct: number;
+}): LineCalc {
+  const bruto = item.cantidad * item.precio_unitario;
+  const descuento = (bruto * item.descuento_pct) / 100;
+  const base = bruto - descuento;
+  const impuesto = (base * item.impuesto_pct) / 100;
+  return {
+    bruto: roundMoney(bruto),
+    descuento: roundMoney(descuento),
+    base: roundMoney(base),
+    impuesto: roundMoney(impuesto),
+    total: roundMoney(base + impuesto),
+  };
+}
+
+function calcTotals(items: { cantidad: number; precio_unitario: number; descuento_pct: number; impuesto_pct: number }[]) {
+  return items.reduce(
+    (acc, item) => {
+      const l = calcLine(item);
+      return {
+        subtotal: roundMoney(acc.subtotal + l.bruto),
+        descuento_total: roundMoney(acc.descuento_total + l.descuento),
+        impuesto_total: roundMoney(acc.impuesto_total + l.impuesto),
+        total: roundMoney(acc.total + l.total),
+      };
+    },
+    { subtotal: 0, descuento_total: 0, impuesto_total: 0, total: 0 }
+  );
+}
+
+function rowToLine(it: RowDataPacket) {
+  return calcLine({
+    cantidad: Number(it.cantidad),
+    precio_unitario: Number(it.precio_unitario),
+    descuento_pct: Number(it.descuento_pct),
+    impuesto_pct: Number(it.impuesto_pct),
+  });
+}
+
+function totalsFromRows(items: RowDataPacket[]) {
+  return items.reduce(
+    (acc, it) => {
+      const l = rowToLine(it);
+      return {
+        subtotal: roundMoney(acc.subtotal + l.bruto),
+        descuento_total: roundMoney(acc.descuento_total + l.descuento),
+        impuesto_total: roundMoney(acc.impuesto_total + l.impuesto),
+        total: roundMoney(acc.total + l.total),
+      };
+    },
+    { subtotal: 0, descuento_total: 0, impuesto_total: 0, total: 0 }
+  );
+}
+
+// Costo unitario de compra: neto de descuento, sin IVA (el IVA es descontable).
+function netUnitCost(item: RowDataPacket | InvoiceItemInput) {
+  return roundMoney(Number(item.precio_unitario) * (1 - Number(item.descuento_pct) / 100));
+}
+
+function totalRetenciones(inv: {
+  retencion_fuente?: number | null;
+  retencion_iva?: number | null;
+  retencion_ica?: number | null;
+}) {
+  return roundMoney(
+    Number(inv.retencion_fuente ?? 0) +
+      Number(inv.retencion_iva ?? 0) +
+      Number(inv.retencion_ica ?? 0)
+  );
 }
 
 async function nextNumber(conn: PoolConnection, tipo: "venta" | "compra") {
-  // Asegurar que exista el contador (por si fue eliminado en reset de tests)
   await conn.query(
     "INSERT IGNORE INTO invoice_counters (tipo, last_number) VALUES (?, 0)",
     [tipo]
@@ -36,6 +112,27 @@ async function nextNumber(conn: PoolConnection, tipo: "venta" | "compra") {
   return `${prefix}-${String(next).padStart(4, "0")}`;
 }
 
+async function insertAllocations(
+  conn: PoolConnection,
+  transactionId: number,
+  allocations: { invoiceItemId: number; productId: number; monto: number }[],
+  total: number
+) {
+  if (allocations.length === 0) return;
+  const sum = roundMoney(allocations.reduce((s, a) => s + a.monto, 0));
+  const diff = roundMoney(total - sum);
+  if (diff !== 0) {
+    allocations[allocations.length - 1].monto = roundMoney(
+      allocations[allocations.length - 1].monto + diff
+    );
+  }
+  await conn.query(
+    `INSERT INTO transaction_allocations (transaction_id, invoice_item_id, product_id, monto)
+     VALUES ?`,
+    [allocations.map((a) => [transactionId, a.invoiceItemId, a.productId, a.monto])]
+  );
+}
+
 export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
   const where: string[] = [];
   const params: (string | number)[] = [];
@@ -43,6 +140,10 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
   if (query.estado) { where.push("i.estado = ?"); params.push(query.estado); }
   if (query.desde) { where.push("i.fecha >= ?"); params.push(query.desde); }
   if (query.hasta) { where.push("i.fecha <= ?"); params.push(query.hasta); }
+  if (query.q) {
+    where.push("(i.numero LIKE ? OR i.contraparte LIKE ?)");
+    params.push(`%${query.q}%`, `%${query.q}%`);
+  }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const [[{ total }]] = await pool.query<RowDataPacket[]>(
@@ -50,7 +151,9 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
     params
   );
   const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.estado, i.total, i.created_at,
+    `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.documento,
+            i.orden_compra, i.estado, i.subtotal, i.descuento_total,
+            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.created_at,
             u.nombre AS creador
      FROM invoices i JOIN users u ON u.id = i.created_by
      ${clause}
@@ -62,37 +165,89 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
 
 export async function getInvoice(id: number) {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT i.*, u.nombre AS creador FROM invoices i JOIN users u ON u.id = i.created_by WHERE i.id = ?`,
+    `SELECT i.*, u.nombre AS creador
+     FROM invoices i
+     JOIN users u ON u.id = i.created_by
+     WHERE i.id = ?`,
     [id]
   );
   if (!rows[0]) throw new HttpError(404, "Factura no encontrada");
+  const quoteNumero = rows[0].quote_id ? formatQuoteNumber(Number(rows[0].quote_id)) : null;
   const [items] = await pool.query<RowDataPacket[]>(
-    `SELECT ii.id, ii.product_id, p.sku, p.nombre AS producto, ii.cantidad, ii.precio_unitario,
-            ii.descuento_pct, ii.impuesto_pct, ii.total_linea
+    `SELECT ii.id, ii.product_id, p.sku, p.nombre AS producto, ii.cantidad,
+            ii.precio_unitario, ii.descuento_pct, ii.impuesto_pct, ii.total_linea,
+            ii.costo_anterior
      FROM invoice_items ii JOIN products p ON p.id = ii.product_id
-     WHERE ii.invoice_id = ?`,
+     WHERE ii.invoice_id = ? ORDER BY ii.id`,
     [id]
   );
-  return { ...rows[0], items };
+  const [transacciones] = await pool.query<RowDataPacket[]>(
+    `SELECT t.id, t.tipo, t.monto, t.descripcion, fc.nombre AS categoria,
+            fa.nombre AS cuenta
+     FROM transactions t
+     JOIN finance_categories fc ON fc.id = t.finance_category_id
+     JOIN finance_accounts fa ON fa.id = t.account_id
+     WHERE t.invoice_id = ?
+       AND t.anulada_de IS NULL
+       AND NOT EXISTS (SELECT 1 FROM transactions r WHERE r.anulada_de = t.id)
+     ORDER BY t.id`,
+    [id]
+  );
+  return { ...rows[0], quote_numero: quoteNumero, items, transacciones };
 }
 
-export async function createInvoice(input: z.infer<typeof createInvoiceSchema>, actor: { id: number }) {
+export async function createInvoice(input: InvoiceInput, actor: { id: number }) {
   return withTransaction(async (conn) => {
     const numero = await nextNumber(conn, input.tipo);
-    const total = roundMoney(input.items.reduce((s, it) => s + calcLine(it), 0));
+    const totals = calcTotals(input.items);
+    const retenciones = totalRetenciones(input);
+    const totalNeto = roundMoney(totals.total - retenciones);
 
     const [res] = await conn.query<ResultSetHeader>(
-      `INSERT INTO invoices (tipo, numero, fecha, contraparte, documento, email, total, notas, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [input.tipo, numero, input.fecha, input.contraparte, input.documento ?? null, input.email ?? null, total, input.notas ?? null, actor.id]
+      `INSERT INTO invoices
+         (tipo, numero, fecha, contraparte, documento, orden_compra, email,
+          subtotal, descuento_total, impuesto_total, total, retencion_fuente,
+          retencion_iva, retencion_ica, total_neto, notas, quote_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        input.tipo,
+        numero,
+        input.fecha,
+        input.contraparte,
+        input.documento ?? null,
+        input.orden_compra ?? null,
+        input.email ?? null,
+        totals.subtotal,
+        totals.descuento_total,
+        totals.impuesto_total,
+        totals.total,
+        input.retencion_fuente ?? 0,
+        input.retencion_iva ?? 0,
+        input.retencion_ica ?? 0,
+        totalNeto,
+        input.notas ?? null,
+        input.quote_id ?? null,
+        actor.id,
+      ]
     );
     const invoiceId = res.insertId;
 
     for (const it of input.items) {
+      const l = calcLine(it);
       await conn.query(
-        `INSERT INTO invoice_items (invoice_id, product_id, cantidad, precio_unitario, descuento_pct, impuesto_pct, total_linea)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [invoiceId, it.product_id, it.cantidad, it.precio_unitario, it.descuento_pct, it.impuesto_pct, calcLine(it)]
+        `INSERT INTO invoice_items
+           (invoice_id, product_id, cantidad, precio_unitario, costo_anterior,
+            descuento_pct, impuesto_pct, total_linea)
+         VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
+        [
+          invoiceId,
+          it.product_id,
+          it.cantidad,
+          it.precio_unitario,
+          it.descuento_pct,
+          it.impuesto_pct,
+          l.total,
+        ]
       );
     }
     return { id: invoiceId, numero, tipo: input.tipo };
@@ -102,34 +257,76 @@ export async function createInvoice(input: z.infer<typeof createInvoiceSchema>, 
 export async function updateInvoice(id: number, input: z.infer<typeof updateInvoiceSchema>) {
   return withTransaction(async (conn) => {
     const [rows] = await conn.query<RowDataPacket[]>(
-      "SELECT estado FROM invoices WHERE id = ? FOR UPDATE",
+      "SELECT * FROM invoices WHERE id = ? FOR UPDATE",
       [id]
     );
-    if (!rows[0]) throw new HttpError(404, "Factura no encontrada");
-    if (rows[0].estado !== "borrador") throw new HttpError(409, "Solo se editan facturas en borrador");
+    const current = rows[0];
+    if (!current) throw new HttpError(404, "Factura no encontrada");
+    if (current.estado !== "borrador") throw new HttpError(409, "Solo se editan facturas en borrador");
 
-    const sets: string[] = [];
-    const params: (string | number | null)[] = [];
-    if (input.fecha !== undefined) { sets.push("fecha = ?"); params.push(input.fecha); }
-    if (input.contraparte !== undefined) { sets.push("contraparte = ?"); params.push(input.contraparte); }
-    if (input.documento !== undefined) { sets.push("documento = ?"); params.push(input.documento ?? null); }
-    if (input.email !== undefined) { sets.push("email = ?"); params.push(input.email ?? null); }
-    if (input.notas !== undefined) { sets.push("notas = ?"); params.push(input.notas ?? null); }
+    const totals = input.items ? calcTotals(input.items) : {
+      subtotal: Number(current.subtotal),
+      descuento_total: Number(current.descuento_total),
+      impuesto_total: Number(current.impuesto_total),
+      total: Number(current.total),
+    };
+    const retenciones = totalRetenciones({
+      retencion_fuente: input.retencion_fuente ?? current.retencion_fuente,
+      retencion_iva: input.retencion_iva ?? current.retencion_iva,
+      retencion_ica: input.retencion_ica ?? current.retencion_ica,
+    });
+    const totalNeto = roundMoney(totals.total - retenciones);
+
+    await conn.query(
+      `UPDATE invoices SET
+         tipo = ?, fecha = ?, contraparte = ?, documento = ?, orden_compra = ?,
+         email = ?, notas = ?, quote_id = ?, subtotal = ?, descuento_total = ?,
+         impuesto_total = ?, total = ?, retencion_fuente = ?, retencion_iva = ?,
+         retencion_ica = ?, total_neto = ?
+       WHERE id = ?`,
+      [
+        input.tipo ?? current.tipo,
+        input.fecha ?? current.fecha,
+        input.contraparte ?? current.contraparte,
+        input.documento !== undefined ? input.documento : current.documento,
+        input.orden_compra !== undefined ? input.orden_compra : current.orden_compra,
+        input.email !== undefined ? input.email : current.email,
+        input.notas !== undefined ? input.notas : current.notas,
+        input.quote_id !== undefined ? input.quote_id : current.quote_id,
+        totals.subtotal,
+        totals.descuento_total,
+        totals.impuesto_total,
+        totals.total,
+        input.retencion_fuente ?? current.retencion_fuente,
+        input.retencion_iva ?? current.retencion_iva,
+        input.retencion_ica ?? current.retencion_ica,
+        totalNeto,
+        id,
+      ]
+    );
 
     if (input.items) {
       await conn.query("DELETE FROM invoice_items WHERE invoice_id = ?", [id]);
-      const total = roundMoney(input.items.reduce((s, it) => s + calcLine(it), 0));
-      sets.push("total = ?"); params.push(total);
       for (const it of input.items) {
+        const l = calcLine(it);
         await conn.query(
-          `INSERT INTO invoice_items (invoice_id, product_id, cantidad, precio_unitario, descuento_pct, impuesto_pct, total_linea)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [id, it.product_id, it.cantidad, it.precio_unitario, it.descuento_pct, it.impuesto_pct, calcLine(it)]
+          `INSERT INTO invoice_items
+             (invoice_id, product_id, cantidad, precio_unitario, costo_anterior,
+              descuento_pct, impuesto_pct, total_linea)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
+          [
+            id,
+            it.product_id,
+            it.cantidad,
+            it.precio_unitario,
+            it.descuento_pct,
+            it.impuesto_pct,
+            l.total,
+          ]
         );
       }
     }
-    if (sets.length === 0) throw new HttpError(400, "No hay nada que actualizar");
-    await conn.query(`UPDATE invoices SET ${sets.join(", ")} WHERE id = ?`, [...params, id]);
+
     return { id };
   });
 }
@@ -145,94 +342,236 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     if (inv.estado !== "borrador") throw new HttpError(409, "Solo se confirman facturas en borrador");
 
     const [items] = await conn.query<RowDataPacket[]>(
-      "SELECT * FROM invoice_items WHERE invoice_id = ?",
+      "SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id",
       [id]
     );
     if (items.length === 0) throw new HttpError(409, "La factura no tiene líneas");
 
     const isVenta = inv.tipo === "venta";
-
-    // Validar stock para ventas antes de mover nada
-    if (isVenta) {
-      const ids = items.map((i: any) => i.product_id);
-      const [products] = await conn.query<RowDataPacket[]>(
-        "SELECT id, stock_actual, activo FROM products WHERE id IN (?) FOR UPDATE",
-        [ids]
-      );
-      const byId = new Map(products.map((p: any) => [p.id, p]));
-      for (const it of items as any[]) {
-        const p = byId.get(it.product_id);
-        if (!p || !p.activo) throw new HttpError(409, `Producto ${it.product_id} inactivo o inexistente`);
-        if (p.stock_actual < it.cantidad) {
-          throw new HttpError(409, `Stock insuficiente para el producto ${it.product_id}`);
-        }
-      }
+    if (!isVenta && inv.quote_id) {
+      throw new HttpError(400, "Una factura de compra no puede vincularse a una cotización");
     }
 
-    let total = 0;
-    for (const it of items as any[]) {
-      const lineTotal = Number(it.total_linea);
-      total += lineTotal;
+    // Si la factura proviene de una cotización, validar el estado del documento previo.
+    let quote: RowDataPacket | null = null;
+    let quoteWasDelivered = false;
+    if (inv.quote_id) {
+      const [qrows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM quotes WHERE id = ? FOR UPDATE",
+        [inv.quote_id]
+      );
+      quote = qrows[0] ?? null;
+      if (!quote) throw new HttpError(404, "Cotización no encontrada");
+      if (!["aprobado", "entregado"].includes(quote.estado)) {
+        throw new HttpError(409, "La cotización debe estar aprobada o entregada para facturarse");
+      }
+      quoteWasDelivered = quote.estado === "entregado";
+    }
 
-      if (isVenta) {
-        // salida de stock, origen venta (sin asiento automatico, se crea ingreso abajo)
-        await registerMovement(
-          {
-            product_id: it.product_id,
-            tipo: "salida",
-            cantidad: it.cantidad,
-            motivo: `Factura ${inv.numero}`,
-            origen: "venta",
-          },
-          { id: actor.id, rol: "admin" } as any,
-          conn
+    const totals = totalsFromRows(items);
+    const baseTotal = roundMoney(totals.subtotal - totals.descuento_total);
+    const ivaTotal = totals.impuesto_total;
+
+    const costByItem = new Map<number, number>();
+
+    if (isVenta) {
+      if (!quoteWasDelivered) {
+        // Validar todo el stock antes de mover nada.
+        const ids = items.map((i) => i.product_id);
+        const [products] = await conn.query<RowDataPacket[]>(
+          "SELECT id, stock_actual, activo FROM products WHERE id IN (?) FOR UPDATE",
+          [ids]
         );
+        const byId = new Map(products.map((p) => [p.id, p]));
+        for (const it of items) {
+          const p = byId.get(it.product_id);
+          if (!p || !p.activo) {
+            throw new HttpError(409, `Producto ${it.product_id} inactivo o inexistente`);
+          }
+          if (p.stock_actual < it.cantidad) {
+            throw new HttpError(409, `Stock insuficiente para el producto ${it.product_id}`);
+          }
+        }
+
+        for (const it of items) {
+          const movement = await registerMovement(
+            {
+              product_id: it.product_id,
+              tipo: "salida",
+              cantidad: Number(it.cantidad),
+              origen: "venta",
+              motivo: `Factura ${inv.numero}`,
+              precio_unitario: Number(it.precio_unitario),
+              invoiceId: id,
+              quoteId: inv.quote_id ?? undefined,
+              skipFinance: true,
+            },
+            { id: actor.id, rol: "admin" } as any,
+            conn
+          );
+          costByItem.set(it.id, Number(movement.costo_unitario ?? 0));
+        }
+
+        // Si la factura actúa como entrega de una cotización aprobada, marcarla entregada.
+        if (quote && quote.estado === "aprobado") {
+          await conn.query("UPDATE quotes SET estado = 'entregado' WHERE id = ?", [quote.id]);
+          await conn.query(
+            `INSERT INTO quote_status_history (quote_id, estado_anterior, estado_nuevo, user_id)
+             VALUES (?, 'aprobado', 'entregado', ?)`,
+            [quote.id, actor.id]
+          );
+        }
       } else {
-        // entrada de stock, origen compra: auto-genera gasto con el costo de la linea
+        // La cotización ya movió el stock: usar el costo histórico de esas salidas.
+        const [costs] = await conn.query<RowDataPacket[]>(
+          `SELECT product_id, SUM(costo_unitario * cantidad) / NULLIF(SUM(cantidad), 0) AS costo_prom
+           FROM stock_movements
+           WHERE quote_id = ? AND tipo = 'salida'
+           GROUP BY product_id`,
+          [inv.quote_id]
+        );
+        const avg = new Map(costs.map((c) => [c.product_id, Number(c.costo_prom ?? 0)]));
+        for (const it of items) {
+          if (avg.has(it.product_id)) {
+            costByItem.set(it.id, avg.get(it.product_id) ?? 0);
+          } else {
+            const [p] = await conn.query<RowDataPacket[]>(
+              "SELECT costo FROM products WHERE id = ?",
+              [it.product_id]
+            );
+            costByItem.set(it.id, Number(p[0]?.costo ?? 0));
+          }
+        }
+      }
+    } else {
+      // Compra: entra stock, se actualiza el costo neto y se guarda el costo anterior.
+      for (const it of items) {
+        const netCost = netUnitCost(it);
+        const [prows] = await conn.query<RowDataPacket[]>(
+          "SELECT costo FROM products WHERE id = ? FOR UPDATE",
+          [it.product_id]
+        );
+        const previous = Number(prows[0]?.costo ?? 0);
+
         await registerMovement(
           {
             product_id: it.product_id,
             tipo: "entrada",
-            cantidad: it.cantidad,
-            costo_unitario: Number(it.precio_unitario),
-            motivo: `Factura ${inv.numero}`,
+            cantidad: Number(it.cantidad),
             origen: "compra",
+            motivo: `Factura ${inv.numero}`,
+            costo_unitario: netCost,
+            invoiceId: id,
+            skipFinance: true,
           },
           { id: actor.id, rol: "admin" } as any,
           conn
         );
-        // Actualizar costo del producto
-        await conn.query("UPDATE products SET costo = ? WHERE id = ?", [it.precio_unitario, it.product_id]);
+
+        await conn.query("UPDATE invoice_items SET costo_anterior = ? WHERE id = ?", [
+          previous,
+          it.id,
+        ]);
+        await conn.query("UPDATE products SET costo = ? WHERE id = ?", [
+          netCost,
+          it.product_id,
+        ]);
+        costByItem.set(it.id, netCost);
       }
     }
 
-    // Asiento financiero
-    const financeCategoryId = await (async () => {
-      const name = isVenta ? "Ventas" : "Compra de inventario";
-      const tipo = isVenta ? "ingreso" : "gasto";
-      const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM finance_categories WHERE nombre = ? AND tipo = ? AND activo = 1 LIMIT 1",
-        [name, tipo]
-      );
-      return rows[0]?.id as number | undefined;
-    })();
-    if (!financeCategoryId) throw new HttpError(500, "Falta categoría financiera");
+    // Asientos de cabecera agrupados por factura.
+    const lineAllocations = items.map((it) => ({
+      invoiceItemId: it.id as number,
+      productId: it.product_id as number,
+      monto: rowToLine(it).base,
+    }));
 
-    const accountId = await (async () => {
-      const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM finance_accounts WHERE activo = 1 ORDER BY id LIMIT 1"
+    if (isVenta) {
+      if (baseTotal > 0) {
+        const txId = await createAutoTransaction(conn, {
+          tipo: "ingreso",
+          monto: baseTotal,
+          fecha: inv.fecha,
+          categoriaNombre: "Ventas",
+          invoiceId: id,
+          descripcion: `Factura ${inv.numero}`,
+          userId: actor.id,
+        });
+        if (txId) await insertAllocations(conn, txId, lineAllocations, baseTotal);
+      }
+      if (ivaTotal > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "pasivo",
+          monto: ivaTotal,
+          fecha: inv.fecha,
+          categoriaNombre: "IVA por pagar",
+          invoiceId: id,
+          descripcion: `IVA factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      const cogs = roundMoney(
+        items.reduce(
+          (sum, it) => sum + (costByItem.get(it.id) ?? 0) * Number(it.cantidad),
+          0
+        )
       );
-      return rows[0]?.id as number | undefined;
-    })();
-    if (!accountId) throw new HttpError(500, "No hay cuenta financiera activa");
+      if (cogs > 0) {
+        const txId = await createAutoTransaction(conn, {
+          tipo: "gasto",
+          monto: cogs,
+          fecha: inv.fecha,
+          categoriaNombre: "Costo de ventas",
+          invoiceId: id,
+          descripcion: `Costo de ventas factura ${inv.numero}`,
+          userId: actor.id,
+        });
+        if (txId) {
+          await insertAllocations(
+            conn,
+            txId,
+            items.map((it) => ({
+              invoiceItemId: it.id as number,
+              productId: it.product_id as number,
+              monto: roundMoney((costByItem.get(it.id) ?? 0) * Number(it.cantidad)),
+            })),
+            cogs
+          );
+        }
+      }
+    } else {
+      if (baseTotal > 0) {
+        const txId = await createAutoTransaction(conn, {
+          tipo: "gasto",
+          monto: baseTotal,
+          fecha: inv.fecha,
+          categoriaNombre: "Compra de inventario",
+          invoiceId: id,
+          descripcion: `Factura ${inv.numero}`,
+          userId: actor.id,
+        });
+        if (txId) await insertAllocations(conn, txId, lineAllocations, baseTotal);
+      }
+      if (ivaTotal > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "activo",
+          monto: ivaTotal,
+          fecha: inv.fecha,
+          categoriaNombre: "IVA descontable",
+          invoiceId: id,
+          descripcion: `IVA factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+    }
 
     await conn.query(
-      `INSERT INTO transactions (tipo, monto, fecha, finance_category_id, account_id, descripcion, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [isVenta ? "ingreso" : "gasto", roundMoney(total), inv.fecha, financeCategoryId, accountId, `Factura ${inv.numero}`, actor.id]
+      `UPDATE invoices SET estado = 'confirmada', subtotal = ?, descuento_total = ?,
+        impuesto_total = ?, total = ?
+       WHERE id = ?`,
+      [totals.subtotal, totals.descuento_total, totals.impuesto_total, totals.total, id]
     );
-
-    await conn.query("UPDATE invoices SET estado = 'confirmada', total = ? WHERE id = ?", [roundMoney(total), id]);
     return { id, estado: "confirmada" };
   });
 }
@@ -248,40 +587,96 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
     if (inv.estado !== "confirmada") throw new HttpError(409, "Solo se anulan facturas confirmadas");
 
     const [items] = await conn.query<RowDataPacket[]>(
-      "SELECT * FROM invoice_items WHERE invoice_id = ?",
+      "SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id",
       [id]
     );
 
-    const isVenta = inv.tipo === "venta";
-    for (const it of items as any[]) {
-      if (isVenta) {
-        await conn.query("UPDATE products SET stock_actual = stock_actual + ? WHERE id = ?", [it.cantidad, it.product_id]);
-      } else {
-        await conn.query("UPDATE products SET stock_actual = stock_actual - ? WHERE id = ?", [it.cantidad, it.product_id]);
+    // 1. Revertir el stock que movió esta factura (no el que movió la cotización).
+    const [movements] = await conn.query<RowDataPacket[]>(
+      "SELECT * FROM stock_movements WHERE invoice_id = ? ORDER BY id",
+      [id]
+    );
+    for (const m of movements) {
+      const reverseTipo = m.tipo === "salida" ? "entrada" : "salida";
+      await registerMovement(
+        {
+          product_id: m.product_id,
+          tipo: reverseTipo,
+          cantidad: Number(m.cantidad),
+          origen: "ajuste",
+          motivo: `Anulación factura ${inv.numero}`,
+          costo_unitario: reverseTipo === "entrada" ? Number(m.costo_unitario ?? 0) : undefined,
+          invoiceId: id,
+          skipFinance: true,
+        },
+        { id: actor.id, rol: "admin" } as any,
+        conn
+      );
+    }
+
+    // Si la factura fue la que entregó una cotización aprobada, devolverla a aprobada.
+    if (movements.length > 0 && inv.quote_id) {
+      const [qrows] = await conn.query<RowDataPacket[]>(
+        "SELECT estado FROM quotes WHERE id = ? FOR UPDATE",
+        [inv.quote_id]
+      );
+      if (qrows[0]?.estado === "entregado") {
+        await conn.query("UPDATE quotes SET estado = 'aprobado' WHERE id = ?", [inv.quote_id]);
+        await conn.query(
+          `INSERT INTO quote_status_history (quote_id, estado_anterior, estado_nuevo, user_id)
+           VALUES (?, 'entregado', 'aprobado', ?)`,
+          [inv.quote_id, actor.id]
+        );
       }
     }
 
-    // Contrapartida financiera
-    const financeCategoryId = await (async () => {
-      const name = isVenta ? "Ventas" : "Compra de inventario";
-      const tipo = isVenta ? "ingreso" : "gasto";
-      const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM finance_categories WHERE nombre = ? AND tipo = ? AND activo = 1 LIMIT 1",
-        [name, tipo]
-      );
-      return rows[0]?.id as number | undefined;
-    })();
-    const accountId = await (async () => {
-      const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM finance_accounts WHERE activo = 1 ORDER BY id LIMIT 1"
-      );
-      return rows[0]?.id as number | undefined;
-    })();
-    if (financeCategoryId && accountId) {
+    // 2. Restaurar el costo anterior de las compras, si nadie lo cambió después.
+    if (inv.tipo === "compra") {
+      for (const it of items) {
+        const netCost = netUnitCost(it);
+        const [prows] = await conn.query<RowDataPacket[]>(
+          "SELECT costo FROM products WHERE id = ? FOR UPDATE",
+          [it.product_id]
+        );
+        if (
+          prows[0] &&
+          Number(prows[0].costo) === netCost &&
+          it.costo_anterior !== null
+        ) {
+          await conn.query("UPDATE products SET costo = ? WHERE id = ?", [
+            it.costo_anterior,
+            it.product_id,
+          ]);
+        }
+      }
+    }
+
+    // 3. Revertir todos los asientos de la factura con contrapartidas.
+    const [originals] = await conn.query<RowDataPacket[]>(
+      `SELECT t.* FROM transactions t
+       WHERE t.invoice_id = ? AND t.anulada_de IS NULL
+         AND NOT EXISTS (SELECT 1 FROM transactions r WHERE r.anulada_de = t.id)
+       ORDER BY t.id`,
+      [id]
+    );
+    for (const t of originals) {
       await conn.query(
-        `INSERT INTO transactions (tipo, monto, fecha, finance_category_id, account_id, descripcion, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [isVenta ? "gasto" : "ingreso", inv.total, inv.fecha, financeCategoryId, accountId, `Anulación de factura ${inv.numero}`, actor.id]
+        `INSERT INTO transactions
+           (tipo, monto, fecha, finance_category_id, account_id, product_id,
+            quote_id, invoice_id, stock_movement_id, descripcion, anulada_de, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?)`,
+        [
+          t.tipo,
+          t.monto,
+          t.fecha,
+          t.finance_category_id,
+          t.account_id,
+          t.product_id,
+          t.invoice_id,
+          `Anulación de factura ${inv.numero} (transacción #${t.id})`,
+          t.id,
+          actor.id,
+        ]
       );
     }
 
@@ -299,7 +694,6 @@ export async function deleteInvoice(id: number) {
 }
 
 function withTransaction<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T> {
-  // lazy import to avoid circular
   return (async () => {
     const conn = await pool.getConnection();
     try {

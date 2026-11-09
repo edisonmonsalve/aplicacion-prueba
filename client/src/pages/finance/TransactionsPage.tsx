@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, App, Button, DatePicker, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 import { listTransactions, reverseTransaction, getFinanceAccounts, getFinanceCategories } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
@@ -16,18 +17,35 @@ import TransactionFormModal from "./TransactionFormModal";
 const TIPO_OPTIONS = [
   { value: "ingreso", label: "Ingreso" },
   { value: "gasto", label: "Gasto" },
+  { value: "activo", label: "Activo" },
+  { value: "pasivo", label: "Pasivo" },
 ];
+
+const TIPO_META: Record<FinanceTransaction["tipo"], { color: string; label: string }> = {
+  ingreso: { color: "green", label: "Ingreso" },
+  gasto: { color: "red", label: "Gasto" },
+  activo: { color: "blue", label: "Activo" },
+  pasivo: { color: "purple", label: "Pasivo" },
+};
+
+const CATEGORY_TIPO_LABEL: Record<FinanceCategory["tipo"], string> = {
+  ingreso: "Ingreso",
+  gasto: "Gasto",
+  activo: "Activo",
+  pasivo: "Pasivo",
+};
 
 export default function TransactionsPage() {
   const { user } = useAuth();
   const { message, modal } = App.useApp();
+  const navigate = useNavigate();
   const canWrite = canWriteFinance(user?.rol);
   const [rows, setRows] = useState<FinanceTransaction[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [tipo, setTipo] = useState<"ingreso" | "gasto" | undefined>();
+  const [tipo, setTipo] = useState<FinanceTransaction["tipo"] | undefined>();
   const [desde, setDesde] = useState<string | undefined>(dayjs().startOf("month").format("YYYY-MM-DD"));
   const [hasta, setHasta] = useState<string | undefined>(dayjs().format("YYYY-MM-DD"));
   const [categoryId, setCategoryId] = useState<number | undefined>();
@@ -110,21 +128,46 @@ export default function TransactionsPage() {
   const columns = [
     { title: <Tooltip title="Fecha de la transacción">Fecha</Tooltip>, dataIndex: "fecha", render: (v: string) => fmtDate(v) },
     {
-      title: <Tooltip title="Ingreso o gasto">Tipo</Tooltip>,
+      title: <Tooltip title="Naturaleza contable del asiento">Tipo</Tooltip>,
       dataIndex: "tipo",
-      render: (t: FinanceTransaction["tipo"]) => (
-        <Tag color={t === "ingreso" ? "green" : "red"}>{t === "ingreso" ? "Ingreso" : "Gasto"}</Tag>
-      ),
+      render: (t: FinanceTransaction["tipo"]) => {
+        const meta = TIPO_META[t];
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
     },
     { title: <Tooltip title="Categoría financiera">Categoría</Tooltip>, dataIndex: "categoria" },
     { title: <Tooltip title="Cuenta financiera">Cuenta</Tooltip>, dataIndex: "cuenta" },
     { title: <Tooltip title="Producto asociado">Producto</Tooltip>, dataIndex: "producto", render: (v: string | null) => v ?? "—" },
+    {
+      title: <Tooltip title="Documento que originó el asiento">Documento</Tooltip>,
+      render: (_: unknown, r: FinanceTransaction) =>
+        r.invoice_id ? (
+          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/facturas/${r.invoice_id}`)}>
+            Factura #{r.invoice_id}
+          </Button>
+        ) : r.quote_id ? (
+          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/cotizaciones/${r.quote_id}`)}>
+            Cotización #{r.quote_id}
+          </Button>
+        ) : (
+          "—"
+        ),
+    },
     { title: <Tooltip title="Descripción de la transacción">Descripción</Tooltip>, dataIndex: "descripcion", render: (v: string | null) => v ?? "—" },
-    { title: <Tooltip title="Importe de la transacción (ingreso suma, gasto resta)">Monto</Tooltip>, dataIndex: "monto", align: "right" as const, render: (v: number, r: FinanceTransaction) => (
-      <Typography.Text type={r.tipo === "ingreso" ? "success" : "danger"} strong>
-        {r.tipo === "ingreso" ? "+" : "-"}{money(v)}
-      </Typography.Text>
-    ) },
+    {
+      title: <Tooltip title="Importe del asiento">Monto</Tooltip>,
+      dataIndex: "monto",
+      align: "right" as const,
+      render: (v: number, r: FinanceTransaction) => (
+        <Typography.Text
+          type={r.tipo === "ingreso" ? "success" : r.tipo === "gasto" ? "danger" : "secondary"}
+          strong
+        >
+          {r.tipo === "ingreso" ? "+" : r.tipo === "gasto" ? "-" : ""}
+          {money(v)}
+        </Typography.Text>
+      ),
+    },
     {
       title: <Tooltip title="Vigente, anulada o anulación">Estado</Tooltip>,
       render: (_: unknown, r: FinanceTransaction) =>
@@ -139,10 +182,17 @@ export default function TransactionsPage() {
     {
       title: <Tooltip title="Acciones disponibles">Acciones</Tooltip>,
       key: "actions",
-      render: (_: unknown, r: FinanceTransaction) =>
-        canWrite &&
-        r.anulada_de === null &&
-        !r.anulada && (
+      render: (_: unknown, r: FinanceTransaction) => {
+        const automatic = r.invoice_id !== null || r.quote_id !== null || r.stock_movement_id !== null;
+        if (!canWrite || r.anulada_de !== null || r.anulada) return null;
+        if (automatic) {
+          return (
+            <Tooltip title="Asiento automático: se anula desde su factura o documento de origen">
+              <Tag>Automático</Tag>
+            </Tooltip>
+          );
+        }
+        return (
           <Tooltip title="Anular con una contrapartida del mismo importe">
             <Button
               size="small"
@@ -153,7 +203,8 @@ export default function TransactionsPage() {
               Anular
             </Button>
           </Tooltip>
-        ),
+        );
+      },
     },
   ];
 
@@ -190,15 +241,15 @@ export default function TransactionsPage() {
         </Space>
       </div>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-        Registra y consulta los ingresos y gastos reales. Las transacciones no se editan ni se borran: se anulan
-        con una contrapartida.
+        Registra y consulta los asientos reales. Las transacciones no se editan ni se borran: se anulan
+        con una contrapartida. Los asientos de factura se anulan desde la propia factura.
       </Typography.Paragraph>
 
       <Alert
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Algunas transacciones se generan automáticamente: las entradas de stock con costo y la entrega de cotizaciones."
+        message="Los asientos de cabecera se generan al confirmar facturas (ingreso neto, IVA y costo de ventas). Las cotizaciones no contabilizan."
       />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
@@ -225,7 +276,7 @@ export default function TransactionsPage() {
             style={{ width: 220 }}
             value={categoryId}
             onChange={(v) => { setCategoryId(v); setPage(1); }}
-            options={categories.map((c) => ({ value: c.id, label: `${c.tipo === "ingreso" ? "Ingreso" : "Gasto"} · ${c.nombre}` }))}
+            options={categories.map((c) => ({ value: c.id, label: `${CATEGORY_TIPO_LABEL[c.tipo]} · ${c.nombre}` }))}
             showSearch
             optionFilterProp="label"
           />

@@ -7,15 +7,15 @@ import {
   Descriptions,
   Popconfirm,
   Space,
-  Statistic,
   Table,
+  Tag,
   Typography,
 } from "antd";
 import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { cancelInvoice, confirmInvoice, getInvoice } from "@/services/invoicesService";
-import type { InvoiceDetail, InvoiceItem } from "@/types";
+import type { InvoiceDetail, InvoiceItem, InvoiceTransaction } from "@/types";
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -119,7 +119,7 @@ export default function InvoiceDetailPage() {
       </Space>
 
       {invoice.estado === "anulada" && (
-        <Alert type="warning" showIcon message="Esta factura está anulada. El stock y la contrapartida financiera fueron revertidos." />
+        <Alert type="warning" showIcon message="Esta factura está anulada. Se revirtieron el stock y todos sus asientos financieros." />
       )}
 
       <Card
@@ -138,13 +138,56 @@ export default function InvoiceDetailPage() {
             </Descriptions.Item>
             <Descriptions.Item label="Fecha">{fmtDate(invoice.fecha)}</Descriptions.Item>
             <Descriptions.Item label="Documento">{invoice.documento ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="Orden de compra">{invoice.orden_compra ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="Cotización">
+              {invoice.quote_numero ? (
+                <Button type="link" style={{ padding: 0 }} onClick={() => navigate(`/cotizaciones/${invoice.quote_id}`)}>
+                  {invoice.quote_numero}
+                </Button>
+              ) : (
+                "—"
+              )}
+            </Descriptions.Item>
             <Descriptions.Item label="Email">{invoice.email ?? "—"}</Descriptions.Item>
             <Descriptions.Item label="Creado por">{invoice.creador}</Descriptions.Item>
             <Descriptions.Item label="Notas" span={2}>
               {invoice.notas ?? "—"}
             </Descriptions.Item>
           </Descriptions>
-          <Statistic title="Total" value={money(invoice.total)} valueStyle={{ fontWeight: 700 }} />
+          <div style={{ minWidth: 280 }}>
+            {[
+              { label: "Subtotal", value: invoice.subtotal },
+              { label: "Descuento", value: -invoice.descuento_total },
+              { label: "IVA", value: invoice.impuesto_total },
+              {
+                label: "Retenciones",
+                value:
+                  -(invoice.retencion_fuente + invoice.retencion_iva + invoice.retencion_ica),
+              },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
+                <span>{label}</span>
+                <span>{money(value)}</span>
+              </div>
+            ))}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginTop: 6,
+                paddingTop: 6,
+                borderTop: "1px solid rgba(0,0,0,0.06)",
+                fontWeight: 700,
+              }}
+            >
+              <span>Total factura</span>
+              <span>{money(invoice.total)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+              <span>Total neto a pagar</span>
+              <span>{money(invoice.total_neto)}</span>
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -170,6 +213,36 @@ export default function InvoiceDetailPage() {
           ]}
         />
       </Card>
+
+      {invoice.transacciones.length > 0 && (
+        <Card title="Asientos financieros">
+          <Table<InvoiceTransaction>
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: "max-content" }}
+            dataSource={invoice.transacciones}
+            columns={[
+              {
+                title: "Naturaleza",
+                dataIndex: "tipo",
+                render: (t: InvoiceTransaction["tipo"]) => {
+                  const meta: Record<InvoiceTransaction["tipo"], { color: string; label: string }> = {
+                    ingreso: { color: "green", label: "Ingreso" },
+                    gasto: { color: "red", label: "Gasto" },
+                    activo: { color: "blue", label: "Activo" },
+                    pasivo: { color: "purple", label: "Pasivo" },
+                  };
+                  return <Tag color={meta[t].color}>{meta[t].label}</Tag>;
+                },
+              },
+              { title: "Categoría", dataIndex: "categoria" },
+              { title: "Cuenta", dataIndex: "cuenta" },
+              { title: "Descripción", dataIndex: "descripcion", render: (v: string | null) => v ?? "—" },
+              { title: "Monto", dataIndex: "monto", align: "right", render: money },
+            ]}
+          />
+        </Card>
+      )}
     </Space>
   );
 }

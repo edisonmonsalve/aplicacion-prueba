@@ -121,7 +121,16 @@ export default function BudgetDetailPage() {
 
   const columns = [
     { title: <Tooltip title="Categoría financiera planificada">Categoría</Tooltip>, dataIndex: "categoria" },
-    { title: <Tooltip title="Producto específico de la línea">Producto</Tooltip>, dataIndex: "producto", render: (v: string | null) => v ?? "—" },
+    {
+      title: <Tooltip title="Nivel al que se imputa la ejecución real">Alcance</Tooltip>,
+      key: "alcance",
+      render: (_: unknown, l: BudgetLine) =>
+        l.producto
+          ? `Producto · ${l.producto}`
+          : l.producto_categoria
+            ? `Categoría producto · ${l.producto_categoria}`
+            : "General",
+    },
     { title: <Tooltip title="Monto planeado para la línea">Planeado</Tooltip>, dataIndex: "monto_planeado", align: "right" as const, render: (v: number) => money(v) },
     { title: <Tooltip title="Monto real ejecutado en el periodo">Real</Tooltip>, dataIndex: "real", align: "right" as const, render: (v: number) => money(v) },
     { title: <Tooltip title="Monto disponible (planeado - real)">Disponible</Tooltip>, dataIndex: "disponible", align: "right" as const, render: (v: number) => money(v) },

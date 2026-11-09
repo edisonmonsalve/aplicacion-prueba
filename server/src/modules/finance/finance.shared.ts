@@ -27,7 +27,7 @@ export async function assertPeriodOpen(conn: PoolConnection, fecha: string) {
 export async function auditFinance(
   conn: PoolConnection,
   userId: number,
-  entidad: "budget" | "transaction",
+  entidad: "budget" | "transaction" | "account",
   entidadId: number,
   accion: string,
   antes: unknown,
@@ -47,7 +47,9 @@ export async function auditFinance(
   );
 }
 
-async function categoryByName(conn: PoolConnection, nombre: string, tipo: "ingreso" | "gasto") {
+type FinanceNature = "ingreso" | "gasto" | "activo" | "pasivo";
+
+async function categoryByName(conn: PoolConnection, nombre: string, tipo: FinanceNature) {
   const [rows] = await conn.query<RowDataPacket[]>(
     "SELECT id FROM finance_categories WHERE nombre = ? AND tipo = ? AND activo = 1 LIMIT 1",
     [nombre, tipo]
@@ -67,12 +69,13 @@ async function defaultAccount(conn: PoolConnection) {
 }
 
 interface AutoTransactionInput {
-  tipo: "ingreso" | "gasto";
+  tipo: FinanceNature;
   monto: number;
   fecha: string;
   categoriaNombre: string;
   productId?: number | null;
   quoteId?: number | null;
+  invoiceId?: number | null;
   stockMovementId?: number | null;
   descripcion: string;
   userId: number;
@@ -96,8 +99,8 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
   const [res] = await conn.query<ResultSetHeader>(
     `INSERT INTO transactions
        (tipo, monto, fecha, finance_category_id, account_id, product_id,
-        quote_id, stock_movement_id, descripcion, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        quote_id, invoice_id, stock_movement_id, descripcion, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
     [
       input.tipo,
@@ -107,6 +110,7 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
       accountId,
       input.productId ?? null,
       input.quoteId ?? null,
+      input.invoiceId ?? null,
       input.stockMovementId ?? null,
       input.descripcion,
       input.userId,
@@ -122,6 +126,7 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
       account_id: accountId,
       product_id: input.productId ?? null,
       quote_id: input.quoteId ?? null,
+      invoice_id: input.invoiceId ?? null,
       stock_movement_id: input.stockMovementId ?? null,
       descripcion: input.descripcion,
       origen: "automatico",

@@ -19,7 +19,8 @@ import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { createInvoice, getInvoice, updateInvoice } from "@/services/invoicesService";
 import { getProducts } from "@/services/productsService";
-import type { InvoiceTipo } from "@/types";
+import { listQuotes } from "@/services/quotesService";
+import type { InvoiceTipo, Quote } from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
 
 interface ProductOpt {
@@ -28,6 +29,7 @@ interface ProductOpt {
   nombre: string;
   precio: number;
   costo: number | null;
+  stock_actual: number;
 }
 
 interface LineForm {
@@ -43,8 +45,13 @@ interface FormValues {
   fecha: Dayjs;
   contraparte: string;
   documento?: string;
+  orden_compra?: string;
   email?: string;
   notas?: string;
+  quote_id?: number | null;
+  retencion_fuente?: number;
+  retencion_iva?: number;
+  retencion_ica?: number;
   items: LineForm[];
 }
 
@@ -77,11 +84,17 @@ export default function InvoiceFormPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [saving, setSaving] = useState(false);
   const lineas = Form.useWatch("items", form) ?? [];
   const tipo = Form.useWatch("tipo", form);
+  const retencionFuente = Form.useWatch("retencion_fuente", form) ?? 0;
+  const retencionIva = Form.useWatch("retencion_iva", form) ?? 0;
+  const retencionIca = Form.useWatch("retencion_ica", form) ?? 0;
   const { token } = theme.useToken();
   const t = totals(lineas);
+  const retenciones = (retencionFuente ?? 0) + (retencionIva ?? 0) + (retencionIca ?? 0);
+  const totalNeto = Math.max(0, t.total - retenciones);
 
   const search = async (q: string) => {
     try {
@@ -91,6 +104,14 @@ export default function InvoiceFormPage() {
       message.error("No se pudo buscar productos");
     }
   };
+
+  // Cotizaciones aprobadas o entregadas que pueden facturarse.
+  useEffect(() => {
+    if (tipo === "compra") return;
+    listQuotes({ page: 1, pageSize: 100 })
+      .then((r) => setQuotes(r.data.filter((x) => x.estado === "aprobado" || x.estado === "entregado")))
+      .catch(() => {});
+  }, [tipo]);
 
   useEffect(() => {
     search("");
@@ -109,7 +130,7 @@ export default function InvoiceFormPage() {
               .filter((l) => l.product_id)
               .map((l) => [
                 l.product_id,
-                { id: l.product_id, sku: l.sku ?? "", nombre: l.producto ?? "", precio: l.precio_unitario, costo: l.precio_unitario },
+                { id: l.product_id, sku: l.sku ?? "", nombre: l.producto ?? "", precio: l.precio_unitario, costo: l.precio_unitario, stock_actual: 0 },
               ])
           ),
         }));
@@ -118,8 +139,13 @@ export default function InvoiceFormPage() {
           fecha: dayjs(d.fecha),
           contraparte: d.contraparte,
           documento: d.documento ?? undefined,
+          orden_compra: d.orden_compra ?? undefined,
           email: d.email ?? undefined,
           notas: d.notas ?? undefined,
+          quote_id: d.quote_id ?? undefined,
+          retencion_fuente: d.retencion_fuente,
+          retencion_iva: d.retencion_iva,
+          retencion_ica: d.retencion_ica,
           items: d.items.map((l) => ({
             product_id: l.product_id,
             cantidad: l.cantidad,
@@ -151,8 +177,13 @@ export default function InvoiceFormPage() {
       fecha: v.fecha.format("YYYY-MM-DD"),
       contraparte: v.contraparte.trim(),
       documento: v.documento?.trim() || undefined,
+      orden_compra: v.orden_compra?.trim() || undefined,
       email: v.email?.trim() || undefined,
       notas: v.notas?.trim() || undefined,
+      quote_id: v.tipo === "venta" ? v.quote_id ?? null : null,
+      retencion_fuente: v.retencion_fuente ?? 0,
+      retencion_iva: v.retencion_iva ?? 0,
+      retencion_ica: v.retencion_ica ?? 0,
       items: v.items.map((l) => ({
         product_id: l.product_id!,
         cantidad: l.cantidad!,
@@ -206,6 +237,32 @@ export default function InvoiceFormPage() {
           <Form.Item name="documento" label="Documento">
             <Input style={{ width: 180 }} />
           </Form.Item>
+          <Form.Item
+            name="orden_compra"
+            label="Orden de compra"
+            tooltip="Referencia de la orden de compra (opcional). No genera contabilidad por sí sola."
+          >
+            <Input style={{ width: 180 }} />
+          </Form.Item>
+          {tipo !== "compra" && (
+            <Form.Item
+              name="quote_id"
+              label="Cotización"
+              tooltip="Vincula la factura a una cotización aprobada o entregada para no reconocer dos veces el ingreso."
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="Sin cotización"
+                style={{ width: 320 }}
+                options={quotes.map((q) => ({
+                  value: q.id,
+                  label: `${q.numero} — ${q.customer_nombre} (${q.estado})`,
+                }))}
+              />
+            </Form.Item>
+          )}
           <Form.Item name="email" label="Email" rules={[{ type: "email", message: "Email inválido" }]}>
             <Input style={{ width: 240 }} />
           </Form.Item>
@@ -217,8 +274,8 @@ export default function InvoiceFormPage() {
 
         <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
           {tipo === "compra"
-            ? "Registra los productos comprados. El precio unitario es el costo de compra (actualiza el costo del producto al confirmar)."
-            : "Registra los productos vendidos. Al confirmar se descuenta stock y se genera el ingreso."}
+            ? "Registra los productos comprados. El precio unitario es el costo neto de compra (sin IVA); al confirmar actualiza el costo del producto."
+            : "Registra los productos vendidos. Al confirmar se descuenta stock (si la cotización no lo entregó antes) y se reconoce el ingreso neto + IVA."}
         </Typography.Paragraph>
 
         <Form.List
@@ -249,7 +306,7 @@ export default function InvoiceFormPage() {
                       style={{ width: 280 }}
                       options={Object.values(products).map((p) => ({
                         value: p.id,
-                        label: `${p.sku} — ${p.nombre}`,
+                        label: `${p.sku} — ${p.nombre} (stock: ${p.stock_actual})`,
                       }))}
                     />
                   </Form.Item>
@@ -300,11 +357,39 @@ export default function InvoiceFormPage() {
           )}
         </Form.List>
 
+        <Space wrap align="start">
+          <Form.Item
+            name="retencion_fuente"
+            label="Retención en la fuente"
+            initialValue={0}
+            tooltip="Informativa: reduce el valor neto a pagar; no modifica el ingreso reconocido."
+          >
+            <InputNumber min={0} step={0.01} style={{ width: 160 }} />
+          </Form.Item>
+          <Form.Item
+            name="retencion_iva"
+            label="Retención de IVA"
+            initialValue={0}
+            tooltip="Informativa: reduce el valor neto a pagar; no modifica el IVA por pagar."
+          >
+            <InputNumber min={0} step={0.01} style={{ width: 160 }} />
+          </Form.Item>
+          <Form.Item
+            name="retencion_ica"
+            label="Retención ICA"
+            initialValue={0}
+            tooltip="Informativa: reduce el valor neto a pagar."
+          >
+            <InputNumber min={0} step={0.01} style={{ width: 160 }} />
+          </Form.Item>
+        </Space>
+
         <Card size="small" style={{ maxWidth: 360, marginLeft: "auto", marginBottom: 16 }}>
           {[
             { label: "Subtotal", value: t.subtotal },
             { label: "Descuento", value: -t.descuento },
-            { label: "Impuestos", value: t.impuesto },
+            { label: "IVA", value: t.impuesto },
+            { label: "Retenciones", value: -retenciones },
           ].map(({ label, value }) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
               <span>{label}</span>
@@ -322,8 +407,12 @@ export default function InvoiceFormPage() {
               fontSize: 18,
             }}
           >
-            <span>Total</span>
+            <span>Total factura</span>
             <span>{money(t.total)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+            <span>Total neto a pagar</span>
+            <span>{money(totalNeto)}</span>
           </div>
         </Card>
 

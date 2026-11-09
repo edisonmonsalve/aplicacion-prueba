@@ -14,7 +14,6 @@ import { getQuoteAuditHeader, getQuoteAuditItems } from "./audit/quotes.audit.qu
 import { auditQuoteUpdate } from "./audit/quotes.audit.service.js";
 import type { QuoteAuditSnapshot } from "./audit/quotes.audit.types.js";
 import { registerMovement } from "../movements/movements.service.js";
-import { createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
 import { formatQuoteNumber } from "./quotes.format.js";
 
 type QuoteInput = z.infer<typeof quoteSchema>;
@@ -382,7 +381,8 @@ export async function deliverQuote(id: number, actor: AuthUser) {
     }
 
     const [items] = await conn.query<RowDataPacket[]>(
-      "SELECT product_id, sku, nombre, cantidad FROM quote_items WHERE quote_id = ? ORDER BY product_id ASC",
+      `SELECT product_id, sku, nombre, cantidad, precio_unitario
+       FROM quote_items WHERE quote_id = ? ORDER BY product_id ASC`,
       [id]
     );
     if (items.length === 0) throw new HttpError(409, "El presupuesto no tiene líneas");
@@ -420,7 +420,9 @@ export async function deliverQuote(id: number, actor: AuthUser) {
       throw new HttpError(409, "Stock insuficiente para entregar", fallos);
     }
 
-    // RN-P09: salidas con motivo "Presupuesto PRE-n", en la misma transacción
+    // RN-P09: salidas con motivo "Presupuesto PRE-n", en la misma transacción.
+    // El ciclo documental es: la cotización es pre-contractual y NO genera
+    // contabilidad. La entrega solo mueve stock (actúa como recibo/remisión).
     for (const i of items) {
       await registerMovement(
         {
@@ -429,6 +431,9 @@ export async function deliverQuote(id: number, actor: AuthUser) {
           cantidad: i.cantidad,
           origen: "entrega",
           motivo: `Presupuesto ${formatQuoteNumber(quote.id)}`,
+          precio_unitario: Number(i.precio_unitario ?? 0),
+          quoteId: id,
+          skipFinance: true,
         },
         actor,
         conn
@@ -441,39 +446,6 @@ export async function deliverQuote(id: number, actor: AuthUser) {
        VALUES (?, 'aprobado', 'entregado', ?)`,
       [id, actor.id] // RN-P12
     );
-
-    // RF-04: al entregar se reconoce el ingreso (sin IVA) y el costo de lo vendido.
-    const ingresoNeto = roundMoney(Number(quote.subtotal) - Number(quote.descuento_total));
-    const costoVentas = roundMoney(
-      items.reduce(
-        (sum, item) =>
-          sum + item.cantidad * Number(byId.get(item.product_id as number)?.costo ?? 0),
-        0
-      )
-    );
-
-    if (ingresoNeto > 0) {
-      await createAutoTransaction(conn, {
-        tipo: "ingreso",
-        monto: ingresoNeto,
-        fecha: today(),
-        categoriaNombre: "Ventas",
-        quoteId: id,
-        descripcion: `Cotización ${formatQuoteNumber(id)}`,
-        userId: actor.id,
-      });
-    }
-    if (costoVentas > 0) {
-      await createAutoTransaction(conn, {
-        tipo: "gasto",
-        monto: costoVentas,
-        fecha: today(),
-        categoriaNombre: "Costo de ventas",
-        quoteId: id,
-        descripcion: `Costo de ventas ${formatQuoteNumber(id)}`,
-        userId: actor.id,
-      });
-    }
 
     return { id, estado: "entregado" as const };
   });

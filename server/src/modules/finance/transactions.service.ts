@@ -50,6 +50,10 @@ export async function listTransactions(query: TransactionListQuery) {
     where.push("t.quote_id = ?");
     params.push(query.quote_id);
   }
+  if (query.invoice_id) {
+    where.push("t.invoice_id = ?");
+    params.push(query.invoice_id);
+  }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const [[{ total }]] = await pool.query<RowDataPacket[]>(
@@ -60,7 +64,8 @@ export async function listTransactions(query: TransactionListQuery) {
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT t.id, t.tipo, t.monto, t.fecha, t.finance_category_id, fc.nombre AS categoria,
             t.account_id, fa.nombre AS cuenta, t.product_id,
-            p.sku, p.nombre AS producto, t.quote_id, t.stock_movement_id,
+            p.sku, p.nombre AS producto, t.quote_id, t.invoice_id,
+            t.stock_movement_id,
             t.descripcion, t.anulada_de, t.created_by, u.nombre AS creador,
             t.created_at,
             EXISTS(SELECT 1 FROM transactions r WHERE r.anulada_de = t.id) AS anulada
@@ -78,7 +83,9 @@ export async function listTransactions(query: TransactionListQuery) {
   return { data, total, page: query.page, pageSize: query.pageSize };
 }
 
-async function assertCategory(conn: PoolConnection, id: number, tipo: "ingreso" | "gasto") {
+type FinanceNature = "ingreso" | "gasto" | "activo" | "pasivo";
+
+async function assertCategory(conn: PoolConnection, id: number, tipo: FinanceNature) {
   const [rows] = await conn.query<RowDataPacket[]>(
     "SELECT id, tipo, activo FROM finance_categories WHERE id = ?",
     [id]
@@ -161,8 +168,13 @@ export async function reverseTransaction(id: number, actor: AuthUser) {
     );
     if (reversals[0]) throw new HttpError(409, "La transacción ya fue anulada");
 
-    // Las transacciones automáticas (origen stock/cotización) no se anulan manualmente
-    if (original.stock_movement_id !== null || original.quote_id !== null) {
+    // Las transacciones automáticas (stock, cotización o factura) no se anulan
+    // manualmente: se anulan con su documento de origen para no descuadrar.
+    if (
+      original.stock_movement_id !== null ||
+      original.quote_id !== null ||
+      original.invoice_id !== null
+    ) {
       throw new HttpError(409, "Las transacciones automáticas no se pueden anular manualmente");
     }
 
@@ -216,7 +228,11 @@ export async function getSummary(query: SummaryQuery) {
        COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0) AS ingresos,
        COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0) AS egresos,
        COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.nombre = 'Costo de ventas'
-                         THEN t.monto ELSE 0 END), 0) AS costo_ventas
+                         THEN t.monto ELSE 0 END), 0) AS costo_ventas,
+       COALESCE(SUM(CASE WHEN t.tipo = 'pasivo' AND fc.nombre = 'IVA por pagar'
+                         THEN t.monto ELSE 0 END), 0) AS iva_por_pagar,
+       COALESCE(SUM(CASE WHEN t.tipo = 'activo' AND fc.nombre = 'IVA descontable'
+                         THEN t.monto ELSE 0 END), 0) AS iva_descontable
      FROM transactions t
      JOIN finance_categories fc ON fc.id = t.finance_category_id
      WHERE t.fecha BETWEEN ? AND ? AND ${VALID_TRANSACTION}`,
@@ -226,13 +242,19 @@ export async function getSummary(query: SummaryQuery) {
   const ingresos = Number(totals[0].ingresos);
   const egresos = Number(totals[0].egresos);
   const costoVentas = Number(totals[0].costo_ventas);
+  const ivaPorPagar = Number(totals[0].iva_por_pagar);
+  const ivaDescontable = Number(totals[0].iva_descontable);
   const utilidad = ingresos - egresos;
   const margenBruto = ingresos - costoVentas;
 
+  // El capital de caja solo lo mueven ingresos y gastos. El IVA (activo/pasivo)
+  // y las cuentas por cobrar/pagar no afectan la disponibilidad de efectivo.
   const [capitalRows] = await pool.query<RowDataPacket[]>(
     `SELECT COALESCE(SUM(a.saldo_inicial), 0)
             + COALESCE((
-                SELECT SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE -t.monto END)
+                SELECT SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto
+                                WHEN t.tipo = 'gasto' THEN -t.monto
+                                ELSE 0 END)
                 FROM transactions t
                 WHERE ${VALID_TRANSACTION}
                   AND t.account_id IN (SELECT id FROM finance_accounts WHERE activo = 1)
@@ -264,6 +286,8 @@ export async function getSummary(query: SummaryQuery) {
     costo_ventas: round2(costoVentas),
     margen_bruto: round2(margenBruto),
     margen_bruto_pct: ingresos > 0 ? round2((margenBruto / ingresos) * 100) : 0,
+    iva_por_pagar: round2(ivaPorPagar),
+    iva_descontable: round2(ivaDescontable),
     capital_disponible: round2(capitalDisponible),
     por_categoria: porCategoria.map((c) => ({ ...c, total: round2(Number(c.total)) })),
   };

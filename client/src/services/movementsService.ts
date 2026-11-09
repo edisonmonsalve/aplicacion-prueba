@@ -1,11 +1,14 @@
 import { api } from "./api";
-import type { MovementTipo, Paginated, StockMovement } from "@/types";
+import type { MovementOrigen, MovementTipo, Paginated, StockMovement } from "@/types";
 
 export interface MovementsQuery {
   page: number;
   pageSize: number;
   product_id?: number;
   tipo?: MovementTipo;
+  origen?: MovementOrigen;
+  invoice_id?: number;
+  quote_id?: number;
 }
 
 export interface MovementInput {

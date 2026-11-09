@@ -10,8 +10,15 @@ import {
   listBudgets,
   updateBudget,
 } from "./budgets.service.js";
-import { listAccounts, listFinanceCategories } from "./finance.service.js";
 import {
+  createAccount,
+  deleteAccount,
+  listAccounts,
+  listFinanceCategories,
+  updateAccount,
+} from "./finance.service.js";
+import {
+  accountSchema,
   budgetSchema,
   idSchema,
   listBudgetsQuerySchema,
@@ -36,6 +43,20 @@ financeRouter.get("/availability", async (req, res) => {
 
 financeRouter.get("/accounts", async (_req, res) => {
   res.json(await listAccounts());
+});
+
+financeRouter.post("/accounts", canWrite, async (req, res) => {
+  res.status(201).json(await createAccount(accountSchema.parse(req.body), req.user!));
+});
+
+financeRouter.put("/accounts/:id", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  res.json(await updateAccount(id, accountSchema.parse(req.body), req.user!));
+});
+
+financeRouter.delete("/accounts/:id", canWrite, async (req, res) => {
+  await deleteAccount(idSchema.parse(req.params.id), req.user!);
+  res.json({ message: "Cuenta financiera eliminada" });
 });
 
 financeRouter.get("/categories", async (_req, res) => {

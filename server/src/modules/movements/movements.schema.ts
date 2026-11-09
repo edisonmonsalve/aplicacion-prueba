@@ -15,4 +15,7 @@ export const listQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   product_id: z.coerce.number().int().positive().optional(),
   tipo: z.enum(["entrada", "salida"]).optional(),
+  origen: z.enum(["compra", "venta", "entrega", "merma", "ajuste"]).optional(),
+  invoice_id: z.coerce.number().int().positive().optional(),
+  quote_id: z.coerce.number().int().positive().optional(),
 });

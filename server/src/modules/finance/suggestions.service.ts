@@ -31,26 +31,31 @@ export async function getSuggestions(): Promise<Suggestion[]> {
     for (const line of detail.lineas) {
       if (line.monto_planeado <= 0) continue;
       const exec = line.ejecucion_pct;
+      const scope = line.producto
+        ? ` · ${line.producto}`
+        : line.producto_categoria
+          ? ` · Categoría ${line.producto_categoria}`
+          : "";
       if (line.estado === "excedido") {
         suggestions.push({
           tipo: "subir",
           severidad: "danger",
-          mensaje: `La línea "${line.categoria}${line.producto ? ` · ${line.producto}` : ""}" excedió su monto planeado (${exec.toFixed(0)}%). Considera subir el presupuesto o revisar los gastos.`,
-          referencia: { budget_id: detail.id, line_id: line.id, categoria: line.categoria, producto: line.producto },
+          mensaje: `La línea "${line.categoria}${scope}" excedió su monto planeado (${exec.toFixed(0)}%). Considera subir el presupuesto o revisar los gastos.`,
+          referencia: { budget_id: detail.id, line_id: line.id, categoria: line.categoria, producto: line.producto ?? line.producto_categoria },
         });
       } else if (exec < 60 && elapsedPct >= 80) {
         suggestions.push({
           tipo: "reasignar",
           severidad: "info",
-          mensaje: `La línea "${line.categoria}${line.producto ? ` · ${line.producto}` : ""}" lleva solo ${exec.toFixed(0)}% ejecutado al ${elapsedPct.toFixed(0)}% del periodo. Podrías reasignar parte del monto.`,
-          referencia: { budget_id: detail.id, line_id: line.id, categoria: line.categoria, producto: line.producto },
+          mensaje: `La línea "${line.categoria}${scope}" lleva solo ${exec.toFixed(0)}% ejecutado al ${elapsedPct.toFixed(0)}% del periodo. Podrías reasignar parte del monto.`,
+          referencia: { budget_id: detail.id, line_id: line.id, categoria: line.categoria, producto: line.producto ?? line.producto_categoria },
         });
       } else if (line.real === 0 && elapsedPct >= 50) {
         suggestions.push({
           tipo: "sin_movimiento",
           severidad: "info",
-          mensaje: `La línea "${line.categoria}${line.producto ? ` · ${line.producto}` : ""}" no tiene transacciones al ${elapsedPct.toFixed(0)}% del periodo.`,
-          referencia: { budget_id: detail.id, line_id: line.id, categoria: line.categoria, producto: line.producto },
+          mensaje: `La línea "${line.categoria}${scope}" no tiene transacciones al ${elapsedPct.toFixed(0)}% del periodo.`,
+          referencia: { budget_id: detail.id, line_id: line.id, categoria: line.categoria, producto: line.producto ?? line.producto_categoria },
         });
       }
     }

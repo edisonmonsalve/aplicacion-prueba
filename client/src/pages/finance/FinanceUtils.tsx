@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Tag } from "antd";
 import { CheckCircleOutlined, EditOutlined, LockOutlined } from "@ant-design/icons";
-import type { BudgetEstado, EjecucionEstado } from "@/types";
+import type { BudgetEstado, EjecucionEstado, FinanceCategoryTipo } from "@/types";
 import { formatCurrency } from "@/utils/format";
 
 export const BUDGET_PERIOD_LABELS: Record<BudgetEstado extends never ? never : string, string> = {
@@ -37,5 +37,6 @@ export const money = (n: number) => formatCurrency(n);
 export const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-CA");
 export const periodLabel = (p: "dia" | "semana" | "mes" | "anio") =>
   p === "dia" ? "Día" : p === "semana" ? "Semana" : p === "mes" ? "Mes" : "Año";
-export const TIPO_LABEL = (t: "ingreso" | "gasto") => (t === "ingreso" ? "Ingreso" : "Gasto");
+export const TIPO_LABEL = (t: FinanceCategoryTipo) =>
+  t === "ingreso" ? "Ingreso" : t === "gasto" ? "Gasto" : t === "activo" ? "Activo" : "Pasivo";
 export const fmtPct = (n: number) => `${n.toFixed(0)}%`;
