@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cancelInvoice, confirmInvoice, getInvoice } from "@/services/invoicesService";
 import type { InvoiceDetail, InvoiceItem, InvoiceTransaction } from "@/types";
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function InvoiceDetailPage() {
@@ -67,6 +68,9 @@ export default function InvoiceDetailPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+      <PageBreadcrumb
+        items={[{ label: "Facturas", to: "/facturas" }, { label: invoice.numero }]}
+      />
       <div>
         <Typography.Title level={3} style={{ margin: 0 }}>
           Factura {invoice.numero}
@@ -208,7 +212,7 @@ export default function InvoiceDetailPage() {
               render: money,
             },
             { title: "Desc. %", dataIndex: "descuento_pct", align: "right" },
-            { title: "Imp. %", dataIndex: "impuesto_pct", align: "right" },
+            { title: "IVA %", dataIndex: "impuesto_pct", align: "right" },
             { title: "Total línea", dataIndex: "total_linea", align: "right", render: money },
           ]}
         />

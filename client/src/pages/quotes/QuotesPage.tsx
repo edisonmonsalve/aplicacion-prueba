@@ -76,7 +76,7 @@ export default function QuotesPage() {
           { header: "Estado", value: (r) => r.estado },
           { header: "Subtotal", value: (r) => r.subtotal },
           { header: "Descuento", value: (r) => r.descuento_total },
-          { header: "Impuesto", value: (r) => r.impuesto_total },
+          { header: "IVA", value: (r) => r.impuesto_total },
           { header: "Total", value: (r) => r.total },
           { header: "Válido hasta", value: (r) => fmtDate(r.fecha_validez) },
           { header: "Creado por", value: (r) => r.creador },

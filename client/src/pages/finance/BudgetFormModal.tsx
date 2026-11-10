@@ -194,7 +194,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
         </Space>
 
         <Form.Item label="Rango del periodo" name="fechas" tooltip="Fechas de inicio y fin del periodo presupuestado." rules={[{ required: true }]}>
-          <DatePicker.RangePicker format="YYYY-MM-DD" style={{ width: "100%" }} />
+          <DatePicker.RangePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
         </Form.Item>
 
         <Space style={{ width: "100%" }} size="middle" wrap>

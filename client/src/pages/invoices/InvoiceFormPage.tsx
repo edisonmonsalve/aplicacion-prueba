@@ -411,7 +411,7 @@ export default function InvoiceFormPage() {
             <Select style={{ width: 160 }} options={TIPO_OPTIONS} disabled={!!editId} />
           </Form.Item>
           <Form.Item name="fecha" label="Fecha" rules={[{ required: true }]}>
-            <DatePicker format="YYYY-MM-DD" />
+            <DatePicker format="DD/MM/YYYY" />
           </Form.Item>
           <Form.Item
             name="contraparte"
@@ -524,7 +524,7 @@ export default function InvoiceFormPage() {
                   <Form.Item name={[name, "descuento_pct"]} label="Desc." initialValue={0}>
                     <InputNumber min={0} max={100} addonAfter="%" />
                   </Form.Item>
-                  <Form.Item name={[name, "impuesto_pct"]} label="Imp." initialValue={19}>
+                  <Form.Item name={[name, "impuesto_pct"]} label="IVA %" initialValue={19}>
                     <InputNumber min={0} max={100} addonAfter="%" />
                   </Form.Item>
                   <div style={{ minWidth: 110, textAlign: "right" }}>

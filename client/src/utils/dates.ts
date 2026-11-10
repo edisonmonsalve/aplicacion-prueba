@@ -13,8 +13,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Devuelve una fecha de calendario en formato AAAA-MM-DD sin desfase por zona horaria. */
-export function formatDateOnly(value: string | Date | null | undefined): string {
-  if (!value) return "";
+export function formatDateOnly(value: string | Date | null | undefined): string {  if (!value) return "";
 
   // DATE sin hora: conservar el día calendario exacto que envió la base.
   if (typeof value === "string" && DATE_ONLY.test(value)) return value;
@@ -25,4 +24,14 @@ export function formatDateOnly(value: string | Date | null | undefined): string 
   }
 
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * Fecha de calendario para mostrar al usuario, siempre en DD/MM/AAAA.
+ * Acepta tanto "AAAA-MM-DD" como fechas-hora ISO.
+ */
+export function formatDateDisplay(value: string | Date | null | undefined): string {
+  const iso = formatDateOnly(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : iso;
 }

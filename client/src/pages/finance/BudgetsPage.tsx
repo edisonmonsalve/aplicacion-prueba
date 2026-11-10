@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { App, Button, Empty, Input, Select, Table, Tooltip, Typography } from "antd";
+import { useEffect, useState } from "react";import { App, Button, Empty, Input, Select, Table, Tooltip, Typography } from "antd";
 import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { listBudgets } from "@/services/financeService";
@@ -10,6 +9,7 @@ import { canWriteFinance } from "@/utils/roles";
 import type { BudgetEstado, BudgetListItem, BudgetPeriodo } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import BudgetFormModal from "./BudgetFormModal";
 
 const PERIOD_OPTIONS = ["dia", "semana", "mes", "anio"].map((p) => ({ value: p, label: periodLabel(p as "dia" | "semana" | "mes" | "anio") }));
@@ -26,25 +26,28 @@ export default function BudgetsPage() {
   const [rows, setRows] = useState<BudgetListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [q, setQ] = useState("");
-  const [searchText, setSearchText] = useState("");
-  const [estado, setEstado] = useState<BudgetEstado | undefined>();
-  const [tipo, setTipo] = useState<BudgetPeriodo | undefined>();
+  const { get, getPositiveInt, update } = useUrlFilters();
+  const q = get("q") ?? "";
+  const estado = (get("estado") as BudgetEstado) ?? undefined;
+  const tipo = (get("tipo_periodo") as BudgetPeriodo) ?? undefined;
+  const page = getPositiveInt("page", 1);
+  const pageSize = getPositiveInt("pageSize", 10);
+  const [searchText, setSearchText] = useState(q);
   const [modalOpen, setModalOpen] = useState(false);
 
   const hasFilters = Boolean(q || estado || tipo);
 
   const clearFilters = () => {
-    setQ("");
     setSearchText("");
-    setEstado(undefined);
-    setTipo(undefined);
-    setPage(1);
+    update({ q: undefined, estado: undefined, tipo_periodo: undefined, page: undefined });
   };
 
   useDocumentTitle("Presupuestos");
+
+  // Si la URL cambia (atrás/adelante), el buscador refleja el texto activo.
+  useEffect(() => {
+    setSearchText(q);
+  }, [q]);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +117,7 @@ export default function BudgetsPage() {
             placeholder="Nombre del presupuesto"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            onSearch={(v) => { setQ(v); setPage(1); }}
+            onSearch={(v) => update({ q: v || undefined, page: undefined })}
             style={{ width: 240 }}
           />
         </div>
@@ -128,7 +131,7 @@ export default function BudgetsPage() {
             style={{ width: 140 }}
             value={estado}
             options={STATUS_OPTIONS}
-            onChange={(v) => { setEstado(v); setPage(1); }}
+            onChange={(v) => update({ estado: v, page: undefined })}
           />
         </div>
         <div>
@@ -141,7 +144,7 @@ export default function BudgetsPage() {
             style={{ width: 140 }}
             value={tipo}
             options={PERIOD_OPTIONS}
-            onChange={(v) => { setTipo(v); setPage(1); }}
+            onChange={(v) => update({ tipo_periodo: v, page: undefined })}
           />
         </div>
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
@@ -184,10 +187,7 @@ export default function BudgetsPage() {
             total,
             showSizeChanger: true,
             showTotal: (t) => `${t} presupuestos`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
+            onChange: (p, s) => update({ page: p, pageSize: s }),
           }}
         />
       )}

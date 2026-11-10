@@ -219,7 +219,7 @@ export default function QuoteFormPage() {
             tooltip="Fecha hasta la que la cotización es válida."
             rules={[{ required: true, message: "Requerido" }]}
           >
-            <DatePicker format="YYYY-MM-DD" />
+            <DatePicker format="DD/MM/YYYY" />
           </Form.Item>
         </Space>
 
@@ -296,9 +296,9 @@ export default function QuoteFormPage() {
                   </Form.Item>
                   <Form.Item
                     name={[name, "impuesto_pct"]}
-                    label="Impuesto"
+                    label="IVA"
                     initialValue={19}
-                    tooltip="Impuesto porcentual de la línea (IVA 19 % por defecto, editable)."
+                    tooltip="Porcentaje de IVA de la línea (19 % por defecto, editable)."
                   >
                     <InputNumber min={0} max={100} addonAfter="% imp." />
                   </Form.Item>
@@ -354,7 +354,7 @@ export default function QuoteFormPage() {
           {[
             { label: "Subtotal", value: t.subtotal, hint: "Suma de cantidad × precio de cada línea" },
             { label: "Descuento", value: -t.descuento, hint: "Descuentos aplicados por línea" },
-            { label: "Impuestos", value: t.impuesto, hint: "Impuestos aplicados por línea" },
+            { label: "IVA", value: t.impuesto, hint: "IVA aplicado por línea" },
           ].map(({ label, value, hint }) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
               <Tooltip title={hint}>

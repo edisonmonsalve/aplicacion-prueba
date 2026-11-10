@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Button, Empty, Popconfirm, Space, Table, Tooltip, Typography, message } from "antd";
+import { Button, Empty, Space, Table, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import CategoryFormModal from "@/components/CategoryFormModal";
+import ConfirmAction from "@/components/ConfirmAction";
 import { useAuth } from "@/context/AuthContext";
 import { deleteCategory, getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
@@ -83,17 +84,21 @@ export default function CategoriesPage() {
                 <Tooltip title={c.productos > 0 ? "Tiene productos asociados" : ""}>
                   {/* El span permite que el Tooltip funcione sobre un botón deshabilitado */}
                   <span>
-                    <Popconfirm
-                      title="¿Eliminar categoría?"
-                      okText="Sí"
-                      cancelText="No"
+                    <ConfirmAction
+                      title={`¿Eliminar «${c.nombre}»?`}
+                      description={
+                        c.productos > 0
+                          ? "No se puede eliminar mientras tenga productos asociados."
+                          : "La categoría se eliminará permanentemente. Esta acción no se puede deshacer."
+                      }
+                      okText="Eliminar"
                       onConfirm={() => handleDelete(c)}
                       disabled={c.productos > 0}
                     >
                       <Button size="small" danger disabled={c.productos > 0}>
                         Eliminar
                       </Button>
-                    </Popconfirm>
+                    </ConfirmAction>
                   </span>
                 </Tooltip>
               </Space>

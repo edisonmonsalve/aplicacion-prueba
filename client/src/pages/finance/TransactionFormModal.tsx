@@ -141,7 +141,7 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
         </Form.Item>
         <Form.Item label="Fecha" name="fecha" tooltip="Fecha de la transacción." rules={[{ required: true }]}>
           <DatePicker
-            format="YYYY-MM-DD"
+            format="DD/MM/YYYY"
             style={{ width: "100%" }}
             disabledDate={(current) => {
               const day = current.format("YYYY-MM-DD");

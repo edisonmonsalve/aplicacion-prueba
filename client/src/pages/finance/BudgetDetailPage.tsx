@@ -31,6 +31,7 @@ import {
 import { canWriteFinance } from "@/utils/roles";
 import type { BudgetDetail, BudgetLine, EjecucionEstado, FinanceCategoryTipo } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import BudgetFormModal from "./BudgetFormModal";
 
 const TIPO_COLOR: Record<string, string> = {
@@ -208,6 +209,13 @@ export default function BudgetDetailPage() {
 
   return (
     <div>
+      <PageBreadcrumb
+        items={[
+          { label: "Finanzas", to: "/finanzas" },
+          { label: "Presupuestos", to: "/finanzas/presupuestos" },
+          { label: budget.nombre },
+        ]}
+      />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Space>
           <Typography.Title level={3} style={{ margin: 0 }}>

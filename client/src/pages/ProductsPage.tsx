@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Button, Checkbox, Empty, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Checkbox, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import ProductFormModal from "@/components/ProductFormModal";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,8 @@ import type { Category, Product } from "@/types";
 import { useNavigate } from "react-router-dom";
 import TableSkeleton from "@/components/TableSkeleton";
 import MovementFormModal from "@/components/MovementFormModal";
+import ConfirmAction from "@/components/ConfirmAction";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function ProductsPage() {
@@ -22,8 +24,18 @@ export default function ProductsPage() {
   const navigate = useNavigate();
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
 
-  const [query, setQuery] = useState<ProductsQuery>({ page: 1, pageSize: 10 });
-  const [searchText, setSearchText] = useState("");
+  const { get, getNumber, getPositiveInt, update } = useUrlFilters();
+  const q = get("q") ?? "";
+  const categoryId = getNumber("category_id");
+  const activo = (get("activo") as ProductsQuery["activo"]) ?? undefined;
+  const bajoStock = get("bajoStock") === "1" ? "1" : undefined;
+  const page = getPositiveInt("page", 1);
+  const pageSize = getPositiveInt("pageSize", 10);
+  const query = useMemo<ProductsQuery>(
+    () => ({ page, pageSize, q: q || undefined, category_id: categoryId, activo, bajoStock }),
+    [page, pageSize, q, categoryId, activo, bajoStock]
+  );
+  const [searchText, setSearchText] = useState(q);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
@@ -33,6 +45,11 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Product | null>(null);
 
   useDocumentTitle("Productos");
+
+  // Si la URL cambia (atrás/adelante), el buscador refleja el texto activo.
+  useEffect(() => {
+    setSearchText(q);
+  }, [q]);
 
   // Las categorías se cargan una vez: alimentan el filtro y el formulario
   useEffect(() => {
@@ -60,13 +77,13 @@ export default function ProductsPage() {
   }, [query, reloadKey, messageApi]);
 
   const updateFilters = (changes: Partial<ProductsQuery>) =>
-    setQuery((prev) => ({ ...prev, ...changes, page: 1 }));
+    update({ ...changes, page: undefined });
 
   const hasFilters = Boolean(query.q || query.category_id || query.activo || query.bajoStock);
 
   const clearFilters = () => {
     setSearchText("");
-    setQuery((prev) => ({ ...prev, q: undefined, category_id: undefined, activo: undefined, bajoStock: undefined, page: 1 }));
+    update({ q: undefined, category_id: undefined, activo: undefined, bajoStock: undefined, page: undefined });
   };
 
   const openCreate = () => {
@@ -82,7 +99,7 @@ export default function ProductsPage() {
   const handleSaved = () => {
     setModalOpen(false);
     messageApi.success(editing ? "Producto actualizado" : "Producto creado");
-    if (!editing) setQuery((prev) => ({ ...prev, page: 1 }));
+    if (!editing) update({ page: undefined });
     setReloadKey((k) => k + 1);
   };
 
@@ -169,16 +186,21 @@ export default function ProductsPage() {
             </Tooltip>
           )}
           {isAdmin && (
-            <Popconfirm
-              title={p.activo ? "¿Desactivar producto?" : "¿Activar producto?"}
-              okText="Sí"
-              cancelText="No"
+            <ConfirmAction
+              title={p.activo ? `¿Desactivar «${p.nombre}»?` : `¿Activar «${p.nombre}»?`}
+              description={
+                p.activo
+                  ? "Dejará de estar disponible para nuevas facturas y cotizaciones. El historial y los movimientos se conservan."
+                  : "Volverá a estar disponible para facturar y para registrar movimientos de stock."
+              }
+              okText={p.activo ? "Desactivar" : "Activar"}
+              danger={!!p.activo}
               onConfirm={() => toggleActivo(p)}
             >
               <Button size="small" danger={!!p.activo}>
                 {p.activo ? "Desactivar" : "Activar"}
               </Button>
-            </Popconfirm>
+            </ConfirmAction>
           )}
         </Space>
       ),
@@ -288,7 +310,7 @@ value={searchText}
             pageSize: query.pageSize,
             total,
             showSizeChanger: true,
-            onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
+            onChange: (page, pageSize) => update({ page, pageSize }),
           }}
         />
       )}

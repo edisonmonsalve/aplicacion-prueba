@@ -30,6 +30,7 @@ import {
 } from "../../services/quotesService";
 import type { QuoteDetail, QuoteLine, QuoteStatus, StockFailure } from "../../types";
 import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/QuoteUtils";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const FLOW: QuoteStatus[] = ["borrador", "enviado", "aprobado", "entregado"];
@@ -141,6 +142,9 @@ export default function QuoteDetailPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+      <PageBreadcrumb
+        items={[{ label: "Cotizaciones", to: "/cotizaciones" }, { label: quote.numero }]}
+      />
       <div>
         <Typography.Title level={3} style={{ margin: 0 }}>
           Cotización {quote.numero}
@@ -283,7 +287,7 @@ export default function QuoteDetailPage() {
               value={money(quote.descuento_total)}
             />
             <Statistic
-              title={<Tooltip title="Impuestos aplicados por línea">Impuesto</Tooltip>}
+              title={<Tooltip title="IVA aplicado por línea">IVA</Tooltip>}
               value={money(quote.impuesto_total)}
             />
             <Statistic
@@ -307,7 +311,7 @@ export default function QuoteDetailPage() {
             { title: <Tooltip title="Unidades cotizadas">Cant.</Tooltip>, dataIndex: "cantidad", align: "right" },
             { title: <Tooltip title="Precio unitario del catálogo">Precio unit.</Tooltip>, dataIndex: "precio_unitario", align: "right", render: money },
             { title: <Tooltip title="Descuento porcentual de la línea">Desc. %</Tooltip>, dataIndex: "descuento_pct", align: "right" },
-            { title: <Tooltip title="Impuesto porcentual de la línea">Imp. %</Tooltip>, dataIndex: "impuesto_pct", align: "right" },
+            { title: <Tooltip title="Porcentaje de IVA de la línea">IVA %</Tooltip>, dataIndex: "impuesto_pct", align: "right" },
             { title: <Tooltip title="Precio por cantidad con descuento e impuesto">Total línea</Tooltip>, dataIndex: "total_linea", align: "right", render: money },
           ]}
         />

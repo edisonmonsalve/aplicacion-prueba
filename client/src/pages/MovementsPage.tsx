@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button, Empty, Select, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
@@ -12,6 +12,7 @@ import { canSeeCosts } from "@/utils/roles";
 import type { Product, StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const ORIGEN_META: Record<StockMovement["origen"], { color: string; label: string }> = {
   compra: { color: "blue", label: "Compra" },
@@ -26,20 +27,30 @@ export default function MovementsPage() {
   const verCosto = canSeeCosts(user?.rol);
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
-  const [searchParams] = useSearchParams();
+  const { get, getNumber, getPositiveInt, update } = useUrlFilters();
 
-  // Si se llega desde "Historial" en productos, viene ?product_id=...
-  const initialProduct = Number(searchParams.get("product_id")) || undefined;
-  const initialInvoice = Number(searchParams.get("invoice_id")) || undefined;
-  const initialQuote = Number(searchParams.get("quote_id")) || undefined;
+  // Los filtros viven en la URL: "Historial" desde productos llega con
+  // ?product_id=... y los enlaces se pueden recargar o compartir.
+  const productId = getNumber("product_id");
+  const invoiceId = getNumber("invoice_id");
+  const quoteId = getNumber("quote_id");
+  const tipo = (get("tipo") as MovementsQuery["tipo"]) ?? undefined;
+  const origen = (get("origen") as MovementsQuery["origen"]) ?? undefined;
+  const page = getPositiveInt("page", 1);
+  const pageSize = getPositiveInt("pageSize", 10);
+  const query = useMemo<MovementsQuery>(
+    () => ({
+      page,
+      pageSize,
+      product_id: productId,
+      tipo,
+      origen,
+      invoice_id: invoiceId,
+      quote_id: quoteId,
+    }),
+    [page, pageSize, productId, tipo, origen, invoiceId, quoteId]
+  );
 
-  const [query, setQuery] = useState<MovementsQuery>({
-    page: 1,
-    pageSize: 10,
-    product_id: initialProduct,
-    invoice_id: initialInvoice,
-    quote_id: initialQuote,
-  });
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -73,7 +84,7 @@ export default function MovementsPage() {
   }, [query, messageApi]);
 
   const updateFilters = (changes: Partial<MovementsQuery>) =>
-    setQuery((prev) => ({ ...prev, ...changes, page: 1 }));
+    update({ ...changes, page: undefined });
 
   const hasFilters =
     query.product_id !== undefined ||
@@ -264,7 +275,7 @@ export default function MovementsPage() {
             pageSize: query.pageSize,
             total,
             showSizeChanger: true,
-            onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
+            onChange: (page, pageSize) => update({ page, pageSize }),
           }}
         />
       )}

@@ -1,7 +1,7 @@
 import { Avatar, Button, Dropdown, Layout, Menu, Space, Switch, Tooltip, Typography, message, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import {
   DashboardOutlined,
@@ -26,6 +26,21 @@ import { roleLabel } from "@/utils/roles";
 
 const { Sider, Header, Content } = Layout;
 
+// Módulo al que pertenece cada ruta. El orden importa: las rutas más
+// específicas (Finanzas → Presupuestos) deben evaluarse antes que su prefijo.
+const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
+  { prefix: "/finanzas/transacciones", key: "/finanzas/transacciones" },
+  { prefix: "/finanzas/presupuestos", key: "/finanzas/presupuestos" },
+  { prefix: "/finanzas", key: "/finanzas" },
+  { prefix: "/cotizaciones", key: "/cotizaciones" },
+  { prefix: "/facturas", key: "/facturas" },
+  { prefix: "/products", key: "/products" },
+  { prefix: "/movements", key: "/movements" },
+  { prefix: "/categories", key: "/categories" },
+  { prefix: "/users", key: "/users" },
+  { prefix: "/perfil", key: "/perfil" },
+];
+
 export default function AppLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -35,16 +50,21 @@ export default function AppLayout() {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [openKeys, setOpenKeys] = useState<string[]>(() =>
+    pathname.startsWith("/finanzas") ? ["finanzas"] : []
+  );
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
-  const selected = pathname.startsWith("/finanzas/transacciones")
-    ? "/finanzas/transacciones"
-    : pathname.startsWith("/finanzas/presupuestos")
-      ? "/finanzas/presupuestos"
-      : pathname.startsWith("/finanzas")
-        ? "/finanzas"
-        : "/" + (pathname.split("/")[1] ?? "");
+  const selected =
+    MODULE_ROUTES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.key ??
+    "/";
+
+  // Al entrar en Finanzas desde otro módulo, el submenú se abre solo.
+  useEffect(() => {
+    if (!pathname.startsWith("/finanzas")) return;
+    setOpenKeys((prev) => (prev.includes("finanzas") ? prev : [...prev, "finanzas"]));
+  }, [pathname]);
 
   const items = [
     { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
@@ -103,7 +123,10 @@ export default function AppLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[selected]}
+          openKeys={openKeys}
+          onOpenChange={(keys) => setOpenKeys(keys as string[])}
           items={items}
+          aria-label="Navegación principal"
           onClick={({ key }) => {
             if (typeof key === "string" && key.startsWith("/")) {
               navigate(key);
@@ -120,7 +143,7 @@ export default function AppLayout() {
             justifyContent: "space-between",
             alignItems: "center",
             background: token.colorBgContainer,
-            padding: "0 24px",
+            padding: isMobile ? "0 12px" : "0 24px",
             position: "sticky",
             top: 0,
             zIndex: 10,
@@ -134,7 +157,7 @@ export default function AppLayout() {
               aria-label="Mostrar u ocultar el menú"
             />
           </Tooltip>
-          <Space size="middle">
+          <Space size={isMobile ? "small" : "middle"}>
             <Tooltip title="Cambiar entre tema claro y oscuro">
               <Switch
                 checked={mode === "dark"}
@@ -167,18 +190,20 @@ export default function AppLayout() {
             >
               <Space style={{ cursor: "pointer" }}>
                 <Avatar style={{ background: token.colorPrimary }}>{user?.nombre?.[0]?.toUpperCase()}</Avatar>
-                <div style={{ lineHeight: 1.2 }}>
-                  <div>{user?.nombre}</div>
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {user ? roleLabel(user.rol) : ""}
-                  </Typography.Text>
-                </div>
+                {!isMobile && (
+                  <div style={{ lineHeight: 1.2 }}>
+                    <div>{user?.nombre}</div>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {user ? roleLabel(user.rol) : ""}
+                    </Typography.Text>
+                  </div>
+                )}
               </Space>
             </Dropdown>
           </Space>
         </Header>
 
-        <Content style={{ margin: 24 }}>
+        <Content style={{ margin: isMobile ? 12 : 24, minWidth: 0 }}>
           <ErrorBoundary key={pathname}>
             <Outlet />
           </ErrorBoundary>

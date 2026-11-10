@@ -8,7 +8,7 @@ import {
   ShopOutlined,
 } from "@ant-design/icons";
 import type { InvoiceEstado, InvoiceTipo } from "@/types";
-import { formatDateOnly } from "@/utils/dates";
+import { formatDateDisplay } from "@/utils/dates";
 
 const ESTADO_META: Record<InvoiceEstado, { color: string; label: string; icon: ReactNode }> = {
   borrador: { color: "default", label: "Borrador", icon: <EditOutlined /> },
@@ -46,5 +46,5 @@ export const InvoiceTipoTag = ({ tipo }: { tipo: InvoiceTipo }) => (
 export const money = (n: number) =>
   new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
-export const fmtDate = (s: string) => formatDateOnly(s);
+export const fmtDate = (s: string) => formatDateDisplay(s);
 export const fmtDateTime = (s: string) => new Date(s).toLocaleString("es-CO");

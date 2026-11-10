@@ -63,7 +63,7 @@ export default function QuotePrintPage() {
           { title: "Cant.", dataIndex: "cantidad", align: "right" },
           { title: "Precio unit.", dataIndex: "precio_unitario", align: "right", render: money },
           { title: "Desc. %", dataIndex: "descuento_pct", align: "right" },
-          { title: "Imp. %", dataIndex: "impuesto_pct", align: "right" },
+          { title: "IVA %", dataIndex: "impuesto_pct", align: "right" },
           { title: "Total", dataIndex: "total_linea", align: "right", render: money },
         ]}
       />
@@ -71,7 +71,7 @@ export default function QuotePrintPage() {
       <div style={{ textAlign: "right", marginTop: 16 }}>
         <div>Subtotal: {money(quote.subtotal)}</div>
         <div>Descuento: {money(quote.descuento_total)}</div>
-        <div>Impuesto: {money(quote.impuesto_total)}</div>
+        <div>IVA: {money(quote.impuesto_total)}</div>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Total: {money(quote.total)}
         </Typography.Title>

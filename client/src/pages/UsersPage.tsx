@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Button, Empty, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
@@ -9,14 +9,25 @@ import type { User } from "@/types";
 import UserFormModal from "@/components/UserFormModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
+import ConfirmAction from "@/components/ConfirmAction";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { ROLES, roleColor, roleLabel } from "@/utils/roles";
 
 export default function UsersPage() {
   const { user: me } = useAuth();
   const [messageApi, contextHolder] = message.useMessage();
 
-  const [query, setQuery] = useState<UsersQuery>({ page: 1, pageSize: 10 });
-  const [searchText, setSearchText] = useState("");
+  const { get, getPositiveInt, update } = useUrlFilters();
+  const q = get("q") ?? "";
+  const rol = (get("rol") as UsersQuery["rol"]) ?? undefined;
+  const activo = (get("activo") as UsersQuery["activo"]) ?? undefined;
+  const page = getPositiveInt("page", 1);
+  const pageSize = getPositiveInt("pageSize", 10);
+  const query = useMemo<UsersQuery>(
+    () => ({ page, pageSize, q: q || undefined, rol, activo }),
+    [page, pageSize, q, rol, activo]
+  );
+  const [searchText, setSearchText] = useState(q);
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -25,6 +36,11 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
   useDocumentTitle("Usuarios");
+
+  // Si la URL cambia (atrás/adelante), el buscador refleja el texto activo.
+  useEffect(() => {
+    setSearchText(q);
+  }, [q]);
 
   useEffect(() => {
     let ignore = false; // evita aplicar una respuesta vieja si cambió la consulta
@@ -44,15 +60,15 @@ export default function UsersPage() {
     };
   }, [query, reloadKey, messageApi]);
 
-  // Al cambiar un filtro se vuelve a la página 1
+  // Al cambiar un filtro se vuelve a la primera página
   const updateFilters = (changes: Partial<UsersQuery>) =>
-    setQuery((prev) => ({ ...prev, ...changes, page: 1 }));
+    update({ ...changes, page: undefined });
 
   const hasFilters = Boolean(query.q || query.rol || query.activo);
 
   const clearFilters = () => {
     setSearchText("");
-    setQuery((prev) => ({ ...prev, q: undefined, rol: undefined, activo: undefined, page: 1 }));
+    update({ q: undefined, rol: undefined, activo: undefined, page: undefined });
   };
 
   const toggleActivo = async (u: User) => {
@@ -77,7 +93,7 @@ export default function UsersPage() {
   const handleSaved = () => {
     setModalOpen(false);
     messageApi.success(editingUser ? "Usuario actualizado" : "Usuario creado");
-    if (!editingUser) setQuery((prev) => ({ ...prev, page: 1 })); // el nuevo aparece primero
+    if (!editingUser) update({ page: undefined }); // el nuevo aparece primero
     setReloadKey((k) => k + 1);
   };
 
@@ -109,10 +125,15 @@ export default function UsersPage() {
               Editar
             </Button>
           </Tooltip>
-          <Popconfirm
-            title={u.activo ? "¿Desactivar usuario?" : "¿Activar usuario?"}
-            okText="Sí"
-            cancelText="No"
+          <ConfirmAction
+            title={u.activo ? `¿Desactivar a «${u.nombre}»?` : `¿Activar a «${u.nombre}»?`}
+            description={
+              u.activo
+                ? "El usuario perderá el acceso inmediatamente. Su historial de movimientos y facturas se conserva."
+                : "El usuario podrá volver a iniciar sesión con su rol actual."
+            }
+            okText={u.activo ? "Desactivar" : "Activar"}
+            danger={!!u.activo}
             onConfirm={() => toggleActivo(u)}
             disabled={u.id === me?.id}
           >
@@ -122,7 +143,7 @@ export default function UsersPage() {
                 {u.activo ? "Desactivar" : "Activar"}
               </Button>
             </Tooltip>
-          </Popconfirm>
+          </ConfirmAction>
         </Space>
       ),
     },
@@ -220,7 +241,7 @@ value={searchText}
             pageSize: query.pageSize,
             total,
             showSizeChanger: true,
-            onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
+            onChange: (page, pageSize) => update({ page, pageSize }),
           }}
         />
       )}

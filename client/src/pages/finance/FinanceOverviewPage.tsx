@@ -96,7 +96,7 @@ export default function FinanceOverviewPage() {
             <RangePicker
               value={range}
               onChange={(v) => v && setRange([v[0]!, v[1]!])}
-              format="YYYY-MM-DD"
+              format="DD/MM/YYYY"
               allowClear={false}
             />
           </Tooltip>

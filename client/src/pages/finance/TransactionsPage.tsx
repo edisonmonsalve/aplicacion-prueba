@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, App, Button, DatePicker, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -12,6 +12,7 @@ import type { FinanceTransaction, TransactionsQuery, FinanceCategory, FinanceAcc
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { fetchAllPages, downloadCsv } from "@/utils/csv";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import TransactionFormModal from "./TransactionFormModal";
 
 const TIPO_OPTIONS = [
@@ -43,13 +44,28 @@ export default function TransactionsPage() {
   const [rows, setRows] = useState<FinanceTransaction[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [tipo, setTipo] = useState<FinanceTransaction["tipo"] | undefined>();
-  const [desde, setDesde] = useState<string | undefined>(dayjs().startOf("month").format("YYYY-MM-DD"));
-  const [hasta, setHasta] = useState<string | undefined>(dayjs().format("YYYY-MM-DD"));
-  const [categoryId, setCategoryId] = useState<number | undefined>();
-  const [accountId, setAccountId] = useState<number | undefined>();
+  const { get, getNumber, getPositiveInt, update } = useUrlFilters();
+  const defaultDesde = dayjs().startOf("month").format("YYYY-MM-DD");
+  const defaultHasta = dayjs().format("YYYY-MM-DD");
+  const page = getPositiveInt("page", 1);
+  const pageSize = getPositiveInt("pageSize", 10);
+  const tipo = (get("tipo") as FinanceTransaction["tipo"]) ?? undefined;
+  const desde = get("desde") ?? defaultDesde;
+  const hasta = get("hasta") ?? defaultHasta;
+  const categoryId = getNumber("finance_category_id");
+  const accountId = getNumber("account_id");
+  const filters = useMemo<TransactionsQuery>(
+    () => ({
+      page,
+      pageSize,
+      tipo,
+      desde,
+      hasta,
+      finance_category_id: categoryId,
+      account_id: accountId,
+    }),
+    [page, pageSize, tipo, desde, hasta, categoryId, accountId]
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [reversing, setReversing] = useState<number | null>(null);
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
@@ -65,8 +81,7 @@ export default function TransactionsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const q: TransactionsQuery = { page, pageSize, tipo, desde, hasta, finance_category_id: categoryId, account_id: accountId };
-      const r = await listTransactions(q);
+      const r = await listTransactions(filters);
       setRows(r.data);
       setTotal(r.total);
     } catch (err) {
@@ -79,7 +94,7 @@ export default function TransactionsPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, tipo, desde, hasta, categoryId, accountId]);
+  }, [filters]);
 
   const handleReverse = (id: number) => {
     modal.confirm({
@@ -104,7 +119,7 @@ export default function TransactionsPage() {
   const exportCsv = async () => {
     try {
       const all = await fetchAllPages<FinanceTransaction>((p) =>
-        listTransactions({ page: p, pageSize: 100, tipo, desde, hasta, finance_category_id: categoryId, account_id: accountId })
+        listTransactions({ ...filters, page: p, pageSize: 100 })
       );
       downloadCsv(
         `transacciones-${dayjs().format("YYYY-MM-DD")}.csv`,
@@ -222,19 +237,19 @@ export default function TransactionsPage() {
     },
   ];
 
-  const defaultDesde = dayjs().startOf("month").format("YYYY-MM-DD");
-  const defaultHasta = dayjs().format("YYYY-MM-DD");
   const hasFilters = Boolean(
     tipo || categoryId || accountId || desde !== defaultDesde || hasta !== defaultHasta
   );
 
   const clearFilters = () => {
-    setTipo(undefined);
-    setCategoryId(undefined);
-    setAccountId(undefined);
-    setDesde(defaultDesde);
-    setHasta(defaultHasta);
-    setPage(1);
+    update({
+      tipo: undefined,
+      finance_category_id: undefined,
+      account_id: undefined,
+      desde: undefined,
+      hasta: undefined,
+      page: undefined,
+    });
   };
 
   const firstLoad = loading && rows.length === 0;
@@ -278,7 +293,7 @@ export default function TransactionsPage() {
             style={{ width: 140 }}
             options={TIPO_OPTIONS}
             value={tipo}
-            onChange={(v) => { setTipo(v); setPage(1); }}
+            onChange={(v) => update({ tipo: v, page: undefined })}
           />
         </div>
         <div>
@@ -290,7 +305,7 @@ export default function TransactionsPage() {
             placeholder="Todas"
             style={{ width: 220 }}
             value={categoryId}
-            onChange={(v) => { setCategoryId(v); setPage(1); }}
+            onChange={(v) => update({ finance_category_id: v, page: undefined })}
             options={categories.map((c) => ({ value: c.id, label: `${CATEGORY_TIPO_LABEL[c.tipo]} · ${c.nombre}` }))}
             showSearch
             optionFilterProp="label"
@@ -305,7 +320,7 @@ export default function TransactionsPage() {
             placeholder="Todas"
             style={{ width: 200 }}
             value={accountId}
-            onChange={(v) => { setAccountId(v); setPage(1); }}
+            onChange={(v) => update({ account_id: v, page: undefined })}
             options={accounts.map((a) => ({ value: a.id, label: a.nombre }))}
           />
         </div>
@@ -314,13 +329,15 @@ export default function TransactionsPage() {
             Rango de fechas
           </Typography.Text>
           <DatePicker.RangePicker
-            format="YYYY-MM-DD"
+            format="DD/MM/YYYY"
             value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-            onChange={(v) => {
-              setDesde(v?.[0]?.format("YYYY-MM-DD"));
-              setHasta(v?.[1]?.format("YYYY-MM-DD"));
-              setPage(1);
-            }}
+            onChange={(v) =>
+              update({
+                desde: v?.[0]?.format("YYYY-MM-DD"),
+                hasta: v?.[1]?.format("YYYY-MM-DD"),
+                page: undefined,
+              })
+            }
           />
         </div>
         {hasFilters && (
@@ -364,10 +381,7 @@ export default function TransactionsPage() {
             total,
             showSizeChanger: true,
             showTotal: (t) => `${t} transacciones`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
+            onChange: (p, s) => update({ page: p, pageSize: s }),
           }}
         />
       )}
