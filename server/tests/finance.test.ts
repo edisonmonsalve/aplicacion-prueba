@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { RowDataPacket } from "mysql2";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
-import { today } from "../src/utils/dates.js";
+import { addDays, today } from "../src/utils/dates.js";
 import { bearer, resetDb, userWithToken } from "./helpers.js";
 import { createQuote, draft, rows } from "./quote-helpers.js";
 
@@ -34,6 +34,9 @@ async function setup() {
   const [gasto] = await rows(
     "SELECT id FROM finance_categories WHERE nombre = 'Compra de inventario'"
   );
+  const [cogs] = await rows(
+    "SELECT id FROM finance_categories WHERE nombre = 'Costo de ventas' AND tipo = 'gasto'"
+  );
   const [cuenta] = await rows("SELECT id FROM finance_accounts ORDER BY id LIMIT 1");
 
   return {
@@ -44,6 +47,7 @@ async function setup() {
     productId: producto.body.id as number,
     ingresoCat: ingreso.id as number,
     gastoCat: gasto.id as number,
+    cogsCat: cogs.id as number,
     accountId: cuenta.id as number,
   };
 }
@@ -315,6 +319,82 @@ describe("Finanzas: API", () => {
       margen_bruto: 1_000_000,
       margen_bruto_pct: 100,
       capital_disponible: 700_000,
+    });
+  });
+
+  it("el costo de ventas no afecta egresos de caja ni capital, pero sí utilidad y margen", async () => {
+    const { admin, ingresoCat, cogsCat, accountId } = await setup();
+    await post("/api/finance/transactions", admin.token, txBody(accountId, ingresoCat, { monto: 1_000_000 }));
+    await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(accountId, cogsCat, { tipo: "gasto", monto: 400_000 })
+    );
+
+    const summary = await request(app)
+      .get(`/api/finance/summary?desde=${today()}&hasta=${today()}`)
+      .set(bearer(admin.token));
+    expect(summary.body).toMatchObject({
+      ingresos: 1_000_000,
+      egresos: 0,
+      gastos_totales: 400_000,
+      gastos_no_caja: 400_000,
+      costo_ventas: 400_000,
+      utilidad: 600_000,
+      margen_bruto: 600_000,
+      margen_bruto_pct: 60,
+      capital_disponible: 1_000_000,
+    });
+
+    // El asiento informativo no reduce el saldo de la cuenta de caja.
+    const accounts = await request(app).get("/api/finance/accounts").set(bearer(admin.token));
+    const account = accounts.body.find((a: { id: number }) => a.id === accountId);
+    expect(account).toMatchObject({ ingresos: 1_000_000, egresos: 0, saldo_actual: 1_000_000 });
+
+    // La lista expone la marca para que la UI lo muestre como informativo.
+    const gastos = await request(app)
+      .get("/api/finance/transactions?tipo=gasto")
+      .set(bearer(admin.token));
+    expect(gastos.body.data[0]).toMatchObject({ categoria: "Costo de ventas", afecta_caja: 0 });
+  });
+
+  it("el capital es un saldo acumulado hasta la fecha final, sin asientos posteriores", async () => {
+    const { admin, ingresoCat, gastoCat, accountId } = await setup();
+    const hoy = today();
+    const hace10 = addDays(hoy, -10);
+    const futuro = addDays(hoy, 20);
+
+    // Histórico anterior a "desde": sí cuenta para el saldo acumulado.
+    await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(accountId, ingresoCat, { monto: 100_000, fecha: hace10 })
+    );
+    await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(accountId, ingresoCat, { monto: 50_000, fecha: hoy })
+    );
+    await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(accountId, gastoCat, { tipo: "gasto", monto: 30_000, fecha: hoy })
+    );
+    // Un movimiento posterior a "hasta" no puede alterar el saldo a esa fecha.
+    await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(accountId, ingresoCat, { monto: 999_000, fecha: futuro })
+    );
+
+    const summary = await request(app)
+      .get(`/api/finance/summary?desde=${hoy}&hasta=${hoy}`)
+      .set(bearer(admin.token));
+    expect(summary.body).toMatchObject({
+      ingresos: 50_000,
+      egresos: 30_000,
+      utilidad: 20_000,
+      capital_disponible: 120_000,
     });
   });
 

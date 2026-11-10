@@ -107,25 +107,33 @@ export default function FinanceOverviewPage() {
         presupuesto activo.
       </Typography.Paragraph>
 
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Caja vs. contabilidad"
+        description="Los egresos y el capital disponible solo consideran asientos que mueven caja o bancos. El costo de ventas es un asiento contable informativo: reduce la utilidad y el margen, pero no vuelve a descontar el capital."
+      />
+
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title={<Tooltip title="Total de ingresos del periodo">Ingresos</Tooltip>} value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
+            <Statistic title={<Tooltip title="Ingresos que entran a caja o bancos en el periodo">Ingresos</Tooltip>} value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title={<Tooltip title="Total de gastos del periodo">Egresos</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
+            <Statistic title={<Tooltip title="Gastos que salen de caja o bancos. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos menos egresos">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
+            <Statistic title={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title={<Tooltip title="Saldo de caja y bancos (saldo inicial + ingresos - egresos)">Capital disponible</Tooltip>} value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
+            <Statistic title={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>} value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
       </Row>
@@ -133,7 +141,8 @@ export default function FinanceOverviewPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title={<Tooltip title="Costo de los productos vendidos">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
+            <Statistic title={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>No afecta caja</Typography.Text>
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -220,9 +229,9 @@ export default function FinanceOverviewPage() {
               render: (v: string) => (v === "banco" ? "Banco" : "Caja"),
             },
             { title: <Tooltip title="Saldo inicial de la cuenta">Saldo inicial</Tooltip>, dataIndex: "saldo_inicial", align: "right", render: (v: number) => money(v) },
-            { title: <Tooltip title="Ingresos de la cuenta">Ingresos</Tooltip>, dataIndex: "ingresos", align: "right", render: (v: number) => money(v) },
-            { title: <Tooltip title="Egresos de la cuenta">Egresos</Tooltip>, dataIndex: "egresos", align: "right", render: (v: number) => money(v) },
-            { title: <Tooltip title="Saldo actual de la cuenta">Saldo actual</Tooltip>, dataIndex: "saldo_actual", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Ingresos que entran a la cuenta">Ingresos</Tooltip>, dataIndex: "ingresos", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Egresos que salen de la cuenta. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>, dataIndex: "egresos", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Saldo inicial + ingresos - egresos de caja de la cuenta">Saldo actual</Tooltip>, dataIndex: "saldo_actual", align: "right", render: (v: number) => money(v) },
             ...(canWrite
               ? [
                   {
@@ -264,7 +273,20 @@ export default function FinanceOverviewPage() {
           scroll={{ x: "max-content" }}
           locale={{ emptyText: "No hay movimientos en el periodo seleccionado" }}
           columns={[
-            { title: <Tooltip title="Categoría financiera">Categoría</Tooltip>, dataIndex: "nombre" },
+            {
+              title: <Tooltip title="Categoría financiera">Categoría</Tooltip>,
+              dataIndex: "nombre",
+              render: (v: string, c: FinanceSummary["por_categoria"][number]) => (
+                <Space size={4} wrap>
+                  {v}
+                  {c.afecta_caja === 0 && (
+                    <Tooltip title="Asiento informativo: afecta utilidad/margen, pero no mueve caja.">
+                      <Tag>No afecta caja</Tag>
+                    </Tooltip>
+                  )}
+                </Space>
+              ),
+            },
             {
               title: <Tooltip title="Tipo de categoría">Tipo</Tooltip>,
               dataIndex: "tipo",

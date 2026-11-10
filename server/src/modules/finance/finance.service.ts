@@ -10,21 +10,27 @@ import { auditFinance, VALID_TRANSACTION } from "./finance.shared.js";
 type AccountInput = z.infer<typeof accountSchema>;
 
 export async function listAccounts() {
-  // Los saldos de caja solo los mueven ingresos y gastos. El IVA por pagar
-  // (pasivo) y el IVA descontable (activo) no son dinero disponible.
+  // Los saldos de caja solo los mueven los asientos cuya categoría afecta caja.
+  // El costo de ventas (informativo) y el IVA (activo/pasivo) no son dinero
+  // disponible: quedan fuera de ingresos, egresos y saldo.
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT a.id, a.nombre, a.tipo, a.saldo_inicial, a.activo,
-            COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0) AS ingresos,
-            COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0) AS egresos,
+            COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_caja = 1
+                              THEN t.monto ELSE 0 END), 0) AS ingresos,
+            COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_caja = 1
+                              THEN t.monto ELSE 0 END), 0) AS egresos,
             a.saldo_inicial
-              + COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto
-                                  WHEN t.tipo = 'gasto' THEN -t.monto
+              + COALESCE(SUM(CASE WHEN fc.afecta_caja = 1 AND t.tipo = 'ingreso'
+                                  THEN t.monto
+                                  WHEN fc.afecta_caja = 1 AND t.tipo = 'gasto'
+                                  THEN -t.monto
                                   ELSE 0 END), 0)
               AS saldo_actual
      FROM finance_accounts a
      LEFT JOIN transactions t
        ON t.account_id = a.id
       AND ${VALID_TRANSACTION}
+     LEFT JOIN finance_categories fc ON fc.id = t.finance_category_id
      GROUP BY a.id, a.nombre, a.tipo, a.saldo_inicial, a.activo
      ORDER BY a.nombre`
   );
@@ -33,7 +39,7 @@ export async function listAccounts() {
 
 export async function listFinanceCategories() {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT fc.id, fc.nombre, fc.tipo, fc.activo,
+    `SELECT fc.id, fc.nombre, fc.tipo, fc.activo, fc.afecta_caja,
             (SELECT COUNT(*) FROM budget_lines bl WHERE bl.finance_category_id = fc.id) AS lineas,
             (SELECT COUNT(*) FROM transactions t WHERE t.finance_category_id = fc.id) AS transacciones
      FROM finance_categories fc

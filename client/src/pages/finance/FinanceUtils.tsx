@@ -3,6 +3,7 @@ import { Tag } from "antd";
 import { CheckCircleOutlined, EditOutlined, LockOutlined } from "@ant-design/icons";
 import type { BudgetEstado, EjecucionEstado, FinanceCategoryTipo } from "@/types";
 import { formatCurrency } from "@/utils/format";
+import { formatDateOnly } from "@/utils/dates";
 
 export const BUDGET_PERIOD_LABELS: Record<BudgetEstado extends never ? never : string, string> = {
   dia: "Día",
@@ -61,7 +62,7 @@ export const EjecucionTag = ({
 };
 
 export const money = (n: number) => formatCurrency(n);
-export const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-CA");
+export const fmtDate = (s: string) => formatDateOnly(s);
 export const periodLabel = (p: "dia" | "semana" | "mes" | "anio") =>
   p === "dia" ? "Día" : p === "semana" ? "Semana" : p === "mes" ? "Mes" : "Año";
 export const TIPO_LABEL = (t: FinanceCategoryTipo) =>

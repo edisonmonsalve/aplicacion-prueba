@@ -187,6 +187,13 @@ aplica al costo del movimiento/línea (costo neto sin IVA).
 
 **Decisión adoptada:** el capital disponible representa **caja** (saldo inicial + ingresos − egresos de operación). El costo de ventas se mantiene como asiento real de gasto "Costo de ventas" (parte del asiento y del presupuesto, por lo que sigue afectando la utilidad y el margen bruto), pero **no reduce el capital de caja dos veces**: la compra ya impactó el capital al registrarse como gasto, por lo que el capital excluye el costo de ventas. Sigue apareciendo como línea informativa en el resumen financiero.
 
+**Implementación (V014):** la distinción no depende del nombre de la categoría. `finance_categories.afecta_caja` indica si un asiento mueve caja:
+
+- `afecta_caja = 1`: ingresos/gastos que entran o salen de caja o bancos.
+- `afecta_caja = 0`: asientos informativos. Se marcan así el costo de ventas y las categorías de IVA (activo/pasivo).
+
+Con esta marca, `egresos`, el saldo de cada cuenta y el capital disponible excluyen el costo de ventas; `utilidad` (ingresos − todos los gastos), `margen_bruto`, la ejecución presupuestal y el desglose por categoría lo siguen incluyendo. La UI muestra la etiqueta «No afecta caja» en los asientos informativos.
+
 ---
 
 ### M3. Alertas de stock bajo, IVA por defecto y retenciones automáticas
@@ -326,7 +333,7 @@ Todas las mejoras están implementadas, probadas y en verde (tests, typecheck y 
 | Mejora | Estado | Notas |
 |---|---|---|
 | M1. Costo unitario en compras | Implementado | `products.costo` solo cambia con edición manual; la compra no lo sobrescribe. |
-| M2. Costo de ventas y capital | Implementado | COGS como asiento informativo que no reduce el capital de caja dos veces. |
+| M2. Costo de ventas y capital | Implementado | COGS como asiento informativo (`afecta_caja = 0`): no reduce egresos, cuentas ni capital; sí utilidad, margen y presupuesto. |
 | M3. Alertas, IVA y retenciones | Implementado | IVA 19 % por defecto (editable) en factura y cotización; stock bajo; retenciones prellenadas según tipo. |
 | M4. Aprobación sin stock | Implementado | Bloquea la aprobación con 409 si hay faltante; la entrega sigue validando. |
 | M5. Múltiples facturas por cotización | Implementado | Facturación por hitos con control de suma acumulada ≤ total cotizado; generación asistida; pendientes de facturar. |
@@ -356,6 +363,11 @@ Todas las decisiones de la iteración anterior están cerradas:
   (`GET /api/products?ids=1,2,3`). Así el select y las alertas muestran SKU, nombre y stock
   real también en esas líneas. El indicador de stock es permanente: verde (suficiente),
   naranja (bajo mínimo) y rojo (cantidad solicitada > disponible).
+- **Fechas sin desfase horario:** las columnas DATE (`fecha` de factura/cotización, vigencias y
+  periodos) se muestran con `formatDateOnly` (`client/src/utils/dates.ts`), que conserva el día
+  calendario `AAAA-MM-DD` sin reinterpretarlo como medianoche UTC. En Bogotá (UTC-5) una fecha
+  `2026-11-09` ya no se muestra como `2026-11-08`. Las columnas DATETIME siguen usando la
+  conversión local.
 - **Reabastecimiento:** en el inicio, cada producto con stock bajo tiene la acción «Comprar»
   que abre una factura de compra (`?tipo=compra&product=id`) con el producto y su costo
   precargados.

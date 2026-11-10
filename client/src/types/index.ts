@@ -169,6 +169,8 @@ export interface FinanceCategory {
   nombre: string;
   tipo: FinanceCategoryTipo;
   activo: number;
+  /** 1 = mueve caja/bancos; 0 = asiento informativo (costo de ventas, IVA, etc.). */
+  afecta_caja: number;
   lineas: number;
   transacciones: number;
 }
@@ -266,6 +268,8 @@ export interface FinanceTransaction {
   fecha: string;
   finance_category_id: number;
   categoria: string;
+  /** 1 = mueve caja/bancos; 0 = asiento informativo que no afecta caja. */
+  afecta_caja: number;
   account_id: number;
   cuenta: string;
   product_id: number | null;
@@ -296,7 +300,12 @@ export interface FinanceSummary {
   desde: string;
   hasta: string;
   ingresos: number;
+  /** Egresos que realmente salen de caja/bancos (afecta_caja = 1). */
   egresos: number;
+  /** Todos los gastos del periodo, incluidos los asientos informativos. */
+  gastos_totales: number;
+  /** Gastos contables que no mueven caja (costo de ventas, etc.). */
+  gastos_no_caja: number;
   utilidad: number;
   costo_ventas: number;
   margen_bruto: number;
@@ -304,7 +313,13 @@ export interface FinanceSummary {
   iva_por_pagar: number;
   iva_descontable: number;
   capital_disponible: number;
-  por_categoria: { id: number; nombre: string; tipo: FinanceCategoryTipo; total: number }[];
+  por_categoria: {
+    id: number;
+    nombre: string;
+    tipo: FinanceCategoryTipo;
+    afecta_caja: number;
+    total: number;
+  }[];
 }
 
 export interface StockFailure {

@@ -116,6 +116,7 @@ export default function TransactionsPage() {
           { header: "Producto", value: (r) => r.producto ?? "" },
           { header: "Descripción", value: (r) => r.descripcion ?? "" },
           { header: "Monto", value: (r) => r.monto },
+          { header: "Afecta caja", value: (r) => (r.afecta_caja === 1 ? "Sí" : "No") },
           { header: "Anulada", value: (r) => (r.anulada ? "Sí" : "No") },
         ],
         all
@@ -135,7 +136,20 @@ export default function TransactionsPage() {
         return <Tag color={meta.color}>{meta.label}</Tag>;
       },
     },
-    { title: <Tooltip title="Categoría financiera">Categoría</Tooltip>, dataIndex: "categoria" },
+    {
+      title: <Tooltip title="Categoría financiera del asiento">Categoría</Tooltip>,
+      dataIndex: "categoria",
+      render: (v: string, r: FinanceTransaction) => (
+        <Space size={4} wrap>
+          {v}
+          {r.afecta_caja === 0 && (
+            <Tooltip title="Asiento informativo: afecta utilidad/margen, pero no mueve caja ni saldos.">
+              <Tag>No afecta caja</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
     { title: <Tooltip title="Cuenta financiera">Cuenta</Tooltip>, dataIndex: "cuenta" },
     { title: <Tooltip title="Producto asociado">Producto</Tooltip>, dataIndex: "producto", render: (v: string | null) => v ?? "—" },
     {
@@ -250,6 +264,7 @@ export default function TransactionsPage() {
         showIcon
         style={{ marginBottom: 16 }}
         message="Los asientos de cabecera se generan al confirmar facturas (ingreso neto, IVA y costo de ventas). Las cotizaciones no contabilizan."
+        description="El costo de ventas y el IVA son asientos informativos: se marcan como «No afecta caja» y no modifican el capital disponible."
       />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
