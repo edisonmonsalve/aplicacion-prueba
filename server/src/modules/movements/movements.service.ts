@@ -213,6 +213,24 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>, acto
     ? "m.precio_unitario"
     : "NULL AS precio_unitario";
 
+  // El orden por costo/precio solo tiene sentido para quien puede ver esas cifras.
+  const sortAllowed =
+    query.sort && ((query.sort !== "costo" && query.sort !== "precio") || canSeeCosts(actor.rol))
+      ? query.sort
+      : undefined;
+  const sortColumns = {
+    fecha: "m.created_at",
+    producto: "p.nombre",
+    tipo: "m.tipo",
+    origen: "m.origen",
+    cantidad: "m.cantidad",
+    costo: "COALESCE(m.costo_unitario, p.costo)",
+    precio: "m.precio_unitario",
+  } as const;
+  const orderBy = sortAllowed
+    ? `${sortColumns[sortAllowed]} ${query.order === "desc" ? "DESC" : "ASC"}, m.id DESC`
+    : "m.id DESC";
+
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT m.id, m.product_id, p.sku, p.nombre AS producto, m.tipo,
             m.origen, m.cantidad, ${costoColumn}, ${precioColumn},
@@ -221,7 +239,7 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>, acto
      JOIN products p ON p.id = m.product_id
      JOIN users u ON u.id = m.user_id
      ${clause}
-     ORDER BY m.id DESC
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );

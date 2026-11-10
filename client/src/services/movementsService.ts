@@ -1,6 +1,15 @@
 import { api } from "./api";
 import type { MovementOrigen, MovementTipo, Paginated, StockMovement } from "@/types";
 
+export type MovementSortKey =
+  | "fecha"
+  | "producto"
+  | "tipo"
+  | "origen"
+  | "cantidad"
+  | "costo"
+  | "precio";
+
 export interface MovementsQuery {
   page: number;
   pageSize: number;
@@ -12,6 +21,8 @@ export interface MovementsQuery {
   q?: string;
   desde?: string;
   hasta?: string;
+  sort?: MovementSortKey;
+  order?: "asc" | "desc";
 }
 
 export interface MovementsSummary {

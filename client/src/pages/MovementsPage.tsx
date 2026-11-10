@@ -17,7 +17,7 @@ import {
 import type { TableProps } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { getMovements, type MovementsQuery } from "@/services/movementsService";
+import { getMovements, type MovementSortKey, type MovementsQuery } from "@/services/movementsService";
 import { getProducts } from "@/services/productsService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
@@ -30,6 +30,26 @@ import TableSkeleton from "@/components/TableSkeleton";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const DATE_FMT = "DD/MM/YYYY";
+
+const SORT_KEYS: MovementSortKey[] = [
+  "fecha",
+  "producto",
+  "tipo",
+  "origen",
+  "cantidad",
+  "costo",
+  "precio",
+];
+
+const SORT_BY_FIELD: Record<string, MovementSortKey> = {
+  created_at: "fecha",
+  producto: "producto",
+  tipo: "tipo",
+  origen: "origen",
+  cantidad: "cantidad",
+  costo_unitario: "costo",
+  precio_unitario: "precio",
+};
 
 const ORIGEN_META: Record<StockMovement["origen"], { color: string; label: string }> = {
   compra: { color: "blue", label: "Compra" },
@@ -60,6 +80,15 @@ export default function MovementsPage() {
   const q = get("q") ?? "";
   const desde = get("desde");
   const hasta = get("hasta");
+  const rawSort = get("sort");
+  const sort = SORT_KEYS.includes(rawSort as MovementSortKey)
+    ? (rawSort as MovementSortKey)
+    : undefined;
+  // El costo y el precio solo se pueden ordenar si el rol puede verlos.
+  const effectiveSort =
+    (sort === "costo" || sort === "precio") && !verCosto ? undefined : sort;
+  const rawOrder = get("order");
+  const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const query = useMemo<MovementsQuery>(
@@ -74,8 +103,10 @@ export default function MovementsPage() {
       q: q || undefined,
       desde,
       hasta,
+      sort: effectiveSort,
+      order: effectiveSort ? order : undefined,
     }),
-    [page, pageSize, productId, tipo, origen, invoiceId, quoteId, q, desde, hasta]
+    [page, pageSize, productId, tipo, origen, invoiceId, quoteId, q, desde, hasta, effectiveSort, order]
   );
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -100,6 +131,9 @@ export default function MovementsPage() {
 
   const updateFilters = (changes: Partial<MovementsQuery>) =>
     update({ ...changes, page: undefined });
+
+  const sortOrderFor = (key: MovementSortKey): "ascend" | "descend" | null =>
+    effectiveSort === key ? (order === "desc" ? "descend" : "ascend") : null;
 
   // El buscador refleja el filtro de la URL al llegar desde otro módulo.
   useEffect(() => {
@@ -258,10 +292,15 @@ export default function MovementsPage() {
     {
       title: <Tooltip title="Fecha y hora en que se registró el movimiento">Fecha</Tooltip>,
       dataIndex: "created_at",
+      sorter: true,
+      sortOrder: sortOrderFor("fecha"),
       render: (value: string) => dayjs(value).format("DD/MM/YYYY HH:mm"),
     },
     {
       title: <Tooltip title="Producto afectado por el movimiento">Producto</Tooltip>,
+      dataIndex: "producto",
+      sorter: true,
+      sortOrder: sortOrderFor("producto"),
       render: (_, m) => (
         <Tooltip title="Abrir este producto en el catálogo">
           <Link to={`/products?q=${encodeURIComponent(m.sku)}`}>
@@ -273,12 +312,16 @@ export default function MovementsPage() {
     {
       title: <Tooltip title="Entrada (suma stock) o salida (resta stock)">Tipo</Tooltip>,
       dataIndex: "tipo",
+      sorter: true,
+      sortOrder: sortOrderFor("tipo"),
       render: (tipo: StockMovement["tipo"]) =>
         tipo === "entrada" ? <Tag color="green">Entrada</Tag> : <Tag color="orange">Salida</Tag>,
     },
     {
       title: <Tooltip title="Documento que originó el movimiento">Origen</Tooltip>,
       dataIndex: "origen",
+      sorter: true,
+      sortOrder: sortOrderFor("origen"),
       render: (origen: StockMovement["origen"]) => {
         const meta = ORIGEN_META[origen] ?? ORIGEN_META.ajuste;
         return <Tag color={meta.color}>{meta.label}</Tag>;
@@ -286,6 +329,9 @@ export default function MovementsPage() {
     },
     {
       title: <Tooltip title="Unidades del movimiento">Cantidad</Tooltip>,
+      dataIndex: "cantidad",
+      sorter: true,
+      sortOrder: sortOrderFor("cantidad"),
       align: "right",
       render: (_, m) => (m.tipo === "entrada" ? `+${m.cantidad}` : `-${m.cantidad}`),
     },
@@ -299,6 +345,8 @@ export default function MovementsPage() {
             ),
             dataIndex: "costo_unitario",
             align: "right",
+            sorter: true,
+            sortOrder: sortOrderFor("costo"),
             render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
           },
           {
@@ -315,6 +363,8 @@ export default function MovementsPage() {
             ),
             dataIndex: "precio_unitario",
             align: "right",
+            sorter: true,
+            sortOrder: sortOrderFor("precio"),
             render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
           },
         ] as NonNullable<TableProps<StockMovement>["columns"]>)
@@ -488,7 +538,29 @@ export default function MovementsPage() {
             pageSize: query.pageSize,
             total,
             showSizeChanger: true,
-            onChange: (page, pageSize) => update({ page, pageSize }),
+          }}
+          onChange={(pagination, _filters, sorter, extra) => {
+            if (extra.action === "sort") {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const nextSort = s?.order ? SORT_BY_FIELD[String(s.field)] : undefined;
+              // Al cambiar el orden se vuelve a la primera página.
+              update({
+                page: 1,
+                pageSize: pagination.pageSize ?? query.pageSize,
+                sort: nextSort,
+                order: nextSort
+                  ? s?.order === "descend"
+                    ? "desc"
+                    : "asc"
+                  : undefined,
+              });
+              return;
+            }
+            // Paginar conserva el orden vigente.
+            update({
+              page: pagination.current ?? 1,
+              pageSize: pagination.pageSize ?? query.pageSize,
+            });
           }}
         />
       )}

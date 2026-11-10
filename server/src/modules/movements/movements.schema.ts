@@ -28,4 +28,7 @@ export const listQuerySchema = z.object({
   q: z.string().trim().max(150).optional(),
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
+  // Columnas seguras: nunca se interpola texto libre en el ORDER BY.
+  sort: z.enum(["fecha", "producto", "tipo", "origen", "cantidad", "costo", "precio"]).optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });

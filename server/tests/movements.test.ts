@@ -87,6 +87,28 @@ describe("Movimientos de stock", () => {
     });
   });
 
+  it("ordena por columnas seguras y respeta el orden pedido", async () => {
+    const { admin, productId } = await setup();
+    for (const cantidad of [10, 3, 7]) {
+      await move(admin.token, { product_id: productId, tipo: "entrada", cantidad });
+    }
+
+    const desc = await request(app)
+      .get("/api/movements?sort=cantidad&order=desc")
+      .set(bearer(admin.token));
+    expect(desc.body.data.map((m: { cantidad: number }) => m.cantidad)).toEqual([10, 7, 3]);
+
+    const asc = await request(app)
+      .get("/api/movements?sort=cantidad&order=asc")
+      .set(bearer(admin.token));
+    expect(asc.body.data.map((m: { cantidad: number }) => m.cantidad)).toEqual([3, 7, 10]);
+
+    const bad = await request(app)
+      .get("/api/movements?sort=cantidad%3B%20DROP%20TABLE")
+      .set(bearer(admin.token));
+    expect(bad.status).toBe(400);
+  });
+
   it("RN-02: una salida mayor al stock responde 409 y no cambia nada", async () => {
     const { admin, productId } = await setup();
     await move(admin.token, { product_id: productId, tipo: "entrada", cantidad: 5 });
