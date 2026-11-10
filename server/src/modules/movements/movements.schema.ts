@@ -8,6 +8,8 @@ export const createMovementSchema = z.object({
   costo_unitario: z.number().min(0).max(9_999_999_999).optional(),
   motivo: z.string().trim().max(255).optional(),
   origen: z.enum(["compra", "venta", "entrega", "merma", "ajuste"]).default("ajuste"),
+  // Cuenta de caja/banco que mueve el asiento automático (solo compras/ventas).
+  account_id: z.number().int().positive().optional(),
 });
 
 export const listQuerySchema = z.object({

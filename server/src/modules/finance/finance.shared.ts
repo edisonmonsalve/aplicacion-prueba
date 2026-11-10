@@ -60,7 +60,17 @@ async function categoryByName(conn: PoolConnection, nombre: string, tipo: Financ
   return rows[0].id as number;
 }
 
-async function defaultAccount(conn: PoolConnection) {
+async function defaultAccount(conn: PoolConnection, preferredId?: number | null) {
+  if (preferredId) {
+    const [preferred] = await conn.query<RowDataPacket[]>(
+      "SELECT id FROM finance_accounts WHERE id = ? AND activo = 1 LIMIT 1",
+      [preferredId]
+    );
+    if (!preferred[0]) {
+      throw new HttpError(400, "La cuenta financiera no existe o está inactiva");
+    }
+    return preferred[0].id as number;
+  }
   const [rows] = await conn.query<RowDataPacket[]>(
     "SELECT id FROM finance_accounts WHERE activo = 1 ORDER BY id LIMIT 1"
   );
@@ -73,6 +83,7 @@ interface AutoTransactionInput {
   monto: number;
   fecha: string;
   categoriaNombre: string;
+  accountId?: number | null;
   productId?: number | null;
   quoteId?: number | null;
   invoiceId?: number | null;
@@ -93,7 +104,7 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
 
   const [categoriaId, accountId] = await Promise.all([
     categoryByName(conn, input.categoriaNombre, input.tipo),
-    defaultAccount(conn),
+    defaultAccount(conn, input.accountId),
   ]);
 
   const [res] = await conn.query<ResultSetHeader>(

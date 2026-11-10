@@ -80,7 +80,8 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 ## 8. Facturación
 
 - **Lista**: filtros por texto, tipo (venta/compra), estado y rango de fechas.
-- **Nueva factura**: tipo, fecha, contraparte, documento, orden de compra (referencia), email y notas.
+- **Nueva factura**: tipo, fecha, contraparte, documento, **cuenta (caja o banco)**, orden de compra (referencia), email y notas.
+  - La cuenta define si el dinero sale o entra por caja (efectivo) o por banco (transferencia) al confirmar.
   - Líneas con producto, cantidad, precio/costo unitario, descuento % e IVA %. El selector muestra el stock disponible.
   - En ventas se puede **vincular una cotización** aprobada o entregada para no reconocer dos veces el ingreso.
   - Retenciones (fuente, IVA, ICA) informativas: reducen el total neto a pagar pero no generan asientos.
@@ -100,6 +101,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - Selector de rango de fechas.
 - Sugerencias basadas en la ejecución del presupuesto activo.
 - Tabla de cuentas con saldo inicial, ingresos, egresos y saldo actual; crear/editar/eliminar cuentas sin movimientos.
+- Al iniciar con datos reales, crea primero las cuentas de **caja** y **banco** con su saldo inicial. Ese capital financia la primera compra de inventario (activo) y las demás transacciones.
 - Totales por categoría.
 
 ### 9.2 Presupuestos

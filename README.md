@@ -169,6 +169,9 @@ npm run seed:demo
 
 > `reset:dev` solo funciona si `DB_NAME` no termina en `_test` y no es una base del sistema.
 > El seed demo es idempotente por secciones: no duplica movimientos, transacciones ni cotizaciones.
+> Crea las cuentas **Caja principal** (saldo inicial 3.000.000) y **Banco principal**
+> (25.000.000); la compra de inventario y las transferencias salen del banco, y los gastos
+> menores en efectivo salen de la caja.
 
 ### 3. Frontend
 

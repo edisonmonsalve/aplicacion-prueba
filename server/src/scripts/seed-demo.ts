@@ -311,25 +311,58 @@ async function main() {
   // 7. Transacciones
   const txRes = await get("/finance/transactions?page=1&pageSize=1");
   if ((txRes.total ?? 0) === 0) {
+  // Cuentas de caja y banco con capital inicial. La caja cubre gastos menores
+  // en efectivo; el banco financia la compra de inventario y las transferencias.
   const accounts = await get("/finance/accounts");
-  const accountId = accounts[0].id;
+  const caja = accounts.find((a: any) => a.tipo === "caja");
+  if (caja) {
+    await put(`/finance/accounts/${caja.id}`, {
+      nombre: caja.nombre,
+      tipo: "caja",
+      saldo_inicial: 3000000,
+      activo: true,
+    });
+  }
+  let banco = accounts.find((a: any) => a.tipo === "banco");
+  if (!banco) {
+    const created = await post("/finance/accounts", {
+      nombre: "Banco principal",
+      tipo: "banco",
+      saldo_inicial: 25000000,
+      activo: true,
+    });
+    banco = { id: created.id };
+    log("  + cuenta: Banco principal (saldo inicial 25.000.000)");
+  } else {
+    await put(`/finance/accounts/${banco.id}`, {
+      nombre: banco.nombre,
+      tipo: "banco",
+      saldo_inicial: 25000000,
+      activo: true,
+    });
+  }
+  log(`  · Caja principal: saldo inicial 3.000.000 · Banco principal: 25.000.000`);
+  const cajaId = caja?.id as number;
+  const bancoId = banco.id as number;
+
   const catByNombre = Object.fromEntries((financeCats ?? []).map((c: any) => [c.nombre, c.id]));
+  // `cuenta` indica de dónde sale o dónde entra el dinero.
   const txs = [
-    { tipo: "ingreso", monto: 8500000, categoria: "Ventas", descripcion: "Venta de materiales a constructora" },
-    { tipo: "ingreso", monto: 3200000, categoria: "Ventas", descripcion: "Venta de equipos de cómputo" },
-    { tipo: "ingreso", monto: 4800000, categoria: "Ventas", descripcion: "Servicio de instalación de red" },
-    { tipo: "ingreso", monto: 1500000, categoria: "Otros ingresos", descripcion: "Mantenimiento preventivo" },
-    { tipo: "ingreso", monto: 900000, categoria: "Otros ingresos", descripcion: "Reintegro de proveedor" },
-    { tipo: "activo", monto: 5200000, categoria: "Inventario", descripcion: "Compra de cemento y agregados" },
-    { tipo: "activo", monto: 2100000, categoria: "Inventario", descripcion: "Compra de equipos de cómputo" },
-    { tipo: "gasto", monto: 4800000, categoria: "Nómina", descripcion: "Nómina quincenal" },
-    { tipo: "gasto", monto: 2500000, categoria: "Arriendo", descripcion: "Arriendo de oficina y bodega" },
-    { tipo: "gasto", monto: 650000, categoria: "Servicios", descripcion: "Servicios públicos" },
-    { tipo: "gasto", monto: 1200000, categoria: "Impuestos", descripcion: "IVA del periodo" },
-    { tipo: "gasto", monto: 350000, categoria: "Otros gastos", descripcion: "Papelería y aseo" },
-    { tipo: "gasto", monto: 1800000, categoria: "Costo de ventas", descripcion: "Costo de materiales entregados" },
-    { tipo: "ingreso", monto: 2700000, categoria: "Ventas", descripcion: "Venta de software y licencias" },
-    { tipo: "activo", monto: 900000, categoria: "Inventario", descripcion: "Compra de licencias" },
+    { tipo: "ingreso", monto: 8500000, categoria: "Ventas", cuenta: "banco", descripcion: "Venta de materiales a constructora" },
+    { tipo: "ingreso", monto: 3200000, categoria: "Ventas", cuenta: "banco", descripcion: "Venta de equipos de cómputo" },
+    { tipo: "ingreso", monto: 4800000, categoria: "Ventas", cuenta: "banco", descripcion: "Servicio de instalación de red" },
+    { tipo: "ingreso", monto: 1500000, categoria: "Otros ingresos", cuenta: "caja", descripcion: "Mantenimiento preventivo" },
+    { tipo: "ingreso", monto: 900000, categoria: "Otros ingresos", cuenta: "banco", descripcion: "Reintegro de proveedor" },
+    { tipo: "activo", monto: 5200000, categoria: "Inventario", cuenta: "banco", descripcion: "Compra de cemento y agregados" },
+    { tipo: "activo", monto: 2100000, categoria: "Inventario", cuenta: "banco", descripcion: "Compra de equipos de cómputo" },
+    { tipo: "gasto", monto: 4800000, categoria: "Nómina", cuenta: "banco", descripcion: "Nómina quincenal" },
+    { tipo: "gasto", monto: 2500000, categoria: "Arriendo", cuenta: "banco", descripcion: "Arriendo de oficina y bodega" },
+    { tipo: "gasto", monto: 650000, categoria: "Servicios", cuenta: "caja", descripcion: "Servicios públicos" },
+    { tipo: "gasto", monto: 1200000, categoria: "Impuestos", cuenta: "banco", descripcion: "IVA del periodo" },
+    { tipo: "gasto", monto: 350000, categoria: "Otros gastos", cuenta: "caja", descripcion: "Papelería y aseo" },
+    { tipo: "gasto", monto: 1800000, categoria: "Costo de ventas", cuenta: "banco", descripcion: "Costo de materiales entregados" },
+    { tipo: "ingreso", monto: 2700000, categoria: "Ventas", cuenta: "banco", descripcion: "Venta de software y licencias" },
+    { tipo: "activo", monto: 900000, categoria: "Inventario", cuenta: "banco", descripcion: "Compra de licencias" },
   ];
   const today = fmt(new Date());
   for (const t of txs) {
@@ -338,7 +371,7 @@ async function main() {
       monto: t.monto,
       fecha: today,
       finance_category_id: catByNombre[t.categoria],
-      account_id: accountId,
+      account_id: t.cuenta === "caja" ? cajaId : bancoId,
       descripcion: t.descripcion,
     });
   }

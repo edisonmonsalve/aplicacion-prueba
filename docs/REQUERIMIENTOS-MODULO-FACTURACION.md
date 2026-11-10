@@ -67,6 +67,7 @@
 
 - **Rol permitido**: admin, contador, operador
 - **Input requerido**: `tipo`, `fecha`, `contraparte`, `items` (mínimo 1)
+- **Input opcional**: `account_id` (cuenta de caja o banco). Si se omite, los asientos usan la primera cuenta activa.
 - **Generación automática**: `numero` consecutivo via `invoice_counters`
 - **Output**: `{ id, numero }` en estado `borrador`
 - **Validaciones**:
@@ -84,7 +85,7 @@
   - Ningún producto inactivo
 - **Acciones en transacción atómica**:
   1. Registrar movimiento de stock `salida` con `origen=venta`
-  2. Generar asiento financiero `ingreso "Ventas"` por `total`
+  2. Generar asiento financiero `ingreso "Ventas"` por `total` en la cuenta elegida
   3. Actualizar `invoices.estado = 'confirmada'`
   4. Descontar stock de cada producto
 - **Errores**:
@@ -101,7 +102,7 @@
 - **Acciones en transacción atómica**:
   1. Registrar movimiento de stock `entrada` con `origen=compra` + `costo_unitario`
   2. Guardar el costo neto como costo histórico del movimiento (M1)
-  3. Generar asiento financiero `activo "Inventario"` por el neto: es salida de caja, no gasto
+  3. Generar asiento financiero `activo "Inventario"` por el neto en la cuenta elegida: es salida de caja, no gasto
   4. Actualizar `invoices.estado = 'confirmada'`
 - **Nota**: `products.costo` solo cambia con edición manual (M1); la compra no lo sobrescribe. El gasto se reconoce al vender como `Costo de ventas`.
 

@@ -13,7 +13,7 @@
 
 ## Modelo de datos (resumen)
 
-- finance_accounts: caja/banco, saldo_inicial.
+- finance_accounts: caja/banco, saldo_inicial. Cada asiento se registra en una cuenta; las facturas pueden indicar si el dinero sale/entra por caja (efectivo) o por banco (transferencia).
 - finance_categories: nombre, tipo (ingreso | gasto | activo | pasivo), `afecta_caja` (1 = mueve caja/bancos; 0 = asiento informativo).
 - budgets: nombre, tipo de periodo, fecha_inicio, fecha_fin, ingreso_meta, alerta_pct (def. 80), estado (borrador | activo | cerrado).
 - budget_lines: budget_id, finance_category_id, product_id opcional, monto_planeado.
@@ -35,6 +35,7 @@
 - RF-09: Indicadores: ingresos, egresos de caja, gastos totales, utilidad, margen bruto y %, capital disponible.
 - RF-10: Sugerencias de mejora basadas en reglas (ver RN-09).
 - RF-11: Exportar reportes a CSV.
+- RF-12: Elegir la cuenta de caja o banco al registrar una factura, para reflejar si el pago/cobro fue en efectivo o por transferencia. Si no se indica, se usa la primera cuenta activa.
 
 ## Reglas de negocio
 
@@ -50,6 +51,7 @@
 - RN-06b: El capital disponible es un saldo acumulado a la fecha final del rango: incluye el histórico anterior a la fecha inicial y excluye movimientos posteriores a la fecha final.
 - RN-07: Una compra que excede el disponible de su línea se advierte; solo admin puede confirmarla.
 - RN-08: Proyección = real / días transcurridos x días del periodo. Si supera lo planeado, alerta.
+- RN-12: El saldo inicial de cada cuenta representa el capital disponible al abrir el periodo. Solo las transacciones con `afecta_caja = 1` lo modifican; la suma de saldos de cuentas activas es el capital disponible.
 - RN-09: Sugerencias: línea con ejecución < 60% al 80% del periodo (reasignar), línea excedida dos periodos seguidos (subir), margen % bajo la meta (revisar precios).
 - RN-10: Todo cambio queda en audit_log.
 - RN-11: Un periodo cerrado no admite transacciones.

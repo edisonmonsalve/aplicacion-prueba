@@ -20,6 +20,7 @@ const invoiceFields = {
   email: z.string().trim().email().max(150).optional(),
   notas: z.string().trim().max(2000).optional(),
   quote_id: z.number().int().positive().nullable().optional(),
+  account_id: z.number().int().positive().nullable().optional(),
   retencion_fuente: z.number().min(0).max(9_999_999_999).optional(),
   retencion_iva: z.number().min(0).max(9_999_999_999).optional(),
   retencion_ica: z.number().min(0).max(9_999_999_999).optional(),

@@ -396,6 +396,7 @@ export interface Invoice {
   retencion_ica: number;
   total_neto: number;
   quote_id: number | null;
+  account_id: number | null;
   orden_compra: string | null;
   created_at: string;
   creador: string;
@@ -450,6 +451,7 @@ export interface InvoiceInput {
   email?: string;
   notas?: string;
   quote_id?: number | null;
+  account_id?: number | null;
   retencion_fuente?: number;
   retencion_iva?: number;
   retencion_ica?: number;

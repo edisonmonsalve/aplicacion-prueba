@@ -160,6 +160,41 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(transactions[0]).toMatchObject({ tipo: "activo", monto: 250, categoria: "Inventario" });
   });
 
+  it("RF-04b: la factura registra el asiento en la cuenta elegida (banco)", async () => {
+    const account = await request(app)
+      .post("/api/finance/accounts")
+      .set(bearer(admin.token))
+      .send({ nombre: "Banco Test", tipo: "banco", saldo_inicial: 1_000_000 });
+    expect(account.status).toBe(201);
+
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "compra",
+        fecha: "2024-01-15",
+        contraparte: "Proveedor Test",
+        account_id: account.body.id,
+        items: [{ product_id: productId, cantidad: 1, precio_unitario: 250 }],
+      });
+    expect(created.status).toBe(201);
+
+    const confirmed = await request(app)
+      .post(`/api/invoices/${created.body.id}/confirmar`)
+      .set(bearer(admin.token));
+    expect(confirmed.status).toBe(200);
+
+    const [transactions] = await pool.query<RowDataPacket[]>(
+      `SELECT t.tipo, t.monto, fc.nombre AS categoria, fa.nombre AS cuenta
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       JOIN finance_accounts fa ON fa.id = t.account_id
+       WHERE t.invoice_id = ? AND t.tipo = 'activo' AND fc.nombre = 'Inventario'`,
+      [created.body.id]
+    );
+    expect(transactions[0]).toMatchObject({ tipo: "activo", monto: 250, cuenta: "Banco Test" });
+  });
+
   it("RF-05: Confirmar factura de venta sin stock suficiente falla", async () => {
     const created = await request(app)
       .post("/api/invoices")

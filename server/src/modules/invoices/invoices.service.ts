@@ -153,7 +153,7 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.documento,
             i.orden_compra, i.estado, i.subtotal, i.descuento_total,
-            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.created_at,
+            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.account_id, i.created_at,
             u.nombre AS creador
      FROM invoices i JOIN users u ON u.id = i.created_by
      ${clause}
@@ -207,8 +207,8 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
       `INSERT INTO invoices
          (tipo, numero, fecha, contraparte, documento, orden_compra, email,
           subtotal, descuento_total, impuesto_total, total, retencion_fuente,
-          retencion_iva, retencion_ica, total_neto, notas, quote_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          retencion_iva, retencion_ica, total_neto, notas, quote_id, account_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.tipo,
         numero,
@@ -227,6 +227,7 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
         totalNeto,
         input.notas ?? null,
         input.quote_id ?? null,
+        input.account_id ?? null,
         actor.id,
       ]
     );
@@ -280,7 +281,7 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
     await conn.query(
       `UPDATE invoices SET
          tipo = ?, fecha = ?, contraparte = ?, documento = ?, orden_compra = ?,
-         email = ?, notas = ?, quote_id = ?, subtotal = ?, descuento_total = ?,
+         email = ?, notas = ?, quote_id = ?, account_id = ?, subtotal = ?, descuento_total = ?,
          impuesto_total = ?, total = ?, retencion_fuente = ?, retencion_iva = ?,
          retencion_ica = ?, total_neto = ?
        WHERE id = ?`,
@@ -293,6 +294,7 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
         input.email !== undefined ? input.email : current.email,
         input.notas !== undefined ? input.notas : current.notas,
         input.quote_id !== undefined ? input.quote_id : current.quote_id,
+        input.account_id !== undefined ? input.account_id : current.account_id,
         totals.subtotal,
         totals.descuento_total,
         totals.impuesto_total,
@@ -371,6 +373,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     const totals = totalsFromRows(items);
     const baseTotal = roundMoney(totals.subtotal - totals.descuento_total);
     const ivaTotal = totals.impuesto_total;
+    // Cuenta elegida en la factura (caja o banco). Si no se indicó, los
+    // asientos automáticos usan la primera cuenta activa.
+    const accountId = inv.account_id ? Number(inv.account_id) : undefined;
 
     // M5: una cotización aprobada puede vincularse a varias facturas (facturación por hitos),
     // pero la suma de los montos facturados no debe superar el total cotizado.
@@ -502,6 +507,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           monto: baseTotal,
           fecha: inv.fecha,
           categoriaNombre: "Ventas",
+          accountId,
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
@@ -514,6 +520,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           monto: ivaTotal,
           fecha: inv.fecha,
           categoriaNombre: "IVA por pagar",
+          accountId,
           invoiceId: id,
           descripcion: `IVA factura ${inv.numero}`,
           userId: actor.id,
@@ -535,6 +542,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           monto: cogs,
           fecha: inv.fecha,
           categoriaNombre: "Costo de ventas",
+          accountId,
           invoiceId: id,
           descripcion: `Costo de ventas factura ${inv.numero}`,
           userId: actor.id,
@@ -562,6 +570,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           monto: baseTotal,
           fecha: inv.fecha,
           categoriaNombre: "Inventario",
+          accountId,
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
@@ -574,6 +583,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           monto: ivaTotal,
           fecha: inv.fecha,
           categoriaNombre: "IVA descontable",
+          accountId,
           invoiceId: id,
           descripcion: `IVA factura ${inv.numero}`,
           userId: actor.id,

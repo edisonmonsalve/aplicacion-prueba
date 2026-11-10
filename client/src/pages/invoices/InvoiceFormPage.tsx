@@ -19,10 +19,11 @@ import { isAxiosError } from "axios";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { createInvoice, getInvoice, updateInvoice } from "@/services/invoicesService";
 import { getProducts } from "@/services/productsService";
+import { getFinanceAccounts } from "@/services/financeService";
 import { listQuotes, getQuote } from "@/services/quotesService";
 import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
 import StockTag from "@/components/StockTag";
-import type { InvoiceTipo, Quote } from "@/types";
+import type { FinanceAccount, InvoiceTipo, Quote } from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
 
 interface ProductOpt {
@@ -52,6 +53,7 @@ interface FormValues {
   email?: string;
   notas?: string;
   quote_id?: number | null;
+  account_id?: number;
   retencion_fuente?: number;
   retencion_iva?: number;
   retencion_ica?: number;
@@ -88,6 +90,7 @@ export default function InvoiceFormPage() {
   const [form] = Form.useForm<FormValues>();
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [saving, setSaving] = useState(false);
   const loadedQuoteRef = useRef<number | null>(null);
   const lineas = Form.useWatch("items", form) ?? [];
@@ -128,6 +131,20 @@ export default function InvoiceFormPage() {
       message.error("No se pudo buscar productos");
     }
   };
+
+  // Cuentas de caja/banco: definen de dónde sale o dónde entra el dinero.
+  useEffect(() => {
+    getFinanceAccounts()
+      .then((list) => {
+        const active = list.filter((a) => a.activo);
+        setAccounts(active);
+        if (!editId && !form.getFieldValue("account_id")) {
+          const preferred = active.find((a) => a.tipo === "banco") ?? active[0];
+          if (preferred) form.setFieldsValue({ account_id: preferred.id });
+        }
+      })
+      .catch(() => message.error("No se pudieron cargar las cuentas"));
+  }, [editId, form]);
 
   // Cotizaciones aprobadas o entregadas que pueden facturarse.
   useEffect(() => {
@@ -283,6 +300,7 @@ export default function InvoiceFormPage() {
           email: d.email ?? undefined,
           notas: d.notas ?? undefined,
           quote_id: d.quote_id ?? undefined,
+          account_id: d.account_id ?? undefined,
           retencion_fuente: d.retencion_fuente,
           retencion_iva: d.retencion_iva,
           retencion_ica: d.retencion_ica,
@@ -321,6 +339,7 @@ export default function InvoiceFormPage() {
       email: v.email?.trim() || undefined,
       notas: v.notas?.trim() || undefined,
       quote_id: v.tipo === "venta" ? v.quote_id ?? null : null,
+      account_id: v.account_id ?? null,
       retencion_fuente: v.retencion_fuente ?? 0,
       retencion_iva: v.retencion_iva ?? 0,
       retencion_ica: v.retencion_ica ?? 0,
@@ -378,6 +397,20 @@ export default function InvoiceFormPage() {
             <Input style={{ width: 180 }} />
           </Form.Item>
           <Form.Item
+            name="account_id"
+            label="Cuenta"
+            tooltip="Caja = efectivo; banco = transferencia. Define de dónde sale o dónde entra el dinero al confirmar la factura."
+          >
+            <Select
+              placeholder="Cuenta por defecto"
+              style={{ width: 220 }}
+              options={accounts.map((a) => ({
+                value: a.id,
+                label: `${a.nombre} (${a.tipo})`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
             name="orden_compra"
             label="Orden de compra"
             tooltip="Referencia de la orden de compra (opcional). No genera contabilidad por sí sola."
@@ -414,8 +447,8 @@ export default function InvoiceFormPage() {
 
         <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
           {tipo === "compra"
-            ? "Registra los productos comprados. El precio unitario es el costo neto de compra (sin IVA); al confirmar actualiza el costo del producto."
-            : "Registra los productos vendidos. Al confirmar se descuenta stock (si la cotización no lo entregó antes) y se reconoce el ingreso neto + IVA."}
+            ? "Registra los productos comprados. El precio unitario es el costo neto de compra (sin IVA); al confirmar suma stock y registra el activo Inventario en la cuenta elegida."
+            : "Registra los productos vendidos. Al confirmar se descuenta stock (si la cotización no lo entregó antes) y se reconoce el ingreso neto + IVA en la cuenta elegida."}
         </Typography.Paragraph>
 
         <Form.List

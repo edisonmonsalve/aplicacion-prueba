@@ -13,6 +13,8 @@ export async function resetDb() {
   await pool.query("UPDATE transactions SET anulada_de = NULL");
   await pool.query("DELETE FROM transaction_allocations");
   await pool.query("DELETE FROM transactions");
+  // La factura puede referenciar una cuenta; se suelta antes de borrarlas.
+  await pool.query("UPDATE invoices SET account_id = NULL");
   // Las cuentas creadas por las pruebas no forman parte del seed: se limpian y
   // se deja la cuenta base que crea la migración V007.
   await pool.query("DELETE FROM finance_accounts WHERE nombre <> 'Caja principal'");
