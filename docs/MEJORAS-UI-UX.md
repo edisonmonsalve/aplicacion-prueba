@@ -53,18 +53,19 @@ un cambio pequeño en el servidor.
 | M2 | Media | Selector de producto con búsqueda remota; hoy limita a los primeros 100. **Implementado**: búsqueda remota por SKU/nombre y conserva visible el producto del filtro activo. |
 | M3 | Media | Exportar CSV y resumen del filtro (entradas, salidas, unidades). **Implementado**: CSV de todas las páginas y resumen de entradas/salidas con sus unidades. |
 | M4 | Baja | Enlace al producto y a la factura/cotización de origen desde cada fila. **Implementado**: producto enlaza al catálogo y el documento a su factura o cotización. |
+| M5 | Media | Ordenamiento por columnas (`sort`/`order` en el servidor, persistido en la URL). **Implementado**: fecha, producto, tipo, origen, cantidad, costo y precio; costo/precio solo para roles que los ven. |
 
 ## 7. Cotizaciones
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| Q1 | Alta | Filas accesibles: número como enlace y menú de acciones (Ver, Imprimir, Duplicar). |
-| Q2 | Alta | Editor de líneas responsive: tarjeta por línea en móvil, totales fijos. |
-| Q3 | Alta | Proteger cambios sin guardar al cancelar/volver (`beforeunload` + confirmación). |
-| Q4 | Alta | En el detalle, ocultar/deshabilitar “Generar factura” si ya está facturada y listar facturas vinculadas. `[API]` para el listado. |
-| Q5 | Media | Mostrar acciones deshabilitadas con tooltip (“solo creador o admin”) y sacar Imprimir a la barra principal. |
-| Q6 | Media | Plantilla de impresión: encabezado de empresa, datos de contacto, firma, condiciones y saltos de página. |
-| Q7 | Media | Sorter por total/validez y total del filtro. |
+| Q1 | Alta | Filas accesibles: número como enlace y menú de acciones (Ver, Imprimir, Duplicar). **Implementado**: número enlaza al detalle y cada fila tiene menú de acciones; se quitó el clic de toda la fila para evitar conflictos. |
+| Q2 | Alta | Editor de líneas responsive: tarjeta por línea en móvil, totales fijos. **Implementado**: tarjetas apiladas en móvil y total siempre visible en la barra inferior fija. |
+| Q3 | Alta | Proteger cambios sin guardar al cancelar/volver (`beforeunload` + confirmación). **Implementado**: aviso al cerrar/recargar y confirmación al cancelar con cambios pendientes. |
+| Q4 | Alta | En el detalle, ocultar/deshabilitar “Generar factura” si ya está facturada y listar facturas vinculadas. `[API]` para el listado. **Implementado**: `getQuote` devuelve las facturas vinculadas, se listan en el detalle y “Generar factura” se deshabilita si hay una confirmada. |
+| Q5 | Media | Mostrar acciones deshabilitadas con tooltip (“solo creador o admin”) y sacar Imprimir a la barra principal. **Implementado**: acciones deshabilitadas con tooltip de permisos e Imprimir en la barra principal. |
+| Q6 | Media | Plantilla de impresión: encabezado de empresa, datos de contacto, firma, condiciones y saltos de página. **Implementado**: encabezado y contacto genéricos, condiciones, notas, firmas y estilos de impresión con control de saltos. |
+| Q7 | Media | Sorter por total/validez y total del filtro. **Implementado**: orden por número, cliente, total, validez y fecha; monto total del filtro calculado en el servidor. |
 
 ## 8. Facturación
 

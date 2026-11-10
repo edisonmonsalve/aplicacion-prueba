@@ -20,3 +20,189 @@ body {
     margin-left: 0 !important;
   }
 }
+
+/* Q6: plantilla de impresión de cotizaciones. */
+.quote-print {
+  max-width: 900px;
+  margin: 0 auto;
+  color: #111;
+  background: #fff;
+}
+
+.print-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.print-company {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #333;
+}
+
+.print-company-name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.print-doc {
+  text-align: right;
+}
+
+.print-doc-number {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.print-doc-meta {
+  font-size: 12px;
+  color: #555;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.print-rule {
+  border-top: 2px solid #111;
+  margin: 16px 0;
+}
+
+.print-block {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin: 12px 0 4px;
+}
+
+.print-client > div {
+  min-width: 150px;
+}
+
+.print-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #777;
+  margin-bottom: 2px;
+}
+
+.print-strong {
+  font-weight: 600;
+}
+
+.print-pre {
+  white-space: pre-wrap;
+}
+
+.print-table {
+  margin-top: 8px;
+}
+
+.print-totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.print-totals-box {
+  min-width: 300px;
+}
+
+.print-totals-box > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 3px 0;
+}
+
+.print-total-final {
+  border-top: 1px solid #111;
+  margin-top: 6px;
+  padding-top: 6px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.print-section {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-top: 20px;
+}
+
+.print-conditions ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+.print-signatures {
+  display: flex;
+  gap: 48px;
+  margin-top: 48px;
+}
+
+.print-signatures > div {
+  flex: 1;
+  text-align: center;
+}
+
+.print-signature-line {
+  border-top: 1px solid #111;
+  margin-bottom: 6px;
+}
+
+.print-signature-label {
+  font-size: 12px;
+  color: #444;
+}
+
+.print-signature-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.print-footer {
+  margin-top: 32px;
+  border-top: 1px solid #ccc;
+  padding-top: 8px;
+  font-size: 11px;
+  text-align: center;
+  color: #555;
+}
+
+.print-page-break {
+  break-before: page;
+  page-break-before: always;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+  .print-area {
+    max-width: none;
+    margin: 0;
+  }
+  .quote-print {
+    font-size: 12px;
+  }
+  .print-section,
+  .print-signatures,
+  .print-totals,
+  .ant-table-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .print-table thead {
+    display: table-header-group;
+  }
+  .ant-table {
+    font-size: 11px;
+  }
+}

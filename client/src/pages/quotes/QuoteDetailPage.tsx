@@ -11,14 +11,15 @@ import {
   Statistic,
   Steps,
   Table,
+  Tag,
   Timeline,
   Tooltip,
   Typography,
 } from "antd";
-import { DownOutlined } from "@ant-design/icons";
+import { DownOutlined, PrinterOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { isAxiosError } from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   getQuote,
@@ -28,7 +29,7 @@ import {
   duplicateQuote,
   deliverQuote,
 } from "../../services/quotesService";
-import type { QuoteDetail, QuoteLine, QuoteStatus, StockFailure } from "../../types";
+import type { QuoteDetail, QuoteInvoice, QuoteLine, QuoteStatus, StockFailure } from "../../types";
 import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/QuoteUtils";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -114,26 +115,47 @@ export default function QuoteDetailPage() {
   if (!quote) return <Card loading />;
 
   const canAct = canOperate && (user?.rol === "admin" || quote.created_by === user?.id);
+  const permissionReason = "Solo el creador o un administrador puede realizar esta acción.";
+  const facturas = quote.facturas ?? [];
+  const tieneFacturaConfirmada = facturas.some((f) => f.estado === "confirmada");
 
   const confirm = (
     label: string,
     fn: (id: number) => Promise<unknown>,
     ok: string,
     opts: { danger?: boolean; primary?: boolean; tooltip?: string } = {}
-  ) => (
-    <Popconfirm
-      title={`¿${label} esta cotización?`}
-      okText="Sí"
-      cancelText="No"
-      onConfirm={() => run(fn, ok)}
-    >
-      <Tooltip title={opts.tooltip}>
-        <Button type={opts.primary ? "primary" : "default"} danger={opts.danger} disabled={busy}>
-          {label}
-        </Button>
-      </Tooltip>
-    </Popconfirm>
-  );
+  ) => {
+    const button = (
+      <Button
+        type={opts.primary ? "primary" : "default"}
+        danger={opts.danger}
+        disabled={busy || !canAct}
+      >
+        {label}
+      </Button>
+    );
+
+    if (!canAct) {
+      return (
+        <Tooltip title={permissionReason}>
+          <span style={{ display: "inline-block", cursor: "not-allowed" }}>{button}</span>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Popconfirm
+        title={`¿${label} esta cotización?`}
+        okText="Sí"
+        cancelText="No"
+        onConfirm={() => run(fn, ok)}
+      >
+        <Tooltip title={opts.tooltip}>
+          <span style={{ display: "inline-block" }}>{button}</span>
+        </Tooltip>
+      </Popconfirm>
+    );
+  };
 
   const failed = quote.estado === "rechazado" || quote.estado === "vencido";
   const stepIdx = FLOW.indexOf(quote.estado);
@@ -158,55 +180,85 @@ export default function QuoteDetailPage() {
         <Tooltip title="Volver a la lista de cotizaciones">
           <Button onClick={() => navigate("/cotizaciones")}>Volver</Button>
         </Tooltip>
-        {canAct &&
-          quote.estado === "borrador" &&
+        <Tooltip title="Abrir la vista de impresión o guardar como PDF">
+          <Button
+            icon={<PrinterOutlined />}
+            onClick={() => navigate(`/cotizaciones/${quoteId}/imprimir`)}
+          >
+            Imprimir
+          </Button>
+        </Tooltip>
+        {quote.estado === "borrador" &&
           confirm("Enviar", sendQuote, "Cotización enviada", {
             primary: true,
             tooltip: "Marca la cotización como enviada al cliente y activa el control de vencimiento.",
           })}
-        {canAct &&
-          quote.estado === "enviado" &&
+        {quote.estado === "enviado" &&
           confirm("Aprobar", approveQuote, "Cotización aprobada", {
             primary: true,
             tooltip: "Registra que el cliente aceptó la cotización.",
           })}
-        {canAct &&
-          quote.estado === "enviado" &&
+        {quote.estado === "enviado" &&
           confirm("Rechazar", rejectQuote, "Cotización rechazada", {
             danger: true,
             tooltip: "Marca la cotización como rechazada; ya no podrá entregarse.",
           })}
-        {canAct &&
-          quote.estado === "aprobado" &&
+        {quote.estado === "aprobado" &&
           confirm("Entregar", deliverQuote, "Cotización entregada", {
             primary: true,
             tooltip: "Descuenta el stock de cada línea y genera el ingreso correspondiente en finanzas.",
           })}
-        {canAct &&
-          (quote.estado === "aprobado" || quote.estado === "entregado") && (
-            <Button
-              onClick={() => navigate(`/facturas/nuevo?quote=${quoteId}`)}
-              disabled={busy}
-              style={{ marginLeft: 8 }}
+        {(quote.estado === "aprobado" || quote.estado === "entregado") && (
+          <Tooltip
+            title={
+              tieneFacturaConfirmada
+                ? "Esta cotización ya tiene una factura confirmada vinculada."
+                : !canAct
+                  ? permissionReason
+                  : "Crea una factura de venta con los datos de esta cotización."
+            }
+          >
+            <span
+              style={{
+                display: "inline-block",
+                cursor: !canAct || tieneFacturaConfirmada ? "not-allowed" : undefined,
+              }}
             >
-              Generar factura
-            </Button>
-          )}
-        {canAct && quote.estado === "borrador" && (
-          <Tooltip title="Editar las líneas y datos de la cotización mientras siga en borrador">
-            <Button onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)} disabled={busy}>
-              Editar
-            </Button>
+              <Button
+                onClick={() => navigate(`/facturas/nuevo?quote=${quoteId}`)}
+                disabled={busy || !canAct || tieneFacturaConfirmada}
+              >
+                Generar factura
+              </Button>
+            </span>
+          </Tooltip>
+        )}
+        {quote.estado === "borrador" && (
+          <Tooltip
+            title={
+              !canAct
+                ? permissionReason
+                : "Editar las líneas y datos de la cotización mientras siga en borrador"
+            }
+          >
+            <span style={{ display: "inline-block", cursor: !canAct ? "not-allowed" : undefined }}>
+              <Button
+                onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)}
+                disabled={busy || !canAct}
+              >
+                Editar
+              </Button>
+            </span>
           </Tooltip>
         )}
         <Dropdown
           menu={{
             items: [
-              { key: "dup", label: "Duplicar", disabled: busy || !canOperate, onClick: onDuplicate },
               {
-                key: "print",
-                label: "Imprimir",
-                onClick: () => navigate(`/cotizaciones/${quoteId}/imprimir`),
+                key: "dup",
+                label: "Duplicar",
+                disabled: busy || !canOperate,
+                onClick: onDuplicate,
               },
             ],
           }}
@@ -316,6 +368,51 @@ export default function QuoteDetailPage() {
           ]}
         />
       </Card>
+
+      {facturas.length > 0 && (
+        <Card
+          title="Facturas vinculadas"
+          extra={<Tag color="blue">{facturas.length} documento(s)</Tag>}
+        >
+          <Table<QuoteInvoice>
+            rowKey="id"
+            pagination={false}
+            size="small"
+            scroll={{ x: "max-content" }}
+            dataSource={facturas}
+            columns={[
+              {
+                title: "Número",
+                dataIndex: "numero",
+                render: (numero: string, f) => (
+                  <Link to={`/facturas/${f.id}`}>{numero}</Link>
+                ),
+              },
+              { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
+              {
+                title: "Estado",
+                dataIndex: "estado",
+                render: (estado: QuoteInvoice["estado"]) => (
+                  <Tag color={estado === "confirmada" ? "green" : estado === "anulada" ? "red" : "default"}>
+                    {estado === "confirmada" ? "Confirmada" : estado === "anulada" ? "Anulada" : "Borrador"}
+                  </Tag>
+                ),
+              },
+              {
+                title: "Total",
+                dataIndex: "total",
+                align: "right",
+                render: (v: number) => money(v),
+              },
+            ]}
+          />
+          {tieneFacturaConfirmada && (
+            <Typography.Text type="secondary" style={{ display: "block", marginTop: 12 }}>
+              La cotización ya está facturada; por eso “Generar factura” queda deshabilitado.
+            </Typography.Text>
+          )}
+        </Card>
+      )}
 
       <Card title="Historial de estados">
         <Timeline

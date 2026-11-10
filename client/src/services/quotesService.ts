@@ -3,7 +3,7 @@ import type { Quote, QuoteDetail, QuotesQuery } from "../types";
 import type { QuoteInput } from "@/types/index";
 
 export const listQuotes = async (params: QuotesQuery) =>
-  (await api.get<{ data: Quote[]; total: number }>("/quotes", { params })).data;
+  (await api.get<{ data: Quote[]; total: number; monto_total: number }>("/quotes", { params })).data;
 
 export const getQuote = async (id: number) => (await api.get<QuoteDetail>(`/quotes/${id}`)).data;
 

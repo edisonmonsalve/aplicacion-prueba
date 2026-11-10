@@ -41,4 +41,6 @@ export const listQuerySchema = z.object({
     .optional(),
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
+  sort: z.enum(["numero", "cliente", "total", "fecha_validez", "fecha"]).optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });

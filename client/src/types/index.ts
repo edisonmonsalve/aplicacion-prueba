@@ -126,12 +126,27 @@ export interface QuoteHistory {
 export interface QuoteDetail extends Quote {
   items: QuoteLine[];
   historial: QuoteHistory[];
+  facturas: QuoteInvoice[];
 }
+
+/** Factura de venta vinculada a una cotización (solo lectura). */
+export interface QuoteInvoice {
+  id: number;
+  numero: string;
+  fecha: string;
+  estado: InvoiceEstado;
+  total: number;
+}
+
+export type QuoteSortKey = "numero" | "cliente" | "total" | "fecha_validez" | "fecha";
+
 export interface QuotesQuery {
   q?: string;
   estado?: QuoteStatus;
   desde?: string;
   hasta?: string;
+  sort?: QuoteSortKey;
+  order?: "asc" | "desc";
   page: number;
   pageSize: number;
 }
