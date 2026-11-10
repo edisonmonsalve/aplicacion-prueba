@@ -10,6 +10,7 @@ import {
   Row,
   Space,
   Table,
+  Tag,
   Tooltip,
   Typography,
 } from "antd";
@@ -18,16 +19,25 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getBudget, deleteBudget, activateBudget, closeBudget } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
-import { money, BudgetEstadoTag, EjecucionTag, periodLabel, fmtDate } from "./FinanceUtils";
+import {
+  money,
+  BudgetEstadoTag,
+  EjecucionTag,
+  ejecucionColor,
+  periodLabel,
+  fmtDate,
+  TIPO_LABEL,
+} from "./FinanceUtils";
 import { canWriteFinance } from "@/utils/roles";
-import type { BudgetDetail, BudgetLine, EjecucionEstado } from "@/types";
+import type { BudgetDetail, BudgetLine, EjecucionEstado, FinanceCategoryTipo } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import BudgetFormModal from "./BudgetFormModal";
 
-const EJECUCION_COLOR: Record<EjecucionEstado, string> = {
-  ok: "#52c41a",
-  alerta: "#fa8c16",
-  excedido: "#ff4d4f",
+const TIPO_COLOR: Record<string, string> = {
+  ingreso: "green",
+  gasto: "red",
+  activo: "blue",
+  pasivo: "purple",
 };
 
 export default function BudgetDetailPage() {
@@ -65,6 +75,28 @@ export default function BudgetDetailPage() {
   const r = budget.resumen;
   const isBorrador = budget.estado === "borrador";
   const isActivo = budget.estado === "activo";
+
+  // Superar la meta de ingreso es positivo; superar el límite de un gasto es
+  // una alerta. Se muestran por separado para no tratar ambos casos igual.
+  const ingresosSuperados = budget.lineas.filter(
+    (l) => l.tipo_categoria === "ingreso" && l.estado === "excedido"
+  );
+  const gastosExcedidos = budget.lineas.filter(
+    (l) => l.tipo_categoria !== "ingreso" && l.estado === "excedido"
+  );
+  const lineasNoIngreso = budget.lineas.filter((l) => l.tipo_categoria !== "ingreso");
+  const soloIngreso = budget.lineas.length > 0 && lineasNoIngreso.length === 0;
+  const hayGastoAlerta = lineasNoIngreso.some((l) => l.estado === "alerta");
+  const tipoResumen: FinanceCategoryTipo | undefined = soloIngreso ? "ingreso" : undefined;
+  const estadoResumen: EjecucionEstado = soloIngreso
+    ? r.estado
+    : gastosExcedidos.length > 0
+      ? "excedido"
+      : hayGastoAlerta
+        ? "alerta"
+        : "ok";
+  const nombreLinea = (l: BudgetLine) =>
+    `${l.categoria}${l.producto ? ` · ${l.producto}` : l.producto_categoria ? ` · ${l.producto_categoria}` : ""}`;
 
   const doActivate = () => {
     modal.confirm({
@@ -120,7 +152,16 @@ export default function BudgetDetailPage() {
   };
 
   const columns = [
-    { title: <Tooltip title="Categoría financiera planificada">Categoría</Tooltip>, dataIndex: "categoria" },
+    {
+      title: <Tooltip title="Categoría financiera planificada">Categoría</Tooltip>,
+      dataIndex: "categoria",
+      render: (categoria: string, l: BudgetLine) => (
+        <Space size={4}>
+          <Tag color={TIPO_COLOR[l.tipo_categoria]}>{TIPO_LABEL(l.tipo_categoria)}</Tag>
+          <span>{categoria}</span>
+        </Space>
+      ),
+    },
     {
       title: <Tooltip title="Nivel al que se imputa la ejecución real">Alcance</Tooltip>,
       key: "alcance",
@@ -134,8 +175,35 @@ export default function BudgetDetailPage() {
     { title: <Tooltip title="Monto planeado para la línea">Planeado</Tooltip>, dataIndex: "monto_planeado", align: "right" as const, render: (v: number) => money(v) },
     { title: <Tooltip title="Monto real ejecutado en el periodo">Real</Tooltip>, dataIndex: "real", align: "right" as const, render: (v: number) => money(v) },
     { title: <Tooltip title="Monto disponible (planeado - real)">Disponible</Tooltip>, dataIndex: "disponible", align: "right" as const, render: (v: number) => money(v) },
-    { title: <Tooltip title="Porcentaje de ejecución (real / planeado)">Ejecución</Tooltip>, dataIndex: "ejecucion_pct", align: "right" as const, render: (v: number) => `${v.toFixed(0)}%` },
-    { title: <Tooltip title="Estado según el porcentaje de ejecución">Estado</Tooltip>, dataIndex: "estado", render: (e: EjecucionEstado) => <EjecucionTag estado={e} /> },
+    {
+      title: <Tooltip title="Porcentaje de ejecución (real / planeado)">Ejecución</Tooltip>,
+      dataIndex: "ejecucion_pct",
+      width: 190,
+      render: (v: number, l: BudgetLine) => (
+        <Tooltip
+          title={
+            l.tipo_categoria === "ingreso" && l.estado === "excedido"
+              ? "Meta superada: es un resultado positivo"
+              : `${v.toFixed(0)}% ejecutado`
+          }
+        >
+          <Progress
+            percent={Math.min(v, 100)}
+            size="small"
+            strokeColor={ejecucionColor(l.estado, l.tipo_categoria)}
+            format={() => `${v.toFixed(0)}%`}
+            style={{ minWidth: 150 }}
+          />
+        </Tooltip>
+      ),
+    },
+    {
+      title: <Tooltip title="Estado según el porcentaje de ejecución y el tipo de categoría">Estado</Tooltip>,
+      dataIndex: "estado",
+      render: (e: EjecucionEstado, l: BudgetLine) => (
+        <EjecucionTag estado={e} tipo={l.tipo_categoria} />
+      ),
+    },
   ];
 
   return (
@@ -149,13 +217,21 @@ export default function BudgetDetailPage() {
         </Space>
         {canWrite && (
           <Space wrap>
+            {(isBorrador || isActivo) && (
+              <Tooltip
+                title={
+                  isBorrador
+                    ? "Editar datos y líneas mientras el presupuesto siga en borrador"
+                    : "Ajustar los montos planificados; la ejecución se recalcula al instante"
+                }
+              >
+                <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
+                  {isActivo ? "Ajustar" : "Editar"}
+                </Button>
+              </Tooltip>
+            )}
             {isBorrador && (
               <>
-                <Tooltip title="Editar datos y líneas mientras el presupuesto siga en borrador">
-                  <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
-                    Editar
-                  </Button>
-                </Tooltip>
                 <Tooltip title="Comenzar a comparar las transacciones del periodo contra este presupuesto">
                   <Button type="primary" icon={<CheckOutlined />} onClick={doActivate}>
                     Activar
@@ -211,6 +287,38 @@ export default function BudgetDetailPage() {
         />
       )}
 
+      {ingresosSuperados.length > 0 && (
+        <Alert
+          type="success"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Meta de ingresos superada"
+          description={
+            <>
+              Vas por encima de lo esperado en{" "}
+              <strong>{ingresosSuperados.map(nombreLinea).join(", ")}</strong>. Es un resultado
+              positivo: no requiere ajuste por exceso.
+            </>
+          }
+        />
+      )}
+      {gastosExcedidos.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Límites superados"
+          description={
+            <>
+              Estas líneas superaron su monto planeado:{" "}
+              <strong>{gastosExcedidos.map(nombreLinea).join(", ")}</strong>. Puedes usar
+              «{isActivo ? "Ajustar" : "Editar"}» para revisar los montos o redistribuir el
+              presupuesto.
+            </>
+          }
+        />
+      )}
+
       <Descriptions bordered size="small" column={{ xs: 1, md: 2 }} style={{ marginBottom: 16 }}>
         <Descriptions.Item label={<Tooltip title="Granularidad del periodo">Periodo</Tooltip>}>{periodLabel(budget.tipo_periodo)}</Descriptions.Item>
         <Descriptions.Item label={<Tooltip title="Fechas del periodo">Rango</Tooltip>}>
@@ -248,7 +356,7 @@ export default function BudgetDetailPage() {
             </Tooltip>
             <Progress
               percent={Math.min(r.ejecucion_pct, 100)}
-              strokeColor={EJECUCION_COLOR[r.estado]}
+              strokeColor={ejecucionColor(estadoResumen, tipoResumen)}
               format={() => `${r.ejecucion_pct.toFixed(0)}%`}
             />
           </Card>
@@ -263,12 +371,27 @@ export default function BudgetDetailPage() {
           </div>
           <div>
             <Tooltip title="Porcentaje de la meta de ingresos alcanzada"><Typography.Text type="secondary">Cumplimiento de ingreso</Typography.Text></Tooltip>
-            <div>{r.cumplimiento_ingreso_pct.toFixed(0)}%</div>
+            <div>
+              {r.cumplimiento_ingreso_pct.toFixed(0)}%
+              {r.cumplimiento_ingreso_pct >= 100 && (
+                <Tag color="green" style={{ marginLeft: 8 }}>
+                  Meta superada
+                </Tag>
+              )}
+            </div>
           </div>
           <div>
-            <Tooltip title="Estado según el porcentaje de ejecución"><Typography.Text type="secondary">Estado de ejecución</Typography.Text></Tooltip>
+            <Tooltip
+              title={
+                soloIngreso
+                  ? "Porcentaje de la meta de ingresos alcanzada"
+                  : "Estado de los gastos: superar el límite es una alerta; el sobrecumplimiento de ingresos no cuenta como exceso"
+              }
+            >
+              <Typography.Text type="secondary">Estado de ejecución</Typography.Text>
+            </Tooltip>
             <div>
-              <EjecucionTag estado={r.estado} />
+              <EjecucionTag estado={estadoResumen} tipo={tipoResumen} />
             </div>
           </div>
         </Space>

@@ -17,6 +17,13 @@ export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   q: z.string().trim().optional(),
+  // Búsqueda por lote: "1,2,3". Permite hidratar líneas autocompletadas
+  // (edición, cotización -> factura, reabastecimiento) sin paginar el catálogo.
+  ids: z
+    .string()
+    .trim()
+    .regex(/^\d+(,\d+)*$/, "ids debe ser una lista de números separados por coma")
+    .optional(),
   category_id: z.coerce.number().int().positive().optional(),
   activo: z.enum(["0", "1"]).optional(),
   bajoStock: z.enum(["1"]).optional(), // RF-11

@@ -9,7 +9,6 @@ import {
   InputNumber,
   Select,
   Space,
-  Tag,
   Tooltip,
   Typography,
   message,
@@ -21,6 +20,8 @@ import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { createQuote, getQuote, updateQuote } from "@/services/quotesService";
 import { getProducts } from "@/services/productsService";
+import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
+import StockTag from "@/components/StockTag";
 import type { QuoteLineForm } from "@/types";
 import { money } from "./QuoteUtils";
 
@@ -105,26 +106,18 @@ export default function QuoteFormPage() {
               ])
           ),
         }));
-        // Completar el stock real de los productos de las líneas para mostrar
-        // alertas de stock bajo / insuficiente también al editar.
+        // Completar el stock real de los productos de las líneas. Se consulta
+        // por lote de ids: así las líneas autocompletadas muestran el stock y
+        // las alertas funcionan igual que en las agregadas a mano.
         const ids = d.items
           .filter((l) => l.product_id)
           .map((l) => l.product_id!);
         if (ids.length > 0) {
-          getProducts({ q: "", page: 1, pageSize: 200 }).then((r) => {
-            const byId = Object.fromEntries(
-              (r.data as ProductOpt[]).map((p) => [p.id, p])
-            );
-            setProducts((prev) => ({
-              ...prev,
-              ...Object.fromEntries(
-                ids.map((id) => [
-                  id,
-                  { ...prev[id], ...(byId[id] ?? {}) },
-                ])
-              ),
-            }));
-          });
+          fetchProductsByIds(ids)
+            .then((byId) =>
+              setProducts((prev) => ({ ...prev, ...byId }))
+            )
+            .catch(() => {});
         }
         form.setFieldsValue({
           cliente_nombre: d.customer_nombre,
@@ -272,7 +265,7 @@ export default function QuoteFormPage() {
                       style={{ width: 280 }}
                       options={Object.values(products).map((p) => ({
                         value: p.id,
-                        label: `${p.sku} — ${p.nombre}${p.stock_actual !== undefined ? ` (stock: ${p.stock_actual}${p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo ? ' · stock bajo' : ''})` : ''}`,
+                        label: productOptionLabel(p),
                       }))}
                     />
                   </Form.Item>
@@ -321,23 +314,15 @@ export default function QuoteFormPage() {
                     const l = lineas[name];
                     const p = l?.product_id ? products[l.product_id] : undefined;
                     if (!p || p.stock_actual === undefined) return null;
-                    const excede = (l?.cantidad ?? 0) > p.stock_actual;
-                    const bajo = p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo;
-                    if (excede) {
-                      return (
-                        <Tag color="red" style={{ lineHeight: "30px", marginTop: 30 }}>
-                          ¡Stock insuficiente! disponible {p.stock_actual}, solicitado {l.cantidad}
-                        </Tag>
-                      );
-                    }
-                    if (bajo) {
-                      return (
-                        <Tag color="orange" style={{ lineHeight: "30px", marginTop: 30 }}>
-                          Stock bajo: {p.stock_actual}
-                        </Tag>
-                      );
-                    }
-                    return null;
+                    return (
+                      <div style={{ marginTop: 30 }}>
+                        <StockTag
+                          stockActual={p.stock_actual}
+                          stockMinimo={p.stock_minimo}
+                          solicitado={l?.cantidad}
+                        />
+                      </div>
+                    );
                   })()}
                   <Tooltip title="Quitar esta línea">
                     <Button

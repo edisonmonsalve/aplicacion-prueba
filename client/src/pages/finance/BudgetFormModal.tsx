@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Button,
   DatePicker,
   Form,
@@ -68,7 +69,13 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
       .catch(() => messageApi.error("No se pudieron cargar las categorías"));
     getProducts({ page: 1, pageSize: 100 })
       .then((r) => {
-        setProductOptions(r.data.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` })));
+        const fetched = r.data.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }));
+        // Conserva opciones de líneas ya existentes que no estén en la primera página.
+        setProductOptions((prev) => {
+          const merged = new Map(fetched.map((o) => [o.value, o]));
+          for (const o of prev) if (!merged.has(o.value)) merged.set(o.value, o);
+          return [...merged.values()];
+        });
       })
       .catch(() => messageApi.error("No se pudieron cargar los productos"));
     getCategories()
@@ -150,7 +157,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
   return (
     <Modal
       open={open}
-      title={budget ? "Editar presupuesto" : "Nuevo presupuesto"}
+      title={budget ? (budget.estado === "activo" ? "Ajustar presupuesto" : "Editar presupuesto") : "Nuevo presupuesto"}
       width={860}
       okText={budget ? "Guardar" : "Crear"}
       cancelText="Cancelar"
@@ -161,6 +168,15 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
       destroyOnClose
     >
       {contextHolder}
+      {budget?.estado === "activo" && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Estás ajustando un presupuesto activo"
+          description="Al cambiar los montos planificados se recalcula de inmediato la ejecución de las transacciones ya registradas en el periodo."
+        />
+      )}
       <Form form={form} layout="vertical" initialValues={{ tipo_periodo: "mes", alerta_pct: 80, ingreso_meta: 0, lineas: [] }}>
         <Space style={{ width: "100%" }} size="middle" wrap>
           <Form.Item

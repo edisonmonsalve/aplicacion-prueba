@@ -8,7 +8,6 @@ import {
   InputNumber,
   Select,
   Space,
-  Tag,
   Tooltip,
   Typography,
   message,
@@ -21,6 +20,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { createInvoice, getInvoice, updateInvoice } from "@/services/invoicesService";
 import { getProducts } from "@/services/productsService";
 import { listQuotes, getQuote } from "@/services/quotesService";
+import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
+import StockTag from "@/components/StockTag";
 import type { InvoiceTipo, Quote } from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
 
@@ -139,6 +140,8 @@ export default function InvoiceFormPage() {
   const [searchParams] = useSearchParams();
   const urlQuoteId = searchParams.get("quote");
   const urlProductId = searchParams.get("product");
+  const urlTipo = searchParams.get("tipo");
+  const initialTipo: InvoiceTipo = urlTipo === "compra" ? "compra" : "venta";
 
   const loadedProductRef = useRef<number | null>(null);
 
@@ -149,21 +152,27 @@ export default function InvoiceFormPage() {
     if (tipo !== "compra") return;
     const pid = urlProductId ? Number(urlProductId) : null;
     if (!pid || pid === loadedProductRef.current) return;
-    const p = products[pid];
-    if (!p) return;
     loadedProductRef.current = pid;
-    const arr = [...(form.getFieldValue("items") ?? [])];
-    if (arr.length === 1 && !arr[0]?.product_id) {
-      arr[0] = {
-        product_id: pid,
-        cantidad: 1,
-        precio_unitario: p.costo ?? p.precio,
-        descuento_pct: 0,
-        impuesto_pct: 0,
-      };
-      form.setFieldsValue({ items: arr });
-    }
-  }, [tipo, editId, urlProductId, products, form]);
+
+    fetchProductsByIds([pid])
+      .then((byId) => {
+        const p = byId[pid];
+        if (!p) return;
+        setProducts((prev) => ({ ...prev, ...byId }));
+        const arr = [...(form.getFieldValue("items") ?? [])];
+        if (arr.length === 1 && !arr[0]?.product_id) {
+          arr[0] = {
+            product_id: pid,
+            cantidad: 1,
+            precio_unitario: p.costo ?? p.precio,
+            descuento_pct: 0,
+            impuesto_pct: 0,
+          };
+          form.setFieldsValue({ items: arr });
+        }
+      })
+      .catch(() => message.error("No se pudo cargar el producto a reabastecer"));
+  }, [tipo, editId, urlProductId, form, message]);
 
   // M5/M6: al seleccionar (o llegar con ?quote=) una cotización en una factura de venta nueva,
   // precarga cliente, email, notas y líneas con los mismos valores de la cotización. El cliente
@@ -212,26 +221,18 @@ export default function InvoiceFormPage() {
               ])
           ),
         }));
-        // Completar el stock real de los productos para mostrar alertas de
-        // stock bajo / insuficiente también al editar.
+        // Completar el stock real de los productos de la cotización. Se consulta
+        // por lote de ids porque el catálogo pagina y el stock es lo que alimenta
+        // las alertas y la etiqueta del select.
         const ids = d.items
           .filter((l) => l.product_id)
           .map((l) => l.product_id!);
         if (ids.length > 0) {
-          getProducts({ q: "", page: 1, pageSize: 200 }).then((r) => {
-            const byId = Object.fromEntries(
-              (r.data as ProductOpt[]).map((p) => [p.id, p])
-            );
-            setProducts((prev) => ({
-              ...prev,
-              ...Object.fromEntries(
-                ids.map((id) => [
-                  id,
-                  { ...prev[id], ...(byId[id] ?? {}) },
-                ])
-              ),
-            }));
-          });
+          fetchProductsByIds(ids)
+            .then((byId) =>
+              setProducts((prev) => ({ ...prev, ...byId }))
+            )
+            .catch(() => {});
         }
       })
       .catch(() => {
@@ -261,26 +262,17 @@ export default function InvoiceFormPage() {
               ])
           ),
         }));
-        // Completar el stock real de los productos para mostrar alertas de
-        // stock bajo / insuficiente también al editar.
+        // Completar el stock real de los productos de la factura. Se consulta
+        // por lote de ids para que las líneas autocompletadas muestren stock.
         const ids = d.items
           .filter((l) => l.product_id)
           .map((l) => l.product_id);
         if (ids.length > 0) {
-          getProducts({ q: "", page: 1, pageSize: 200 }).then((r) => {
-            const byId = Object.fromEntries(
-              (r.data as ProductOpt[]).map((p) => [p.id, p])
-            );
-            setProducts((prev) => ({
-              ...prev,
-              ...Object.fromEntries(
-                ids.map((id) => [
-                  id,
-                  { ...prev[id], ...(byId[id] ?? {}) },
-                ])
-              ),
-            }));
-          });
+          fetchProductsByIds(ids)
+            .then((byId) =>
+              setProducts((prev) => ({ ...prev, ...byId }))
+            )
+            .catch(() => {});
         }
         form.setFieldsValue({
           tipo: d.tipo,
@@ -361,7 +353,7 @@ export default function InvoiceFormPage() {
         form={form}
         layout="vertical"
         onFinish={onFinish}
-        initialValues={{ tipo: "venta", fecha: dayjs(), items: [{}] }}
+        initialValues={{ tipo: initialTipo, fecha: dayjs(), items: [{}] }}
       >
         <Space wrap align="start">
           <Form.Item
@@ -454,7 +446,7 @@ export default function InvoiceFormPage() {
                       style={{ width: 280 }}
                       options={Object.values(products).map((p) => ({
                         value: p.id,
-                        label: `${p.sku} — ${p.nombre}${p.stock_actual !== undefined ? ` (stock: ${p.stock_actual}${p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo ? ' · stock bajo' : ''})` : ''}`,
+                        label: productOptionLabel(p),
                       }))}
                     />
                   </Form.Item>
@@ -487,23 +479,15 @@ export default function InvoiceFormPage() {
                     const l = lineas[name];
                     const p = l?.product_id ? products[l.product_id] : undefined;
                     if (!p || p.stock_actual === undefined) return null;
-                    const excede = (l?.cantidad ?? 0) > p.stock_actual;
-                    const bajo = p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo;
-                    if (excede) {
-                      return (
-                        <Tag color="red" style={{ lineHeight: "30px", marginTop: 30 }}>
-                          ¡Stock insuficiente! disponible {p.stock_actual}, solicitado {l.cantidad}
-                        </Tag>
-                      );
-                    }
-                    if (bajo) {
-                      return (
-                        <Tag color="orange" style={{ lineHeight: "30px", marginTop: 30 }}>
-                          Stock bajo: {p.stock_actual}
-                        </Tag>
-                      );
-                    }
-                    return null;
+                    return (
+                      <div style={{ marginTop: 30 }}>
+                        <StockTag
+                          stockActual={p.stock_actual}
+                          stockMinimo={p.stock_minimo}
+                          solicitado={tipo === "compra" ? undefined : l?.cantidad}
+                        />
+                      </div>
+                    );
                   })()}
                   <Tooltip title="Quitar esta línea">
                     <Button

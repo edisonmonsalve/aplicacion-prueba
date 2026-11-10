@@ -438,8 +438,8 @@ export async function updateBudget(id: number, input: BudgetInput, actor: AuthUs
 
   return withTransaction(async (conn) => {
     const budget = await lockBudget(conn, id);
-    if (budget.estado !== "borrador") {
-      throw new HttpError(409, "Solo los presupuestos en borrador se pueden editar");
+    if (budget.estado === "cerrado") {
+      throw new HttpError(409, "Un presupuesto cerrado no se puede editar");
     }
 
     await assertEntities(conn, input.lineas);

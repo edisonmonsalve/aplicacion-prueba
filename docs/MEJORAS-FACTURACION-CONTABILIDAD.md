@@ -348,3 +348,26 @@ Todas las decisiones de la iteración anterior están cerradas:
 8. El precio de la factura no se bloquea; se permite editar y agregar productos (M6).
 
 ---
+
+## 6. Ajustes de UI/UX posteriores
+
+- **Stock en líneas autocompletadas:** las líneas que llegan desde una cotización, al editar
+  una factura o al reabastecer un producto ahora hidratan sus datos por lote de ids
+  (`GET /api/products?ids=1,2,3`). Así el select y las alertas muestran SKU, nombre y stock
+  real también en esas líneas. El indicador de stock es permanente: verde (suficiente),
+  naranja (bajo mínimo) y rojo (cantidad solicitada > disponible).
+- **Reabastecimiento:** en el inicio, cada producto con stock bajo tiene la acción «Comprar»
+  que abre una factura de compra (`?tipo=compra&product=id`) con el producto y su costo
+  precargados.
+- **Presupuestos: ingresos vs. gastos:** superar la meta de una categoría de ingreso se
+  muestra como resultado positivo («Meta superada», verde); superar el límite de un gasto se
+  mantiene como alerta («Excedido», rojo). El resumen global ya no marca «excedido» por un
+  sobrecumplimiento de ingresos.
+- **Ajuste de presupuestos:** un presupuesto en estado `activo` se puede ajustar (no así uno
+  cerrado). Al cambiar los montos planificados se recalcula la ejecución de las transacciones
+  ya registradas.
+- **Numeración de cotizaciones:** el prefijo documental es `COT-` (antes `PRE-`). La migración
+  V013 actualiza también los motivos históricos de movimientos de stock
+  («Presupuesto PRE-n» → «Presupuesto COT-n»).
+
+---

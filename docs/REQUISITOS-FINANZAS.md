@@ -39,7 +39,8 @@
 - RN-01: Montos en COP con DECIMAL(18,2); nunca FLOAT. Margen calculado sobre valores sin IVA.
 - RN-02: Las transacciones no se editan ni se borran; se anulan con una contrapartida.
 - RN-03: Un solo presupuesto activo por periodo.
-- RN-04: Ejecución % = real / planeado x 100. Estado: ok (< alerta_pct), alerta (>= alerta_pct), excedido (>= 100).
+- RN-04: Ejecución % = real / planeado x 100. Estado: ok (< alerta_pct), alerta (>= alerta_pct), excedido (>= 100). En categorías de ingreso, superar el 100 % es un resultado positivo (meta superada); solo los gastos/activos/pasivos se consideran excedidos.
+- RN-04a: un presupuesto `activo` puede ajustarse (montos planificados); un presupuesto `cerrado` no. El ajuste recalcula la ejecución de las transacciones ya registradas.
 - RN-05: Disponible = planeado - real.
 - RN-06: Margen bruto = ingresos - costo de ventas; margen % = margen / ingresos.
 - RN-07: Una compra que excede el disponible de su línea se advierte; solo admin puede confirmarla.

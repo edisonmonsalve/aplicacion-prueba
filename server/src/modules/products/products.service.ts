@@ -30,6 +30,17 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>, actor
   if (query.bajoStock) {
     where.push("p.stock_actual < p.stock_minimo");
   }
+  if (query.ids) {
+    const ids = [...new Set(query.ids.split(",").map(Number))].filter(
+      (id) => Number.isInteger(id) && id > 0
+    );
+    if (ids.length === 0) {
+      where.push("1 = 0");
+    } else {
+      where.push(`p.id IN (${ids.map(() => "?").join(", ")})`);
+      params.push(...ids);
+    }
+  }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const [[{ total }]] = await pool.query<RowDataPacket[]>(

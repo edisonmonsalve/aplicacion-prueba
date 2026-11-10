@@ -64,7 +64,7 @@ Los roles `contador` y `consulta` ya existen en autenticación y usuarios y ya a
 - **RN-P06:** un presupuesto enviado cuya validez ya pasó se muestra como vencido (estado calculado) y no puede aprobarse.
 - **RN-P08:** entregar es todo o nada: si alguna línea no tiene stock suficiente, no se entrega ninguna y se informa cuáles fallan (409 con `errors`).
 - **RN-P07:** cotizar no reserva stock.
-- **RN-P09:** entregar genera salidas de stock con motivo "Presupuesto PRE-n" en una sola transacción, bloqueando los productos en orden de id para evitar interbloqueos.
+- **RN-P09:** entregar genera salidas de stock con motivo "Presupuesto COT-n" en una sola transacción, bloqueando los productos en orden de id para evitar interbloqueos.
 - **RN-P10:** se necesita al menos una línea para enviar.
 - **RN-P11:** la fecha de validez no puede ser anterior a hoy.
 - **RN-P12:** cada cambio de estado queda registrado con quién lo hizo y cuándo.

@@ -464,7 +464,7 @@ export async function deliverQuote(id: number, actor: AuthUser) {
       throw new HttpError(409, "Stock insuficiente para entregar", fallos);
     }
 
-    // RN-P09: salidas con motivo "Presupuesto PRE-n", en la misma transacción.
+    // RN-P09: salidas con motivo "Presupuesto COT-n", en la misma transacción.
     // El ciclo documental es: la cotización es pre-contractual y NO genera
     // contabilidad. La entrega solo mueve stock (actúa como recibo/remisión).
     for (const i of items) {

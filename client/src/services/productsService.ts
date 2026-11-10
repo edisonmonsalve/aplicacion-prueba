@@ -5,6 +5,8 @@ export interface ProductsQuery {
   page: number;
   pageSize: number;
   q?: string;
+  /** Lista de ids separados por coma para hidratar líneas autocompletadas. */
+  ids?: string;
   category_id?: number;
   activo?: "0" | "1";
   bajoStock?: "1";

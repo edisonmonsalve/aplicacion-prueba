@@ -24,7 +24,7 @@ describe("Presupuestos: consulta", () => {
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(3);
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.data[0].numero).toMatch(/^PRE-\d{6}$/);
+    expect(res.body.data[0].numero).toMatch(/^COT-\d{6}$/);
     expect(res.body.data[0].id).toBeGreaterThan(res.body.data[1].id);
   });
 
@@ -88,7 +88,7 @@ describe("Presupuestos: consulta", () => {
     const res = await get(admin.token, `/api/quotes/${created.body.id}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.numero).toMatch(/^PRE-\d{6}$/);
+    expect(res.body.numero).toMatch(/^COT-\d{6}$/);
     expect(res.body.total).toBe(1800);
     expect(res.body.fecha_validez).toBe(futureDate(10));
     expect(res.body.items).toHaveLength(1);

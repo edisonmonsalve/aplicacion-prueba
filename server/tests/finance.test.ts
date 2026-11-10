@@ -155,6 +155,41 @@ describe("Finanzas: API", () => {
     expect((await request(app).delete(`/api/finance/budgets/${id}`).set(bearer(admin.token))).status).toBe(409);
   });
 
+  it("permite ajustar un presupuesto activo y bloquea la edición de uno cerrado", async () => {
+    const { admin, ingresoCat } = await setup();
+    const created = await post(
+      "/api/finance/budgets",
+      admin.token,
+      budgetBody(ingresoCat, { ingreso_meta: 1_000 })
+    );
+    const id = created.body.id as number;
+    await post(`/api/finance/budgets/${id}/activate`, admin.token);
+
+    const adjusted = await request(app)
+      .put(`/api/finance/budgets/${id}`)
+      .set(bearer(admin.token))
+      .send(
+        budgetBody(ingresoCat, {
+          ingreso_meta: 2_000,
+          lineas: [{ finance_category_id: ingresoCat, monto_planeado: 2_000_000 }],
+        })
+      );
+    expect(adjusted.status).toBe(200);
+
+    const detail = await request(app)
+      .get(`/api/finance/budgets/${id}`)
+      .set(bearer(admin.token));
+    expect(detail.body.ingreso_meta).toBe(2_000);
+    expect(detail.body.lineas[0].monto_planeado).toBe(2_000_000);
+
+    await post(`/api/finance/budgets/${id}/close`, admin.token);
+    const closedUpdate = await request(app)
+      .put(`/api/finance/budgets/${id}`)
+      .set(bearer(admin.token))
+      .send(budgetBody(ingresoCat));
+    expect(closedUpdate.status).toBe(409);
+  });
+
   it("RN-03: no permite dos presupuestos activos para el mismo periodo", async () => {
     const { admin, ingresoCat } = await setup();
     const first = await post("/api/finance/budgets", admin.token, budgetBody(ingresoCat));
