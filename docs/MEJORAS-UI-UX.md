@@ -42,8 +42,8 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| C1 | Media | Búsqueda local, orden por nombre/n.º de productos y paginación si supera ~20. |
-| C2 | Baja | Mostrar el número de productos como enlace a Productos filtrado. |
+| C1 | Media | Búsqueda local, orden por nombre/n.º de productos y paginación si supera ~20. **Implementado**: búsqueda sin distinguir tildes, orden local por ambas columnas y paginación de 20. |
+| C2 | Baja | Mostrar el número de productos como enlace a Productos filtrado. **Implementado**: el número enlaza a Productos con `category_id`. |
 
 ## 6. Movimientos
 
