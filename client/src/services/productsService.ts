@@ -10,6 +10,19 @@ export interface ProductsQuery {
   category_id?: number;
   activo?: "0" | "1";
   bajoStock?: "1";
+  sort?: "sku" | "nombre" | "precio" | "stock" | "costo";
+  order?: "asc" | "desc";
+}
+
+export interface ProductsSummary {
+  /** Unidades en stock de todos los productos que cumplen los filtros. */
+  unidades: number;
+  /** Valor del stock (precio × stock) de esos productos. */
+  valor: number;
+}
+
+export interface ProductsResponse extends Paginated<Product> {
+  summary: ProductsSummary;
 }
 
 export interface ProductInput {
@@ -22,7 +35,7 @@ export interface ProductInput {
 }
 
 export async function getProducts(params: ProductsQuery) {
-  const { data } = await api.get<Paginated<Product>>("/products", { params });
+  const { data } = await api.get<ProductsResponse>("/products", { params });
   return data;
 }
 

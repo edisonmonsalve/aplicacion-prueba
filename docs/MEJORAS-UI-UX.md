@@ -33,10 +33,10 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| P1 | Media | Ordenamiento por SKU, nombre, precio, stock y costo. |
-| P2 | Media | Reducir acciones por fila: “Movimiento” primaria y el resto en menú “Más”. |
-| P3 | Media | Exportar CSV con filtros activos y pie con cantidad/valor de stock. |
-| P4 | Baja | Chips de filtros aplicados con opción de limpiar. |
+| P1 | Media | Ordenamiento por SKU, nombre, precio, stock y costo. **Implementado** `[API]`: orden en el servidor (`sort`/`order`) para todas las páginas, columnas ordenables y estado en la URL. |
+| P2 | Media | Reducir acciones por fila: “Movimiento” primaria y el resto en menú “Más”. **Implementado**: menú con Historial, Editar y Activar/Desactivar según rol. |
+| P3 | Media | Exportar CSV con filtros activos y pie con cantidad/valor de stock. **Implementado**: exporta todas las páginas y muestra unidades/valor del filtro actual. |
+| P4 | Baja | Chips de filtros aplicados con opción de limpiar. **Implementado**: cada filtro se puede quitar por separado o con “Limpiar todo”. |
 
 ## 5. Categorías
 

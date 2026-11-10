@@ -27,6 +27,10 @@ export const listQuerySchema = z.object({
   category_id: z.coerce.number().int().positive().optional(),
   activo: z.enum(["0", "1"]).optional(),
   bajoStock: z.enum(["1"]).optional(), // RF-11
+  // Ordenamiento del listado: se aplica en el servidor para que funcione en
+  // todas las páginas y no solo en la página visible.
+  sort: z.enum(["sku", "nombre", "precio", "stock", "costo"]).optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });
 
 export const activoSchema = z.object({ activo: z.boolean() });

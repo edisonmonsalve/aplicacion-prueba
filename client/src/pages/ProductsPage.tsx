@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Checkbox, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
-import type { TableProps } from "antd";
+import { App, Button, Checkbox, Dropdown, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import type { MenuProps, TableProps } from "antd";
+import { DownloadOutlined, MoreOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 import ProductFormModal from "@/components/ProductFormModal";
 import { useAuth } from "@/context/AuthContext";
 import { getCategories } from "@/services/categoriesService";
@@ -8,19 +10,31 @@ import { getProducts, setProductActivo, type ProductsQuery } from "@/services/pr
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
+import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
 import type { Category, Product } from "@/types";
 import { useNavigate } from "react-router-dom";
 import TableSkeleton from "@/components/TableSkeleton";
 import MovementFormModal from "@/components/MovementFormModal";
-import ConfirmAction from "@/components/ConfirmAction";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+
+const SORT_KEYS = ["sku", "nombre", "precio", "stock", "costo"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+
+// AntD entrega el `field` de la columna; el servidor usa nombres compactos.
+const SORT_BY_FIELD: Record<string, SortKey> = {
+  sku: "sku",
+  nombre: "nombre",
+  precio: "precio",
+  stock_actual: "stock",
+  costo: "costo",
+};
 
 export default function ProductsPage() {
   const { user, canOperate } = useAuth();
   const isAdmin = user?.rol === "admin";
   const verCosto = canSeeCosts(user?.rol);
-  const [messageApi, contextHolder] = message.useMessage();
+  const { message: messageApi, modal } = App.useApp();
   const navigate = useNavigate();
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
 
@@ -29,22 +43,42 @@ export default function ProductsPage() {
   const categoryId = getNumber("category_id");
   const activo = (get("activo") as ProductsQuery["activo"]) ?? undefined;
   const bajoStock = get("bajoStock") === "1" ? "1" : undefined;
+  const rawSort = get("sort");
+  const sort = SORT_KEYS.includes(rawSort as SortKey) ? (rawSort as SortKey) : undefined;
+  const rawOrder = get("order");
+  // El costo solo se puede ordenar si el rol puede verlo.
+  const effectiveSort = sort === "costo" && !verCosto ? undefined : sort;
+  const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const query = useMemo<ProductsQuery>(
-    () => ({ page, pageSize, q: q || undefined, category_id: categoryId, activo, bajoStock }),
-    [page, pageSize, q, categoryId, activo, bajoStock]
+    () => ({
+      page,
+      pageSize,
+      q: q || undefined,
+      category_id: categoryId,
+      activo,
+      bajoStock,
+      sort: effectiveSort,
+      order: effectiveSort ? order : undefined,
+    }),
+    [page, pageSize, q, categoryId, activo, bajoStock, effectiveSort, order]
   );
   const [searchText, setSearchText] = useState(q);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState({ unidades: 0, valor: 0 });
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
   useDocumentTitle("Productos");
+
+  const sortOrderFor = (key: SortKey): "ascend" | "descend" | null =>
+    effectiveSort === key ? (order === "desc" ? "descend" : "ascend") : null;
 
   // Si la URL cambia (atrás/adelante), el buscador refleja el texto activo.
   useEffect(() => {
@@ -66,6 +100,7 @@ export default function ProductsPage() {
         if (ignore) return;
         setProducts(res.data);
         setTotal(res.total);
+        setSummary(res.summary);
       })
       .catch((err) => messageApi.error(getErrorMessage(err, "No se pudieron cargar los productos")))
       .finally(() => {
@@ -84,6 +119,34 @@ export default function ProductsPage() {
   const clearFilters = () => {
     setSearchText("");
     update({ q: undefined, category_id: undefined, activo: undefined, bajoStock: undefined, page: undefined });
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchAllPages<Product>((p) =>
+        getProducts({ ...query, page: p, pageSize: 100 })
+      );
+      const columns: CsvColumn<Product>[] = [
+        { header: "SKU", value: (p) => p.sku },
+        { header: "Nombre", value: (p) => p.nombre },
+        { header: "Categoría", value: (p) => p.categoria },
+        { header: "Precio", value: (p) => p.precio },
+        ...(verCosto
+          ? [{ header: "Costo", value: (p: Product) => p.costo ?? "" }]
+          : []),
+        { header: "Stock actual", value: (p) => p.stock_actual },
+        { header: "Stock mínimo", value: (p) => p.stock_minimo },
+        { header: "Valor del stock", value: (p) => p.precio * p.stock_actual },
+        { header: "Estado", value: (p) => (p.activo ? "Activo" : "Inactivo") },
+      ];
+      downloadCsv(`productos-${dayjs().format("YYYY-MM-DD")}.csv`, columns, all);
+      messageApi.success(`${all.length} producto(s) exportado(s)`);
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, "No se pudo exportar"));
+    } finally {
+      setExporting(false);
+    }
   };
 
   const openCreate = () => {
@@ -118,14 +181,46 @@ export default function ProductsPage() {
     setReloadKey((k) => k + 1);
   };
 
+  const confirmToggle = (p: Product) => {
+    modal.confirm({
+      title: p.activo ? `¿Desactivar «${p.nombre}»?` : `¿Activar «${p.nombre}»?`,
+      content: p.activo
+        ? "Dejará de estar disponible para nuevas facturas y cotizaciones. El historial y los movimientos se conservan."
+        : "Volverá a estar disponible para facturar y para registrar movimientos de stock.",
+      okText: p.activo ? "Desactivar" : "Activar",
+      cancelText: "Cancelar",
+      okButtonProps: { danger: !!p.activo },
+      onOk: () => toggleActivo(p),
+    });
+  };
+
+  const rowMenu = (p: Product): MenuProps["items"] => [
+    { key: "history", label: "Historial" },
+    ...(canOperate ? [{ key: "edit", label: "Editar" }] : []),
+    ...(isAdmin
+      ? [
+          { type: "divider" as const },
+          { key: "toggle", danger: !!p.activo, label: p.activo ? "Desactivar" : "Activar" },
+        ]
+      : []),
+  ];
+
+  const handleRowAction = (key: string, p: Product) => {
+    if (key === "history") navigate(`/movements?product_id=${p.id}`);
+    else if (key === "edit") openEdit(p);
+    else if (key === "toggle") confirmToggle(p);
+  };
+
   const columns: TableProps<Product>["columns"] = [
-    { title: "SKU", dataIndex: "sku" },
-    { title: "Nombre", dataIndex: "nombre" },
+    { title: "SKU", dataIndex: "sku", sorter: true, sortOrder: sortOrderFor("sku") },
+    { title: "Nombre", dataIndex: "nombre", sorter: true, sortOrder: sortOrderFor("nombre") },
     { title: "Categoría", dataIndex: "categoria" },
     {
       title: "Precio",
       dataIndex: "precio",
       align: "right",
+      sorter: true,
+      sortOrder: sortOrderFor("precio"),
       render: (value: number) => formatCurrency(value),
     },
     ...(verCosto
@@ -134,6 +229,8 @@ export default function ProductsPage() {
             title: <Tooltip title="Costo del producto (solo roles con permiso)">Costo</Tooltip>,
             dataIndex: "costo",
             align: "right",
+            sorter: true,
+            sortOrder: sortOrderFor("costo"),
             render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
           },
           {
@@ -151,6 +248,8 @@ export default function ProductsPage() {
       title: <Tooltip title="Stock actual del producto">Stock</Tooltip>,
       dataIndex: "stock_actual",
       align: "right",
+      sorter: true,
+      sortOrder: sortOrderFor("stock"),
       render: (stock: number, p) =>
         // RF-11: alerta visual de stock por debajo del mínimo
         stock < p.stock_minimo ? <Tag color="red">{stock} · Bajo</Tag> : stock,
@@ -165,7 +264,7 @@ export default function ProductsPage() {
     {
       title: "Acciones",
       render: (_, p) => (
-        <Space>
+        <Space size={4}>
           {canOperate && (
             <Tooltip title="Registrar una entrada o salida de stock">
               <Button size="small" type="primary" disabled={!p.activo} onClick={() => setMovementProduct(p)}>
@@ -173,35 +272,12 @@ export default function ProductsPage() {
               </Button>
             </Tooltip>
           )}
-          <Tooltip title="Ver el historial de movimientos del producto">
-            <Button size="small" onClick={() => navigate(`/movements?product_id=${p.id}`)}>
-              Historial
-            </Button>
-          </Tooltip>
-          {canOperate && (
-            <Tooltip title="Editar los datos del producto">
-              <Button size="small" onClick={() => openEdit(p)}>
-                Editar
-              </Button>
-            </Tooltip>
-          )}
-          {isAdmin && (
-            <ConfirmAction
-              title={p.activo ? `¿Desactivar «${p.nombre}»?` : `¿Activar «${p.nombre}»?`}
-              description={
-                p.activo
-                  ? "Dejará de estar disponible para nuevas facturas y cotizaciones. El historial y los movimientos se conservan."
-                  : "Volverá a estar disponible para facturar y para registrar movimientos de stock."
-              }
-              okText={p.activo ? "Desactivar" : "Activar"}
-              danger={!!p.activo}
-              onConfirm={() => toggleActivo(p)}
-            >
-              <Button size="small" danger={!!p.activo}>
-                {p.activo ? "Desactivar" : "Activar"}
-              </Button>
-            </ConfirmAction>
-          )}
+          <Dropdown
+            trigger={["click"]}
+            menu={{ items: rowMenu(p), onClick: ({ key }) => handleRowAction(key, p) }}
+          >
+            <Button size="small" icon={<MoreOutlined />} aria-label={`Más acciones de ${p.nombre}`} title="Más acciones" />
+          </Dropdown>
         </Space>
       ),
     },
@@ -211,17 +287,21 @@ export default function ProductsPage() {
 
   return (
     <div>
-      {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>Productos</Typography.Title>
           <Typography.Text type="secondary">Gestiona el catálogo, precios, costos y stock.</Typography.Text>
         </div>
-        {canOperate && (
-          <Button type="primary" onClick={openCreate}>
-            Nuevo producto
+        <Space>
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+            Exportar CSV
           </Button>
-        )}
+          {canOperate && (
+            <Button type="primary" onClick={openCreate}>
+              Nuevo producto
+            </Button>
+          )}
+        </Space>
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
@@ -233,10 +313,10 @@ export default function ProductsPage() {
             placeholder="Nombre o SKU"
             allowClear
             aria-label="Buscar productos"
-value={searchText}
+            value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onSearch={(q) => updateFilters({ q: q || undefined })}
-            style={{ width: 280 }}
+            style={{ width: 280, maxWidth: "100%" }}
           />
         </div>
         <div>
@@ -274,8 +354,41 @@ value={searchText}
         >
           Solo stock bajo
         </Checkbox>
-        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
+
+      {hasFilters && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+          {q && (
+            <Tag
+              closable
+              onClose={() => {
+                setSearchText("");
+                updateFilters({ q: undefined });
+              }}
+            >
+              Buscar: {q}
+            </Tag>
+          )}
+          {categoryId && (
+            <Tag closable onClose={() => updateFilters({ category_id: undefined })}>
+              Categoría: {categories.find((c) => c.id === categoryId)?.nombre ?? `#${categoryId}`}
+            </Tag>
+          )}
+          {activo && (
+            <Tag closable onClose={() => updateFilters({ activo: undefined })}>
+              Estado: {activo === "1" ? "Activos" : "Inactivos"}
+            </Tag>
+          )}
+          {bajoStock && (
+            <Tag closable onClose={() => updateFilters({ bajoStock: undefined })}>
+              Solo stock bajo
+            </Tag>
+          )}
+          <Button type="link" size="small" onClick={clearFilters} style={{ paddingInline: 0 }}>
+            Limpiar todo
+          </Button>
+        </div>
+      )}
 
       {firstLoad ? (
         <TableSkeleton />
@@ -310,9 +423,52 @@ value={searchText}
             pageSize: query.pageSize,
             total,
             showSizeChanger: true,
-            onChange: (page, pageSize) => update({ page, pageSize }),
+          }}
+          onChange={(pagination, _filters, sorter, extra) => {
+            if (extra.action === "sort") {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const nextSort = s?.order ? SORT_BY_FIELD[String(s.field)] : undefined;
+              // Al cambiar el orden se vuelve a la primera página.
+              update({
+                page: 1,
+                pageSize: pagination.pageSize ?? query.pageSize,
+                sort: nextSort,
+                order: nextSort
+                  ? s?.order === "descend"
+                    ? "desc"
+                    : "asc"
+                  : undefined,
+              });
+              return;
+            }
+            // Paginar conserva el orden vigente.
+            update({
+              page: pagination.current ?? 1,
+              pageSize: pagination.pageSize ?? query.pageSize,
+            });
           }}
         />
+      )}
+
+      {!firstLoad && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            marginTop: 12,
+          }}
+        >
+          <Typography.Text type="secondary">
+            {total} producto(s) con los filtros actuales
+          </Typography.Text>
+          <Typography.Text type="secondary">
+            Stock total: <strong>{summary.unidades}</strong> unidades · Valor del stock:{" "}
+            <strong>{formatCurrency(summary.valor)}</strong>
+          </Typography.Text>
+        </div>
       )}
 
       {modalOpen && (

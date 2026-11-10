@@ -13,9 +13,7 @@ import type {
 
 export async function listProducts(query: z.infer<typeof listQuerySchema>, actor: AuthUser) {
   const where: string[] = [];
-  const params: (string | number)[] = [];
-
-  if (query.q) {
+  const params: (string | number)[] = [];  if (query.q) {
     where.push("(p.nombre LIKE ? OR p.sku LIKE ?)");
     params.push(`%${query.q}%`, `%${query.q}%`);
   }
@@ -43,12 +41,31 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>, actor
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const [[{ total }]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS total FROM products p ${clause}`,
+  // El operador no ve costos: se devuelve NULL en lugar de omitir la columna
+  const verCosto = canSeeCosts(actor.rol);
+  const costoColumn = verCosto ? "p.costo" : "NULL AS costo";
+
+  // "costo" solo tiene sentido para roles que pueden verlo: en el resto se
+  // ignora y queda el orden por fecha de creación.
+  const sort = query.sort && (query.sort !== "costo" || verCosto) ? query.sort : undefined;
+  const sortColumns = {
+    sku: "p.sku",
+    nombre: "p.nombre",
+    precio: "p.precio",
+    stock: "p.stock_actual",
+    costo: "p.costo",
+  } as const;
+  const orderBy = sort
+    ? `${sortColumns[sort]} ${query.order === "desc" ? "DESC" : "ASC"}, p.id ASC`
+    : "p.id DESC";
+
+  const [[{ total, unidades, valor }]] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS total,
+            COALESCE(SUM(p.stock_actual), 0) AS unidades,
+            COALESCE(SUM(p.precio * p.stock_actual), 0) AS valor
+       FROM products p ${clause}`,
     params
   );
-  // El operador no ve costos: se devuelve NULL en lugar de omitir la columna
-  const costoColumn = canSeeCosts(actor.rol) ? "p.costo" : "NULL AS costo";
 
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT p.id, p.sku, p.nombre, p.category_id, c.nombre AS categoria,
@@ -56,12 +73,18 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>, actor
      FROM products p
      JOIN categories c ON c.id = p.category_id
      ${clause}
-     ORDER BY p.id DESC
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );
 
-  return { data, total, page: query.page, pageSize: query.pageSize };
+  return {
+    data,
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    summary: { unidades: Number(unidades), valor: Number(valor) },
+  };
 }
 
 export async function createProduct(input: z.infer<typeof createProductSchema>, actor: AuthUser) {
