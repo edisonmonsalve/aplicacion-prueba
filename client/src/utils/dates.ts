@@ -13,7 +13,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Devuelve una fecha de calendario en formato AAAA-MM-DD sin desfase por zona horaria. */
-export function formatDateOnly(value: string | Date | null | undefined): string {  if (!value) return "";
+export function formatDateOnly(value: string | Date | null | undefined): string {
+  if (!value) return "";
 
   // DATE sin hora: conservar el día calendario exacto que envió la base.
   if (typeof value === "string" && DATE_ONLY.test(value)) return value;
