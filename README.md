@@ -151,6 +151,25 @@ npm run dev
 
 La API queda en `http://localhost:3000`. Comprueba que funciona en `http://localhost:3000/api/health`.
 
+Para dejar la base de desarrollo limpia y con datos de ejemplo:
+
+```powershell
+# 1. Detén el servidor y borra/recrea la base (pide confirmación explícita)
+$env:RESET_DEV_DB='si'; npm run reset:dev
+
+# 2. Crea el administrador demo
+npm run seed:admin -- demo@demo.com "Demo1234!"
+
+# 3. Inicia el servidor
+npm run dev
+
+# 4. En otra terminal, siembra los datos demo
+npm run seed:demo
+```
+
+> `reset:dev` solo funciona si `DB_NAME` no termina en `_test` y no es una base del sistema.
+> El seed demo es idempotente por secciones: no duplica movimientos, transacciones ni cotizaciones.
+
 ### 3. Frontend
 
 ```bash
@@ -169,6 +188,8 @@ La aplicación queda en `http://localhost:5173`. En desarrollo, Vite redirige la
 | `server` | `npm run build`                      | Compila TypeScript a `dist/`               |
 | `server` | `npm start`                          | Ejecuta la versión compilada               |
 | `server` | `npm run seed:admin -- correo clave` | Crea un usuario administrador              |
+| `server` | `npm run seed:demo`                  | Siembra datos demo (requiere el servidor)  |
+| `server` | `npm run reset:dev`                  | Borra y recrea la BD de desarrollo         |
 | `client` | `npm run dev`                        | Servidor de desarrollo                     |
 | `client` | `npm run build`                      | Verifica tipos y genera el build           |
 | `client` | `npm run lint`                       | Revisa el código con ESLint                |

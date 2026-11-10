@@ -270,6 +270,10 @@ async function main() {
     ["ROU-001", 10],
     ["CABR-001", 1000],
     ["UPS-001", 4],
+    ["LIC-001", 20],
+    ["ANT-001", 20],
+    ["CAD-001", 5],
+    ["WIN-001", 10],
   ];
   for (const [sku, cant] of entradas) {
     await post("/movements", {
@@ -392,7 +396,7 @@ async function main() {
       items: itemsSets[i],
     });
     quoteIds.push(q.id);
-    log(`  + cotización ${q.numero} para ${c.nombre}`);
+    log(`  + cotización COT-${String(q.id).padStart(6, "0")} para ${c.nombre}`);
   }
   // Transiciones: enviar todas, aprobar algunas, rechazar una, entregar algunas
   for (let i = 0; i < quoteIds.length; i++) {

@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
     "seed:demo": "tsx src/scripts/seed-demo.ts",
+    "reset:dev": "tsx src/scripts/reset-dev-db.ts",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
