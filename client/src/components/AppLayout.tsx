@@ -22,6 +22,7 @@ import {
 import { useThemeMode } from "@/context/ThemeContext";
 import { canAccessFinance } from "@/utils/roles";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import RouteBreadcrumb from "@/components/RouteBreadcrumb";
 import { roleLabel } from "@/utils/roles";
 
 const { Sider, Header, Content } = Layout;
@@ -204,6 +205,7 @@ export default function AppLayout() {
         </Header>
 
         <Content style={{ margin: isMobile ? 12 : 24, minWidth: 0 }}>
+          <RouteBreadcrumb pathname={pathname} />
           <ErrorBoundary key={pathname}>
             <Outlet />
           </ErrorBoundary>
