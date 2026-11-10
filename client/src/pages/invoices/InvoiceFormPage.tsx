@@ -96,6 +96,33 @@ export default function InvoiceFormPage() {
   const lineas = Form.useWatch("items", form) ?? [];
   const tipo = Form.useWatch("tipo", form);
   const quoteIdForm = Form.useWatch("quote_id", form);
+  // Catálogo actual sin reejecutar el efecto de precios en cada búsqueda.
+  const productsRef = useRef(products);
+  productsRef.current = products;
+  const prevTipoRef = useRef<InvoiceTipo | undefined>(undefined);
+
+  // Al cambiar venta/compra, las líneas toman el valor que corresponde al nuevo
+  // tipo: precio de venta o costo de compra. Se respetan los precios que el
+  // usuario haya escrito manualmente (distintos del valor sugerido anterior).
+  useEffect(() => {
+    const prev = prevTipoRef.current;
+    prevTipoRef.current = tipo;
+    if (!prev || !tipo || prev === tipo || editId) return;
+
+    const arr = (form.getFieldValue("items") as LineForm[] | undefined) ?? [];
+    if (arr.length === 0) return;
+
+    const next = arr.map((l) => {
+      const p = l?.product_id ? productsRef.current[l.product_id] : undefined;
+      if (!p) return l;
+      const prevSuggested = prev === "compra" ? (p.costo ?? p.precio) : p.precio;
+      const newSuggested = tipo === "compra" ? (p.costo ?? p.precio) : p.precio;
+      const actual = l.precio_unitario;
+      const sinEditar = actual === undefined || Math.abs(actual - prevSuggested) < 0.005;
+      return sinEditar ? { ...l, precio_unitario: newSuggested } : l;
+    });
+    form.setFieldsValue({ items: next });
+  }, [tipo, editId, form]);
 
   // M3: retenciones prellenadas automáticamente según el tipo de factura.
   // Los porcentajes son parámetros configurables (no tarifas legales hardcodeadas sin confirmar);
@@ -490,7 +517,7 @@ export default function InvoiceFormPage() {
                     name={[name, "precio_unitario"]}
                     label={tipo === "compra" ? "Costo unit." : "Precio unit."}
                     rules={[{ required: true, message: "Precio" }]}
-                    tooltip={tipo === "compra" ? "Costo de compra; al confirmar actualiza el costo del producto." : "Precio de venta por unidad."}
+                    tooltip={tipo === "compra" ? "Costo neto de compra (sin IVA). No modifica el costo de referencia del producto." : "Precio de venta por unidad."}
                   >
                     <InputNumber min={0.01} step={0.01} style={{ width: 140 }} />
                   </Form.Item>
