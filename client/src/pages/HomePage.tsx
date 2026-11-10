@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, App, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
+import { Alert, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, SwapOutlined, WarningOutlined } from "@ant-design/icons";
 import {
   Bar,
@@ -25,10 +25,11 @@ import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const HOME_TOOLTIPS: Record<string, string> = {
-  "Productos activos": "Productos activos en el catálogo",
-  "Con stock bajo": "Productos cuyo stock está por debajo del mínimo",
-  "Movimientos hoy": "Movimientos de stock registrados hoy",
-  "Valor del inventario": "Suma del precio × stock actual de los productos activos",
+  "Productos activos": "Productos disponibles para vender u operar. Abre el catálogo filtrado por activos.",
+  "Con stock bajo": "Productos activos cuyo stock actual es menor al mínimo definido. Abre el catálogo filtrado.",
+  "Movimientos hoy": "Entradas y salidas de stock registradas desde la medianoche de hoy.",
+  "Valor del inventario":
+    "Suma del precio de venta × stock actual de los productos activos. No es la utilidad ni el capital disponible.",
 };
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -46,25 +47,28 @@ const greeting = () => {
 };
 
 export default function HomePage() {
-  const { user } = useAuth();
-  const { message } = App.useApp();
+  const { user, canOperate } = useAuth();
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useDocumentTitle("Inicio");
 
   useEffect(() => {
     let ignore = false;
+    setLoading(true);
+    setError(null);
     getDashboard()
       .then((res) => !ignore && setData(res))
-      .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar el panel")))
+      .catch((err) => !ignore && setError(getErrorMessage(err, "No se pudo cargar el panel")))
       .finally(() => !ignore && setLoading(false));
     return () => {
       ignore = true;
     };
-  }, [message]);
+  }, [reloadKey]);
 
   const dias = useMemo(() => {
     if (!data) return [];
@@ -101,24 +105,32 @@ export default function HomePage() {
           value: data.productosActivos,
           icon: <AppstoreOutlined />,
           color: token.colorPrimary,
+          to: "/products?activo=1",
+          hint: "Abre el catálogo filtrado por productos activos",
         },
         {
           title: "Con stock bajo",
           value: data.stockBajo,
           icon: <WarningOutlined />,
           color: token.colorWarning,
+          to: "/products?bajoStock=1",
+          hint: "Abre el catálogo filtrado por productos bajo el stock mínimo",
         },
         {
           title: "Movimientos hoy",
           value: data.movimientosHoy,
           icon: <SwapOutlined />,
           color: token.colorInfo,
+          to: "/movements",
+          hint: "Abre el historial de movimientos de stock",
         },
         {
           title: "Valor del inventario",
           value: formatCurrency(data.valorInventario),
           icon: <DollarOutlined />,
           color: token.colorSuccess,
+          to: "/products?activo=1",
+          hint: "Abre el catálogo activo que compone este valor",
         },
       ]
     : [];
@@ -157,6 +169,21 @@ export default function HomePage() {
         </Row>
       )}
 
+      {error && !loading && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginTop: 16 }}
+          message="No se pudo cargar el panel"
+          description={error}
+          action={
+            <Button size="small" onClick={() => setReloadKey((k) => k + 1)}>
+              Reintentar
+            </Button>
+          }
+        />
+      )}
+
       {data && (
         <>
           {data.stockBajo > 0 && (
@@ -165,32 +192,41 @@ export default function HomePage() {
               showIcon
               style={{ marginBottom: 16 }}
               message={`Hay ${data.stockBajo} producto(s) con stock por debajo del mínimo`}
-              action={<Link to="/products">Ver productos</Link>}
+              action={<Link to="/products?bajoStock=1">Ver productos</Link>}
             />
           )}
 
           <Row gutter={[16, 16]}>
             {stats.map((s) => (
               <Col key={s.title} xs={24} sm={12} lg={6}>
-                <Card>
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
-                        display: "grid",
-                        placeItems: "center",
-                        fontSize: 22,
-                        color: s.color,
-                        background: `color-mix(in srgb, ${s.color} 15%, transparent)`,
-                      }}
-                    >
-                      {s.icon}
+                <Link to={s.to} style={{ display: "block", color: "inherit" }}>
+                  <Card hoverable>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 12,
+                          display: "grid",
+                          placeItems: "center",
+                          fontSize: 22,
+                          color: s.color,
+                          background: `color-mix(in srgb, ${s.color} 15%, transparent)`,
+                        }}
+                      >
+                        {s.icon}
+                      </div>
+                      <Statistic
+                        title={
+                          <AntTooltip title={`${HOME_TOOLTIPS[s.title] ?? s.title} ${s.hint}.`}>
+                            <span>{s.title}</span>
+                          </AntTooltip>
+                        }
+                        value={s.value}
+                      />
                     </div>
-                    <Statistic title={<AntTooltip title={HOME_TOOLTIPS[s.title] ?? s.title}>{s.title}</AntTooltip>} value={s.value} />
-                  </div>
-                </Card>
+                  </Card>
+                </Link>
               </Col>
             ))}
           </Row>
@@ -288,7 +324,7 @@ export default function HomePage() {
                     <span>Productos con stock bajo</span>
                   </AntTooltip>
                 }
-                extra={<Link to="/products">Ver todos</Link>}
+                extra={<Link to="/products?bajoStock=1">Ver todos</Link>}
               >
                 <Table
                   size="small"
@@ -303,20 +339,28 @@ export default function HomePage() {
                       title: <AntTooltip title="Stock actual y stock mínimo del producto">Stock / mínimo</AntTooltip>,
                       render: (_, p) => <Tag color="red">{`${p.stock_actual} / ${p.stock_minimo}`}</Tag>,
                     },
-                    {
-                      title: <AntTooltip title="Crear una factura de compra para reabastecer este producto">Acción</AntTooltip>,
-                      dataIndex: "id",
-                      align: "center",
-                      render: (id) => (
-                        <Button
-                          type="primary"
-                          size="small"
-                          onClick={() => navigate(`/facturas/nuevo?tipo=compra&product=${id}`)}
-                        >
-                          Comprar
-                        </Button>
-                      ),
-                    },
+                    ...(canOperate
+                      ? [
+                          {
+                            title: (
+                              <AntTooltip title="Crear una factura de compra para reabastecer este producto">
+                                Acción
+                              </AntTooltip>
+                            ),
+                            dataIndex: "id",
+                            align: "center" as const,
+                            render: (id: number) => (
+                              <Button
+                                type="primary"
+                                size="small"
+                                onClick={() => navigate(`/facturas/nuevo?tipo=compra&product=${id}`)}
+                              >
+                                Comprar
+                              </Button>
+                            ),
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </Card>
