@@ -21,7 +21,7 @@ implementadas, probadas y documentadas:
 | Mejora | Resumen de la decisión | Estado |
 |---|---|---|
 | **M1. Costo unitario en compras** | `products.costo` solo cambia con **edición manual**; una compra no lo sobrescribe. | Implementado |
-| **M2. Costo de ventas** | Se mantiene como asiento real ("Costo de ventas") pero **no reduce el capital de caja** dos veces (la compra ya impactó el capital). Se presenta como informativo dentro del asiento y del presupuesto. | Implementado |
+| **M2. Inventario y costo de venta** | La compra de inventario es un **activo con salida de caja**; el costo de venta es un **gasto que reduce utilidad/margen sin mover caja**. Cada peso impacta una vez la caja (al comprar) y una vez la utilidad (al vender). | Implementado |
 | **M3. Alertas, IVA y retenciones** | IVA 19 % por defecto (editable) en factura y cotización; autocompletado de impuesto en cotización; alertas de stock bajo en factura y cotización; retenciones prellenadas automáticamente según tipo (tasas configurables). | Implementado |
 | **M4. Aprobación de cotización** | Se **advierte y bloquea** la aprobación si no hay stock suficiente para las líneas cotizadas. | Implementado |
 | **M5. Múltiples facturas por cotización** | Una cotización aprobada puede vincularse a varias facturas (facturación por hitos) siempre que la **suma acumulada no supere el total cotizado**. Generación **asistida** desde la cotización. Avisa y marca cotizaciones entregadas pendientes de facturar. Vínculo bidireccional cotización ↔ factura. | Implementado |
@@ -157,42 +157,37 @@ aplica al costo del movimiento/línea (costo neto sin IVA).
 
 ---
 
-### M2. Costo de ventas y doble descuento de capital
+### M2. Costo de inventario vs. costo de venta
 
-**Situación actual**
+**Modelo contable adoptado (Opción A)**
 
-- Factura de compra: crea gasto **Compra de inventario** por el neto → reduce capital/utilidad.
-- Factura de venta: crea ingreso **Ventas** (neto) y gasto **Costo de ventas** por el costo
-  histórico → vuelve a reducir capital/utilidad.
-- Resultado: el costo del inventario afecta dos veces (al comprar y al vender).
-
-**Observación**
-
-- Si la compra ya se registró como gasto, el costo de ventas no debería restar capital otra vez.
-- El usuario señaló: “no debería vender y descontar”.
-
-**Alternativas**
-
-| Opción | Compra | Venta | Efecto |
+| Concepto | ¿Genera salida de caja? | ¿Reduce la utilidad? | Dónde se registra |
 |---|---|---|---|
-| A. Inventario como activo | Activo “Inventario” | Gasto “Costo de ventas” | Correcto por devengo; el capital solo cambia al pagar/cobrar (requiere módulo de pagos) |
-| B. Compra como gasto | Gasto “Compra de inventario” | Solo ingreso; COGS informativo para margen | Simple y sin doble descuento de caja; el margen bruto requiere cálculo aparte |
-| C. Ambos como gasto | Gasto compra | Gasto COGS | Situación actual: doble impacto |
+| Costo de inventario | Sí, al comprar o fabricar | No directamente | Balance: activo “Inventario” |
+| Costo de venta | No en ese instante (el dinero ya salió al comprar) | Sí, al vender | Estado de resultados: gasto “Costo de ventas” |
 
-**Recomendación**
+- **Compra de inventario:** sale dinero de caja/bancos, pero el valor entra como activo.
+  No reduce la utilidad del periodo.
+- **Venta:** el inventario sale del activo y se reconoce el gasto “Costo de ventas”.
+  Reduce la utilidad y el margen bruto, pero no vuelve a mover caja.
+- **Resultado:** cada peso del costo impacta una sola vez la utilidad (al vender) y una sola
+  vez la caja (al comprar).
 
-- **Opción B** como corrección mínima: mantener el costo de ventas como dato informativo
-  (para margen bruto y presupuestos) sin restarlo del capital de caja.
-- Si más adelante se modelan pagos/cobros y valuación de inventario, migrar a **Opción A**.
+**Implementación**
 
-**Decisión adoptada:** el capital disponible representa **caja** (saldo inicial + ingresos − egresos de operación). El costo de ventas se mantiene como asiento real de gasto "Costo de ventas" (parte del asiento y del presupuesto, por lo que sigue afectando la utilidad y el margen bruto), pero **no reduce el capital de caja dos veces**: la compra ya impactó el capital al registrarse como gasto, por lo que el capital excluye el costo de ventas. Sigue apareciendo como línea informativa en el resumen financiero.
-
-**Implementación (V014):** la distinción no depende del nombre de la categoría. `finance_categories.afecta_caja` indica si un asiento mueve caja:
-
-- `afecta_caja = 1`: ingresos/gastos que entran o salen de caja o bancos.
-- `afecta_caja = 0`: asientos informativos. Se marcan así el costo de ventas y las categorías de IVA (activo/pasivo).
-
-Con esta marca, `egresos`, el saldo de cada cuenta y el capital disponible excluyen el costo de ventas; `utilidad` (ingresos − todos los gastos), `margen_bruto`, la ejecución presupuestal y el desglose por categoría lo siguen incluyendo. La UI muestra la etiqueta «No afecta caja» en los asientos informativos.
+- `finance_categories.afecta_caja` (V014) indica si un asiento mueve caja:
+  - `afecta_caja = 1`: entra o sale dinero de caja/bancos (ventas, gastos operativos,
+    compras de inventario).
+  - `afecta_caja = 0`: asiento informativo que solo afecta resultados (costo de ventas, IVA).
+- V015 transforma la categoría “Compra de inventario” (gasto) en **“Inventario” (activo)** y
+  migra las transacciones históricas. Conserva el id para no romper presupuestos.
+- `egresos` y el saldo de cuentas incluyen las compras de inventario (salida real de caja).
+- `gastos_totales`, `utilidad` y `margen_bruto` solo descuentan gastos (costo de ventas y
+  gastos operativos), no la compra del activo.
+- El resumen expone `compras_inventario` para mostrar la compra como activo, y la UI marca el
+  costo de ventas como «No afecta caja».
+- El presupuesto puede planificar la categoría “Inventario” (activo) y su ejecución se mide
+  contra las compras reales.
 
 ---
 
@@ -333,7 +328,7 @@ Todas las mejoras están implementadas, probadas y en verde (tests, typecheck y 
 | Mejora | Estado | Notas |
 |---|---|---|
 | M1. Costo unitario en compras | Implementado | `products.costo` solo cambia con edición manual; la compra no lo sobrescribe. |
-| M2. Costo de ventas y capital | Implementado | COGS como asiento informativo (`afecta_caja = 0`): no reduce egresos, cuentas ni capital; sí utilidad, margen y presupuesto. |
+| M2. Inventario y costo de venta | Implementado | Compra = activo con salida de caja; costo de venta = gasto que reduce utilidad/margen sin mover caja. |
 | M3. Alertas, IVA y retenciones | Implementado | IVA 19 % por defecto (editable) en factura y cotización; stock bajo; retenciones prellenadas según tipo. |
 | M4. Aprobación sin stock | Implementado | Bloquea la aprobación con 409 si hay faltante; la entrega sigue validando. |
 | M5. Múltiples facturas por cotización | Implementado | Facturación por hitos con control de suma acumulada ≤ total cotizado; generación asistida; pendientes de facturar. |
@@ -346,8 +341,8 @@ Todas las mejoras están implementadas, probadas y en verde (tests, typecheck y 
 Todas las decisiones de la iteración anterior están cerradas:
 
 1. El costo del producto solo se actualiza con edición manual, no con las compras (M1).
-2. El capital disponible representa caja; el costo de ventas no lo reduce dos veces (M2).
-3. El costo de ventas se mantiene como asiento informativo que afecta la utilidad/margen, pero no el capital de caja (M2).
+2. El capital disponible representa caja; las compras de inventario salen de caja como activo (M2).
+3. El costo de ventas es un gasto que afecta utilidad/margen, pero no mueve caja porque el dinero ya salió al comprar el inventario (M2).
 4. Los porcentajes de retención son parámetros configurables; por defecto 0 hasta confirmar tasas legales, y las retenciones se mantienen informativas (M3).
 5. La aprobación de cotización bloquea si no hay stock suficiente (M4).
 6. Una cotización puede generar más de una factura con control de suma acumulada (M5).

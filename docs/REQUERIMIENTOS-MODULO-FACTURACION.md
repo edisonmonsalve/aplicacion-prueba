@@ -100,10 +100,10 @@
   - Debe tener al menos 1 línea
 - **Acciones en transacción atómica**:
   1. Registrar movimiento de stock `entrada` con `origen=compra` + `costo_unitario`
-  2. **Actualizar costo del producto**: `products.costo = precio_unitario` de cada línea
-  3. Generar asiento financiero `gasto "Compra de inventario"` por `total`
+  2. Guardar el costo neto como costo histórico del movimiento (M1)
+  3. Generar asiento financiero `activo "Inventario"` por el neto: es salida de caja, no gasto
   4. Actualizar `invoices.estado = 'confirmada'`
-- **Nota**: El costo del producto se actualiza inmediatamente al confirmar, independientemente del costo anterior
+- **Nota**: `products.costo` solo cambia con edición manual (M1); la compra no lo sobrescribe. El gasto se reconoce al vender como `Costo de ventas`.
 
 ### 2.4 Anular Factura
 
@@ -113,7 +113,7 @@
 - **Acciones**:
   1. Si fue de tipo `venta`: revertir stock (`stock_actual += cantidad`)
   2. Si fue de tipo `compra`: revertir stock (`stock_actual -= cantidad`)
-  3. Registrar contrapartida financiera (ingreso si fue gasto, gasto si fue ingreso)
+  3. Registrar contrapartida financiera del mismo tipo (la anulación queda excluida de los reportes)
   4. Marcar `invoices.estado = 'anulada'`
 - **Restricción**: No se puede anular una factura anulada
 
@@ -159,7 +159,7 @@
   - Entrada: origen permitido = `compra`, `ajuste`
   - Salida: origen permitido = `venta`, `entrega`, `merma`, `ajuste`
 - **Asientos automáticos**:
-  - `entrada + origen=compra` → gasto "Compra de inventario"
+  - `entrada + origen=compra` → activo "Inventario" (salida de caja, no gasto)
   - `salida + origen=venta` → ingreso "Ventas"
   - Salidas `entrega/merma/ajuste` → solo movimiento stock, sin asiento
 
@@ -168,7 +168,8 @@
 - Uso de `finance_categories` y `finance_accounts` existentes
 - Categorías usadas:
   - `Ventas` (tipo `ingreso`)
-  - `Compra de inventario` (tipo `gasto`)
+  - `Inventario` (tipo `activo`)
+  - `Costo de ventas` (tipo `gasto`, informativo: no mueve caja)
 - Cuentas: cualquier cuenta activa (`finance_accounts WHERE activo = 1`)
 
 ### 4.3 Integración con Cotizaciones

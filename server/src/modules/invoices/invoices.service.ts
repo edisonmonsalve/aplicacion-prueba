@@ -520,9 +520,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
         });
       }
       // M2: el costo de ventas se registra como gasto "Costo de ventas" vinculado a la factura
-      // (asiento real, parte del presupuesto y del asiento), pero NO reduce el capital de caja
-      // disponible: la compra ya impactó el capital al registrarse como gasto, así que no se
-      // descuenta dos veces. El capital de caja solo considera ingresos y gastos de operación.
+      // (asiento real, parte del presupuesto y del resultado), pero NO reduce el capital de caja:
+      // la compra del inventario ya sacó el dinero al registrarse como activo. Así el costo no
+      // se descuenta dos veces de la caja.
       const cogs = roundMoney(
         items.reduce(
           (sum, it) => sum + (costByItem.get(it.id) ?? 0) * Number(it.cantidad),
@@ -554,11 +554,14 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
       }
     } else {
       if (baseTotal > 0) {
+        // Costo de inventario: es una salida de caja que se convierte en un
+        // activo (Inventario). No es gasto y por tanto no reduce la utilidad;
+        // el gasto se reconoce al vender como "Costo de ventas".
         const txId = await createAutoTransaction(conn, {
-          tipo: "gasto",
+          tipo: "activo",
           monto: baseTotal,
           fecha: inv.fecha,
-          categoriaNombre: "Compra de inventario",
+          categoriaNombre: "Inventario",
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,

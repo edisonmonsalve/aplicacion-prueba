@@ -7,7 +7,8 @@
 - Línea de presupuesto: monto planeado para una categoría o producto.
 - Transacción: asiento real. Es lo que se compara contra el plan.
 - Asiento informativo: transacción contable que afecta utilidad/margen y presupuesto, pero no mueve caja (por ejemplo, costo de ventas o IVA).
-- Capital: saldo acumulado de caja y bancos hasta una fecha (saldo inicial + ingresos de caja - egresos de caja). No incluye asientos informativos.
+- Inventario: activo que representa la mercancía comprada. La compra sí saca dinero de caja, pero no reduce la utilidad hasta que se vende.
+- Capital: saldo acumulado de caja y bancos hasta una fecha (saldo inicial + ingresos de caja - egresos de caja, incluidas las compras de inventario). No incluye asientos informativos.
 - Ejecución: lo real gastado/ingresado frente a lo planeado, en %.
 
 ## Modelo de datos (resumen)
@@ -25,8 +26,8 @@
 
 - RF-01: Crear presupuestos por día, semana, mes o año con meta de ingresos.
 - RF-02: Asignar monto por categoría y por producto (cuánto puedo gastar en cada uno).
-- RF-03: Registrar ingresos y egresos reales; las entradas de stock generan un egreso automático.
-- RF-04: Al entregar una cotización se registra el ingreso y el costo de lo vendido.
+- RF-03: Registrar ingresos y salidas reales de caja; las compras de inventario generan un egreso automático registrado como activo.
+- RF-04: Al confirmar una factura de venta se registra el ingreso y el costo de venta; la cotización por sí sola no contabiliza.
 - RF-05: Ver ejecución por línea y total: planeado, real, disponible y %.
 - RF-06: Alertas al llegar al % de alerta y al excederse.
 - RF-07: Proyección de cierre del periodo según el ritmo actual.
@@ -44,7 +45,8 @@
 - RN-04a: un presupuesto `activo` puede ajustarse (montos planificados); un presupuesto `cerrado` no. El ajuste recalcula la ejecución de las transacciones ya registradas.
 - RN-05: Disponible = planeado - real.
 - RN-06: Margen bruto = ingresos - costo de ventas; margen % = margen / ingresos. La utilidad descuenta todos los gastos, incluidos los informativos.
-- RN-06a: Solo las categorías con `afecta_caja = 1` mueven ingresos, egresos y saldo de cuentas. Las categorías informativas (`afecta_caja = 0`, p. ej. costo de ventas e IVA) afectan utilidad/margen y presupuesto, pero no caja.
+- RN-06a: Solo las categorías con `afecta_caja = 1` mueven ingresos, egresos y saldo de cuentas. Las compras de inventario son activo con `afecta_caja = 1`: salen de caja pero no reducen la utilidad. Las categorías informativas (`afecta_caja = 0`, p. ej. costo de ventas e IVA) afectan utilidad/margen y presupuesto, pero no caja.
+- RN-06c: La utilidad descuenta todos los gastos (incluido el costo de ventas), pero no las compras de activos. La compra de inventario impacta la caja al comprar y la utilidad al vender, nunca dos veces en el mismo concepto.
 - RN-06b: El capital disponible es un saldo acumulado a la fecha final del rango: incluye el histórico anterior a la fecha inicial y excluye movimientos posteriores a la fecha final.
 - RN-07: Una compra que excede el disponible de su línea se advierte; solo admin puede confirmarla.
 - RN-08: Proyección = real / días transcurridos x días del periodo. Si supera lo planeado, alerta.

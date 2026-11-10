@@ -111,11 +111,12 @@ async function applyMovement(
   // propios asientos a nivel de documento.
   if (!input.skipFinance) {
     if (input.tipo === "entrada" && input.origen === "compra" && costoUnitario > 0) {
+      // La compra de inventario es salida de caja y activo, no gasto.
       await createAutoTransaction(conn, {
-        tipo: "gasto",
+        tipo: "activo",
         monto: costoUnitario * input.cantidad,
         fecha: today(),
-        categoriaNombre: "Compra de inventario",
+        categoriaNombre: "Inventario",
         productId: input.product_id,
         stockMovementId: res.insertId,
         descripcion: `Entrada de stock #${res.insertId} (compra)`,

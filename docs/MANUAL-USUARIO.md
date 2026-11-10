@@ -87,14 +87,16 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - **Confirmar**:
   - Venta directa: descuenta stock y crea asientos de cabecera (ingreso neto, IVA por pagar y costo de ventas).
   - Venta desde cotización aprobada: mueve stock una vez y deja la cotización entregada; si ya estaba entregada, no vuelve a mover stock.
-  - Compra: suma stock, actualiza el costo neto del producto y crea gasto neto + IVA descontable.
-- **Anular**: revierte el stock y todos los asientos con contrapartidas; en compras restaura el costo anterior.
+  - Compra: suma stock, guarda el costo histórico del movimiento y crea **activo Inventario** (salida de caja) + IVA descontable. No modifica `products.costo` (solo edición manual).
+- **Anular**: revierte el stock y todos los asientos con contrapartidas; no modifica el costo de referencia del producto.
 - **Detalle**: desglose tributario, link a la cotización y tabla de asientos financieros vinculados.
 
 ## 9. Finanzas
 
 ### 9.1 Resumen financiero
-- Tarjetas: ingresos, egresos, utilidad, capital disponible, costo de ventas, margen bruto, IVA por pagar e IVA descontable.
+- Tarjetas: ingresos, egresos de caja, utilidad, capital disponible, compras de inventario, costo de ventas, margen bruto, IVA por pagar e IVA descontable.
+- La compra de inventario es salida de caja y activo; el costo de ventas reduce utilidad/margen pero no mueve caja.
+- Los asientos informativos (costo de ventas, IVA) se marcan como «No afecta caja».
 - Selector de rango de fechas.
 - Sugerencias basadas en la ejecución del presupuesto activo.
 - Tabla de cuentas con saldo inicial, ingresos, egresos y saldo actual; crear/editar/eliminar cuentas sin movimientos.

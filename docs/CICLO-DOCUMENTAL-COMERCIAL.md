@@ -184,7 +184,7 @@ Cuenta por cobrar        9.139.200   (activo)
 
 | Concepto | Registro | Naturaleza | ¿Afecta caja? |
 |---|---|---|---|
-| Compra neta | `Compra de inventario` | Gasto / inventario | No (hasta el pago) |
+| Compra neta | `Inventario` | Activo | Sí (salida de caja al confirmar la compra) |
 | IVA pagado | `IVA descontable` | Activo | No (se descuenta en la declaración) |
 | Total por pagar | `Cuentas por pagar` | Pasivo | No (hasta el pago) |
 | Retenciones practicadas | `Retenciones por pagar` | Pasivo | No |
@@ -192,7 +192,7 @@ Cuenta por cobrar        9.139.200   (activo)
 **Ejemplo:** compra neta $10.000.000, IVA $1.900.000, total $11.900.000.
 
 ```text
-Compra de inventario   +10.000.000   (gasto / inventario)
+Inventario             +10.000.000   (activo; el gasto se reconoce al vender)
 IVA descontable          1.900.000   (activo)
 Cuenta por pagar        11.900.000   (pasivo)
 ```
@@ -247,7 +247,7 @@ Antes de programar un pago se debe verificar:
 | Cotización | `quotes` | Implementado | Al entregar solo mueve stock (recibo/remisión); **no genera contabilidad**. |
 | Orden de compra | campos `orden_compra` | Implementado (referencia) | Se referencia en la factura; no hay módulo completo. |
 | Factura de venta | `invoices` tipo `venta` | Implementado | Asientos de cabecera: ingreso neto, IVA por pagar y costo de ventas. |
-| Factura de compra | `invoices` tipo `compra` | Implementado | Asientos de cabecera: gasto neto e IVA descontable; actualiza costo. |
+| Factura de compra | `invoices` tipo `compra` | Implementado | Asientos de cabecera: activo Inventario neto e IVA descontable; no actualiza `products.costo` (M1). |
 | Recibo de almacén | `stock_movements` | Implementado | La entrega de cotización y la factura directa mueven stock; la factura vinculada a una cotización entregada no lo duplica. |
 | Presupuesto | `budgets` | Implementado | Líneas por categoría financiera con alcance general, producto o categoría de producto. |
 

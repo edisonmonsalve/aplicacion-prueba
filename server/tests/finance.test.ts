@@ -32,7 +32,10 @@ async function setup() {
 
   const [ingreso] = await rows("SELECT id FROM finance_categories WHERE nombre = 'Ventas'");
   const [gasto] = await rows(
-    "SELECT id FROM finance_categories WHERE nombre = 'Compra de inventario'"
+    "SELECT id FROM finance_categories WHERE nombre = 'Servicios' AND tipo = 'gasto'"
+  );
+  const [inventario] = await rows(
+    "SELECT id FROM finance_categories WHERE nombre = 'Inventario' AND tipo = 'activo'"
   );
   const [cogs] = await rows(
     "SELECT id FROM finance_categories WHERE nombre = 'Costo de ventas' AND tipo = 'gasto'"
@@ -47,6 +50,7 @@ async function setup() {
     productId: producto.body.id as number,
     ingresoCat: ingreso.id as number,
     gastoCat: gasto.id as number,
+    inventarioCat: inventario.id as number,
     cogsCat: cogs.id as number,
     accountId: cuenta.id as number,
   };
@@ -322,9 +326,16 @@ describe("Finanzas: API", () => {
     });
   });
 
-  it("el costo de ventas no afecta egresos de caja ni capital, pero sí utilidad y margen", async () => {
-    const { admin, ingresoCat, cogsCat, accountId } = await setup();
+  it("inventario es activo con salida de caja y costo de ventas es gasto sin caja", async () => {
+    const { admin, ingresoCat, inventarioCat, cogsCat, accountId } = await setup();
+    // Compra de inventario: sale caja, entra activo. No es gasto.
+    await post(
+      "/api/finance/transactions",
+      admin.token,
+      txBody(accountId, inventarioCat, { tipo: "activo", monto: 300_000 })
+    );
     await post("/api/finance/transactions", admin.token, txBody(accountId, ingresoCat, { monto: 1_000_000 }));
+    // Costo de venta: gasto contable que reduce utilidad, sin mover caja.
     await post(
       "/api/finance/transactions",
       admin.token,
@@ -336,20 +347,21 @@ describe("Finanzas: API", () => {
       .set(bearer(admin.token));
     expect(summary.body).toMatchObject({
       ingresos: 1_000_000,
-      egresos: 0,
+      egresos: 300_000,
+      compras_inventario: 300_000,
       gastos_totales: 400_000,
       gastos_no_caja: 400_000,
       costo_ventas: 400_000,
       utilidad: 600_000,
       margen_bruto: 600_000,
       margen_bruto_pct: 60,
-      capital_disponible: 1_000_000,
+      capital_disponible: 700_000,
     });
 
-    // El asiento informativo no reduce el saldo de la cuenta de caja.
+    // La compra reduce el saldo de caja; el costo de venta no.
     const accounts = await request(app).get("/api/finance/accounts").set(bearer(admin.token));
     const account = accounts.body.find((a: { id: number }) => a.id === accountId);
-    expect(account).toMatchObject({ ingresos: 1_000_000, egresos: 0, saldo_actual: 1_000_000 });
+    expect(account).toMatchObject({ ingresos: 1_000_000, egresos: 300_000, saldo_actual: 700_000 });
 
     // La lista expone la marca para que la UI lo muestre como informativo.
     const gastos = await request(app)
@@ -398,7 +410,7 @@ describe("Finanzas: API", () => {
     });
   });
 
-  it("RF-03: una entrada de stock con costo genera el egreso automático", async () => {
+  it("RF-03: una entrada de stock con costo genera el activo y la salida de caja automáticos", async () => {
     const { admin, productId } = await setup();
 
     const movement = await post("/api/movements", admin.token, {
@@ -411,15 +423,29 @@ describe("Finanzas: API", () => {
     expect(movement.status).toBe(201);
 
     const list = await request(app)
-      .get("/api/finance/transactions?tipo=gasto")
+      .get("/api/finance/transactions?tipo=activo")
       .set(bearer(admin.token));
     expect(list.body.total).toBe(1);
     expect(list.body.data[0]).toMatchObject({
-      tipo: "gasto",
+      tipo: "activo",
       monto: 4000,
       product_id: productId,
-      categoria: "Compra de inventario",
+      categoria: "Inventario",
+      afecta_caja: 1,
       stock_movement_id: movement.body.id,
+    });
+
+    // La compra de inventario es egreso de caja y activo, no gasto.
+    const summary = await request(app)
+      .get(`/api/finance/summary?desde=${today()}&hasta=${today()}`)
+      .set(bearer(admin.token));
+    expect(summary.body).toMatchObject({
+      ingresos: 0,
+      egresos: 4000,
+      compras_inventario: 4000,
+      gastos_totales: 0,
+      utilidad: 0,
+      capital_disponible: -4000,
     });
   });
 
@@ -468,9 +494,9 @@ describe("Finanzas: API", () => {
   });
 
   it("GET /finance/availability devuelve la línea activa correspondiente", async () => {
-    const { admin, productId, gastoCat } = await setup();
-    const created = await post("/api/finance/budgets", admin.token, budgetBody(gastoCat, {
-      lineas: [{ finance_category_id: gastoCat, product_id: productId, monto_planeado: 1000 }],
+    const { admin, productId, inventarioCat } = await setup();
+    const created = await post("/api/finance/budgets", admin.token, budgetBody(inventarioCat, {
+      lineas: [{ finance_category_id: inventarioCat, product_id: productId, monto_planeado: 1000 }],
     }));
     expect(created.status).toBe(201);
     const activated = await post(`/api/finance/budgets/${created.body.id}/activate`, admin.token);
@@ -482,7 +508,7 @@ describe("Finanzas: API", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       budget_id: created.body.id,
-      finance_category_id: gastoCat,
+      finance_category_id: inventarioCat,
       product_id: productId,
       planeado: 1000,
       disponible: 1000,
@@ -514,7 +540,7 @@ describe("Finanzas: API", () => {
   });
 
   it("presupuesto por categoría de producto usa transaction_allocations sin doble conteo", async () => {
-    const { admin, productId, gastoCat } = await setup();
+    const { admin, productId, inventarioCat } = await setup();
 
     const [productRows] = await pool.query<RowDataPacket[]>(
       "SELECT category_id FROM products WHERE id = ?",
@@ -525,10 +551,10 @@ describe("Finanzas: API", () => {
     const created = await post(
       "/api/finance/budgets",
       admin.token,
-      budgetBody(gastoCat, {
+      budgetBody(inventarioCat, {
         lineas: [
           {
-            finance_category_id: gastoCat,
+            finance_category_id: inventarioCat,
             product_category_id: productCategoryId,
             monto_planeado: 1000,
           },

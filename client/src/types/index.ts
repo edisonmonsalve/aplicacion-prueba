@@ -300,8 +300,10 @@ export interface FinanceSummary {
   desde: string;
   hasta: string;
   ingresos: number;
-  /** Egresos que realmente salen de caja/bancos (afecta_caja = 1). */
+  /** Salidas reales de caja/bancos: gastos y compras de activos (afecta_caja = 1). */
   egresos: number;
+  /** Compras de inventario: salida de caja registrada como activo, no como gasto. */
+  compras_inventario: number;
   /** Todos los gastos del periodo, incluidos los asientos informativos. */
   gastos_totales: number;
   /** Gastos contables que no mueven caja (costo de ventas, etc.). */

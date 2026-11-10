@@ -11,19 +11,21 @@ type AccountInput = z.infer<typeof accountSchema>;
 
 export async function listAccounts() {
   // Los saldos de caja solo los mueven los asientos cuya categoría afecta caja.
-  // El costo de ventas (informativo) y el IVA (activo/pasivo) no son dinero
-  // disponible: quedan fuera de ingresos, egresos y saldo.
+  // Una compra de inventario (activo) sí saca dinero; el costo de ventas y el
+  // IVA son informativos y quedan fuera de ingresos, egresos y saldo.
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT a.id, a.nombre, a.tipo, a.saldo_inicial, a.activo,
             COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_caja = 1
                               THEN t.monto ELSE 0 END), 0) AS ingresos,
-            COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_caja = 1
+            COALESCE(SUM(CASE WHEN t.tipo IN ('gasto', 'activo') AND fc.afecta_caja = 1
                               THEN t.monto ELSE 0 END), 0) AS egresos,
             a.saldo_inicial
               + COALESCE(SUM(CASE WHEN fc.afecta_caja = 1 AND t.tipo = 'ingreso'
                                   THEN t.monto
-                                  WHEN fc.afecta_caja = 1 AND t.tipo = 'gasto'
+                                  WHEN fc.afecta_caja = 1 AND t.tipo IN ('gasto', 'activo')
                                   THEN -t.monto
+                                  WHEN fc.afecta_caja = 1 AND t.tipo = 'pasivo'
+                                  THEN t.monto
                                   ELSE 0 END), 0)
               AS saldo_actual
      FROM finance_accounts a

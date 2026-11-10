@@ -147,7 +147,11 @@ async function main() {
 
   // 5. Presupuestos
   const financeCats = await get("/finance/categories");
-  const gastoCats = (financeCats ?? []).filter((c: any) => c.tipo === "gasto");
+  // Líneas presupuestables: gastos y la compra de inventario (activo, pero
+  // planificable porque representa salida de caja).
+  const gastoCats = (financeCats ?? []).filter(
+    (c: any) => c.tipo === "gasto" || c.nombre === "Inventario"
+  );
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth(); // 0-based
@@ -174,7 +178,7 @@ async function main() {
           ? 4500000
           : c.nombre.includes("Arriendo")
             ? 2500000
-            : c.nombre.includes("Compra de inventario")
+            : c.nombre === "Inventario"
               ? 6000000
               : c.nombre.includes("Costo de ventas")
                 ? 3000000
@@ -215,7 +219,7 @@ async function main() {
             ? 5000000
             : c.nombre.includes("Arriendo")
               ? 2500000
-              : c.nombre.includes("Compra de inventario")
+              : c.nombre === "Inventario"
                 ? 8000000
                 : c.nombre.includes("Costo de ventas")
                   ? 4000000
@@ -312,8 +316,8 @@ async function main() {
     { tipo: "ingreso", monto: 4800000, categoria: "Ventas", descripcion: "Servicio de instalación de red" },
     { tipo: "ingreso", monto: 1500000, categoria: "Otros ingresos", descripcion: "Mantenimiento preventivo" },
     { tipo: "ingreso", monto: 900000, categoria: "Otros ingresos", descripcion: "Reintegro de proveedor" },
-    { tipo: "gasto", monto: 5200000, categoria: "Compra de inventario", descripcion: "Compra de cemento y agregados" },
-    { tipo: "gasto", monto: 2100000, categoria: "Compra de inventario", descripcion: "Compra de equipos de cómputo" },
+    { tipo: "activo", monto: 5200000, categoria: "Inventario", descripcion: "Compra de cemento y agregados" },
+    { tipo: "activo", monto: 2100000, categoria: "Inventario", descripcion: "Compra de equipos de cómputo" },
     { tipo: "gasto", monto: 4800000, categoria: "Nómina", descripcion: "Nómina quincenal" },
     { tipo: "gasto", monto: 2500000, categoria: "Arriendo", descripcion: "Arriendo de oficina y bodega" },
     { tipo: "gasto", monto: 650000, categoria: "Servicios", descripcion: "Servicios públicos" },
@@ -321,7 +325,7 @@ async function main() {
     { tipo: "gasto", monto: 350000, categoria: "Otros gastos", descripcion: "Papelería y aseo" },
     { tipo: "gasto", monto: 1800000, categoria: "Costo de ventas", descripcion: "Costo de materiales entregados" },
     { tipo: "ingreso", monto: 2700000, categoria: "Ventas", descripcion: "Venta de software y licencias" },
-    { tipo: "gasto", monto: 900000, categoria: "Compra de inventario", descripcion: "Compra de licencias" },
+    { tipo: "activo", monto: 900000, categoria: "Inventario", descripcion: "Compra de licencias" },
   ];
   const today = fmt(new Date());
   for (const t of txs) {

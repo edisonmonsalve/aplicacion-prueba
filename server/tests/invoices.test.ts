@@ -119,7 +119,7 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(movements[0].origen).toBe("venta");
   });
 
-  it("RF-04: Confirmar factura de compra actualiza costo y genera gasto", async () => {
+  it("RF-04: Confirmar factura de compra registra inventario como activo", async () => {
     // Crear factura de compra en borrador
     const created = await request(app)
       .post("/api/invoices")
@@ -149,13 +149,15 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(movements[0].origen).toBe("compra");
     expect(movements[0].costo_unitario).toBe(250);
 
-    // Verificar asiento financiero (gasto de compra neto, sin IVA)
+    // Verificar asiento financiero: la compra neta (sin IVA) es un activo.
     const [transactions] = await pool.query<RowDataPacket[]>(
-      "SELECT tipo, monto FROM transactions WHERE descripcion LIKE ?",
+      `SELECT t.tipo, t.monto, fc.nombre AS categoria
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.descripcion LIKE ?`,
       [`%Factura ${created.body.numero}%`]
     );
-    expect(transactions[0].tipo).toBe("gasto");
-    expect(transactions[0].monto).toBe(250);
+    expect(transactions[0]).toMatchObject({ tipo: "activo", monto: 250, categoria: "Inventario" });
   });
 
   it("RF-05: Confirmar factura de venta sin stock suficiente falla", async () => {
@@ -396,7 +398,7 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(filtered.body.total).toBe(3);
   });
 
-  it("RF-12: factura de compra con descuento e IVA registra gasto neto e IVA descontable", async () => {
+  it("RF-12: factura de compra con descuento e IVA registra inventario neto e IVA descontable", async () => {
     const created = await request(app)
       .post("/api/invoices")
       .set(bearer(admin.token))
@@ -432,14 +434,17 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(products[0].stock_actual).toBe(12);
 
     const [transactions] = await pool.query<RowDataPacket[]>(
-      `SELECT tipo, monto FROM transactions WHERE invoice_id = ? ORDER BY id`,
+      `SELECT t.tipo, t.monto, fc.nombre AS categoria
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.invoice_id = ? ORDER BY t.id`,
       [id]
     );
     expect(transactions).toHaveLength(2);
     expect(transactions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ tipo: "gasto", monto: 180 }),
-        expect.objectContaining({ tipo: "activo", monto: 34.2 }),
+        expect.objectContaining({ tipo: "activo", monto: 180, categoria: "Inventario" }),
+        expect.objectContaining({ tipo: "activo", monto: 34.2, categoria: "IVA descontable" }),
       ])
     );
 

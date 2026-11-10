@@ -228,8 +228,12 @@ export async function getSummary(query: SummaryQuery) {
     `SELECT
        COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_caja = 1
                          THEN t.monto ELSE 0 END), 0) AS ingresos,
-       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_caja = 1
+       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso'
+                         THEN t.monto ELSE 0 END), 0) AS ingresos_totales,
+       COALESCE(SUM(CASE WHEN t.tipo IN ('gasto', 'activo') AND fc.afecta_caja = 1
                          THEN t.monto ELSE 0 END), 0) AS egresos,
+       COALESCE(SUM(CASE WHEN t.tipo = 'activo' AND fc.afecta_caja = 1
+                         THEN t.monto ELSE 0 END), 0) AS compras_inventario,
        COALESCE(SUM(CASE WHEN t.tipo = 'gasto'
                          THEN t.monto ELSE 0 END), 0) AS gastos_totales,
        COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_caja = 0
@@ -247,26 +251,30 @@ export async function getSummary(query: SummaryQuery) {
   );
 
   const ingresos = Number(totals[0].ingresos);
+  const ingresosTotales = Number(totals[0].ingresos_totales);
   const egresos = Number(totals[0].egresos);
+  const comprasInventario = Number(totals[0].compras_inventario);
   const gastosTotales = Number(totals[0].gastos_totales);
   const gastosNoCaja = Number(totals[0].gastos_no_caja);
   const costoVentas = Number(totals[0].costo_ventas);
   const ivaPorPagar = Number(totals[0].iva_por_pagar);
   const ivaDescontable = Number(totals[0].iva_descontable);
   // La utilidad es contable: descuenta todos los gastos, incluido el costo de
-  // ventas. La caja, en cambio, solo se mueve con categorías afecta_caja = 1.
-  const utilidad = ingresos - gastosTotales;
-  const margenBruto = ingresos - costoVentas;
+  // ventas, pero no la compra de inventario (esa es un activo). La caja, en
+  // cambio, solo se mueve con categorías afecta_caja = 1.
+  const utilidad = ingresosTotales - gastosTotales;
+  const margenBruto = ingresosTotales - costoVentas;
 
   // M2: el costo de ventas es parte del asiento y del presupuesto, pero no reduce el capital de
-  // caja disponible dos veces (la compra ya impactó el capital al registrarse como gasto). El
-  // capital de caja solo considera movimientos de categorías que afectan caja. Además, es un
-  // saldo acumulado a la fecha final del rango: incluye el histórico anterior a "desde".
+  // caja: la compra del inventario ya sacó el dinero al registrarse como activo. El capital de
+  // caja solo considera movimientos de categorías que afectan caja. Además, es un saldo
+  // acumulado a la fecha final del rango: incluye el histórico anterior a "desde".
   const [capitalRows] = await pool.query<RowDataPacket[]>(
     `SELECT COALESCE(SUM(a.saldo_inicial), 0)
             + COALESCE((
                 SELECT SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto
-                                WHEN t.tipo = 'gasto' THEN -t.monto
+                                WHEN t.tipo IN ('gasto', 'activo') THEN -t.monto
+                                WHEN t.tipo = 'pasivo' THEN t.monto
                                 ELSE 0 END)
                 FROM transactions t
                 JOIN finance_categories fc ON fc.id = t.finance_category_id
@@ -299,12 +307,13 @@ export async function getSummary(query: SummaryQuery) {
     hasta,
     ingresos: round2(ingresos),
     egresos: round2(egresos),
+    compras_inventario: round2(comprasInventario),
     gastos_totales: round2(gastosTotales),
     gastos_no_caja: round2(gastosNoCaja),
     utilidad: round2(utilidad),
     costo_ventas: round2(costoVentas),
     margen_bruto: round2(margenBruto),
-    margen_bruto_pct: ingresos > 0 ? round2((margenBruto / ingresos) * 100) : 0,
+    margen_bruto_pct: ingresosTotales > 0 ? round2((margenBruto / ingresosTotales) * 100) : 0,
     iva_por_pagar: round2(ivaPorPagar),
     iva_descontable: round2(ivaDescontable),
     capital_disponible: round2(capitalDisponible),

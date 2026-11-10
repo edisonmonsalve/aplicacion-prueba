@@ -112,7 +112,7 @@ export default function FinanceOverviewPage() {
         showIcon
         style={{ marginBottom: 16 }}
         message="Caja vs. contabilidad"
-        description="Los egresos y el capital disponible solo consideran asientos que mueven caja o bancos. El costo de ventas es un asiento contable informativo: reduce la utilidad y el margen, pero no vuelve a descontar el capital."
+        description="La compra de inventario es salida de caja y se registra como activo: no reduce la utilidad. El costo de ventas reduce la utilidad y el margen, pero no mueve caja. El capital disponible y los egresos de caja solo consideran asientos que afectan caja o bancos."
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -123,7 +123,7 @@ export default function FinanceOverviewPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title={<Tooltip title="Gastos que salen de caja o bancos. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
+            <Statistic title={<Tooltip title="Salidas reales de caja o bancos: gastos de operación y compras de inventario. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -139,6 +139,12 @@ export default function FinanceOverviewPage() {
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>} value={s?.compras_inventario ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#fa8c16" }} />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>Activo, no gasto</Typography.Text>
+          </Card>
+        </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />

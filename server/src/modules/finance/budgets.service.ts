@@ -519,7 +519,7 @@ export async function activateBudget(id: number, actor: AuthUser) {
 export async function getAvailability(productId: number) {
   const financeCategoryId = await (async () => {
     const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT id FROM finance_categories WHERE nombre = 'Compra de inventario' AND tipo = 'gasto' AND activo = 1 LIMIT 1",
+      "SELECT id FROM finance_categories WHERE nombre = 'Inventario' AND tipo = 'activo' AND activo = 1 LIMIT 1",
       []
     );
     return rows[0]?.id as number | undefined;
