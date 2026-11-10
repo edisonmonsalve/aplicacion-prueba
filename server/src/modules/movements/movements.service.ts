@@ -177,12 +177,34 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>, acto
     where.push("m.quote_id = ?");
     params.push(query.quote_id);
   }
+  if (query.q) {
+    const term = `%${query.q}%`;
+    where.push("(p.sku LIKE ? OR p.nombre LIKE ? OR m.motivo LIKE ? OR u.nombre LIKE ?)");
+    params.push(term, term, term, term);
+  }
+  if (query.desde) {
+    where.push("DATE(m.created_at) >= ?");
+    params.push(query.desde);
+  }
+  if (query.hasta) {
+    where.push("DATE(m.created_at) <= ?");
+    params.push(query.hasta);
+  }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const [[{ total }]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS total FROM stock_movements m ${clause}`,
+  const [[summaryRow]] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS total,
+            COALESCE(SUM(m.tipo = 'entrada'), 0) AS entradas,
+            COALESCE(SUM(m.tipo = 'salida'), 0) AS salidas,
+            COALESCE(SUM(CASE WHEN m.tipo = 'entrada' THEN m.cantidad ELSE 0 END), 0) AS unidades_entrada,
+            COALESCE(SUM(CASE WHEN m.tipo = 'salida' THEN m.cantidad ELSE 0 END), 0) AS unidades_salida
+       FROM stock_movements m
+       JOIN products p ON p.id = m.product_id
+       JOIN users u ON u.id = m.user_id
+       ${clause}`,
     params
   );
+  const total = Number(summaryRow.total);
   const costoColumn = canSeeCosts(actor.rol)
     ? "COALESCE(m.costo_unitario, p.costo) AS costo_unitario"
     : "NULL AS costo_unitario";
@@ -204,5 +226,16 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>, acto
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );
 
-  return { data, total, page: query.page, pageSize: query.pageSize };
+  return {
+    data,
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    summary: {
+      entradas: Number(summaryRow.entradas),
+      salidas: Number(summaryRow.salidas),
+      unidades_entrada: Number(summaryRow.unidades_entrada),
+      unidades_salida: Number(summaryRow.unidades_salida),
+    },
+  };
 }

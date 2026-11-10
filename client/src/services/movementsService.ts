@@ -9,6 +9,20 @@ export interface MovementsQuery {
   origen?: MovementOrigen;
   invoice_id?: number;
   quote_id?: number;
+  q?: string;
+  desde?: string;
+  hasta?: string;
+}
+
+export interface MovementsSummary {
+  entradas: number;
+  salidas: number;
+  unidades_entrada: number;
+  unidades_salida: number;
+}
+
+export interface MovementsResponse extends Paginated<StockMovement> {
+  summary: MovementsSummary;
 }
 
 export interface MovementInput {
@@ -20,7 +34,7 @@ export interface MovementInput {
 }
 
 export async function getMovements(params: MovementsQuery) {
-  const { data } = await api.get<Paginated<StockMovement>>("/movements", { params });
+  const { data } = await api.get<MovementsResponse>("/movements", { params });
   return data;
 }
 

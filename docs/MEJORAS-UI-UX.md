@@ -49,10 +49,10 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| M1 | Alta | Rango de fechas y búsqueda por texto/motivo/usuario. `[API]` rango en el endpoint. |
-| M2 | Media | Selector de producto con búsqueda remota; hoy limita a los primeros 100. |
-| M3 | Media | Exportar CSV y resumen del filtro (entradas, salidas, unidades). |
-| M4 | Baja | Enlace al producto y a la factura/cotización de origen desde cada fila. |
+| M1 | Alta | Rango de fechas y búsqueda por texto/motivo/usuario. `[API]` rango en el endpoint. **Implementado**: `q` (SKU, producto, motivo o usuario) con debounce y rango `desde`/`hasta`. |
+| M2 | Media | Selector de producto con búsqueda remota; hoy limita a los primeros 100. **Implementado**: búsqueda remota por SKU/nombre y conserva visible el producto del filtro activo. |
+| M3 | Media | Exportar CSV y resumen del filtro (entradas, salidas, unidades). **Implementado**: CSV de todas las páginas y resumen de entradas/salidas con sus unidades. |
+| M4 | Baja | Enlace al producto y a la factura/cotización de origen desde cada fila. **Implementado**: producto enlaza al catálogo y el documento a su factura o cotización. |
 
 ## 7. Cotizaciones
 

@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato AAAA-MM-DD")
+  .refine((v) => !Number.isNaN(Date.parse(v)), "Fecha no válida");
+
 export const createMovementSchema = z.object({
   product_id: z.number().int().positive(),
   tipo: z.enum(["entrada", "salida"]),
@@ -20,4 +25,7 @@ export const listQuerySchema = z.object({
   origen: z.enum(["compra", "venta", "entrega", "merma", "ajuste"]).optional(),
   invoice_id: z.coerce.number().int().positive().optional(),
   quote_id: z.coerce.number().int().positive().optional(),
+  q: z.string().trim().max(150).optional(),
+  desde: isoDate.optional(),
+  hasta: isoDate.optional(),
 });

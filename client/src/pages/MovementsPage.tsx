@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button, Empty, Select, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Link } from "react-router-dom";
+import {
+  Button,
+  DatePicker,
+  Empty,
+  Input,
+  Select,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from "antd";
 import type { TableProps } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getMovements, type MovementsQuery } from "@/services/movementsService";
 import { getProducts } from "@/services/productsService";
@@ -9,10 +23,13 @@ import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
-import type { Product, StockMovement } from "@/types";
+import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
+import type { StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+
+const DATE_FMT = "DD/MM/YYYY";
 
 const ORIGEN_META: Record<StockMovement["origen"], { color: string; label: string }> = {
   compra: { color: "blue", label: "Compra" },
@@ -22,10 +39,14 @@ const ORIGEN_META: Record<StockMovement["origen"], { color: string; label: strin
   ajuste: { color: "default", label: "Ajuste" },
 };
 
+interface ProductOption {
+  value: number;
+  label: string;
+}
+
 export default function MovementsPage() {
   const { user } = useAuth();
   const verCosto = canSeeCosts(user?.rol);
-  const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const { get, getNumber, getPositiveInt, update } = useUrlFilters();
 
@@ -36,6 +57,9 @@ export default function MovementsPage() {
   const quoteId = getNumber("quote_id");
   const tipo = (get("tipo") as MovementsQuery["tipo"]) ?? undefined;
   const origen = (get("origen") as MovementsQuery["origen"]) ?? undefined;
+  const q = get("q") ?? "";
+  const desde = get("desde");
+  const hasta = get("hasta");
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const query = useMemo<MovementsQuery>(
@@ -47,23 +71,49 @@ export default function MovementsPage() {
       origen,
       invoice_id: invoiceId,
       quote_id: quoteId,
+      q: q || undefined,
+      desde,
+      hasta,
     }),
-    [page, pageSize, productId, tipo, origen, invoiceId, quoteId]
+    [page, pageSize, productId, tipo, origen, invoiceId, quoteId, q, desde, hasta]
   );
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [summary, setSummary] = useState({
+    entradas: 0,
+    salidas: 0,
+    unidades_entrada: 0,
+    unidades_salida: 0,
+  });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [text, setText] = useState(q);
+
+  // M2: búsqueda remota del producto, sin limitarse a los primeros 100.
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [productLoading, setProductLoading] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null);
 
   useDocumentTitle("Movimientos");
 
-  // Productos para el filtro (suficiente para esta práctica: los primeros 100)
+  const updateFilters = (changes: Partial<MovementsQuery>) =>
+    update({ ...changes, page: undefined });
+
+  // El buscador refleja el filtro de la URL al llegar desde otro módulo.
   useEffect(() => {
-    getProducts({ page: 1, pageSize: 100 })
-      .then((res) => setProducts(res.data))
-      .catch((err) => messageApi.error(getErrorMessage(err, "No se pudieron cargar los productos")));
-  }, [messageApi]);
+    setText(q);
+  }, [q]);
+
+  // M1: búsqueda con debounce para no consultar en cada tecla.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = text.trim();
+      if (next !== q) update({ q: next || undefined, page: undefined });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [text, q, update]);
 
   useEffect(() => {
     let ignore = false;
@@ -73,6 +123,7 @@ export default function MovementsPage() {
         if (ignore) return;
         setMovements(res.data);
         setTotal(res.total);
+        setSummary(res.summary);
       })
       .catch((err) => messageApi.error(getErrorMessage(err, "No se pudo cargar el historial")))
       .finally(() => {
@@ -83,26 +134,125 @@ export default function MovementsPage() {
     };
   }, [query, messageApi]);
 
-  const updateFilters = (changes: Partial<MovementsQuery>) =>
-    update({ ...changes, page: undefined });
+  // Opciones del selector: búsqueda remota por SKU o nombre.
+  useEffect(() => {
+    let ignore = false;
+    const timer = setTimeout(() => {
+      setProductLoading(true);
+      getProducts({ page: 1, pageSize: 20, q: productSearch.trim() || undefined })
+        .then((res) => {
+          if (!ignore) {
+            setProductOptions(
+              res.data.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }))
+            );
+          }
+        })
+        .catch((err) => {
+          if (!ignore) messageApi.error(getErrorMessage(err, "No se pudieron buscar productos"));
+        })
+        .finally(() => {
+          if (!ignore) setProductLoading(false);
+        });
+    }, 300);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [productSearch, messageApi]);
+
+  // Mantiene visible el producto activo aunque no esté en las opciones de la búsqueda.
+  useEffect(() => {
+    if (!productId) {
+      setSelectedProduct(null);
+      return;
+    }
+    let ignore = false;
+    getProducts({ page: 1, pageSize: 1, ids: String(productId) })
+      .then((res) => {
+        const p = res.data.find((item) => item.id === productId) ?? res.data[0];
+        if (p && !ignore) setSelectedProduct({ value: p.id, label: `${p.sku} · ${p.nombre}` });
+      })
+      .catch(() => {
+        // Si falla, el selector simplemente muestra el id; no bloquea el historial.
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [productId]);
+
+  const productSelectOptions = useMemo(() => {
+    if (!selectedProduct) return productOptions;
+    return productOptions.some((o) => o.value === selectedProduct.value)
+      ? productOptions
+      : [selectedProduct, ...productOptions];
+  }, [productOptions, selectedProduct]);
 
   const hasFilters =
     query.product_id !== undefined ||
     query.tipo !== undefined ||
     query.origen !== undefined ||
     query.invoice_id !== undefined ||
-    query.quote_id !== undefined;
+    query.quote_id !== undefined ||
+    Boolean(q) ||
+    Boolean(desde) ||
+    Boolean(hasta);
 
   const firstLoad = loading && movements.length === 0;
 
-  const clearFilters = () =>
+  const clearFilters = () => {
+    setText("");
+    setProductSearch("");
     updateFilters({
       product_id: undefined,
       tipo: undefined,
       origen: undefined,
       invoice_id: undefined,
       quote_id: undefined,
+      q: undefined,
+      desde: undefined,
+      hasta: undefined,
     });
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchAllPages<StockMovement>((p) =>
+        getMovements({ ...query, page: p, pageSize: 100 })
+      );
+      const columns: CsvColumn<StockMovement>[] = [
+        { header: "Fecha", value: (m) => dayjs(m.created_at).format("DD/MM/YYYY HH:mm") },
+        { header: "SKU", value: (m) => m.sku },
+        { header: "Producto", value: (m) => m.producto },
+        { header: "Tipo", value: (m) => (m.tipo === "entrada" ? "Entrada" : "Salida") },
+        { header: "Origen", value: (m) => ORIGEN_META[m.origen]?.label ?? m.origen },
+        { header: "Cantidad", value: (m) => m.cantidad },
+        ...(verCosto
+          ? [
+              { header: "Costo unitario", value: (m: StockMovement) => m.costo_unitario ?? "" },
+              {
+                header: "Costo total",
+                value: (m: StockMovement) =>
+                  m.costo_unitario === null ? "" : m.costo_unitario * m.cantidad,
+              },
+              { header: "Precio unitario", value: (m: StockMovement) => m.precio_unitario ?? "" },
+            ]
+          : []),
+        {
+          header: "Documento",
+          value: (m) => (m.invoice_id ? `Factura #${m.invoice_id}` : m.quote_id ? `Cotización #${m.quote_id}` : ""),
+        },
+        { header: "Motivo", value: (m) => m.motivo ?? "" },
+        { header: "Usuario", value: (m) => m.usuario },
+      ];
+      downloadCsv(`movimientos-${dayjs().format("YYYY-MM-DD")}.csv`, columns, all);
+      messageApi.success(`${all.length} movimiento(s) exportado(s)`);
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, "No se pudo exportar"));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const columns: TableProps<StockMovement>["columns"] = [
     {
@@ -112,7 +262,13 @@ export default function MovementsPage() {
     },
     {
       title: <Tooltip title="Producto afectado por el movimiento">Producto</Tooltip>,
-      render: (_, m) => `${m.sku} · ${m.producto}`,
+      render: (_, m) => (
+        <Tooltip title="Abrir este producto en el catálogo">
+          <Link to={`/products?q=${encodeURIComponent(m.sku)}`}>
+            {m.sku} · {m.producto}
+          </Link>
+        </Tooltip>
+      ),
     },
     {
       title: <Tooltip title="Entrada (suma stock) o salida (resta stock)">Tipo</Tooltip>,
@@ -167,13 +323,9 @@ export default function MovementsPage() {
       title: <Tooltip title="Factura o cotización vinculada">Documento</Tooltip>,
       render: (_, m) =>
         m.invoice_id ? (
-          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/facturas/${m.invoice_id}`)}>
-            Factura #{m.invoice_id}
-          </Button>
+          <Link to={`/facturas/${m.invoice_id}`}>Factura #{m.invoice_id}</Link>
         ) : m.quote_id ? (
-          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/cotizaciones/${m.quote_id}`)}>
-            Cotización #{m.quote_id}
-          </Button>
+          <Link to={`/cotizaciones/${m.quote_id}`}>Cotización #{m.quote_id}</Link>
         ) : (
           "—"
         ),
@@ -185,26 +337,58 @@ export default function MovementsPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Movimientos de stock</Typography.Title>
-        <Typography.Text type="secondary">
-          Consulta el historial de entradas y salidas. El stock solo cambia registrando movimientos.
-        </Typography.Text>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+          flexWrap: "wrap",
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            Movimientos de stock
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
+            Consulta el historial de entradas y salidas. El stock solo cambia registrando movimientos.
+          </Typography.Text>
+        </div>
+        <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+          Exportar CSV
+        </Button>
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>
           <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Buscar
+          </Typography.Text>
+          <Input.Search
+            allowClear
+            placeholder="SKU, producto, motivo o usuario"
+            aria-label="Buscar movimientos"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{ width: 300, maxWidth: "100%" }}
+          />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
             Producto
           </Typography.Text>
           <Select
-            placeholder="Todos"
+            placeholder="Buscar por SKU o nombre"
             allowClear
             showSearch
-            optionFilterProp="label"
-            style={{ width: 280 }}
+            filterOption={false}
+            onSearch={setProductSearch}
+            loading={productLoading}
+            notFoundContent={productLoading ? <Spin size="small" /> : undefined}
+            style={{ width: 300, maxWidth: "100%" }}
             value={query.product_id}
-            options={products.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }))}
+            options={productSelectOptions}
             onChange={(product_id) => updateFilters({ product_id })}
           />
         </div>
@@ -240,6 +424,23 @@ export default function MovementsPage() {
             onChange={(origen) => updateFilters({ origen })}
           />
         </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Rango de fechas
+          </Typography.Text>
+          <DatePicker.RangePicker
+            format={DATE_FMT}
+            allowClear
+            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
+            onChange={(v) =>
+              updateFilters({
+                desde: v?.[0]?.format("YYYY-MM-DD"),
+                hasta: v?.[1]?.format("YYYY-MM-DD"),
+              })
+            }
+            style={{ width: 280, maxWidth: "100%" }}
+          />
+        </div>
         {(query.invoice_id !== undefined || query.quote_id !== undefined) && (
           <Tag color="processing" style={{ marginBottom: 6 }}>
             {query.invoice_id ? `Factura #${query.invoice_id}` : `Cotización #${query.quote_id}`}
@@ -247,6 +448,18 @@ export default function MovementsPage() {
         )}
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
+
+      <Space size={8} wrap style={{ marginBottom: 16 }}>
+        <Tag color="green" style={{ margin: 0, padding: "4px 10px" }}>
+          Entradas: <strong>{summary.entradas}</strong> mov. · <strong>{summary.unidades_entrada}</strong> uds
+        </Tag>
+        <Tag color="orange" style={{ margin: 0, padding: "4px 10px" }}>
+          Salidas: <strong>{summary.salidas}</strong> mov. · <strong>{summary.unidades_salida}</strong> uds
+        </Tag>
+        <Tag color="blue" style={{ margin: 0, padding: "4px 10px" }}>
+          Total: <strong>{total}</strong> movimientos
+        </Tag>
+      </Space>
 
       {firstLoad ? (
         <TableSkeleton />

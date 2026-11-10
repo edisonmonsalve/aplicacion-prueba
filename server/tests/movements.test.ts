@@ -47,6 +47,46 @@ describe("Movimientos de stock", () => {
     expect(history.body.data[0].usuario).toBe("admin");
   });
 
+  it("filtra por texto y rango de fechas, y resume entradas/salidas", async () => {
+    const { admin, productId } = await setup();
+    await move(admin.token, { product_id: productId, tipo: "entrada", cantidad: 10, motivo: "Reposicion inicial" });
+    await move(admin.token, { product_id: productId, tipo: "salida", cantidad: 3, motivo: "Venta mostrador" });
+    await move(admin.token, { product_id: productId, tipo: "entrada", cantidad: 5, motivo: "Compra urgente" });
+
+    await pool.query(
+      "UPDATE stock_movements SET created_at = '2020-01-01 10:00:00' WHERE motivo = ?",
+      ["Reposicion inicial"]
+    );
+
+    const byText = await request(app)
+      .get("/api/movements?q=Venta")
+      .set(bearer(admin.token));
+    expect(byText.body.total).toBe(1);
+    expect(byText.body.summary).toEqual({
+      entradas: 0,
+      salidas: 1,
+      unidades_entrada: 0,
+      unidades_salida: 3,
+    });
+
+    const byDate = await request(app)
+      .get("/api/movements?desde=2020-01-01&hasta=2020-01-01")
+      .set(bearer(admin.token));
+    expect(byDate.body.total).toBe(1);
+    expect(byDate.body.data[0].motivo).toBe("Reposicion inicial");
+
+    const byUser = await request(app).get("/api/movements?q=admin").set(bearer(admin.token));
+    expect(byUser.body.total).toBe(3);
+
+    const all = await request(app).get("/api/movements").set(bearer(admin.token));
+    expect(all.body.summary).toEqual({
+      entradas: 2,
+      salidas: 1,
+      unidades_entrada: 15,
+      unidades_salida: 3,
+    });
+  });
+
   it("RN-02: una salida mayor al stock responde 409 y no cambia nada", async () => {
     const { admin, productId } = await setup();
     await move(admin.token, { product_id: productId, tipo: "entrada", cantidad: 5 });
