@@ -18,7 +18,7 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| L1 | Baja | Limpiar el error al editar credenciales y mostrar un texto fijo de recuperación (“pide a un administrador restablecer tu contraseña”). |
+| L1 | Baja | Limpiar el error al editar credenciales y mostrar un texto fijo de recuperación (“pide a un administrador restablecer tu contraseña”). **Implementado.** |
 
 ## 3. Inicio / Dashboard
 

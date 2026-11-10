@@ -98,7 +98,17 @@ export default function LoginPage() {
 
           {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
 
-          <Form layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
+          <Form
+            layout="vertical"
+            onFinish={onFinish}
+            onValuesChange={() => {
+              // Al corregir el correo o la contraseña, el error anterior deja
+              // de ser útil: se limpia para no confundir al usuario.
+              if (error) setError(null);
+            }}
+            requiredMark={false}
+            size="large"
+          >
             <Form.Item
               label="Correo"
               name="email"
@@ -118,7 +128,6 @@ export default function LoginPage() {
             <Form.Item
               label="Contraseña"
               name="password"
-              tooltip="Si no la recuerdas, pide a un administrador que la restablezca."
               rules={[{ required: true, message: "Ingresa tu contraseña" }]}
             >
               <Input.Password
@@ -131,6 +140,13 @@ export default function LoginPage() {
               Entrar
             </Button>
           </Form>
+
+          <Typography.Paragraph
+            type="secondary"
+            style={{ marginTop: 16, marginBottom: 0, fontSize: 13, textAlign: "center" }}
+          >
+            ¿No recuerdas tu contraseña? Pide a un administrador que la restablezca.
+          </Typography.Paragraph>
         </div>
       </div>
     </div>
