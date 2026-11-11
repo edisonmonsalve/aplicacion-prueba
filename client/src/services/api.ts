@@ -13,20 +13,6 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Token vencido o inválido: limpiar sesión y volver al login
-    // (se excluye el propio login, donde un 401 significa clave incorrecta)
-    if (error.response?.status === 401 && error.config?.url !== "/auth/login") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    }
-    return Promise.reject(error);
-  }
-);
-
-api.interceptors.response.use(
-  (res) => res,
   (error: AxiosError) => {
     // El login responde 401 con credenciales malas: eso no es una sesión expirada
     const isLogin = error.config?.url?.includes("/auth/login");

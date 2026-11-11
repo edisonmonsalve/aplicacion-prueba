@@ -1,0 +1,360 @@
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  Button,
+  DatePicker,
+  Drawer,
+  Form,
+  Grid,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Tooltip,
+  Typography,
+  message,
+} from "antd";
+import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
+import dayjs, { type Dayjs } from "dayjs";
+import { createBudget, getFinanceCategories, updateBudget } from "@/services/financeService";
+import { getProducts } from "@/services/productsService";
+import { getCategories } from "@/services/categoriesService";
+import { getErrorMessage } from "@/utils/errors";
+import type { BudgetDetail, BudgetInput, Category, FinanceCategory } from "@/types";
+import { money, periodLabel } from "./FinanceUtils";
+
+interface Props {
+  open: boolean;
+  budget?: BudgetDetail;
+  onClose: () => void;
+  onSaved: (id: number) => void;
+}
+
+interface LineValues {
+  finance_category_id?: number;
+  product_id?: number;
+  product_category_id?: number;
+  monto_planeado?: number;
+}
+
+interface FormValues {
+  nombre: string;
+  tipo_periodo: "dia" | "semana" | "mes" | "anio";
+  fechas: [Dayjs, Dayjs];
+  ingreso_meta: number;
+  alerta_pct: number;
+  lineas: LineValues[];
+}
+
+interface ProductOption {
+  value: number;
+  label: string;
+}
+
+export default function BudgetFormModal({ open, budget, onClose, onSaved }: Props) {
+  const [form] = Form.useForm<FormValues>();
+  const [messageApi, contextHolder] = message.useMessage();
+  const screens = Grid.useBreakpoint();
+  const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<FinanceCategory[]>([]);
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [productLoading, setProductLoading] = useState(false);
+  const [productCategoryOptions, setProductCategoryOptions] = useState<
+    { value: number; label: string }[]
+  >([]);
+  const lineasWatch = Form.useWatch<LineValues[] | undefined>("lineas", form);
+
+  const totalPlaneado = (lineasWatch ?? []).reduce(
+    (sum: number, l: LineValues | undefined) =>
+      sum + (typeof l?.monto_planeado === "number" ? l.monto_planeado : 0),
+    0
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    getFinanceCategories()
+      .then(setCategories)
+      .catch(() => messageApi.error("No se pudieron cargar las categorías"));
+    getCategories()
+      .then((r: Category[]) => {
+        setProductCategoryOptions(r.map((c) => ({ value: c.id, label: c.nombre })));
+      })
+      .catch(() => messageApi.error("No se pudieron cargar las categorías de producto"));
+  }, [open, messageApi]);
+
+  // N8: búsqueda remota de productos, sin limitarse a los primeros 100.
+  useEffect(() => {
+    if (!open) return;
+    let ignore = false;
+    const timer = setTimeout(() => {
+      setProductLoading(true);
+      getProducts({ page: 1, pageSize: 20, q: productSearch.trim() || undefined })
+        .then((r) => {
+          if (ignore) return;
+          const fetched = r.data.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }));
+          // Conserva las opciones ya elegidas para que el selector muestre su etiqueta.
+          setProductOptions((prev) => {
+            const merged = new Map(prev.map((o) => [o.value, o] as const));
+            for (const o of fetched) merged.set(o.value, o);
+            return [...merged.values()];
+          });
+        })
+        .catch(() => {
+          if (!ignore) messageApi.error("No se pudieron buscar productos");
+        })
+        .finally(() => {
+          if (!ignore) setProductLoading(false);
+        });
+    }, 300);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [open, productSearch, messageApi]);
+
+  useEffect(() => {
+    if (!open) return;
+    setProductSearch("");
+    if (!budget) {
+      form.resetFields();
+      form.setFieldsValue({
+        tipo_periodo: "mes",
+        alerta_pct: 80,
+        ingreso_meta: 0,
+        lineas: [{}],
+      });
+      return;
+    }
+    const opts = [...productOptions];
+    for (const l of budget.lineas) {
+      if (l.product_id && !opts.some((o) => o.value === l.product_id)) {
+        opts.push({ value: l.product_id, label: `${l.sku ?? ""} · ${l.producto ?? ""}`.trim() });
+      }
+    }
+    setProductOptions(opts);
+    form.setFieldsValue({
+      nombre: budget.nombre,
+      tipo_periodo: budget.tipo_periodo,
+      fechas: [dayjs(budget.fecha_inicio), dayjs(budget.fecha_fin)],
+      ingreso_meta: budget.ingreso_meta,
+      alerta_pct: budget.alerta_pct,
+      lineas: budget.lineas.map((l) => ({
+        finance_category_id: l.finance_category_id,
+        product_id: l.product_id ?? undefined,
+        product_category_id: l.product_category_id ?? undefined,
+        monto_planeado: l.monto_planeado,
+      })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, budget]);
+
+  const handleOk = async () => {
+    const values = await form.validateFields().catch(() => null);
+    if (!values) return;
+    const input: BudgetInput = {
+      nombre: values.nombre,
+      tipo_periodo: values.tipo_periodo,
+      fecha_inicio: values.fechas[0].format("YYYY-MM-DD"),
+      fecha_fin: values.fechas[1].format("YYYY-MM-DD"),
+      ingreso_meta: values.ingreso_meta ?? 0,
+      alerta_pct: values.alerta_pct ?? 80,
+      lineas: (values.lineas ?? [])
+        .filter((l) => l && l.finance_category_id && l.monto_planeado !== undefined)
+        .map((l) => ({
+          finance_category_id: l.finance_category_id!,
+          product_id: l.product_id ?? null,
+          product_category_id: l.product_category_id ?? null,
+          monto_planeado: l.monto_planeado!,
+        })),
+    };
+
+    setSaving(true);
+    try {
+      const res = budget ? await updateBudget(budget.id, input) : await createBudget(input);
+      messageApi.success(budget ? "Presupuesto actualizado" : "Presupuesto creado");
+      onSaved(res.id);
+      onClose();
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, "No se pudo guardar el presupuesto"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Drawer
+      open={open}
+      title={budget ? (budget.estado === "activo" ? "Ajustar presupuesto" : "Editar presupuesto") : "Nuevo presupuesto"}
+      width={screens.md ? 760 : "100%"}
+      onClose={onClose}
+      maskClosable={false}
+      destroyOnHidden
+      footer={
+        <Space style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button type="primary" loading={saving} onClick={handleOk}>
+            {budget ? "Guardar" : "Crear"}
+          </Button>
+        </Space>
+      }
+    >
+      {contextHolder}
+      {budget?.estado === "activo" && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Estás ajustando un presupuesto activo"
+          description="Al cambiar los montos planificados se recalcula de inmediato la ejecución de las transacciones ya registradas en el periodo."
+        />
+      )}
+      <Form form={form} layout="vertical" initialValues={{ tipo_periodo: "mes", alerta_pct: 80, ingreso_meta: 0, lineas: [] }}>
+        <Space style={{ width: "100%" }} size="middle" wrap>
+          <Form.Item
+            label="Nombre"
+            name="nombre"
+            tooltip="Nombre descriptivo del presupuesto para el periodo."
+            rules={[{ required: true, min: 2, max: 150 }]}
+            style={{ flex: 2, minWidth: 260, marginBottom: 12 }}
+          >
+            <Input placeholder="Ej. Presupuesto de noviembre" />
+          </Form.Item>
+          <Form.Item label="Periodo" name="tipo_periodo" tooltip="Granularidad del periodo que cubre el presupuesto." rules={[{ required: true }]} style={{ width: 140, marginBottom: 12 }}>
+            <Select options={["dia", "semana", "mes", "anio"].map((p) => ({ value: p, label: periodLabel(p as "dia" | "semana" | "mes" | "anio") }))} />
+          </Form.Item>
+        </Space>
+
+        <Form.Item label="Rango del periodo" name="fechas" tooltip="Fechas de inicio y fin del periodo presupuestado." rules={[{ required: true }]}>
+          <DatePicker.RangePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
+        </Form.Item>
+
+        <Space style={{ width: "100%" }} size="middle" wrap>
+          <Form.Item label="Meta de ingresos" name="ingreso_meta" tooltip="Ingreso total esperado en el periodo." style={{ flex: 1, minWidth: 180 }}>
+            <InputNumber min={0} style={{ width: "100%" }} />
+          </Form.Item>
+          <Form.Item
+            label="Alerta (%)"
+            name="alerta_pct"
+            tooltip="Porcentaje de ejecución a partir del cual se marca la línea en alerta."
+            rules={[{ required: true }, { type: "number", min: 1, max: 100 }]}
+            style={{ width: 140 }}
+          >
+            <InputNumber min={1} max={100} style={{ width: "100%" }} />
+          </Form.Item>
+        </Space>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <Typography.Title level={5} style={{ marginTop: 8 }}>
+            Líneas del presupuesto
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            Total planeado: <strong>{money(totalPlaneado)}</strong>
+          </Typography.Text>
+        </div>
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+          Añade una línea por cada categoría financiera que quieras planificar. El alcance puede ser general (toda la
+          categoría), por producto o por categoría de producto. Para una misma categoría financiera no mezcles
+          alcances: evita el doble conteo de la ejecución.
+        </Typography.Paragraph>
+
+        <Form.List
+          name="lineas"
+          rules={[
+            {
+              validator: async (_, v) => {
+                const validas = (v ?? []).some(
+                  (l: LineValues) => l && l.finance_category_id && typeof l.monto_planeado === "number"
+                );
+                if (!validas) {
+                  throw new Error("Agrega al menos una línea con categoría y monto");
+                }
+              },
+            },
+          ]}
+        >
+          {(fields, { add, remove }, { errors }) => (
+            <>
+              {fields.map(({ key, name, ...rest }) => (
+                <Space key={key} align="baseline" style={{ display: "flex", marginBottom: 8 }} wrap>
+                  <Form.Item
+                    {...rest}
+                    name={[name, "finance_category_id"]}
+                    label="Categoría"
+                    tooltip="Categoría financiera que se planifica."
+                    rules={[{ required: true, message: "Categoría" }]}
+                    style={{ flex: 2, minWidth: 220 }}
+                  >
+                    <Select
+                      placeholder="Categoría financiera"
+                      options={categories.map((c) => ({
+                        value: c.id,
+                        label: `${c.tipo === "ingreso" ? "Ingreso" : c.tipo === "gasto" ? "Gasto" : c.tipo === "activo" ? "Activo" : "Pasivo"} · ${c.nombre}`,
+                      }))}
+                      showSearch
+                      optionFilterProp="label"
+                    />
+                  </Form.Item>
+                  <Form.Item {...rest} name={[name, "product_id"]} label="Producto" tooltip="Alcance por producto específico (opcional). Escribe para buscar en todo el catálogo." style={{ flex: 2, minWidth: 200 }}>
+                    <Select
+                      placeholder="Producto (opcional)"
+                      allowClear
+                      showSearch
+                      loading={productLoading}
+                      filterOption={false}
+                      onSearch={setProductSearch}
+                      notFoundContent={productLoading ? "Buscando…" : undefined}
+                      options={productOptions}
+                      onChange={() => form.setFieldValue(["lineas", name, "product_category_id"], undefined)}
+                    />
+                  </Form.Item>
+                  <Form.Item {...rest} name={[name, "product_category_id"]} label="Categoría de producto" tooltip="Alcance por categoría de producto (opcional)." style={{ flex: 2, minWidth: 200 }}>
+                    <Select
+                      placeholder="Categoría (opcional)"
+                      allowClear
+                      showSearch
+                      optionFilterProp="label"
+                      options={productCategoryOptions}
+                      onChange={() => form.setFieldValue(["lineas", name, "product_id"], undefined)}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    {...rest}
+                    name={[name, "monto_planeado"]}
+                    label="Monto planeado"
+                    tooltip="Monto planeado para la línea."
+                    rules={[{ required: true, message: "Monto" }, { type: "number", min: 0 }]}
+                    style={{ width: 160 }}
+                  >
+                    <InputNumber min={0} style={{ width: "100%" }} placeholder="Monto" />
+                  </Form.Item>
+                  <Tooltip title="Quitar esta línea">
+                    <Button
+                      type="text"
+                      danger
+                      aria-label="Quitar línea"
+                      icon={<MinusCircleOutlined />}
+                      onClick={() => remove(name)}
+                    />
+                  </Tooltip>
+                </Space>
+              ))}
+              <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} block>
+                Añadir línea
+              </Button>
+              <Form.ErrorList errors={errors} />
+            </>
+          )}
+        </Form.List>
+      </Form>
+    </Drawer>
+  );
+}

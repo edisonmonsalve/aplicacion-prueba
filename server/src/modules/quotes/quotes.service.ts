@@ -43,7 +43,7 @@ async function buildLines(conn: PoolConnection, items: QuoteInput["items"]) {
   if (items.length === 0) return { lines: [], totals: calcTotals([]) };
 
   const [products] = await conn.query<RowDataPacket[]>(
-    "SELECT id, sku, nombre, precio, activo FROM products WHERE id IN (?)",
+    "SELECT id, sku, nombre, precio, activo FROM products WHERE id IN (?) FOR UPDATE",
     [items.map((i) => i.product_id)]
   );
   const byId = new Map(products.map((p) => [p.id as number, p]));
@@ -113,7 +113,7 @@ async function insertItems(
 // Bloquea el presupuesto y comprueba que se puede modificar
 async function lockQuote(conn: PoolConnection, id: number, actor: AuthUser) {
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT id, estado, created_by, fecha_validez FROM quotes WHERE id = ? FOR UPDATE",
+    "SELECT id, estado, created_by, fecha_validez, subtotal, descuento_total FROM quotes WHERE id = ? FOR UPDATE",
     [id]
   );
   const quote = rows[0];
@@ -343,6 +343,50 @@ export async function changeStatus(id: number, action: QuoteAction, actor: AuthU
       throw new HttpError(409, "El presupuesto está vencido y ya no puede aprobarse"); // RN-P06
     }
 
+    // M4: bloquear la aprobación si no hay stock suficiente para las líneas cotizadas.
+    if (action === "approve") {
+      const [items] = await conn.query<RowDataPacket[]>(
+        `SELECT product_id, sku, nombre, cantidad, precio_unitario
+         FROM quote_items WHERE quote_id = ? ORDER BY product_id ASC`,
+        [id]
+      );
+      if (items.length === 0) {
+        throw new HttpError(409, "El presupuesto necesita al menos una línea para aprobarse");
+      }
+      if (items.some((i) => i.product_id === null)) {
+        throw new HttpError(409, "Hay líneas cuyo producto ya no existe en el catálogo");
+      }
+
+      const ids = items.map((i) => i.product_id as number);
+      const [products] = await conn.query<RowDataPacket[]>(
+        "SELECT id, stock_actual, activo FROM products WHERE id IN (?) ORDER BY id ASC FOR UPDATE",
+        [ids]
+      );
+      const byId = new Map(products.map((p) => [p.id as number, p]));
+
+      const fallos = items.flatMap((i) => {
+        const p = byId.get(i.product_id as number);
+        if (!p || !p.activo) {
+          return [{ sku: i.sku, nombre: i.nombre, motivo: "producto inactivo o inexistente" }];
+        }
+        if (p.stock_actual < i.cantidad) {
+          return [
+            {
+              sku: i.sku,
+              nombre: i.nombre,
+              requerido: i.cantidad,
+              disponible: p.stock_actual,
+              motivo: "stock insuficiente",
+            },
+          ];
+        }
+        return [];
+      });
+      if (fallos.length > 0) {
+        throw new HttpError(409, "Stock insuficiente para aprobar la cotización", fallos);
+      }
+    }
+
     await conn.query("UPDATE quotes SET estado = ? WHERE id = ?", [rule.to, id]);
     await conn.query(
       `INSERT INTO quote_status_history (quote_id, estado_anterior, estado_nuevo, user_id)
@@ -376,8 +420,13 @@ export async function deliverQuote(id: number, actor: AuthUser) {
       );
     }
 
+    if (quote.fecha_validez < today()) {
+      throw new HttpError(409, "La cotización está vencida y ya no puede entregarse");
+    }
+
     const [items] = await conn.query<RowDataPacket[]>(
-      "SELECT product_id, sku, nombre, cantidad FROM quote_items WHERE quote_id = ? ORDER BY product_id ASC",
+      `SELECT product_id, sku, nombre, cantidad, precio_unitario
+       FROM quote_items WHERE quote_id = ? ORDER BY product_id ASC`,
       [id]
     );
     if (items.length === 0) throw new HttpError(409, "El presupuesto no tiene líneas");
@@ -388,7 +437,7 @@ export async function deliverQuote(id: number, actor: AuthUser) {
     // RN-P09: bloquear productos en orden de id (items ya viene ordenado)
     const ids = items.map((i) => i.product_id as number);
     const [products] = await conn.query<RowDataPacket[]>(
-      "SELECT id, stock_actual, activo FROM products WHERE id IN (?) ORDER BY id ASC FOR UPDATE",
+      "SELECT id, stock_actual, costo, activo FROM products WHERE id IN (?) ORDER BY id ASC FOR UPDATE",
       [ids]
     );
     const byId = new Map(products.map((p) => [p.id as number, p]));
@@ -415,16 +464,22 @@ export async function deliverQuote(id: number, actor: AuthUser) {
       throw new HttpError(409, "Stock insuficiente para entregar", fallos);
     }
 
-    // RN-P09: salidas con motivo "Presupuesto PRE-n", en la misma transacción
+    // RN-P09: salidas con motivo "Presupuesto COT-n", en la misma transacción.
+    // El ciclo documental es: la cotización es pre-contractual y NO genera
+    // contabilidad. La entrega solo mueve stock (actúa como recibo/remisión).
     for (const i of items) {
       await registerMovement(
         {
           product_id: i.product_id as number,
           tipo: "salida",
           cantidad: i.cantidad,
+          origen: "entrega",
           motivo: `Presupuesto ${formatQuoteNumber(quote.id)}`,
+          precio_unitario: Number(i.precio_unitario ?? 0),
+          quoteId: id,
+          skipFinance: true,
         },
-        actor.id,
+        actor,
         conn
       );
     }

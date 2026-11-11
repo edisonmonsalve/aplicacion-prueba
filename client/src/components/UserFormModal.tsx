@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import { createUser, updateUser } from "@/services/usersService";
 import { getErrorMessage } from "@/utils/errors";
 import type { Rol, User } from "@/types";
+import { ROLES } from "@/utils/roles";
 
 interface Props {
   user: User | null; // null = crear, User = editar
@@ -24,6 +25,7 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
   const [messageApi, contextHolder] = message.useMessage();
   const [saving, setSaving] = useState(false);
   const isEdit = user !== null;
+  const rol = Form.useWatch("rol", form);
 
   const handleOk = async () => {
     const values = await form.validateFields().catch(() => null);
@@ -66,15 +68,12 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         form={form}
         layout="vertical"
         autoComplete="off"
-        initialValues={
-          user
-            ? { nombre: user.nombre, email: user.email, rol: user.rol }
-            : { rol: "operador" }
-        }
+        initialValues={user ? { nombre: user.nombre, email: user.email, rol: user.rol } : { rol: "operador" }}
       >
         <Form.Item
           label="Nombre"
           name="nombre"
+          tooltip="Nombre completo del usuario."
           rules={[
             { required: true, message: "Ingresa el nombre" },
             { min: 2, message: "Mínimo 2 caracteres" },
@@ -87,6 +86,7 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         <Form.Item
           label="Correo"
           name="email"
+          tooltip="Correo electrónico para iniciar sesión."
           rules={[
             { required: true, message: "Ingresa el correo" },
             { type: "email", message: "Correo no válido" },
@@ -98,6 +98,7 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         <Form.Item
           label={isEdit ? "Nueva contraseña (opcional)" : "Contraseña"}
           name="password"
+          tooltip="Mínimo 8 caracteres. En edición, dejar vacío para no cambiarla."
           rules={[
             { required: !isEdit, message: "Ingresa la contraseña" },
             { min: 8, message: "Mínimo 8 caracteres" },
@@ -107,15 +108,15 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
           <Input.Password autoComplete="new-password" />
         </Form.Item>
 
-        <Form.Item label="Rol" name="rol" rules={[{ required: true }]}>
+        <Form.Item
+          label="Rol"
+          name="rol"
+          tooltip="Rol de acceso del usuario."
+          rules={[{ required: true }]}
+          extra={ROLES.find((r) => r.value === rol)?.desc}
+        >
           {/* RN-06: no puedes quitarte tu propio rol de admin */}
-          <Select
-            disabled={isSelf}
-            options={[
-              { value: "admin", label: "Admin" },
-              { value: "operador", label: "Operador" },
-            ]}
-          />
+          <Select disabled={isSelf} options={ROLES.map(({ value, label }) => ({ value, label }))} />
         </Form.Item>
       </Form>
     </Modal>

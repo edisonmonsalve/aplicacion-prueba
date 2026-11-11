@@ -24,8 +24,38 @@ describe("Presupuestos: consulta", () => {
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(3);
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.data[0].numero).toMatch(/^PRE-\d{6}$/);
+    expect(res.body.data[0].numero).toMatch(/^COT-\d{6}$/);
     expect(res.body.data[0].id).toBeGreaterThan(res.body.data[1].id);
+  });
+
+  it("ordena por total y validez y devuelve el monto del filtro", async () => {
+    const { admin, a } = await setup();
+    const primero = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 1 }], { fecha_validez: futureDate(5) })
+    );
+    const segundo = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 3 }], { fecha_validez: futureDate(2) })
+    );
+    const tercero = await createQuote(
+      admin.token,
+      draft([{ product_id: a, cantidad: 2 }], { fecha_validez: futureDate(8) })
+    );
+
+    const byTotal = await get(admin.token, "/api/quotes?sort=total&order=desc");
+    expect(byTotal.body.data.map((q: { total: number }) => q.total)).toEqual([3570, 2380, 1190]);
+    expect(byTotal.body.monto_total).toBe(7140);
+
+    const byValidez = await get(admin.token, "/api/quotes?sort=fecha_validez&order=asc");
+    expect(byValidez.body.data.map((q: { id: number }) => q.id)).toEqual([
+      segundo.body.id,
+      primero.body.id,
+      tercero.body.id,
+    ]);
+
+    const bad = await get(admin.token, "/api/quotes?sort=total%3B%20DROP%20TABLE");
+    expect(bad.status).toBe(400);
   });
 
   it("un operador solo ve sus presupuestos y el admin ve todos (RN-P13)", async () => {
@@ -82,19 +112,39 @@ describe("Presupuestos: consulta", () => {
     const { admin, a } = await setup();
     const created = await createQuote(
       admin.token,
-      draft([{ product_id: a, cantidad: 2, descuento_pct: 10 }], { customer_nombre: "Acme" })
+      draft([{ product_id: a, cantidad: 2, descuento_pct: 10, impuesto_pct: 0 }], { customer_nombre: "Acme" })
     );
 
     const res = await get(admin.token, `/api/quotes/${created.body.id}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.numero).toMatch(/^PRE-\d{6}$/);
+    expect(res.body.numero).toMatch(/^COT-\d{6}$/);
     expect(res.body.total).toBe(1800);
     expect(res.body.fecha_validez).toBe(futureDate(10));
     expect(res.body.items).toHaveLength(1);
     expect(res.body.items[0]).toMatchObject({ sku: "A", cantidad: 2 });
     expect(res.body.historial).toHaveLength(1);
     expect(res.body.historial[0]).toMatchObject({ estado_nuevo: "borrador", usuario: "admin" });
+  });
+
+  it("el detalle incluye las facturas vinculadas", async () => {
+    const { admin, a } = await setup();
+    const created = await createQuote(admin.token, draft([{ product_id: a, cantidad: 1 }]));
+
+    await pool.query(
+      `INSERT INTO invoices (tipo, numero, fecha, contraparte, estado, total, created_by, quote_id)
+       VALUES ('venta', 'FAC-TEST-1', CURDATE(), 'Cliente Prueba', 'confirmada', 1190, ?, ?)`,
+      [admin.id, created.body.id]
+    );
+
+    const res = await get(admin.token, `/api/quotes/${created.body.id}`);
+
+    expect(res.body.facturas).toHaveLength(1);
+    expect(res.body.facturas[0]).toMatchObject({
+      numero: "FAC-TEST-1",
+      estado: "confirmada",
+    });
+    expect(Number(res.body.facturas[0].total)).toBe(1190);
   });
 
   it("el detalle respeta los permisos y la existencia", async () => {
@@ -110,8 +160,8 @@ describe("Presupuestos: consulta", () => {
     const created = await createQuote(
       operador.token,
       draft([
-        { product_id: a, cantidad: 2, descuento_pct: 10 },
-        { product_id: b, cantidad: 1 },
+        { product_id: a, cantidad: 2, descuento_pct: 10, impuesto_pct: 0 },
+        { product_id: b, cantidad: 1, impuesto_pct: 0 },
       ])
     );
     await request(app)

@@ -55,6 +55,7 @@ export default function ChangePasswordModal({ onClose, onSaved }: Props) {
         <Form.Item
           label="Contraseña actual"
           name="currentPassword"
+          tooltip="Tu contraseña actual para confirmar el cambio."
           rules={[{ required: true, message: "Ingresa tu contraseña actual" }]}
         >
           <Input.Password autoComplete="current-password" />
@@ -63,6 +64,7 @@ export default function ChangePasswordModal({ onClose, onSaved }: Props) {
         <Form.Item
           label="Nueva contraseña"
           name="newPassword"
+          tooltip="Mínimo 8 caracteres y distinta a la actual."
           dependencies={["currentPassword"]}
           rules={[
             { required: true, message: "Ingresa la nueva contraseña" },
@@ -84,6 +86,7 @@ export default function ChangePasswordModal({ onClose, onSaved }: Props) {
         <Form.Item
           label="Confirmar nueva contraseña"
           name="confirmPassword"
+          tooltip="Repite la nueva contraseña."
           dependencies={["newPassword"]}
           rules={[
             { required: true, message: "Confirma la nueva contraseña" },

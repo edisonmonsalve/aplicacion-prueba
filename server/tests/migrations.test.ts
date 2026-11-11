@@ -12,9 +12,10 @@ describe("Migraciones", () => {
   afterAll(() => pool.end());
 
   it("volver a ejecutarlas no falla ni duplica registros", async () => {
+    await runMigrations(); // deja la base de pruebas al día antes de contar
     const before = await countApplied();
-    await runMigrations();
     expect(before).toBeGreaterThan(0);
+    await runMigrations();
     expect(await countApplied()).toBe(before);
   });
 

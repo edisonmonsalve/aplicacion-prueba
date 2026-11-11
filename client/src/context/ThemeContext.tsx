@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { App as AntApp, ConfigProvider, theme } from "antd";
 import esES from "antd/locale/es_ES";
 
 type Mode = "light" | "dark";
 const KEY = "theme-mode";
+const SWITCHING_CLASS = "theme-switching";
 const Ctx = createContext<{ mode: Mode; toggle: () => void }>({ mode: "light", toggle: () => {} });
 
 const palette = {
@@ -27,15 +28,31 @@ export const useThemeMode = () => useContext(Ctx);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>(() => (localStorage.getItem(KEY) === "dark" ? "dark" : "light"));
 
+  // Al cambiar de tema se desactivan las transiciones de color de Ant Design
+  // (tablas, tarjetas, botones) para que el cambio sea de una sola vez y no
+  // parezca un parpadeo. Se reactivan cuando el nuevo tema ya se pintó.
+  const toggle = useCallback(() => {
+    document.documentElement.classList.add(SWITCHING_CLASS);
+    setMode((m) => (m === "light" ? "dark" : "light"));
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(KEY, mode);
-    document.documentElement.dataset.theme = mode;
+    const root = document.documentElement;
+    root.dataset.theme = mode;
+    root.style.colorScheme = mode;
+
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => root.classList.remove(SWITCHING_CLASS));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
   }, [mode]);
 
-  const value = useMemo(
-    () => ({ mode, toggle: () => setMode((m) => (m === "light" ? "dark" : "light")) }),
-    [mode]
-  );
+  const value = useMemo(() => ({ mode, toggle }), [mode, toggle]);
 
   return (
     <Ctx.Provider value={value}>

@@ -60,8 +60,9 @@ describe("Presupuestos: entrega", () => {
 
   it("es todo o nada: una línea sin stock cancela la entrega (RN-P08)", async () => {
     const { admin, a, b } = await setup();
+    // Hay stock suficiente para aprobar, luego se reduce para que la entrega falle.
     await setStock(a, 10);
-    await setStock(b, 2);
+    await setStock(b, 10);
     const id = await quoteInState(
       admin.token,
       [
@@ -70,6 +71,8 @@ describe("Presupuestos: entrega", () => {
       ],
       "aprobado"
     );
+    // Reducimos el stock de b después de aprobar: la entrega debe fallar sin mover nada.
+    await setStock(b, 2);
 
     const res = await post(admin.token, id, "deliver");
     expect(res.status).toBe(409);

@@ -1,6 +1,8 @@
+import type { Rol } from "./roles.js";
+
 export interface AuthUser {
   id: number;
-  rol: "admin" | "operador";
+  rol: Rol;
 }
 
 declare global {

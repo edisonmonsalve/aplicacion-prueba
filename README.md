@@ -1,18 +1,21 @@
 # Sistema de Usuarios e Inventario
 
-Aplicación fullstack para gestionar usuarios, productos, categorías, movimientos de stock y presupuestos (cotizaciones). Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio, transacciones SQL, cálculos monetarios y máquinas de estado.
+Aplicación fullstack para gestionar usuarios, productos, categorías, movimientos de stock y cotizaciones. Ya está creado el esquema base del módulo financiero (presupuestos por periodo, transacciones y capital); la API y la UI vienen en el siguiente paso. Proyecto de práctica enfocado en CRUD completo, tablas con paginación en servidor, formularios con validación, reglas de negocio, transacciones SQL, cálculos monetarios y máquinas de estado.
 
-El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos-presupuestos.md`](requisitos-presupuestos.md).
+El módulo de finanzas tiene su propio documento de requisitos: [`docs/REQUISITOS-FINANZAS.md`](docs/REQUISITOS-FINANZAS.md). El módulo de cotizaciones está documentado en [`docs/requisitos-cotizaciones.md`](docs/requisitos-cotizaciones.md).
 
 ## Funcionalidades
 
 - **Autenticación:** inicio de sesión con JWT, rutas protegidas por rol y cambio de la propia contraseña.
+- **Roles:** admin, contador, operador y consulta. `contador` y `consulta` quedan preparados para el módulo financiero.
+- **Costos y márgenes:** `admin`, `contador` y `consulta` ven el costo de los productos y el margen; el `operador` no. Solo `admin` puede fijar el costo de un producto o el de una entrada de stock.
 - **Usuarios** (solo admin): listar con búsqueda, filtros y paginación; crear, editar y desactivar.
 - **Categorías:** listar, crear, editar y eliminar (si no tienen productos).
 - **Productos:** listar con búsqueda, filtros por categoría, estado y stock bajo; crear, editar y desactivar.
 - **Movimientos de stock:** registrar entradas y salidas con motivo, e historial filtrable por producto y tipo.
 - **Alertas:** indicador visual de productos con stock por debajo del mínimo.
 - **Presupuestos:** crear y editar borradores con datos del cliente (email y notas incluidos) y líneas dinámicas de productos; totales calculados en el servidor (descuentos e impuestos, redondeo a 2 decimales); enviar, aprobar, rechazar y entregar con historial de estados; la entrega descuenta stock en una sola transacción; duplicar; auditoría de las ediciones; vista de impresión / PDF. El operador solo ve y duplica los suyos; el admin ve todos.
+- **Base financiera (módulo completo):** presupuestos por periodo (`budgets`), líneas planeadas por categoría y producto (`budget_lines`) y transacciones reales inmutables con anulación (`transactions`). API en `/api/finance/*` (resumen, cuentas, categorías, presupuestos, transacciones) y UI en `/finanzas` (resumen, presupuestos y transacciones), con ejecución, alertas, proyección, anulación y asientos automáticos por entradas de stock y entrega de cotizaciones.
 
 ## Stack
 
@@ -26,14 +29,18 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 
 ## Roles y permisos
 
-| Acción                                  | Admin | Operador |
-| --------------------------------------- | :---: | :------: |
-| Ver categorías, productos y movimientos |  Sí   |    Sí    |
-| Crear y editar productos                |  Sí   |    Sí    |
-| Registrar movimientos de stock          |  Sí   |    Sí    |
-| Desactivar productos                    |  Sí   |    No    |
-| Crear, editar y eliminar categorías     |  Sí   |    No    |
-| Gestionar usuarios                      |  Sí   |    No    |
+| Acción                                  | Admin | Contador | Operador | Consulta |
+| --------------------------------------- | :---: | :------: | :------: | :------: |
+| Ver categorías, productos y movimientos |  Sí   |    Sí    |    Sí    |    Sí    |
+| Ver costos y márgenes                   |  Sí   |    Sí    |    No    |    Sí    |
+| Fijar el costo de productos y entradas  |  Sí   |    No    |    No    |    No    |
+| Crear y editar productos                |  Sí   |    No    |    Sí    |    No    |
+| Registrar movimientos de stock          |  Sí   |    No    |    Sí    |    No    |
+| Desactivar productos                    |  Sí   |    No    |    No    |    No    |
+| Crear, editar y eliminar categorías     |  Sí   |    No    |    No    |    No    |
+| Gestionar usuarios                      |  Sí   |    No    |    No    |    No    |
+
+Los roles `contador` y `consulta` ya existen en autenticación y usuarios y ya acceden a costos y márgenes en solo lectura. El módulo financiero completo se habilitará con las tablas de `budgets`, `budget_lines` y `transactions`.
 
 ## Reglas de negocio
 
@@ -44,6 +51,8 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 - **RN-05:** una categoría con productos asociados no se puede eliminar.
 - **RN-06:** un usuario no puede desactivarse a sí mismo ni quitarse el rol de admin.
 - **RN-07:** precios y cantidades deben ser mayores que cero.
+- **RN-08:** solo `admin` fija `products.costo` y el costo unitario de una entrada; el `operador` registra productos con costo 0 y entradas con el costo del producto. Las salidas no guardan costo unitario.
+- **RN-09:** el `operador` nunca recibe costos desde la API (se devuelve `null`); `contador` y `consulta` los ven, pero no pueden modificarlos.
 
 ### Presupuestos
 
@@ -55,12 +64,11 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
 - **RN-P06:** un presupuesto enviado cuya validez ya pasó se muestra como vencido (estado calculado) y no puede aprobarse.
 - **RN-P08:** entregar es todo o nada: si alguna línea no tiene stock suficiente, no se entrega ninguna y se informa cuáles fallan (409 con `errors`).
 - **RN-P07:** cotizar no reserva stock.
-- **RN-P09:** entregar genera salidas de stock con motivo "Presupuesto PRE-n" en una sola transacción, bloqueando los productos en orden de id para evitar interbloqueos.
+- **RN-P09:** entregar genera salidas de stock con motivo "Presupuesto COT-n" en una sola transacción, bloqueando los productos en orden de id para evitar interbloqueos.
 - **RN-P10:** se necesita al menos una línea para enviar.
 - **RN-P11:** la fecha de validez no puede ser anterior a hoy.
 - **RN-P12:** cada cambio de estado queda registrado con quién lo hizo y cuándo.
 - **RN-P13:** el operador solo ve y duplica sus propios presupuestos.
-- **Pendiente:** RN-P08 y RN-P09 (entrega con descuento transaccional de stock), próximo ticket del backend.
 
 ### Estados de un presupuesto
 
@@ -92,7 +100,7 @@ El módulo de presupuestos tiene su propio documento de requisitos: [`requisitos
     │   ├── scripts/         # seed admin, ejecutor de migraciones, base de pruebas
     │   ├── types/           # tipos de Express (req.user)
     │   └── utils/           # HttpError, helpers de SQL, transacciones y fechas
-    └── test/                # pruebas Vitest + Supertest
+    └── tests/               # pruebas Vitest + Supertest
 ```
 
 ## Requisitos previos
@@ -143,6 +151,28 @@ npm run dev
 
 La API queda en `http://localhost:3000`. Comprueba que funciona en `http://localhost:3000/api/health`.
 
+Para dejar la base de desarrollo limpia y con datos de ejemplo:
+
+```powershell
+# 1. Detén el servidor y borra/recrea la base (pide confirmación explícita)
+$env:RESET_DEV_DB='si'; npm run reset:dev
+
+# 2. Crea el administrador demo
+npm run seed:admin -- demo@demo.com "Demo1234!"
+
+# 3. Inicia el servidor
+npm run dev
+
+# 4. En otra terminal, siembra los datos demo
+npm run seed:demo
+```
+
+> `reset:dev` solo funciona si `DB_NAME` no termina en `_test` y no es una base del sistema.
+> El seed demo es idempotente por secciones: no duplica movimientos, transacciones ni cotizaciones.
+> Crea las cuentas **Caja principal** (saldo inicial 3.000.000) y **Banco principal**
+> (25.000.000); la compra de inventario y las transferencias salen del banco, y los gastos
+> menores en efectivo salen de la caja.
+
 ### 3. Frontend
 
 ```bash
@@ -161,6 +191,8 @@ La aplicación queda en `http://localhost:5173`. En desarrollo, Vite redirige la
 | `server` | `npm run build`                      | Compila TypeScript a `dist/`               |
 | `server` | `npm start`                          | Ejecuta la versión compilada               |
 | `server` | `npm run seed:admin -- correo clave` | Crea un usuario administrador              |
+| `server` | `npm run seed:demo`                  | Siembra datos demo (requiere el servidor)  |
+| `server` | `npm run reset:dev`                  | Borra y recrea la BD de desarrollo         |
 | `client` | `npm run dev`                        | Servidor de desarrollo                     |
 | `client` | `npm run build`                      | Verifica tipos y genera el build           |
 | `client` | `npm run lint`                       | Revisa el código con ESLint                |
@@ -200,6 +232,13 @@ Todas las rutas, salvo el login y `health`, requieren el encabezado `Authorizati
 | POST              | `/api/quotes/:id/reject`    | Creador o admin | Rechazar                                      |
 | GET               | `/api/quotes/:id/history`   | Autenticado     | Historial de estados                          |
 | POST              | `/api/quotes/:id/deliver`   | Creador o admin | Entregar (descuenta stock)                    |
+| GET, POST         | `/api/finance/accounts`, `/api/finance/categories` | Admin, contador, consulta | Cuentas y categorías financieras |
+| GET               | `/api/finance/summary`      | Admin, contador, consulta | Resumen (ingresos, egresos, utilidad, margen, capital) |
+| GET, POST         | `/api/finance/budgets`      | Lectura / escritura | Listar y crear presupuestos |
+| GET, PUT, DELETE  | `/api/finance/budgets/:id`  | Lectura / escritura | Detalle, editar, eliminar (solo borrador) |
+| POST              | `/api/finance/budgets/:id/activate`, `/close` | Admin, contador | Activar y cerrar |
+| GET, POST         | `/api/finance/transactions` | Lectura / escritura | Listar y registrar transacciones |
+| POST              | `/api/finance/transactions/:id/reverse` | Admin, contador | Anular (contrapartida) |
 
 Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuando hay detalle (validación Zod o líneas sin stock en la entrega), con códigos 400, 401, 403, 404, 409 y 500.
 
@@ -208,20 +247,16 @@ Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuan
 Las pruebas del servidor usan Vitest y Supertest contra una base de datos aparte (`inventario_test`), para no tocar los datos de desarrollo.
 
 1. Crea `server/.env.test` con las mismas variables que `.env`, pero con `DB_NAME=inventario_test`.
-2. Crea la base de pruebas (una sola vez, o cuando cambien las migraciones):
+2. Ejecuta las pruebas. La suite aplica automáticamente las migraciones pendientes sobre `inventario_test` antes de empezar:
 
    ```bash
    cd server
-   npm run test:db
-   ```
-
-3. Ejecuta las pruebas:
-
-   ```bash
    npm test
    ```
 
-Cubren autenticación y permisos por rol, las reglas del inventario (SKU único, categorías con productos, precios válidos) y los movimientos de stock, incluida una prueba de concurrencia. Del módulo de presupuestos: validación y cálculo de totales, reglas de líneas, visibilidad por rol, auditoría de ediciones, historial, transiciones de estado y la entrega (todo o nada y dos entregas simultáneas).
+   Si necesitas recrear la base de pruebas desde cero (por ejemplo, tras un cambio de esquema), ejecuta `npm run test:db`.
+
+Cubren autenticación y permisos por rol, las reglas del inventario (SKU único, categorías con productos, precios válidos), los movimientos de stock (incluida concurrencia) y la visibilidad de costos por rol. Del módulo de presupuestos/cotizaciones: validación y cálculo de totales, reglas de líneas, visibilidad por rol, auditoría de ediciones, historial, transiciones de estado y la entrega (todo o nada y dos entregas simultáneas). Del módulo financiero: permisos, CRUD y ciclo de vida de presupuestos, ejecución y alertas, anulación de transacciones, resumen, asientos automáticos por entradas de stock y entrega de cotizaciones. Del esquema: presupuesto activo único por periodo, borrado en cascada de líneas y transacciones inmutables con anulación única.
 
 ## Decisiones técnicas
 

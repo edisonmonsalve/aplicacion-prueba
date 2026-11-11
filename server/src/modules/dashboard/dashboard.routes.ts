@@ -6,6 +6,6 @@ export const dashboardRouter = Router();
 
 dashboardRouter.use(authenticate);
 
-dashboardRouter.get("/", async (_req, res) => {
-  res.json(await getDashboard());
+dashboardRouter.get("/", async (req, res) => {
+  res.json(await getDashboard(req.user!));
 });

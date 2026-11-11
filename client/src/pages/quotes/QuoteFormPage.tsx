@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 // import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Space, Typography, message } from "antd";
 import {
+  App,
   Button,
   Card,
   DatePicker,
   Form,
+  Grid,
   Input,
   InputNumber,
   Select,
   Space,
-  Tag,
+  Tooltip,
   Typography,
-  message,
   theme,
 } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
@@ -20,8 +21,10 @@ import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { createQuote, getQuote, updateQuote } from "@/services/quotesService";
 import { getProducts } from "@/services/productsService";
-import type { QuoteLineInput } from "@/types";
-import { money } from "./quoteUtils";
+import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
+import StockTag from "@/components/StockTag";
+import type { QuoteLineForm } from "@/types";
+import { money } from "./QuoteUtils";
 
 interface ProductOpt {
   id: number;
@@ -29,23 +32,24 @@ interface ProductOpt {
   nombre: string;
   precio: number;
   stock_actual?: number;
+  stock_minimo?: number;
 }
 interface FormValues {
   cliente_nombre: string;
   cliente_documento?: string;
   fecha_validez: Dayjs;
-  lineas: Partial<QuoteLineInput>[];
+  lineas: Partial<QuoteLineForm>[];
   cliente_email?: string;
   notas?: string;
 }
 
-const lineTotal = (l: Partial<QuoteLineInput>) => {
+const lineTotal = (l: Partial<QuoteLineForm>) => {
   const base = (l.cantidad ?? 0) * (l.precio_unitario ?? 0);
   const net = base - (base * (l.descuento_pct ?? 0)) / 100;
   return net + (net * (l.impuesto_pct ?? 0)) / 100;
 };
 
-const totals = (ls: Partial<QuoteLineInput>[]) =>
+const totals = (ls: Partial<QuoteLineForm>[]) =>
   ls.reduce(
     (t, l) => {
       const x = l ?? {};
@@ -67,8 +71,12 @@ export default function QuoteFormPage() {
   const editId = id ? Number(id) : null;
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
+  const { message, modal } = App.useApp();
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const lineas = Form.useWatch("lineas", form) ?? [];
   const { token } = theme.useToken();
   const t = totals(lineas);
@@ -89,7 +97,7 @@ export default function QuoteFormPage() {
       .then((d) => {
         if (d.estado !== "borrador") {
           message.error("Solo se pueden editar borradores");
-          navigate(`/presupuestos/${editId}`, { replace: true });
+          navigate(`/cotizaciones/${editId}`, { replace: true });
           return;
         }
         setProducts((prev) => ({
@@ -103,6 +111,19 @@ export default function QuoteFormPage() {
               ])
           ),
         }));
+        // Completar el stock real de los productos de las líneas. Se consulta
+        // por lote de ids: así las líneas autocompletadas muestran el stock y
+        // las alertas funcionan igual que en las agregadas a mano.
+        const ids = d.items
+          .filter((l) => l.product_id)
+          .map((l) => l.product_id!);
+        if (ids.length > 0) {
+          fetchProductsByIds(ids)
+            .then((byId) =>
+              setProducts((prev) => ({ ...prev, ...byId }))
+            )
+            .catch(() => {});
+        }
         form.setFieldsValue({
           cliente_nombre: d.customer_nombre,
           cliente_documento: d.customer_documento ?? undefined,
@@ -117,11 +138,22 @@ export default function QuoteFormPage() {
         });
       })
       .catch(() => {
-        message.error("No se pudo cargar el presupuesto");
-        navigate("/presupuestos", { replace: true });
+        message.error("No se pudo cargar la cotización");
+        navigate("/cotizaciones", { replace: true });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
+
+  // Q3: avisa antes de cerrar o recargar la pestaña si hay cambios sin guardar.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!dirty || saving) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty, saving]);
 
   const onProductChange = (name: number, pid: number) => {
     const p = products[pid];
@@ -136,15 +168,22 @@ export default function QuoteFormPage() {
       cliente_nombre: v.cliente_nombre.trim(),
       cliente_documento: v.cliente_documento?.trim() || undefined,
       fecha_validez: v.fecha_validez.format("YYYY-MM-DD"),
-      lineas: v.lineas as QuoteLineInput[],
+      // El servidor toma el precio del catálogo; nunca se envía el del formulario
+      lineas: v.lineas.map((l) => ({
+        product_id: l.product_id!,
+        cantidad: l.cantidad!,
+        descuento_pct: l.descuento_pct ?? 0,
+        impuesto_pct: l.impuesto_pct ?? 0,
+      })),
       cliente_email: v.cliente_email?.trim() || undefined,
       notas: v.notas?.trim() || undefined,
     };
     setSaving(true);
     try {
       const r = editId ? await updateQuote(editId, payload) : await createQuote(payload);
-      message.success(editId ? "Presupuesto actualizado" : "Borrador creado");
-      navigate(`/presupuestos/${r.id ?? editId}`);
+      setDirty(false);
+      message.success(editId ? "Cotización actualizada" : "Borrador creado");
+      navigate(`/cotizaciones/${r.id ?? editId}`);
     } catch (e) {
       const msg = isAxiosError(e)
         ? (e.response?.data as { message?: string } | undefined)?.message
@@ -155,18 +194,36 @@ export default function QuoteFormPage() {
     }
   };
 
+  const cancel = () => {
+    const to = editId ? `/cotizaciones/${editId}` : "/cotizaciones";
+    if (!dirty) {
+      navigate(to);
+      return;
+    }
+    modal.confirm({
+      title: "¿Descartar los cambios?",
+      content: "Si sales ahora, los datos que no hayas guardado se perderán.",
+      okText: "Descartar cambios",
+      cancelText: "Seguir editando",
+      okButtonProps: { danger: true },
+      onOk: () => navigate(to),
+    });
+  };
+
   return (
-    <Card title={editId ? "Editar presupuesto" : "Nuevo presupuesto"}>
+    <Card title={editId ? "Editar cotización" : "Nueva cotización"}>
       <Form<FormValues>
         form={form}
         layout="vertical"
         onFinish={onFinish}
+        onValuesChange={() => setDirty(true)}
         initialValues={{ fecha_validez: dayjs().add(15, "day"), lineas: [{}] }}
       >
         <Space wrap align="start">
           <Form.Item
             name="cliente_nombre"
             label="Cliente"
+            tooltip="Nombre del cliente para la cotización."
             rules={[
               { required: true, message: "Requerido" },
               { min: 2, message: "Mínimo 2 caracteres" },
@@ -174,12 +231,17 @@ export default function QuoteFormPage() {
           >
             <Input style={{ width: 280 }} />
           </Form.Item>
-          <Form.Item name="cliente_documento" label="Documento">
+          <Form.Item
+            name="cliente_documento"
+            label="Documento"
+            tooltip="Documento de identidad o NIT del cliente (opcional)."
+          >
             <Input style={{ width: 180 }} />
           </Form.Item>
           <Form.Item
             name="cliente_email"
             label="Email"
+            tooltip="Correo de contacto del cliente (opcional)."
             rules={[{ type: "email", message: "Email inválido" }, { max: 150 }]}
           >
             <Input style={{ width: 280 }} />
@@ -188,16 +250,26 @@ export default function QuoteFormPage() {
           <Form.Item
             name="fecha_validez"
             label="Válido hasta"
+            tooltip="Fecha hasta la que la cotización es válida."
             rules={[{ required: true, message: "Requerido" }]}
           >
-            <DatePicker format="YYYY-MM-DD" />
+            <DatePicker format="DD/MM/YYYY" />
           </Form.Item>
         </Space>
 
-        <Form.Item name="notas" label="Notas" rules={[{ max: 2000 }]}>
+        <Form.Item
+          name="notas"
+          label="Notas"
+          tooltip="Observaciones o condiciones adicionales para el cliente."
+          rules={[{ max: 2000 }]}
+        >
           <Input.TextArea rows={3} maxLength={2000} showCount />
         </Form.Item>
 
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+          Agrega productos a la cotización. El precio se toma del catálogo y no es editable. Descuento e impuesto se
+          aplican por línea.
+        </Typography.Paragraph>
         <Form.List
           name="lineas"
           rules={[
@@ -210,57 +282,172 @@ export default function QuoteFormPage() {
         >
           {(fields, { add, remove }, { errors }) => (
             <>
-              {fields.map(({ key, name }) => (
-                <Space key={key} align="start" wrap>
-                  <Form.Item name={[name, "product_id"]} rules={[{ required: true, message: "Producto" }]}>
+              {fields.map(({ key, name }) => {
+                const line = lineas[name];
+                const product = line?.product_id ? products[line.product_id] : undefined;
+                const stockTag =
+                  product && product.stock_actual !== undefined ? (
+                    <StockTag
+                      stockActual={product.stock_actual}
+                      stockMinimo={product.stock_minimo}
+                      solicitado={line?.cantidad}
+                    />
+                  ) : null;
+                const removeButton = (
+                  <Tooltip title="Quitar esta línea">
+                    <Button
+                      type="text"
+                      danger
+                      aria-label={`Quitar línea ${name + 1}`}
+                      icon={<MinusCircleOutlined />}
+                      onClick={() => remove(name)}
+                      style={isMobile ? undefined : { marginTop: 30 }}
+                    />
+                  </Tooltip>
+                );
+                const productField = (
+                  <Form.Item
+                    name={[name, "product_id"]}
+                    label="Producto"
+                    rules={[{ required: true, message: "Producto" }]}
+                    tooltip="Producto cotizado."
+                  >
                     <Select
                       showSearch
                       filterOption={false}
                       onSearch={search}
                       onChange={(pid: number) => onProductChange(name, pid)}
                       placeholder="Producto"
-                      style={{ width: 280 }}
+                      style={{ width: isMobile ? "100%" : 280 }}
                       options={Object.values(products).map((p) => ({
                         value: p.id,
-                        label: `${p.sku} — ${p.nombre}`,
+                        label: productOptionLabel(p),
                       }))}
                     />
                   </Form.Item>
-                  <Form.Item name={[name, "cantidad"]} rules={[{ required: true, message: "Cant." }]}>
-                    <InputNumber min={1} placeholder="Cant." />
-                  </Form.Item>
-                  <Form.Item name={[name, "precio_unitario"]} rules={[{ required: true, message: "Precio" }]}>
-                    <InputNumber min={0} placeholder="Precio" style={{ width: 130 }} />
-                  </Form.Item>
-                  <Form.Item name={[name, "descuento_pct"]} initialValue={0}>
-                    <InputNumber min={0} max={100} addonAfter="% desc." />
-                  </Form.Item>
-                  <Form.Item name={[name, "impuesto_pct"]} initialValue={0}>
-                    <InputNumber min={0} max={100} addonAfter="% imp." />
-                  </Form.Item>
-                  <Typography.Text
-                    style={{ lineHeight: "32px", minWidth: 110, display: "inline-block", textAlign: "right" }}
-                  >
-                    {money(lineTotal(lineas[name] ?? {}))}
-                  </Typography.Text>
-                  {(() => {
-                    const l = lineas[name];
-                    const p = l?.product_id ? products[l.product_id] : undefined;
-                    return p?.stock_actual !== undefined && (l?.cantidad ?? 0) > p.stock_actual ? (
-                      <Tag color="orange" style={{ lineHeight: "30px" }}>
-                        Stock: {p.stock_actual}
-                      </Tag>
-                    ) : null;
-                  })()}
-                  <MinusCircleOutlined onClick={() => remove(name)} style={{ lineHeight: "32px" }} />
-                </Space>
-              ))}
+                );
+                const numericFields = (
+                  <>
+                    <Form.Item
+                      name={[name, "cantidad"]}
+                      label="Cantidad"
+                      rules={[{ required: true, message: "Cant." }]}
+                      tooltip="Cantidad de unidades."
+                    >
+                      <InputNumber
+                        min={1}
+                        placeholder="Cant."
+                        style={isMobile ? { width: "100%" } : undefined}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name={[name, "precio_unitario"]}
+                      label="Precio unit."
+                      rules={[{ required: true, message: "Precio" }]}
+                      extra="Tomado del catálogo"
+                      tooltip="Precio unitario del catálogo (solo lectura)."
+                    >
+                      <InputNumber
+                        min={0}
+                        placeholder="Precio"
+                        style={{ width: isMobile ? "100%" : 130 }}
+                        disabled
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name={[name, "descuento_pct"]}
+                      label="Descuento"
+                      initialValue={0}
+                      tooltip="Descuento porcentual de la línea."
+                    >
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        addonAfter="% desc."
+                        style={isMobile ? { width: "100%" } : undefined}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name={[name, "impuesto_pct"]}
+                      label="IVA"
+                      initialValue={19}
+                      tooltip="Porcentaje de IVA de la línea (19 % por defecto, editable)."
+                    >
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        addonAfter="% imp."
+                        style={isMobile ? { width: "100%" } : undefined}
+                      />
+                    </Form.Item>
+                  </>
+                );
+
+                // Q2: en móvil cada línea es una tarjeta apilada; en escritorio
+                // se mantiene la fila compacta.
+                if (isMobile) {
+                  return (
+                    <Card
+                      key={key}
+                      size="small"
+                      title={`Línea ${name + 1}`}
+                      extra={removeButton}
+                      style={{ marginBottom: 12 }}
+                    >
+                      {productField}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          columnGap: 12,
+                        }}
+                      >
+                        {numericFields}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <Typography.Text>
+                          Total línea: <strong>{money(lineTotal(line ?? {}))}</strong>
+                        </Typography.Text>
+                        {stockTag}
+                      </div>
+                    </Card>
+                  );
+                }
+
+                return (
+                  <Space key={key} align="start" wrap>
+                    {productField}
+                    {numericFields}
+                    <div style={{ minWidth: 110, textAlign: "right" }}>
+                      <Typography.Text
+                        type="secondary"
+                        style={{ display: "block", marginBottom: 8, fontSize: 12 }}
+                      >
+                        Total línea
+                      </Typography.Text>
+                      <Typography.Text strong style={{ lineHeight: "32px" }}>
+                        {money(lineTotal(line ?? {}))}
+                      </Typography.Text>
+                    </div>
+                    {stockTag && <div style={{ marginTop: 30 }}>{stockTag}</div>}
+                    {removeButton}
+                  </Space>
+                );
+              })}
               <Form.ErrorList errors={errors} />
               <Form.Item>
                 <Button
                   type="dashed"
                   icon={<PlusOutlined />}
-                  onClick={() => add({ descuento_pct: 0, impuesto_pct: 0 })}
+                  onClick={() => add({ descuento_pct: 0, impuesto_pct: 19 })}
                 >
                   Agregar línea
                 </Button>
@@ -271,13 +458,15 @@ export default function QuoteFormPage() {
 
         <Card size="small" style={{ maxWidth: 360, marginLeft: "auto", marginBottom: 16 }}>
           {[
-            ["Subtotal", t.subtotal],
-            ["Descuento", -t.descuento],
-            ["Impuestos", t.impuesto],
-          ].map(([label, value]) => (
-            <div key={label as string} style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>{label}</span>
-              <span>{money(value as number)}</span>
+            { label: "Subtotal", value: t.subtotal, hint: "Suma de cantidad × precio de cada línea" },
+            { label: "Descuento", value: -t.descuento, hint: "Descuentos aplicados por línea" },
+            { label: "IVA", value: t.impuesto, hint: "IVA aplicado por línea" },
+          ].map(({ label, value, hint }) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
+              <Tooltip title={hint}>
+                <span>{label}</span>
+              </Tooltip>
+              <span>{money(value)}</span>
             </div>
           ))}
           <div
@@ -291,7 +480,9 @@ export default function QuoteFormPage() {
               fontSize: 18,
             }}
           >
-            <span>Total</span>
+            <Tooltip title="Total final de la cotización">
+              <span>Total</span>
+            </Tooltip>
             <span>{money(t.total)}</span>
           </div>
         </Card>
@@ -300,19 +491,27 @@ export default function QuoteFormPage() {
           style={{
             position: "sticky",
             bottom: 0,
+            zIndex: 10,
             padding: "12px 0",
             background: token.colorBgContainer,
             borderTop: `1px solid ${token.colorBorderSecondary}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
           }}
         >
           <Space>
             <Button type="primary" htmlType="submit" loading={saving}>
               Guardar
             </Button>
-            <Button onClick={() => navigate(editId ? `/presupuestos/${editId}` : "/presupuestos")}>
-              Cancelar
-            </Button>
+            <Button onClick={cancel}>Cancelar</Button>
           </Space>
+          {/* Q2: el total queda siempre visible mientras se editan las líneas. */}
+          <Typography.Text strong style={{ fontSize: 18 }}>
+            Total: {money(t.total)}
+          </Typography.Text>
         </div>
       </Form>
     </Card>

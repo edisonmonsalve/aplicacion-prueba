@@ -1,36 +1,78 @@
 import { useEffect, useState } from "react";
-import { App, Button, DatePicker, Empty, Input, Select, Space, Table, Typography } from "antd";
-import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  App,
+  Button,
+  DatePicker,
+  Dropdown,
+  Empty,
+  Input,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { TableProps } from "antd";
+import {
+  CopyOutlined,
+  DownloadOutlined,
+  EyeOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  PrinterOutlined,
+} from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { listQuotes } from "@/services/quotesService";
-import type { Quote, QuoteStatus } from "@/types";
-import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/quoteUtils";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { duplicateQuote, listQuotes } from "@/services/quotesService";
+import type { Quote, QuoteSortKey, QuoteStatus } from "@/types";
+import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/QuoteUtils";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
+import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useAuth } from "@/context/AuthContext";
 
 const FMT = "YYYY-MM-DD";
+
+const SORT_KEYS: QuoteSortKey[] = ["numero", "cliente", "total", "fecha_validez", "fecha"];
+
+const SORT_BY_FIELD: Record<string, QuoteSortKey> = {
+  numero: "numero",
+  customer_nombre: "cliente",
+  total: "total",
+  fecha_validez: "fecha_validez",
+  created_at: "fecha",
+};
 
 export default function QuotesPage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const [sp, setSp] = useSearchParams();
+  const { canOperate } = useAuth();
 
   const q = sp.get("q") ?? "";
   const estado = (sp.get("estado") as QuoteStatus | null) ?? undefined;
   const desde = sp.get("desde") ?? undefined;
   const hasta = sp.get("hasta") ?? undefined;
+  const rawSort = sp.get("sort");
+  const sort = SORT_KEYS.includes(rawSort as QuoteSortKey)
+    ? (rawSort as QuoteSortKey)
+    : undefined;
+  const rawOrder = sp.get("order");
+  const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = Number(sp.get("page") ?? 1);
   const pageSize = Number(sp.get("pageSize") ?? 10);
 
   const [rows, setRows] = useState<Quote[]>([]);
   const [total, setTotal] = useState(0);
+  const [montoTotal, setMontoTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState(q);
   const [exporting, setExporting] = useState(false);
+  const [duplicating, setDuplicating] = useState<number | null>(null);
 
-  useDocumentTitle("Presupuestos");
+  useDocumentTitle("Cotizaciones");
 
   // Debounce: busca 400 ms después de dejar de escribir
   useEffect(() => {
@@ -44,29 +86,48 @@ export default function QuotesPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listQuotes({ q: q || undefined, estado, desde, hasta, page, pageSize })
+    listQuotes({
+      q: q || undefined,
+      estado,
+      desde,
+      hasta,
+      sort,
+      order: sort ? order : undefined,
+      page,
+      pageSize,
+    })
       .then((r) => {
         if (cancelled) return;
         setRows(r.data);
         setTotal(r.total);
+        setMontoTotal(r.monto_total ?? 0);
       })
-      .catch(() => message.error("No se pudo cargar los presupuestos"))
+      .catch(() => message.error("No se pudieron cargar las cotizaciones"))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [q, estado, desde, hasta, page, pageSize, message]);
+  }, [q, estado, desde, hasta, sort, order, page, pageSize, message]);
 
   const exportCsv = async () => {
     setExporting(true);
     try {
       const all = await fetchAllPages<Quote>((p) =>
-        listQuotes({ q: q || undefined, estado, desde, hasta, page: p, pageSize: 100 })
+        listQuotes({
+          q: q || undefined,
+          estado,
+          desde,
+          hasta,
+          sort,
+          order: sort ? order : undefined,
+          page: p,
+          pageSize: 100,
+        })
       );
       downloadCsv(
-        `presupuestos-${dayjs().format("YYYY-MM-DD")}.csv`,
+        `cotizaciones-${dayjs().format("YYYY-MM-DD")}.csv`,
         [
           { header: "Número", value: (r) => r.numero },
           { header: "Cliente", value: (r) => r.customer_nombre },
@@ -74,7 +135,7 @@ export default function QuotesPage() {
           { header: "Estado", value: (r) => r.estado },
           { header: "Subtotal", value: (r) => r.subtotal },
           { header: "Descuento", value: (r) => r.descuento_total },
-          { header: "Impuesto", value: (r) => r.impuesto_total },
+          { header: "IVA", value: (r) => r.impuesto_total },
           { header: "Total", value: (r) => r.total },
           { header: "Válido hasta", value: (r) => fmtDate(r.fecha_validez) },
           { header: "Creado por", value: (r) => r.creador },
@@ -102,59 +163,234 @@ export default function QuotesPage() {
       { replace: true }
     );
 
+  const clearFilters = () => {
+    setText("");
+    setSp(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const key of ["q", "estado", "desde", "hasta", "page"]) next.delete(key);
+        return next;
+      },
+      { replace: true }
+    );
+  };
+
+  const onDuplicate = async (id: number) => {
+    setDuplicating(id);
+    try {
+      const { id: newId } = await duplicateQuote(id);
+      message.success("Borrador creado a partir de la cotización");
+      navigate(`/cotizaciones/${newId}`);
+    } catch {
+      message.error("No se pudo duplicar la cotización");
+    } finally {
+      setDuplicating(null);
+    }
+  };
+
+  const sortOrderFor = (key: QuoteSortKey): "ascend" | "descend" | null =>
+    sort === key ? (order === "desc" ? "descend" : "ascend") : null;
+
   const hasFilters = !!(q || estado || desde || hasta);
 
   const firstLoad = loading && rows.length === 0;
 
+  const columns: TableProps<Quote>["columns"] = [
+    {
+      title: <Tooltip title="Número único de la cotización">Número</Tooltip>,
+      dataIndex: "numero",
+      sorter: true,
+      sortOrder: sortOrderFor("numero"),
+      render: (numero: string, r) => (
+        <Tooltip title="Abrir el detalle de la cotización">
+          <Link to={`/cotizaciones/${r.id}`}>{numero}</Link>
+        </Tooltip>
+      ),
+    },
+    {
+      title: <Tooltip title="Cliente al que se dirige la cotización">Cliente</Tooltip>,
+      dataIndex: "customer_nombre",
+      sorter: true,
+      sortOrder: sortOrderFor("cliente"),
+    },
+    {
+      title: <Tooltip title="Estado actual de la cotización">Estado</Tooltip>,
+      dataIndex: "estado",
+      render: (e: QuoteStatus) => <StatusTag estado={e} />,
+    },
+    {
+      title: (
+        <Tooltip title="Cotización entregada que aún no tiene una factura confirmada vinculada">
+          Pendiente de facturar
+        </Tooltip>
+      ),
+      dataIndex: "pendiente_facturar",
+      responsive: ["md"],
+      render: (v: boolean) =>
+        v === true ? (
+          <Tag color="orange">Pendiente de facturar</Tag>
+        ) : (
+          <Tag color="default">—</Tag>
+        ),
+    },
+    {
+      title: <Tooltip title="Total de la cotización con descuentos e impuestos">Total</Tooltip>,
+      dataIndex: "total",
+      align: "right",
+      sorter: true,
+      sortOrder: sortOrderFor("total"),
+      render: (v: number) => <strong>{money(v)}</strong>,
+    },
+    {
+      title: <Tooltip title="Fecha límite de validez de la cotización">Válido hasta</Tooltip>,
+      dataIndex: "fecha_validez",
+      responsive: ["md"],
+      sorter: true,
+      sortOrder: sortOrderFor("fecha_validez"),
+      render: (v: string, r) => {
+        const late =
+          (r.estado === "borrador" || r.estado === "enviado") && dayjs(v).isBefore(dayjs(), "day");
+        return <Typography.Text type={late ? "danger" : undefined}>{fmtDate(v)}</Typography.Text>;
+      },
+    },
+    {
+      title: <Tooltip title="Usuario que creó la cotización">Creado por</Tooltip>,
+      dataIndex: "creador",
+      responsive: ["lg"],
+    },
+    {
+      title: "Acciones",
+      key: "acciones",
+      width: 72,
+      align: "center",
+      fixed: "right" as const,
+      render: (_, r) => (
+        <Dropdown
+          trigger={["click"]}
+          menu={{
+            items: [
+              {
+                key: "ver",
+                icon: <EyeOutlined />,
+                label: "Ver detalle",
+                onClick: () => navigate(`/cotizaciones/${r.id}`),
+              },
+              {
+                key: "imprimir",
+                icon: <PrinterOutlined />,
+                label: "Imprimir",
+                onClick: () => navigate(`/cotizaciones/${r.id}/imprimir`),
+              },
+              {
+                key: "duplicar",
+                icon: <CopyOutlined />,
+                label: "Duplicar",
+                disabled: !canOperate || duplicating === r.id,
+                onClick: () => onDuplicate(r.id),
+              },
+            ],
+          }}
+        >
+          <Tooltip title="Acciones de la cotización">
+            <Button
+              type="text"
+              aria-label={`Acciones de ${r.numero}`}
+              icon={<MoreOutlined />}
+              loading={duplicating === r.id}
+            />
+          </Tooltip>
+        </Dropdown>
+      ),
+    },
+  ];
+
   return (
     <>
+      <PageHeader
+        title="Cotizaciones"
+        description="Crea, envía y da seguimiento a las cotizaciones de tus clientes."
+        extra={
+          <Space>
+            <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+              Exportar CSV
+            </Button>
+            {canOperate && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => navigate("/cotizaciones/nuevo")}
+              >
+                Nuevo
+              </Button>
+            )}
+          </Space>
+        }
+      />
+
       <div
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}
+        style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          marginBottom: 16,
+        }}
       >
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Presupuestos
-        </Typography.Title>
-        <Space>
-          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
-            Exportar CSV
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/presupuestos/nuevo")}>
-            Nuevo
-          </Button>
-        </Space>
+        <div>
+          <Typography.Text
+            type="secondary"
+            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
+          >
+            Buscar
+          </Typography.Text>
+          <Input.Search
+            allowClear
+            placeholder="Número, cliente o documento"
+            aria-label="Buscar cotizaciones"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{ width: 280 }}
+          />
+        </div>
+        <div>
+          <Typography.Text
+            type="secondary"
+            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
+          >
+            Estado
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todos"
+            style={{ width: 160 }}
+            value={estado}
+            options={STATUS_OPTIONS}
+            onChange={(v) => update({ estado: v })}
+          />
+        </div>
+        <div>
+          <Typography.Text
+            type="secondary"
+            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
+          >
+            Rango de fechas
+          </Typography.Text>
+          <DatePicker.RangePicker
+            format={FMT}
+            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
+            onChange={(v) => update({ desde: v?.[0]?.format(FMT), hasta: v?.[1]?.format(FMT) })}
+          />
+        </div>
+        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
 
-      <Space wrap style={{ marginBottom: 16 }}>
-        <Input.Search
-          allowClear
-          placeholder="Número, cliente o documento"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{ width: 280 }}
-        />
-        <Select
-          allowClear
-          placeholder="Estado"
-          style={{ width: 160 }}
-          value={estado}
-          options={STATUS_OPTIONS}
-          onChange={(v) => update({ estado: v })}
-        />
-        <DatePicker.RangePicker
-          format={FMT}
-          value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-          onChange={(v) => update({ desde: v?.[0]?.format(FMT), hasta: v?.[1]?.format(FMT) })}
-        />
-        {hasFilters && (
-          <Button
-            onClick={() => {
-              setText("");
-              setSp({}, { replace: true });
-            }}
-          >
-            Limpiar filtros
-          </Button>
-        )}
+      <Space size={8} wrap style={{ marginBottom: 16 }}>
+        <Tag color="blue" style={{ margin: 0, padding: "4px 10px" }}>
+          {total} cotización(es)
+        </Tag>
+        <Tag color="geekblue" style={{ margin: 0, padding: "4px 10px" }}>
+          Total filtrado: <strong>{money(montoTotal)}</strong>
+        </Tag>
       </Space>
 
       {firstLoad ? (
@@ -165,18 +401,24 @@ export default function QuotesPage() {
           loading={loading}
           dataSource={rows}
           scroll={{ x: "max-content" }}
-          onRow={(r) => ({ onClick: () => navigate(`/presupuestos/${r.id}`), style: { cursor: "pointer" } })}
+          columns={columns}
           locale={{
             emptyText: (
               <Empty
                 description={
-                  hasFilters ? "Ningún presupuesto coincide con los filtros" : "Aún no hay presupuestos"
+                  hasFilters
+                    ? "Ninguna cotización coincide con los filtros"
+                    : "Aún no hay cotizaciones"
                 }
               >
-                {!hasFilters && (
-                  <Button type="primary" onClick={() => navigate("/presupuestos/nuevo")}>
-                    Crear el primero
-                  </Button>
+                {hasFilters ? (
+                  <Button onClick={clearFilters}>Limpiar filtros</Button>
+                ) : (
+                  canOperate && (
+                    <Button type="primary" onClick={() => navigate("/cotizaciones/nuevo")}>
+                      Crear el primero
+                    </Button>
+                  )
                 )}
               </Empty>
             ),
@@ -186,31 +428,32 @@ export default function QuotesPage() {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t) => `${t} presupuestos`,
-            onChange: (p, s) => update({ page: String(p), pageSize: String(s) }, false),
+            showTotal: (t) => `${t} cotizaciones`,
           }}
-          columns={[
-            { title: "Número", dataIndex: "numero" },
-            { title: "Cliente", dataIndex: "customer_nombre" },
-            { title: "Estado", dataIndex: "estado", render: (e: QuoteStatus) => <StatusTag estado={e} /> },
-            {
-              title: "Total",
-              dataIndex: "total",
-              align: "right",
-              render: (v: number) => <strong>{money(v)}</strong>,
-            },
-            {
-              title: "Válido hasta",
-              dataIndex: "fecha_validez",
-              responsive: ["md"],
-              render: (v: string, r) => {
-                const late =
-                  (r.estado === "borrador" || r.estado === "enviado") && dayjs(v).isBefore(dayjs(), "day");
-                return <Typography.Text type={late ? "danger" : undefined}>{fmtDate(v)}</Typography.Text>;
+          onChange={(pagination, _filters, sorter, extra) => {
+            if (extra.action === "sort") {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const nextSort = s?.order ? SORT_BY_FIELD[String(s.field)] : undefined;
+              update({
+                page: undefined,
+                pageSize: String(pagination.pageSize ?? pageSize),
+                sort: nextSort,
+                order: nextSort
+                  ? s?.order === "descend"
+                    ? "desc"
+                    : "asc"
+                  : undefined,
+              });
+              return;
+            }
+            update(
+              {
+                page: String(pagination.current ?? 1),
+                pageSize: String(pagination.pageSize ?? pageSize),
               },
-            },
-            { title: "Creado por", dataIndex: "creador", responsive: ["lg"] },
-          ]}
+              false
+            );
+          }}
         />
       )}
     </>

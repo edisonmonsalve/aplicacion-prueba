@@ -3,6 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <script>
+      // Evita el destello claro al cargar si el tema guardado es oscuro.
+      try {
+        if (localStorage.getItem("theme-mode") === "dark") {
+          document.documentElement.dataset.theme = "dark";
+          document.documentElement.style.colorScheme = "dark";
+        }
+      } catch (error) {
+        /* sin acceso a localStorage: se usa el tema claro */
+      }
+    </script>
     <title>Inventario</title>
   </head>
   <body style="margin: 0; padding: 0; box-sizing: border-box;">

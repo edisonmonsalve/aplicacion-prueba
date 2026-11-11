@@ -7,7 +7,11 @@ export interface UsersQuery {
   q?: string;
   rol?: Rol;
   activo?: "0" | "1";
+  sort?: UserSortKey;
+  order?: "asc" | "desc";
 }
+
+export type UserSortKey = "nombre" | "email" | "rol" | "activo" | "creado";
 export interface CreateUserInput {
   nombre: string;
   email: string;

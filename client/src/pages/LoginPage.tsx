@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Alert, Button, Form, Grid, Input, Switch, Typography, theme } from "antd";
-import { InboxOutlined, LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { Alert, Button, Form, Grid, Input, Switch, Tooltip, Typography, theme } from "antd";
+import { LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { isAxiosError } from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { useThemeMode } from "@/context/ThemeContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import AppLogo from "@/components/AppLogo";
 
 export default function LoginPage() {
   const { user, signIn } = useAuth();
@@ -52,9 +53,7 @@ export default function LoginPage() {
             justifyContent: "space-between",
           }}
         >
-          <Typography.Title level={3} style={{ color: "#fff", margin: 0 }}>
-            <InboxOutlined /> Inventario
-          </Typography.Title>
+          <AppLogo size={44} tone="light" textSize={26} />
           <div>
             <Typography.Title style={{ color: "#fff", marginTop: 0 }}>
               Tu stock y tus presupuestos, en un solo lugar.
@@ -79,15 +78,23 @@ export default function LoginPage() {
         }}
       >
         <div style={{ position: "absolute", top: 16, right: 16 }}>
-          <Switch
-            checked={mode === "dark"}
-            onChange={toggle}
-            checkedChildren={<MoonOutlined />}
-            unCheckedChildren={<SunOutlined />}
-          />
+          <Tooltip title="Cambiar entre tema claro y oscuro">
+            <Switch
+              checked={mode === "dark"}
+              onChange={toggle}
+              checkedChildren={<MoonOutlined />}
+              unCheckedChildren={<SunOutlined />}
+              aria-label="Cambiar entre tema claro y oscuro"
+            />
+          </Tooltip>
         </div>
 
         <div style={{ width: "100%", maxWidth: 380 }}>
+          {!screens.lg && (
+            <div style={{ marginBottom: 24 }}>
+              <AppLogo size={34} textSize={22} />
+            </div>
+          )}
           <Typography.Title level={2} style={{ marginBottom: 4 }}>
             Bienvenido
           </Typography.Title>
@@ -95,10 +102,21 @@ export default function LoginPage() {
 
           {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
 
-          <Form layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
+          <Form
+            layout="vertical"
+            onFinish={onFinish}
+            onValuesChange={() => {
+              // Al corregir el correo o la contraseña, el error anterior deja
+              // de ser útil: se limpia para no confundir al usuario.
+              if (error) setError(null);
+            }}
+            requiredMark={false}
+            size="large"
+          >
             <Form.Item
               label="Correo"
               name="email"
+              tooltip="Usa el correo con el que te dieron acceso al sistema."
               rules={[
                 { required: true, message: "Ingresa tu correo" },
                 { type: "email", message: "Correo no válido" },
@@ -126,6 +144,13 @@ export default function LoginPage() {
               Entrar
             </Button>
           </Form>
+
+          <Typography.Paragraph
+            type="secondary"
+            style={{ marginTop: 16, marginBottom: 0, fontSize: 13, textAlign: "center" }}
+          >
+            ¿No recuerdas tu contraseña? Pide a un administrador que la restablezca.
+          </Typography.Paragraph>
         </div>
       </div>
     </div>

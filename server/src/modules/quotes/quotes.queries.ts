@@ -17,7 +17,7 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
   const params: (string | number)[] = [];
 
   // RN-P13: un operador solo ve los suyos
-  if (actor.rol !== "admin") {
+  if (actor.rol === "operador") {
     where.push("q.created_by = ?");
     params.push(actor.id);
   }
@@ -46,26 +46,49 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const [[{ total }]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS total FROM quotes q ${clause}`,
+  const [[summaryRow]] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS total, COALESCE(SUM(q.total), 0) AS monto_total
+       FROM quotes q ${clause}`,
     params
   );
+  const total = Number(summaryRow.total);
+
+  // Columnas seguras: nunca se interpola texto libre en el ORDER BY.
+  const sortColumns = {
+    numero: "q.id",
+    cliente: "q.customer_nombre",
+    total: "q.total",
+    fecha_validez: "q.fecha_validez",
+    fecha: "q.created_at",
+  } as const;
+  const orderBy = query.sort
+    ? `${sortColumns[query.sort]} ${query.order === "desc" ? "DESC" : "ASC"}, q.id DESC`
+    : "q.id DESC";
 
   // El ? del CASE en el SELECT va antes que los parámetros del WHERE
   const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT q.id, q.customer_nombre, ${EFFECTIVE_ESTADO} AS estado, q.fecha_validez,
-            q.total, q.created_by, u.nombre AS creador, q.created_at
+    `SELECT q.id, q.customer_nombre, ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw,
+            q.fecha_validez, q.total, q.created_by, u.nombre AS creador, q.created_at,
+            (SELECT COUNT(*) FROM invoices i
+             WHERE i.quote_id = q.id AND i.tipo = 'venta' AND i.estado = 'confirmada')
+              AS facturas_confirmadas
      FROM quotes q
      JOIN users u ON u.id = q.created_by
      ${clause}
-     ORDER BY q.id DESC
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
     [todayDate, ...params, query.pageSize, (query.page - 1) * query.pageSize]
   );
 
   return {
-    data: data.map((row) => ({ ...row, numero: formatQuoteNumber(row.id) })),
+    data: data.map((row) => ({
+      ...row,
+      numero: formatQuoteNumber(row.id),
+      pendiente_facturar:
+        row.estado_raw === "entregado" && Number(row.facturas_confirmadas ?? 0) === 0,
+    })),
     total,
+    monto_total: Number(summaryRow.monto_total),
     page: query.page,
     pageSize: query.pageSize,
   };
@@ -74,9 +97,12 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
 export async function getQuote(id: number, actor: AuthUser) {
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT q.id, q.customer_nombre, q.customer_documento, q.customer_email,
-            ${EFFECTIVE_ESTADO} AS estado, q.fecha_validez, q.notas,
+            ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw, q.fecha_validez, q.notas,
             q.subtotal, q.descuento_total, q.impuesto_total, q.total,
-            q.created_by, u.nombre AS creador, q.created_at, q.updated_at
+            q.created_by, u.nombre AS creador, q.created_at, q.updated_at,
+            (SELECT COUNT(*) FROM invoices i
+             WHERE i.quote_id = q.id AND i.tipo = 'venta' AND i.estado = 'confirmada')
+              AS facturas_confirmadas
      FROM quotes q
      JOIN users u ON u.id = q.created_by
      WHERE q.id = ?`,
@@ -85,11 +111,14 @@ export async function getQuote(id: number, actor: AuthUser) {
   const quote = rows[0];
 
   if (!quote) throw new HttpError(404, "Presupuesto no encontrado");
-  if (actor.rol !== "admin" && quote.created_by !== actor.id) {
+  if (actor.rol === "operador" && quote.created_by !== actor.id) {
     throw new HttpError(403, "No tienes acceso a este presupuesto");
   }
 
-  const [items, history] = await Promise.all([
+  const pendienteFacturar =
+    quote.estado_raw === "entregado" && Number(quote.facturas_confirmadas ?? 0) === 0;
+
+  const [items, history, facturas] = await Promise.all([
     pool.query<RowDataPacket[]>(
       `SELECT product_id, sku, nombre, cantidad, precio_unitario,
               descuento_pct, impuesto_pct, total_linea
@@ -103,9 +132,23 @@ export async function getQuote(id: number, actor: AuthUser) {
        WHERE h.quote_id = ? ORDER BY h.id`,
       [id]
     ),
+    pool.query<RowDataPacket[]>(
+      `SELECT i.id, i.numero, i.fecha, i.estado, i.total
+       FROM invoices i
+       WHERE i.quote_id = ? AND i.tipo = 'venta'
+       ORDER BY i.id DESC`,
+      [id]
+    ),
   ]);
 
-  return { ...quote, numero: formatQuoteNumber(quote.id), items: items[0], historial: history[0] };
+  return {
+    ...quote,
+    numero: formatQuoteNumber(quote.id),
+    items: items[0],
+    historial: history[0],
+    facturas: facturas[0],
+    pendiente_facturar: pendienteFacturar,
+  };
 }
 
 export async function getQuoteHistory(id: number) {

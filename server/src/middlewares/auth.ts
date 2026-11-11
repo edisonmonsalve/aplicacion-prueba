@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import type { AuthUser } from "../types/express.js";
 
@@ -26,3 +26,18 @@ export function requireRole(...roles: AuthUser["rol"][]) {
     next();
   };
 }
+
+export const denyReadOnly: RequestHandler = (req, res, next) => {
+  if (req.user?.rol === "consulta" && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return res.status(403).json({ message: "Tu rol es de solo lectura" });
+  }
+  next();
+};
+
+export const operateOnly: RequestHandler = (req, res, next) => {
+  const safe = ["GET", "HEAD", "OPTIONS"].includes(req.method);
+  if (!safe && req.user?.rol !== "admin" && req.user?.rol !== "operador") {
+    return res.status(403).json({ message: "Tu rol no puede modificar esta información" });
+  }
+  next();
+};

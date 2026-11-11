@@ -21,7 +21,7 @@ Un presupuesto `enviado` cuya fecha de validez ya pasó se muestra como **vencid
 | Enviar | borrador | enviado | Creador o admin |
 | Aprobar | enviado | aprobado | Creador o admin |
 | Rechazar | enviado | rechazado | Creador o admin |
-| Entregar | aprobado | entregado | Solo admin |
+| Entregar | aprobado | entregado | Creador o admin |
 | Eliminar | borrador | (se borra) | Creador o admin |
 
 ## 3. Requisitos funcionales
@@ -48,11 +48,13 @@ Un presupuesto `enviado` cuya fecha de validez ya pasó se muestra como **vencid
 - **RN-P06:** un presupuesto enviado vence al pasar su fecha de validez y ya no puede aprobarse.
 - **RN-P07:** cotizar no reserva stock. El stock solo se descuenta al entregar.
 - **RN-P08:** entregar es todo o nada: si alguna línea no tiene stock suficiente (RN-02), no se entrega ninguna y se informa cuáles fallan.
-- **RN-P09:** entregar genera movimientos de salida con motivo "Presupuesto PRE-n", en una sola transacción, bloqueando los productos en orden de id para evitar interbloqueos.
+- **RN-P09:** entregar genera movimientos de salida con motivo "Presupuesto COT-n", en una sola transacción, bloqueando los productos en orden de id para evitar interbloqueos.
 - **RN-P10:** un presupuesto necesita al menos una línea para poder enviarse.
 - **RN-P11:** la fecha de validez no puede ser anterior a hoy al crear o enviar.
 - **RN-P12:** cada cambio de estado queda registrado con quién lo hizo y cuándo.
 - **RN-P13:** un operador solo ve y duplica sus propios presupuestos; el admin ve todos.
+- **RN-P14:** el número documental de la cotización usa el prefijo `COT-` (por ejemplo
+  `COT-000001`); se acepta el prefijo histórico `PRE-` al buscar.
 
 
 ## 5. Requisitos no funcionales
@@ -85,7 +87,7 @@ Estados posibles guardados: `borrador`, `enviado`, `aprobado`, `rechazado`, `ent
 | POST | `/api/quotes/:id/send` | Creador o admin | Enviar |
 | POST | `/api/quotes/:id/approve` | Creador o admin | Aprobar |
 | POST | `/api/quotes/:id/reject` | Creador o admin | Rechazar |
-| POST | `/api/quotes/:id/deliver` | Admin | Entregar y descontar stock |
+| POST | `/api/quotes/:id/deliver` | Creador o admin | Entregar y descontar stock |
 | POST | `/api/quotes/:id/duplicate` | Autenticado | Crear borrador a partir de otro |
 
 ## 8. Pantallas

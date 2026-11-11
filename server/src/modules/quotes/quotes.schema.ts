@@ -12,7 +12,7 @@ const lineSchema = z.object({
   product_id: z.number().int().positive(),
   cantidad: z.number().int().positive(),
   descuento_pct: pct.default(0),
-  impuesto_pct: pct.default(0),
+  impuesto_pct: pct.default(19),
 });
 
 const isoDate = z
@@ -41,4 +41,6 @@ export const listQuerySchema = z.object({
     .optional(),
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
+  sort: z.enum(["numero", "cliente", "total", "fecha_validez", "fecha"]).optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });

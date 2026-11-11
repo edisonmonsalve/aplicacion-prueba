@@ -60,6 +60,32 @@ describe("Reglas del inventario", () => {
     expect(list.body.data[0].stock_actual).toBe(0);
   });
 
+  it("permite hidratar productos por lote de ids (líneas autocompletadas)", async () => {
+    const { admin, categoryId } = await setup();
+    const a = await request(app)
+      .post("/api/products")
+      .set(bearer(admin.token))
+      .send(product(categoryId, { sku: "SKU-A", nombre: "Producto A" }));
+    const b = await request(app)
+      .post("/api/products")
+      .set(bearer(admin.token))
+      .send(product(categoryId, { sku: "SKU-B", nombre: "Producto B" }));
+
+    const res = await request(app)
+      .get(`/api/products?ids=${a.body.id},${b.body.id}`)
+      .set(bearer(admin.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((p: { id: number }) => p.id).sort()).toEqual(
+      [a.body.id, b.body.id].sort()
+    );
+    expect(res.body.data.every((p: { stock_actual?: number }) => typeof p.stock_actual === "number")).toBe(true);
+
+    expect(
+      (await request(app).get("/api/products?ids=abc").set(bearer(admin.token))).status
+    ).toBe(400);
+  });
+
   it("rechaza una categoría inexistente (400)", async () => {
     const { admin } = await setup();
     const res = await request(app)

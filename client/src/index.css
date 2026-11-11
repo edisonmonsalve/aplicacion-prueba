@@ -1,6 +1,24 @@
+html {
+  background-color: #f1f7f6;
+}
+
+html[data-theme="dark"] {
+  background-color: #0b1412;
+}
+
 body {
   font-variant-numeric: tabular-nums;
+  background-color: inherit;
 } /* cifras alineadas en tablas y totales */
+
+/* Mientras se cambia de tema, evita que tablas, tarjetas y bordes animen el
+   color de fondo en varios pasos (se percibía como un parpadeo). */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+  animation-duration: 0.01ms !important;
+}
 
 @media print {
   .no-print,
@@ -18,5 +36,331 @@ body {
   .ant-layout-sider + .ant-layout,
   .ant-layout {
     margin-left: 0 !important;
+  }
+}
+
+/* Q6: plantilla de impresión de cotizaciones y facturas. */
+.print-toolbar {
+  max-width: 900px;
+  margin: 0 auto 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quote-print {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* La hoja impresa es siempre clara, aunque la aplicación esté en modo oscuro. */
+.print-document {
+  --print-ink: #111827;
+  --print-muted: #6b7280;
+  --print-line: #d1d5db;
+  --print-soft: #f8fafc;
+  --print-accent: #0f766e;
+  background: #fff;
+  color: var(--print-ink);
+  padding: 36px 40px;
+  border: 1px solid #e5e7eb;
+  border-top: 4px solid var(--print-accent);
+  border-radius: 14px;
+  box-shadow: 0 6px 28px rgba(15, 23, 42, 0.07);
+  font-size: 13px;
+}
+
+.print-document .ant-typography {
+  color: var(--print-ink);
+}
+
+.print-document .ant-table {
+  background: #fff;
+  color: var(--print-ink);
+}
+
+.print-document .ant-table-thead > tr > th {
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+  border-bottom: 1px solid var(--print-line) !important;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.print-document .ant-table-tbody > tr > td {
+  color: var(--print-ink) !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.print-document .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: transparent !important;
+}
+
+.print-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--print-ink);
+}
+
+.print-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.print-brand-mark {
+  flex: 0 0 auto;
+}
+
+.print-brand-text {
+  min-width: 0;
+}
+
+.print-company-name {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--print-ink);
+}
+
+.print-company-tagline {
+  margin-top: 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--print-accent);
+}
+
+.print-company-data {
+  display: grid;
+  gap: 1px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #4b5563;
+}
+
+.print-doc {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.print-doc-kind {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--print-accent);
+}
+
+.print-doc-number {
+  margin: 2px 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--print-ink);
+}
+
+.print-doc-status {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.print-doc-meta {
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #4b5563;
+}
+
+.print-block {
+  display: flex;
+  gap: 18px 32px;
+  flex-wrap: wrap;
+  margin: 12px 0 4px;
+}
+
+.print-client {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--print-soft);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.print-client > div {
+  min-width: 150px;
+}
+
+.print-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--print-muted);
+  margin-bottom: 2px;
+}
+
+.print-strong {
+  font-weight: 600;
+}
+
+.print-pre {
+  white-space: pre-wrap;
+}
+
+.print-table {
+  margin-top: 16px;
+}
+
+.print-totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.print-totals-box {
+  min-width: 320px;
+  padding: 10px 16px;
+  background: var(--print-soft);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.print-totals-box > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 3px 0;
+}
+
+.print-total-final {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--print-ink);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.print-total-final:last-child span:last-child {
+  color: var(--print-accent);
+}
+
+.print-section {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-top: 22px;
+}
+
+.print-conditions ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+.print-signatures {
+  display: flex;
+  gap: 48px;
+  margin-top: 48px;
+}
+
+.print-signatures > div {
+  flex: 1;
+  text-align: center;
+}
+
+.print-signature-line {
+  border-top: 1px solid var(--print-ink);
+  margin-bottom: 6px;
+}
+
+.print-signature-label {
+  font-size: 11.5px;
+  color: #4b5563;
+}
+
+.print-signature-name {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.print-footer {
+  margin-top: 32px;
+  padding-top: 10px;
+  border-top: 1px solid var(--print-line);
+  font-size: 10.5px;
+  text-align: center;
+  color: var(--print-muted);
+}
+
+.print-page-break {
+  break-before: page;
+  page-break-before: always;
+}
+
+@media (max-width: 640px) {
+  .print-document {
+    padding: 20px 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+  }
+  .print-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .print-doc {
+    text-align: left;
+  }
+  .print-doc-status {
+    justify-content: flex-start;
+  }
+  .print-totals-box {
+    min-width: 0;
+    width: 100%;
+  }
+  .print-signatures {
+    flex-direction: column;
+    gap: 32px;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+  .print-area {
+    max-width: none;
+    margin: 0;
+  }
+  .quote-print {
+    max-width: none;
+    margin: 0;
+  }
+  .print-document {
+    padding: 0;
+    border: 0;
+    border-top: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+    font-size: 12px;
+  }
+  .print-section,
+  .print-signatures,
+  .print-totals,
+  .ant-table-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .print-table thead {
+    display: table-header-group;
+  }
+  .ant-table {
+    font-size: 11px;
   }
 }
