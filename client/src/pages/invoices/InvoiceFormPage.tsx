@@ -135,7 +135,8 @@ export default function InvoiceFormPage() {
 
   // M3: retenciones prellenadas automáticamente según el tipo de factura.
   // Los porcentajes son parámetros configurables (no tarifas legales hardcodeadas sin confirmar);
-  // por defecto 0 y siempre editables. Reducen el total_neto, son informativas.
+  // por defecto 0 y siempre editables. Reducen el total_neto y, al confirmar,
+  // se reconocen como activo fiscal (venta) o pasivo (compra).
   const DEFAULT_RETENCIONES: Record<InvoiceTipo, { fuente: number; iva: number; ica: number }> = {
     venta: { fuente: 0, iva: 0, ica: 0 },
     compra: { fuente: 0, iva: 0, ica: 0 },

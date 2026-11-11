@@ -102,6 +102,16 @@ function totalRetenciones(inv: {
   );
 }
 
+/** Una retención mayor que la factura dejaría un neto negativo a pagar. */
+function assertRetentions(retenciones: number, total: number) {
+  if (retenciones > roundMoney(total)) {
+    throw new HttpError(
+      400,
+      `Las retenciones (${retenciones.toFixed(2)}) no pueden superar el total de la factura (${total.toFixed(2)})`
+    );
+  }
+}
+
 type PaymentCondition = "contado" | "credito";
 
 /**
@@ -295,6 +305,7 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
     const numero = await nextNumber(conn, input.tipo);
     const totals = calcTotals(input.items);
     const retenciones = totalRetenciones(input);
+    assertRetentions(retenciones, totals.total);
     const totalNeto = roundMoney(totals.total - retenciones);
 
     const partyId = input.party_id ?? null;
@@ -389,7 +400,7 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
       retencion_ica: input.retencion_ica ?? current.retencion_ica,
     });
     const totalNeto = roundMoney(totals.total - retenciones);
-
+    assertRetentions(retenciones, totals.total);
     const tipo = input.tipo ?? current.tipo;
     const partyId = input.party_id !== undefined ? input.party_id : current.party_id;
     const party = partyId ? await findThirdPartyForInvoice(conn, partyId) : null;
@@ -490,7 +501,8 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     const isVenta = inv.tipo === "venta";
     // A crédito se reconoce el ingreso/activo, pero la caja se mueve al cobrar
     // o pagar (fase C2). El override del asiento gana sobre la categoría.
-    const afectaCaja = inv.condicion_pago === "credito" ? false : undefined;
+    const esCredito = inv.condicion_pago === "credito";
+    const afectaCaja = esCredito ? false : undefined;
     if (!isVenta && inv.quote_id) {
       throw new HttpError(400, "Una factura de compra no puede vincularse a una cotización");
     }
@@ -669,6 +681,40 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           userId: actor.id,
         });
       }
+      // Retenciones que el cliente practica al pagar. Son un activo fiscal
+      // (saldo a favor), no un menor ingreso: el ingreso ya se reconoció por la
+      // base completa. Fuente e ICA reducen el dinero recibido; la retención de
+      // IVA no mueve caja porque el IVA tampoco forma parte del capital.
+      const retFuenteIca = roundMoney(
+        Number(inv.retencion_fuente ?? 0) + Number(inv.retencion_ica ?? 0)
+      );
+      const retIva = roundMoney(Number(inv.retencion_iva ?? 0));
+      if (retFuenteIca > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "activo",
+          monto: retFuenteIca,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_a_favor",
+          accountId,
+          afectaCaja: esCredito ? false : true,
+          invoiceId: id,
+          descripcion: `Retenciones practicadas factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      if (retIva > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "activo",
+          monto: retIva,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_a_favor",
+          accountId,
+          afectaCaja: false,
+          invoiceId: id,
+          descripcion: `Retención de IVA factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
       // M2: el costo de ventas se registra como gasto "Costo de ventas" vinculado a la factura
       // (asiento real, parte del presupuesto y del resultado), pero NO reduce el capital de caja:
       // la compra del inventario ya sacó el dinero al registrarse como activo. Así el costo no
@@ -732,6 +778,39 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           afectaCaja,
           invoiceId: id,
           descripcion: `IVA factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      // Retenciones que la empresa practica al proveedor. Son un pasivo con la
+      // autoridad tributaria. Fuente e ICA reducen el dinero pagado; la
+      // retención de IVA no mueve caja por la misma razón que en la venta.
+      const retFuenteIca = roundMoney(
+        Number(inv.retencion_fuente ?? 0) + Number(inv.retencion_ica ?? 0)
+      );
+      const retIva = roundMoney(Number(inv.retencion_iva ?? 0));
+      if (retFuenteIca > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "pasivo",
+          monto: retFuenteIca,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_por_pagar",
+          accountId,
+          afectaCaja: esCredito ? false : true,
+          invoiceId: id,
+          descripcion: `Retenciones asumidas factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      if (retIva > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "pasivo",
+          monto: retIva,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_por_pagar",
+          accountId,
+          afectaCaja: false,
+          invoiceId: id,
+          descripcion: `Retención de IVA factura ${inv.numero}`,
           userId: actor.id,
         });
       }

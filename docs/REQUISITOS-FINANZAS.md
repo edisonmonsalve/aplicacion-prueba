@@ -54,6 +54,7 @@
 - RF-22: Anular un cobro o pago registrado, generando la contrapartida contable y devolviendo el saldo a la cartera. No se permite anular una factura con pagos válidos.
 - RF-23: Ver en el detalle de la factura el total neto, lo pagado, el saldo pendiente, el estado de cartera y el historial de movimientos.
 - RF-24: Ver el aging de la cartera por tramos (corriente, 1-30, 31-60, 61-90 y más de 90 días), el DSO, el saldo vencido, lo que vence en 7 días y los principales deudores.
+- RF-25: Registrar retenciones de fuente, IVA e ICA en la factura. Al confirmar se reconocen como activo fiscal (venta) o pasivo (compra) y reducen el neto a cobrar o pagar. No se admiten retenciones mayores que el total de la factura.
 
 ## Reglas de negocio
 
@@ -79,7 +80,7 @@
 - RN-15: El tercero se valida por tipo (cliente para venta, proveedor para compra, ambos para los dos). La factura guarda un snapshot editable de nombre y documento.
 - RN-16: El vencimiento de una factura a crédito se calcula como fecha de factura + días de crédito, salvo que se indique una fecha explícita. Las facturas de contado vencen en su fecha.
 - RN-17: No se elimina un tercero con facturas asociadas; se desactiva.
-- RN-18: Las retenciones reducen el total neto de la factura y se reconocen como activo (venta) o pasivo (compra).
+- RN-18: Las retenciones reducen el total neto de la factura y se reconocen como activo (venta) o pasivo (compra). Fuente e ICA reducen el dinero cobrado/pagado; la retención de IVA no mueve caja porque el IVA no forma parte del capital. No pueden superar el total de la factura.
 - RN-19: Los informes de resultado usan `afecta_resultado`; los de caja usan `afecta_caja`, respetando el override del asiento (`transactions.afecta_caja`) cuando no es NULL.
 - RN-20: Las categorías de sistema se buscan por `codigo`. Renombrar una categoría no cambia los asientos automáticos ni los informes.
 - RN-21: El IVA no es dinero propio: nunca suma al capital disponible. Se netea por periodo para informar el saldo a favor o a cargo.
@@ -115,6 +116,7 @@
 - Vínculos opcionales a producto, cotización y movimiento de stock.
 - anulada_de autorreferente: una transacción solo puede anularse una vez.
 - Idempotencia: una cotización genera máximo un ingreso y un gasto; un movimiento de stock máximo un egreso.
+- Las retenciones usan `retenciones_a_favor` (activo, venta) y `retenciones_por_pagar` (pasivo, compra); no afectan el resultado.
 
 ## third_parties — clientes y proveedores
 
