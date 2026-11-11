@@ -13,6 +13,7 @@ un cambio pequeño en el servidor.
 | G3 | Media | Componente común de confirmación destructiva con nombre del objeto, consecuencia y botón `danger` (Productos, Categorías, Usuarios). **Implementado** con `ConfirmAction`. |
 | G4 | Media | Unificar formato de fechas (`DD/MM/YYYY`) y etiquetas (“Impuesto” vs “IVA” vs “Imp.”). **Implementado** en tablas, detalles, impresión y selectores de fecha. |
 | G5 | Baja | Estado activo del menú lateral más claro y breadcrumb en todas las rutas (automático en el layout, con nombre del documento en los detalles). **Implementado** con `RouteBreadcrumb` y `PageBreadcrumb`. |
+| G6 | Baja | Identidad visual: logo de la aplicación y favicon, usados en el sidebar y en el login. **Implementado** con `AppLogo` y `public/logo.svg`; la identidad de la empresa emisora vive en `config/company.ts` y se usa en las plantillas de impresión. |
 
 ## 2. Login
 
@@ -64,7 +65,7 @@ un cambio pequeño en el servidor.
 | Q3 | Alta | Proteger cambios sin guardar al cancelar/volver (`beforeunload` + confirmación). **Implementado**: aviso al cerrar/recargar y confirmación al cancelar con cambios pendientes. |
 | Q4 | Alta | En el detalle, ocultar/deshabilitar “Generar factura” si ya está facturada y listar facturas vinculadas. `[API]` para el listado. **Implementado**: `getQuote` devuelve las facturas vinculadas, se listan en el detalle y “Generar factura” se deshabilita si hay una confirmada. |
 | Q5 | Media | Mostrar acciones deshabilitadas con tooltip (“solo creador o admin”) y sacar Imprimir a la barra principal. **Implementado**: acciones deshabilitadas con tooltip de permisos e Imprimir en la barra principal. |
-| Q6 | Media | Plantilla de impresión: encabezado de empresa, datos de contacto, firma, condiciones y saltos de página. **Implementado**: encabezado y contacto genéricos, condiciones, notas, firmas y estilos de impresión con control de saltos. |
+| Q6 | Media | Plantilla de impresión: encabezado de empresa, datos de contacto, firma, condiciones y saltos de página. **Implementado**: cabecera compartida `PrintHeader` con logo, identidad de empresa (NIT, régimen, dirección, teléfonos, email y web), condiciones, notas, firmas y control de saltos. La hoja fuerza tema claro (`ConfigProvider` + `defaultAlgorithm`) para que no cambie entre modo claro y oscuro. Los datos de la empresa emisora se centralizan en `client/src/config/company.ts` para reemplazarlos por los reales. |
 | Q7 | Media | Sorter por total/validez y total del filtro. **Implementado**: orden por número, cliente, total, validez y fecha; monto total del filtro calculado en el servidor. |
 
 ## 8. Facturación
@@ -74,7 +75,7 @@ un cambio pequeño en el servidor.
 | F1 | Alta | La búsqueda `q` debe consultar todo el historial y no solo la página visible; hoy rompe el total y la paginación. **Implementado**: `q` viaja al servidor y el total/paginación cubren todo el historial. |
 | F2 | Alta | Dividir el formulario en secciones: Datos generales, Cuenta, Líneas, Retenciones y totales. **Implementado**: formulario en tarjetas por sección. |
 | F3 | Alta | Etiquetar “Guardar borrador”, explicar el paso “Confirmar” y advertir cambios sin guardar. **Implementado**: botón “Guardar borrador”, aviso del flujo borrador → confirmar, `beforeunload` y confirmación al cancelar con cambios. |
-| F4 | Alta | Impresión/PDF de factura (`/facturas/:id/imprimir`) reutilizando la plantilla de cotización. **Implementado**: ruta, botón Imprimir y plantilla con totales, retenciones, notas y firmas. |
+| F4 | Alta | Impresión/PDF de factura (`/facturas/:id/imprimir`) reutilizando la plantilla de cotización. **Implementado**: ruta, botón Imprimir y plantilla con la cabecera de empresa compartida, totales, retenciones, notas y firmas; mismos estilos claros en ambos temas. |
 | F5 | Media | Exportar CSV y totales por tipo/estado. **Implementado**: CSV de todas las páginas del filtro y resumen de documentos/total por tipo y estado. |
 | F6 | Media | Mostrar el saldo de la cuenta elegida y el impacto en caja antes de confirmar. **Implementado**: aviso con saldo actual, impacto y saldo resultante, también en el diálogo de confirmación. |
 | F7 | Media | Al cambiar compra/venta, actualizar automáticamente el valor unitario sugerido (precio de venta o costo de compra), respetando precios escritos manualmente. **Implementado.** |

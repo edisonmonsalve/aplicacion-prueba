@@ -23,6 +23,7 @@ import { useThemeMode } from "@/context/ThemeContext";
 import { canAccessFinance } from "@/utils/roles";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import RouteBreadcrumb from "@/components/RouteBreadcrumb";
+import AppLogo from "@/components/AppLogo";
 import { roleLabel } from "@/utils/roles";
 
 const { Sider, Header, Content } = Layout;
@@ -119,7 +120,9 @@ export default function AppLayout() {
           zIndex: isMobile ? 20 : undefined,
         }}
       >
-        <div style={{ color: "#fff", padding: 16, fontWeight: 600 }}>Inventario</div>
+        <div style={{ display: "flex", alignItems: "center", minHeight: 64, padding: "0 16px", color: "#fff" }}>
+          <AppLogo size={26} tone="light" showText={!collapsed} textSize={17} />
+        </div>
         <Menu
           theme="dark"
           mode="inline"

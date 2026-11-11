@@ -1,19 +1,11 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Table, Typography, message } from "antd";
+import { Button, Card, ConfigProvider, Table, Typography, message, theme } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 import { getQuote } from "../../services/quotesService";
 import type { QuoteDetail, QuoteLine } from "../../types";
 import { StatusTag, money, fmtDate } from "./QuoteUtils";
-
-// Q6: datos genéricos de la empresa emisora. Si más adelante se agrega la
-// configuración de empresa, estos valores se reemplazan por los reales.
-const COMPANY = {
-  nombre: "TU EMPRESA S.A.S.",
-  nit: "NIT 000.000.000-0",
-  direccion: "Dirección comercial · Ciudad",
-  telefono: "Tel. (000) 000 0000",
-  email: "contacto@tuempresa.com",
-};
+import PrintHeader from "@/components/print/PrintHeader";
+import { COMPANY } from "@/config/company";
 
 export default function QuotePrintPage() {
   const { id } = useParams();
@@ -40,39 +32,35 @@ export default function QuotePrintPage() {
   if (!quote) return <Card loading />;
 
   return (
-    <div className="print-area quote-print">
-      <div className="no-print" style={{ marginBottom: 16 }}>
-        <Button onClick={() => navigate(`/cotizaciones/${quote.id}`)} style={{ marginRight: 8 }}>
-          Volver
-        </Button>
-        <Button type="primary" onClick={() => window.print()}>
-          Imprimir / Guardar PDF
-        </Button>
-      </div>
-
-      <header className="print-header">
-        <div className="print-company">
-          <div className="print-company-name">{COMPANY.nombre}</div>
-          <div>{COMPANY.nit}</div>
-          <div>{COMPANY.direccion}</div>
-          <div>
-            {COMPANY.telefono} · {COMPANY.email}
-          </div>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.defaultAlgorithm,
+        token: {
+          colorPrimary: "#0d9488",
+          fontFamily: "'Plus Jakarta Sans Variable', system-ui, sans-serif",
+        },
+      }}
+    >
+      <div className="print-area">
+        <div className="no-print print-toolbar">
+          <Button onClick={() => navigate(`/cotizaciones/${quote.id}`)}>Volver</Button>
+          <Button type="primary" onClick={() => window.print()}>
+            Imprimir / Guardar PDF
+          </Button>
         </div>
-        <div className="print-doc">
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            COTIZACIÓN
-          </Typography.Title>
-          <div className="print-doc-number">{quote.numero}</div>
-          <StatusTag estado={quote.estado} />
-          <div className="print-doc-meta">
-            <div>Fecha: {fmtDate(quote.created_at)}</div>
-            <div>Válida hasta: {fmtDate(quote.fecha_validez)}</div>
-          </div>
-        </div>
-      </header>
 
-      <div className="print-rule" />
+        <article className="print-document quote-print">
+          <PrintHeader
+            docKind="COTIZACIÓN"
+            docNumber={quote.numero}
+            status={<StatusTag estado={quote.estado} />}
+            meta={
+              <>
+                <div>Fecha: {fmtDate(quote.created_at)}</div>
+                <div>Válida hasta: {fmtDate(quote.fecha_validez)}</div>
+              </>
+            }
+          />
 
       <section className="print-block print-client">
         <div>
@@ -178,6 +166,8 @@ export default function QuotePrintPage() {
       <footer className="print-footer">
         {COMPANY.nombre} · {COMPANY.telefono} · {COMPANY.email} · Gracias por su preferencia.
       </footer>
-    </div>
+        </article>
+      </div>
+    </ConfigProvider>
   );
 }

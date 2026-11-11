@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Alert, Button, Form, Grid, Input, Switch, Tooltip, Typography, theme } from "antd";
-import { InboxOutlined, LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { isAxiosError } from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { useThemeMode } from "@/context/ThemeContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import AppLogo from "@/components/AppLogo";
 
 export default function LoginPage() {
   const { user, signIn } = useAuth();
@@ -52,9 +53,7 @@ export default function LoginPage() {
             justifyContent: "space-between",
           }}
         >
-          <Typography.Title level={3} style={{ color: "#fff", margin: 0 }}>
-            <InboxOutlined /> Inventario
-          </Typography.Title>
+          <AppLogo size={44} tone="light" textSize={26} />
           <div>
             <Typography.Title style={{ color: "#fff", marginTop: 0 }}>
               Tu stock y tus presupuestos, en un solo lugar.
@@ -91,6 +90,11 @@ export default function LoginPage() {
         </div>
 
         <div style={{ width: "100%", maxWidth: 380 }}>
+          {!screens.lg && (
+            <div style={{ marginBottom: 24 }}>
+              <AppLogo size={34} textSize={22} />
+            </div>
+          )}
           <Typography.Title level={2} style={{ marginBottom: 4 }}>
             Bienvenido
           </Typography.Title>

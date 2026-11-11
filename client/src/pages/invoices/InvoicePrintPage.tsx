@@ -1,20 +1,12 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Table, Typography, message } from "antd";
+import { Button, Card, ConfigProvider, Table, Typography, message, theme } from "antd";
 import { PrinterOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { getInvoice } from "@/services/invoicesService";
 import type { InvoiceDetail, InvoiceItem } from "@/types";
 import { InvoiceEstadoTag, fmtDate, money } from "./InvoiceUtils";
-
-// Reutiliza la plantilla de impresión de cotizaciones (F4). Los datos de la
-// empresa emisora son genéricos hasta que exista configuración de empresa.
-const COMPANY = {
-  nombre: "INVENTARIO S.A.S.",
-  nit: "NIT 000.000.000-0",
-  direccion: "Dirección comercial · Ciudad",
-  telefono: "Tel. (000) 000 0000",
-  email: "contacto@tuempresa.com",
-};
+import PrintHeader from "@/components/print/PrintHeader";
+import { COMPANY } from "@/config/company";
 
 export default function InvoicePrintPage() {
   const { id } = useParams();
@@ -46,39 +38,35 @@ export default function InvoicePrintPage() {
     invoice.retencion_fuente + invoice.retencion_iva + invoice.retencion_ica;
 
   return (
-    <div className="print-area quote-print">
-      <div className="no-print" style={{ marginBottom: 16 }}>
-        <Button onClick={() => navigate(`/facturas/${invoice.id}`)} style={{ marginRight: 8 }}>
-          Volver
-        </Button>
-        <Button type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>
-          Imprimir / Guardar PDF
-        </Button>
-      </div>
-
-      <header className="print-header">
-        <div className="print-company">
-          <div className="print-company-name">{COMPANY.nombre}</div>
-          <div>{COMPANY.nit}</div>
-          <div>{COMPANY.direccion}</div>
-          <div>
-            {COMPANY.telefono} · {COMPANY.email}
-          </div>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.defaultAlgorithm,
+        token: {
+          colorPrimary: "#0d9488",
+          fontFamily: "'Plus Jakarta Sans Variable', system-ui, sans-serif",
+        },
+      }}
+    >
+      <div className="print-area">
+        <div className="no-print print-toolbar">
+          <Button onClick={() => navigate(`/facturas/${invoice.id}`)}>Volver</Button>
+          <Button type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>
+            Imprimir / Guardar PDF
+          </Button>
         </div>
-        <div className="print-doc">
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            {isCompra ? "FACTURA DE COMPRA" : "FACTURA DE VENTA"}
-          </Typography.Title>
-          <div className="print-doc-number">{invoice.numero}</div>
-          <InvoiceEstadoTag estado={invoice.estado} />
-          <div className="print-doc-meta">
-            <div>Fecha: {fmtDate(invoice.fecha)}</div>
-            {invoice.documento && <div>Documento: {invoice.documento}</div>}
-          </div>
-        </div>
-      </header>
 
-      <div className="print-rule" />
+        <article className="print-document quote-print">
+          <PrintHeader
+            docKind={isCompra ? "FACTURA DE COMPRA" : "FACTURA DE VENTA"}
+            docNumber={invoice.numero}
+            status={<InvoiceEstadoTag estado={invoice.estado} />}
+            meta={
+              <>
+                <div>Fecha: {fmtDate(invoice.fecha)}</div>
+                {invoice.documento && <div>Documento: {invoice.documento}</div>}
+              </>
+            }
+          />
 
       <section className="print-block print-client">
         <div>
@@ -206,6 +194,8 @@ export default function InvoicePrintPage() {
       <footer className="print-footer">
         {COMPANY.nombre} · {COMPANY.telefono} · {COMPANY.email} · Documento generado por el sistema.
       </footer>
-    </div>
+        </article>
+      </div>
+    </ConfigProvider>
   );
 }
