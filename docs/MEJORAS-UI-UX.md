@@ -106,7 +106,7 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| V1 | Media | Cabecera común de página con `PageHeader`: título, descripción corta, acciones a la derecha y etiqueta opcional. **Implementado** en Inicio, Productos, Categorías, Movimientos, Cotizaciones, Facturas, Resumen financiero, Presupuestos, Transacciones, Usuarios y Mi perfil. Unifica el orden visual, la jerarquía (`Title` nivel 3) y el aire inferior (20 px). En móvil las acciones pasan a una línea nueva. |
+| V1 | Media | Cabecera común de página con `PageHeader`: título, descripción corta, acciones a la derecha y etiqueta opcional. **Implementado** en Inicio, Productos, Categorías, Movimientos, Cotizaciones, Facturas, Resumen financiero, Presupuestos, Transacciones, Usuarios, Mi perfil y en los detalles de factura, cotización y presupuesto. Unifica el orden visual, la jerarquía (`Title` nivel 3) y el aire inferior (20 px). En móvil las acciones pasan a una línea nueva. |
 | V2 | Baja | Descripciones de página alineadas bajo el título en lugar de párrafos sueltos con márgenes distintos; los filtros conservan 16 px antes de la tabla. **Implementado** en los módulos de listado y resumen. |
 | V3 | Baja | Estado local del tema centralizado en el encabezado; el perfil ya no repite el selector. **Implementado** (ver U3). |
 

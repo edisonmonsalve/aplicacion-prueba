@@ -20,6 +20,7 @@ import { getFinanceAccounts } from "@/services/financeService";
 import type { FinanceAccount, InvoiceDetail, InvoiceItem, InvoiceTransaction } from "@/types";
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function InvoiceDetailPage() {
@@ -136,50 +137,50 @@ export default function InvoiceDetailPage() {
       <PageBreadcrumb
         items={[{ label: "Facturas", to: "/facturas" }, { label: invoice.numero }]}
       />
-      <div>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Factura {invoice.numero}
-        </Typography.Title>
-        <Typography.Text type="secondary">
-          {invoice.tipo === "venta"
+      <PageHeader
+        title={`Factura ${invoice.numero}`}
+        description={
+          invoice.tipo === "venta"
             ? "Al confirmar se descuenta stock y se registra el ingreso en finanzas."
-            : "Al confirmar se suma stock, se actualiza el costo del producto y se registra el gasto."}
-        </Typography.Text>
-      </div>
-
-      <Space wrap>
-        <Button onClick={() => navigate("/facturas")}>Volver</Button>
-        <Button
-          icon={<PrinterOutlined />}
-          onClick={() => navigate(`/facturas/${invoiceId}/imprimir`)}
-        >
-          Imprimir
-        </Button>
-        {canOperate && isDraft && (
-          <>
-            <Button type="primary" disabled={busy} onClick={openConfirm}>
-              Confirmar
+            : "Al confirmar se suma stock, se actualiza el costo del producto y se registra el gasto."
+        }
+        style={{ marginBottom: 0 }}
+        extra={
+          <Space wrap>
+            <Button onClick={() => navigate("/facturas")}>Volver</Button>
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={() => navigate(`/facturas/${invoiceId}/imprimir`)}
+            >
+              Imprimir
             </Button>
-            <Button onClick={() => navigate(`/facturas/${invoiceId}/editar`)} disabled={busy}>
-              Editar
-            </Button>
-          </>
-        )}
-        {canOperate && isConfirmed && (
-          <Popconfirm
-            title="¿Anular esta factura?"
-            description="Se revertirá el stock y se registrará la contrapartida financiera."
-            okText="Sí, anular"
-            cancelText="No"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => run(cancelInvoice, "Factura anulada")}
-          >
-            <Button danger disabled={busy}>
-              Anular
-            </Button>
-          </Popconfirm>
-        )}
-      </Space>
+            {canOperate && isDraft && (
+              <>
+                <Button type="primary" disabled={busy} onClick={openConfirm}>
+                  Confirmar
+                </Button>
+                <Button onClick={() => navigate(`/facturas/${invoiceId}/editar`)} disabled={busy}>
+                  Editar
+                </Button>
+              </>
+            )}
+            {canOperate && isConfirmed && (
+              <Popconfirm
+                title="¿Anular esta factura?"
+                description="Se revertirá el stock y se registrará la contrapartida financiera."
+                okText="Sí, anular"
+                cancelText="No"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => run(cancelInvoice, "Factura anulada")}
+              >
+                <Button danger disabled={busy}>
+                  Anular
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        }
+      />
 
       {isDraft && (
         <Alert

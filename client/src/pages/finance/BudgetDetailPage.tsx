@@ -39,6 +39,7 @@ import { canWriteFinance } from "@/utils/roles";
 import type { BudgetDetail, BudgetLine, EjecucionEstado, FinanceCategoryTipo } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import PageHeader from "@/components/PageHeader";
 import BudgetFormModal from "./BudgetFormModal";
 
 const TIPO_COLOR: Record<string, string> = {
@@ -259,63 +260,61 @@ export default function BudgetDetailPage() {
           { label: budget.nombre },
         ]}
       />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Space>
-          <Tooltip title="Volver a la lista de presupuestos">
-            <Button
-              icon={<ArrowLeftOutlined />}
-              aria-label="Volver a la lista de presupuestos"
-              onClick={() => navigate("/finanzas/presupuestos")}
-            />
-          </Tooltip>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            {budget.nombre}
-          </Typography.Title>
-          <BudgetEstadoTag estado={budget.estado} />
-        </Space>
-        {canWrite && (
+      <PageHeader
+        title={budget.nombre}
+        titleExtra={<BudgetEstadoTag estado={budget.estado} />}
+        description="Consulta la ejecución del presupuesto por línea, las alertas, la proyección de cierre y el cumplimiento de la meta de ingresos."
+        style={{ marginBottom: 0 }}
+        extra={
           <Space wrap>
-            {(isBorrador || isActivo) && (
-              <Tooltip
-                title={
-                  isBorrador
-                    ? "Editar datos y líneas mientras el presupuesto siga en borrador"
-                    : "Ajustar los montos planificados; la ejecución se recalcula al instante"
-                }
-              >
-                <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
-                  {isActivo ? "Ajustar" : "Editar"}
-                </Button>
-              </Tooltip>
-            )}
-            {isBorrador && (
+            <Tooltip title="Volver a la lista de presupuestos">
+              <Button
+                icon={<ArrowLeftOutlined />}
+                aria-label="Volver a la lista de presupuestos"
+                onClick={() => navigate("/finanzas/presupuestos")}
+              />
+            </Tooltip>
+            {canWrite && (
               <>
-                <Tooltip title="Comenzar a comparar las transacciones del periodo contra este presupuesto">
-                  <Button type="primary" icon={<CheckOutlined />} onClick={doActivate}>
-                    Activar
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Eliminar el presupuesto y sus líneas">
-                  <Button danger icon={<DeleteOutlined />} onClick={doDelete}>
-                    Eliminar
-                  </Button>
-                </Tooltip>
+                {(isBorrador || isActivo) && (
+                  <Tooltip
+                    title={
+                      isBorrador
+                        ? "Editar datos y líneas mientras el presupuesto siga en borrador"
+                        : "Ajustar los montos planificados; la ejecución se recalcula al instante"
+                    }
+                  >
+                    <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
+                      {isActivo ? "Ajustar" : "Editar"}
+                    </Button>
+                  </Tooltip>
+                )}
+                {isBorrador && (
+                  <>
+                    <Tooltip title="Comenzar a comparar las transacciones del periodo contra este presupuesto">
+                      <Button type="primary" icon={<CheckOutlined />} onClick={doActivate}>
+                        Activar
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="Eliminar el presupuesto y sus líneas">
+                      <Button danger icon={<DeleteOutlined />} onClick={doDelete}>
+                        Eliminar
+                      </Button>
+                    </Tooltip>
+                  </>
+                )}
+                {isActivo && (
+                  <Tooltip title="Cerrar el periodo para que no admita más transacciones">
+                    <Button icon={<LockOutlined />} onClick={doClose}>
+                      Cerrar
+                    </Button>
+                  </Tooltip>
+                )}
               </>
             )}
-            {isActivo && (
-              <Tooltip title="Cerrar el periodo para que no admita más transacciones">
-                <Button icon={<LockOutlined />} onClick={doClose}>
-                  Cerrar
-                </Button>
-              </Tooltip>
-            )}
           </Space>
-        )}
-      </div>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-        Consulta la ejecución del presupuesto por línea, las alertas, la proyección de cierre y el cumplimiento
-        de la meta de ingresos.
-      </Typography.Paragraph>
+        }
+      />
 
       {budget.estado === "borrador" && (
         <Alert

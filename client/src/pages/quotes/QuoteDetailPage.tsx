@@ -32,6 +32,7 @@ import {
 import type { QuoteDetail, QuoteInvoice, QuoteLine, QuoteStatus, StockFailure } from "../../types";
 import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/QuoteUtils";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const FLOW: QuoteStatus[] = ["borrador", "enviado", "aprobado", "entregado"];
@@ -167,107 +168,105 @@ export default function QuoteDetailPage() {
       <PageBreadcrumb
         items={[{ label: "Cotizaciones", to: "/cotizaciones" }, { label: quote.numero }]}
       />
-      <div>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Cotización {quote.numero}
-        </Typography.Title>
-        <Typography.Text type="secondary">
-          Consulta el detalle, avanza el estado y revisa el historial de cambios.
-        </Typography.Text>
-      </div>
-
-      <Space wrap>
-        <Tooltip title="Volver a la lista de cotizaciones">
-          <Button onClick={() => navigate("/cotizaciones")}>Volver</Button>
-        </Tooltip>
-        <Tooltip title="Abrir la vista de impresión o guardar como PDF">
-          <Button
-            icon={<PrinterOutlined />}
-            onClick={() => navigate(`/cotizaciones/${quoteId}/imprimir`)}
-          >
-            Imprimir
-          </Button>
-        </Tooltip>
-        {quote.estado === "borrador" &&
-          confirm("Enviar", sendQuote, "Cotización enviada", {
-            primary: true,
-            tooltip: "Marca la cotización como enviada al cliente y activa el control de vencimiento.",
-          })}
-        {quote.estado === "enviado" &&
-          confirm("Aprobar", approveQuote, "Cotización aprobada", {
-            primary: true,
-            tooltip: "Registra que el cliente aceptó la cotización.",
-          })}
-        {quote.estado === "enviado" &&
-          confirm("Rechazar", rejectQuote, "Cotización rechazada", {
-            danger: true,
-            tooltip: "Marca la cotización como rechazada; ya no podrá entregarse.",
-          })}
-        {quote.estado === "aprobado" &&
-          confirm("Entregar", deliverQuote, "Cotización entregada", {
-            primary: true,
-            tooltip: "Descuenta el stock de cada línea y genera el ingreso correspondiente en finanzas.",
-          })}
-        {(quote.estado === "aprobado" || quote.estado === "entregado") && (
-          <Tooltip
-            title={
-              tieneFacturaConfirmada
-                ? "Esta cotización ya tiene una factura confirmada vinculada."
-                : !canAct
-                  ? permissionReason
-                  : "Crea una factura de venta con los datos de esta cotización."
-            }
-          >
-            <span
-              style={{
-                display: "inline-block",
-                cursor: !canAct || tieneFacturaConfirmada ? "not-allowed" : undefined,
+      <PageHeader
+        title={`Cotización ${quote.numero}`}
+        description="Consulta el detalle, avanza el estado y revisa el historial de cambios."
+        style={{ marginBottom: 0 }}
+        extra={
+          <Space wrap>
+            <Tooltip title="Volver a la lista de cotizaciones">
+              <Button onClick={() => navigate("/cotizaciones")}>Volver</Button>
+            </Tooltip>
+            <Tooltip title="Abrir la vista de impresión o guardar como PDF">
+              <Button
+                icon={<PrinterOutlined />}
+                onClick={() => navigate(`/cotizaciones/${quoteId}/imprimir`)}
+              >
+                Imprimir
+              </Button>
+            </Tooltip>
+            {quote.estado === "borrador" &&
+              confirm("Enviar", sendQuote, "Cotización enviada", {
+                primary: true,
+                tooltip: "Marca la cotización como enviada al cliente y activa el control de vencimiento.",
+              })}
+            {quote.estado === "enviado" &&
+              confirm("Aprobar", approveQuote, "Cotización aprobada", {
+                primary: true,
+                tooltip: "Registra que el cliente aceptó la cotización.",
+              })}
+            {quote.estado === "enviado" &&
+              confirm("Rechazar", rejectQuote, "Cotización rechazada", {
+                danger: true,
+                tooltip: "Marca la cotización como rechazada; ya no podrá entregarse.",
+              })}
+            {quote.estado === "aprobado" &&
+              confirm("Entregar", deliverQuote, "Cotización entregada", {
+                primary: true,
+                tooltip: "Descuenta el stock de cada línea y genera el ingreso correspondiente en finanzas.",
+              })}
+            {(quote.estado === "aprobado" || quote.estado === "entregado") && (
+              <Tooltip
+                title={
+                  tieneFacturaConfirmada
+                    ? "Esta cotización ya tiene una factura confirmada vinculada."
+                    : !canAct
+                      ? permissionReason
+                      : "Crea una factura de venta con los datos de esta cotización."
+                }
+              >
+                <span
+                  style={{
+                    display: "inline-block",
+                    cursor: !canAct || tieneFacturaConfirmada ? "not-allowed" : undefined,
+                  }}
+                >
+                  <Button
+                    onClick={() => navigate(`/facturas/nuevo?quote=${quoteId}`)}
+                    disabled={busy || !canAct || tieneFacturaConfirmada}
+                  >
+                    Generar factura
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
+            {quote.estado === "borrador" && (
+              <Tooltip
+                title={
+                  !canAct
+                    ? permissionReason
+                    : "Editar las líneas y datos de la cotización mientras siga en borrador"
+                }
+              >
+                <span style={{ display: "inline-block", cursor: !canAct ? "not-allowed" : undefined }}>
+                  <Button
+                    onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)}
+                    disabled={busy || !canAct}
+                  >
+                    Editar
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: "dup",
+                    label: "Duplicar",
+                    disabled: busy || !canOperate,
+                    onClick: onDuplicate,
+                  },
+                ],
               }}
             >
-              <Button
-                onClick={() => navigate(`/facturas/nuevo?quote=${quoteId}`)}
-                disabled={busy || !canAct || tieneFacturaConfirmada}
-              >
-                Generar factura
+              <Button>
+                Más <DownOutlined />
               </Button>
-            </span>
-          </Tooltip>
-        )}
-        {quote.estado === "borrador" && (
-          <Tooltip
-            title={
-              !canAct
-                ? permissionReason
-                : "Editar las líneas y datos de la cotización mientras siga en borrador"
-            }
-          >
-            <span style={{ display: "inline-block", cursor: !canAct ? "not-allowed" : undefined }}>
-              <Button
-                onClick={() => navigate(`/cotizaciones/${quoteId}/editar`)}
-                disabled={busy || !canAct}
-              >
-                Editar
-              </Button>
-            </span>
-          </Tooltip>
-        )}
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: "dup",
-                label: "Duplicar",
-                disabled: busy || !canOperate,
-                onClick: onDuplicate,
-              },
-            ],
-          }}
-        >
-          <Button>
-            Más <DownOutlined />
-          </Button>
-        </Dropdown>
-      </Space>
+            </Dropdown>
+          </Space>
+        }
+      />
 
       {quote.estado === "entregado" && quote.pendiente_facturar && (
         <Alert
