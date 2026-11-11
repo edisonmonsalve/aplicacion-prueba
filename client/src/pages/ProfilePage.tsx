@@ -51,17 +51,17 @@ export default function ProfilePage() {
             Cambiar contraseña
           </Button>
         </Card>
-
-        {passwordOpen && (
-          <ChangePasswordModal
-            onClose={() => setPasswordOpen(false)}
-            onSaved={() => {
-              setPasswordOpen(false);
-              message.success("Contraseña actualizada");
-            }}
-          />
-        )}
       </Space>
+
+      {passwordOpen && (
+        <ChangePasswordModal
+          onClose={() => setPasswordOpen(false)}
+          onSaved={() => {
+            setPasswordOpen(false);
+            message.success("Contraseña actualizada");
+          }}
+        />
+      )}
     </div>
   );
 }
