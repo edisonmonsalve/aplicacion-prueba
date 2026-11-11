@@ -783,6 +783,34 @@ export interface AuditList extends Paginated<AuditEntry> {
   resumen_por_entidad: { entidad: AuditEntity; total: number }[];
 }
 
+// ---------- Salud de datos ----------
+
+export type DataHealthCode =
+  | "asientos_huerfanos"
+  | "pagos_huerfanos"
+  | "stock_negativo"
+  | "productos_sin_costo";
+
+export interface DataHealthCheck {
+  codigo: DataHealthCode;
+  titulo: string;
+  descripcion: string;
+  severidad: "alta" | "media";
+  hallazgos: number;
+  detalle: Record<string, unknown>[];
+}
+
+export interface DataHealthReport {
+  generado_at: string;
+  estado: "ok" | "alerta";
+  resumen: {
+    checks: number;
+    con_problemas: number;
+    total_hallazgos: number;
+  };
+  checks: DataHealthCheck[];
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

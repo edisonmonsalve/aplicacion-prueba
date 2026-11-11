@@ -42,6 +42,7 @@ import {
   getTrends,
 } from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
+import { getDataHealth } from "./data-health.service.js";
 
 export const financeRouter = Router();
 
@@ -153,4 +154,8 @@ financeRouter.get("/quotes-funnel", async (req, res) => {
 
 financeRouter.get("/trends", async (req, res) => {
   res.json(await getTrends(trendsQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/data-health", async (_req, res) => {
+  res.json(await getDataHealth());
 });

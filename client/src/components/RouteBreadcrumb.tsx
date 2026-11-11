@@ -99,6 +99,10 @@ export function getRouteBreadcrumb(pathname: string): BreadcrumbEntry[] | null {
       items.push({ label: "Auditoría", to: "/finanzas/auditoria" });
       return finish();
     }
+    if (sub === "salud") {
+      items.push({ label: "Salud de datos", to: "/finanzas/salud" });
+      return finish();
+    }
     if (sub === "presupuestos") {
       // El detalle del presupuesto también pinta su breadcrumb con el nombre.
       if (parts[2]) return null;

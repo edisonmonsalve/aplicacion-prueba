@@ -32,6 +32,7 @@ import InventoryAnalyticsPage from "@/pages/finance/InventoryAnalyticsPage";
 import QuotesFunnelPage from "@/pages/finance/QuotesFunnelPage";
 import TrendsPage from "@/pages/finance/TrendsPage";
 import AuditPage from "@/pages/finance/AuditPage";
+import DataHealthPage from "@/pages/finance/DataHealthPage";
 import ReceivablesPage from "@/pages/invoices/ReceivablesPage";
 import RequireOperate from "./components/RequireOperate";
 
@@ -170,6 +171,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <AuditPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/salud"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <DataHealthPage />
                 </ProtectedRoute>
               }
             />

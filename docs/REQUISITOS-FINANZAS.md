@@ -65,6 +65,7 @@
 - RF-33: Consultar el embudo de cotizaciones creadas en un periodo (creadas, enviadas, aprobadas y entregadas), sus tasas de conversión, los estados actuales y los tiempos promedio de aprobación, entrega y ciclo completo, con el detalle por cotización.
 - RF-34: Consultar la tendencia mensual de resultado y caja del periodo (ingresos, costo de ventas, margen, gastos, utilidad, entradas, salidas, neto y saldo de caja acumulado), con meses sin movimiento en cero, variación mes a mes y comparación contra el periodo anterior de igual duración y el mismo rango del año anterior.
 - RF-35: Consultar la bitácora de auditoría del módulo financiero con filtros por entidad, ID de entidad, acción, usuario y rango de fechas, paginada, mostrando el usuario, la fecha y los valores antes y después de cada cambio. El visor es de solo lectura.
+- RF-36: Consultar un panel de salud de datos que informe asientos huérfanos (vigentes ligados a facturas no confirmadas), pagos válidos sin asiento de caja vigente, productos con stock negativo y productos activos con existencias y costo cero o nulo, con un estado global, conteos y el detalle de cada hallazgo.
 
 ## Reglas de negocio
 
@@ -109,6 +110,7 @@
 - RN-34: El embudo filtra cotizaciones por fecha de creación y es acumulativo: una cotización entregada también cuenta como enviada y aprobada. La conversión se mide contra la etapa anterior y contra el total creado. Los tiempos salen del historial de estados (creación → aprobación, aprobación → entrega y ciclo completo) y solo promedian las cotizaciones que alcanzaron la etapa; se informa la muestra. El estado actual aplica la regla de vencimiento de la cotización.
 - RN-35: La tendencia mensual incluye todos los meses del rango, con ceros cuando no hay movimientos. Separa resultado (asientos con `afecta_resultado = 1`, en devengo) de caja (asientos con `afecta_caja = 1`, respetando el override del asiento). El saldo de caja acumulado parte de los saldos iniciales de las cuentas más los movimientos de caja anteriores al rango. La comparación usa el periodo inmediatamente anterior de igual duración y el mismo rango del año anterior (ajustando el 29 de febrero); las variaciones son null cuando la base es cero.
 - RN-36: `audit_log` es una bitácora append-only: solo se inserta al crear, actualizar, anular, cerrar o reabrir. El visor no permite editar ni borrar. Cada registro guarda usuario, entidad, ID, acción, fecha y los estados antes/después en JSON; un registro sin usuario se muestra como "Sistema".
+- RN-37: El panel de salud es de solo lectura y no corrige datos. Un asiento huérfano es un asiento vigente (sin anulación ni contrapartida) ligado a una factura que no está confirmada; un pago huérfano es un pago válido cuyo asiento de caja falta, fue anulado o no existe. Los productos sin costo son activos con existencias y costo cero o nulo. Cualquier hallazgo deja el estado global en alerta.
 
 ## Supuestos a confirmar
 
