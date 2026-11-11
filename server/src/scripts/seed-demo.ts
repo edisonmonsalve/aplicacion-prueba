@@ -329,6 +329,7 @@ async function main() {
     await post("/movements", {
       product_id: productMap[sku],
       tipo: "entrada",
+      origen: "compra",
       cantidad: cant,
       motivo: "Compra inicial de inventario",
     });
@@ -351,6 +352,7 @@ async function main() {
     await post("/movements", {
       product_id: productMap[sku],
       tipo: "salida",
+      origen: "venta",
       cantidad: cant,
       motivo: "Entrega a obra / cliente",
     });
@@ -416,12 +418,15 @@ async function main() {
     { tipo: "ingreso", monto: 2700000, categoria: "Ventas", cuenta: "banco", descripcion: "Venta de software y licencias" },
     { tipo: "activo", monto: 900000, categoria: "Inventario", cuenta: "banco", descripcion: "Compra de licencias" },
   ];
-  const today = fmt(new Date());
+  const fechaBase = new Date();
+  fechaBase.setDate(1);
+  fechaBase.setMonth(fechaBase.getMonth() - 1);
+  const fechaTx = fmt(fechaBase);
   for (const t of txs) {
     await post("/finance/transactions", {
       tipo: t.tipo,
       monto: t.monto,
-      fecha: today,
+      fecha: fechaTx,
       finance_category_id: catByNombre[t.categoria],
       account_id: t.cuenta === "caja" ? cajaId : bancoId,
       descripcion: t.descripcion,
