@@ -5,6 +5,7 @@ import type {
   BudgetInput,
   BudgetListItem,
   BudgetsQuery,
+  BalanceReport,
   CashFlowReport,
   FinanceAccount,
   FinanceAccountInput,
@@ -56,6 +57,8 @@ export const getCashFlow = async (params: {
   hasta?: string;
   account_id?: number;
 }) => (await api.get<CashFlowReport>("/finance/cash-flow", { params })).data;
+export const getBalance = async (params: { hasta?: string }) =>
+  (await api.get<BalanceReport>("/finance/balance", { params })).data;
 export const getAvailability = async (productId: number) =>
   (await api.get<BudgetAvailability | null>("/finance/availability", { params: { product_id: productId } })).data;
 export const getSuggestions = async () => (await api.get<Suggestion[]>("/finance/suggestions")).data;

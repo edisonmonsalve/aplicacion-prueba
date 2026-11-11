@@ -59,6 +59,7 @@
 - RF-27: Reabrir un cierre vigente indicando el motivo. La reapertura no borra el cierre: lo marca como reabierto con usuario y fecha, y vuelve a permitir movimientos.
 - RF-28: Consultar el estado de resultados del periodo con ingresos, costo de ventas, margen bruto, gastos operativos y utilidad, desglosados por categoría y comparados contra el periodo anterior de igual duración, con variación porcentual por línea.
 - RF-29: Consultar el flujo de caja real por cuenta y por mes, con saldo inicial del rango, entradas, salidas, neto y saldo final, y filtro por cuenta.
+- RF-30: Consultar un balance simplificado a una fecha con activo (caja y bancos, inventario al costo, cartera por cobrar, IVA a favor y retenciones a favor), pasivo (cartera por pagar, IVA por pagar y retenciones por pagar), patrimonio y verificación de que activo = pasivo + patrimonio.
 
 ## Reglas de negocio
 
@@ -97,6 +98,7 @@
 - RN-28: La reapertura exige motivo y queda auditada; el cierre pasa a `reabierto` y no se elimina. Los totales del snapshot son inmutables y reflejan el momento del cierre.
 - RN-29: El estado de resultados usa solo asientos con `afecta_resultado = 1` (devengo). El costo de ventas se muestra separado de los gastos operativos para calcular el margen bruto; la utilidad es margen bruto − gastos. El comparativo usa el periodo inmediatamente anterior de igual número de días.
 - RN-30: El flujo de caja usa solo asientos con `afecta_caja = 1` (con override). Ingresos y pasivos con impacto de caja suman; gastos y activos restan, igual que el saldo de cuentas. El saldo inicial del rango incluye los movimientos anteriores a la fecha inicial.
+- RN-31: El balance corta caja, cartera, IVA y retenciones a la fecha indicada. El inventario se valora con las existencias y el costo actual del producto (no es un histórico de costos). El IVA se netea: saldo a favor si el descontable supera el por pagar. El patrimonio es la cifra de cuadre (activo − pasivo), no un dato almacenado.
 
 ## Supuestos a confirmar
 

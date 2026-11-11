@@ -503,6 +503,44 @@ export interface CashFlowReport {
   por_mes: CashFlowMonth[];
 }
 
+// ---------- Balance simplificado ----------
+
+export interface BalanceCuenta {
+  id: number;
+  nombre: string;
+  tipo: string;
+  activo: number;
+  saldo: number;
+}
+
+export interface BalanceReport {
+  as_of: string;
+  activo: {
+    caja_bancos: number;
+    inventario: number;
+    cartera_por_cobrar: number;
+    iva_a_favor: number;
+    retenciones_a_favor: number;
+    total: number;
+    cuentas: BalanceCuenta[];
+    inventario_detalle: { productos: number; sin_costo: number };
+    cartera_detalle: { facturas: number };
+  };
+  pasivo: {
+    cartera_por_pagar: number;
+    iva_por_pagar: number;
+    retenciones_por_pagar: number;
+    total: number;
+    cartera_detalle: { facturas: number };
+  };
+  patrimonio: number;
+  ecuacion: {
+    activo: number;
+    pasivo_mas_patrimonio: number;
+    cuadra: boolean;
+  };
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

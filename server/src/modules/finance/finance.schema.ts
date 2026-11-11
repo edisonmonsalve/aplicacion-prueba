@@ -105,3 +105,7 @@ export const summaryQuerySchema = z.object({
 export const cashFlowQuerySchema = summaryQuerySchema.extend({
   account_id: z.coerce.number().int().positive().optional(),
 });
+
+export const balanceQuerySchema = z.object({
+  hasta: isoDate.optional(),
+});

@@ -335,3 +335,156 @@ export async function getCashFlow(query: CashFlowQuery) {
     por_mes: porMes,
   };
 }
+
+interface BalanceQuery {
+  hasta?: string;
+}
+
+/**
+ * Balance simplificado a una fecha.
+ *
+ * - Caja y bancos: saldos de todas las cuentas con los movimientos de caja
+ *   hasta la fecha.
+ * - Inventario: existencias actuales valorizadas al costo del producto.
+ * - Cartera: facturas confirmadas a crédito con saldo pendiente, descontando
+ *   solo los pagos realizados hasta la fecha.
+ * - Impuestos y retenciones: saldos acumulados de sus categorías de sistema.
+ *
+ * El patrimonio es la cifra de cuadre (capital + resultados acumulados): no se
+ * guarda en una tabla, se deriva de activo − pasivo.
+ */
+export async function getBalance(query: BalanceQuery) {
+  const asOf = query.hasta ?? today();
+  if (Number.isNaN(Date.parse(`${asOf}T12:00:00`))) {
+    throw new HttpError(400, "Fecha no válida");
+  }
+
+  const afectaCaja = "COALESCE(t.afecta_caja, fc.afecta_caja) = 1";
+
+  const [cuentaRows, inventarioRows, carteraRows, impuestoRows] = await Promise.all([
+    pool.query<RowDataPacket[]>(
+      `SELECT a.id, a.nombre, a.tipo, a.activo,
+              a.saldo_inicial
+                + COALESCE(SUM(CASE WHEN ${afectaCaja} THEN
+                    CASE WHEN t.tipo IN ('ingreso', 'pasivo') THEN t.monto
+                         WHEN t.tipo IN ('gasto', 'activo') THEN -t.monto
+                         ELSE 0 END
+                    ELSE 0 END), 0) AS saldo
+       FROM finance_accounts a
+       LEFT JOIN transactions t
+         ON t.account_id = a.id
+        AND t.fecha <= ?
+        AND ${VALID_TRANSACTION}
+       LEFT JOIN finance_categories fc ON fc.id = t.finance_category_id
+       GROUP BY a.id, a.nombre, a.tipo, a.activo, a.saldo_inicial
+       ORDER BY a.nombre`,
+      [asOf]
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(stock_actual * COALESCE(costo, 0)), 0) AS total,
+              COALESCE(SUM(CASE WHEN stock_actual > 0 THEN 1 ELSE 0 END), 0) AS productos,
+              COALESCE(SUM(CASE WHEN stock_actual > 0 AND COALESCE(costo, 0) = 0
+                                THEN 1 ELSE 0 END), 0) AS sin_costo
+       FROM products
+       WHERE activo = 1`
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(CASE WHEN c.tipo = 'venta' THEN c.saldo ELSE 0 END), 0) AS por_cobrar,
+              COALESCE(SUM(CASE WHEN c.tipo = 'compra' THEN c.saldo ELSE 0 END), 0) AS por_pagar,
+              COALESCE(SUM(CASE WHEN c.tipo = 'venta' AND c.saldo > 0 THEN 1 ELSE 0 END), 0) AS facturas_cobrar,
+              COALESCE(SUM(CASE WHEN c.tipo = 'compra' AND c.saldo > 0 THEN 1 ELSE 0 END), 0) AS facturas_pagar
+       FROM (
+         SELECT i.tipo,
+                GREATEST(i.total_neto - COALESCE(p.pagado, 0), 0) AS saldo
+         FROM invoices i
+         LEFT JOIN (
+           SELECT invoice_id, SUM(monto) AS pagado
+           FROM invoice_payments
+           WHERE estado = 'valido' AND fecha <= ?
+           GROUP BY invoice_id
+         ) p ON p.invoice_id = i.id
+         WHERE i.estado = 'confirmada' AND i.condicion_pago = 'credito'
+           AND i.fecha <= ?
+       ) c`,
+      [asOf, asOf]
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(CASE WHEN fc.codigo = 'iva_por_pagar'
+                                THEN t.monto ELSE 0 END), 0) AS iva_por_pagar,
+              COALESCE(SUM(CASE WHEN fc.codigo = 'iva_descontable'
+                                THEN t.monto ELSE 0 END), 0) AS iva_descontable,
+              COALESCE(SUM(CASE WHEN fc.codigo = 'retenciones_a_favor'
+                                THEN t.monto ELSE 0 END), 0) AS retenciones_a_favor,
+              COALESCE(SUM(CASE WHEN fc.codigo = 'retenciones_por_pagar'
+                                THEN t.monto ELSE 0 END), 0) AS retenciones_por_pagar
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.fecha <= ? AND ${VALID_TRANSACTION}`,
+      [asOf]
+    ),
+  ]);
+
+  const cuentas = cuentaRows[0].map((r) => ({
+    id: Number(r.id),
+    nombre: String(r.nombre),
+    tipo: String(r.tipo),
+    activo: Number(r.activo),
+    saldo: roundMoney(Number(r.saldo)),
+  }));
+  const cajaBancos = roundMoney(cuentas.reduce((sum, c) => sum + c.saldo, 0));
+
+  const inventario = inventarioRows[0][0];
+  const cartera = carteraRows[0][0];
+  const impuestos = impuestoRows[0][0];
+
+  // El IVA se netea contra la autoridad tributaria: a favor (activo) o a cargo
+  // (pasivo). Las retenciones se presentan por separado.
+  const ivaNeto = roundMoney(
+    Number(impuestos.iva_por_pagar) - Number(impuestos.iva_descontable)
+  );
+  const ivaAPagar = Math.max(ivaNeto, 0);
+  const ivaAFavor = Math.max(-ivaNeto, 0);
+  const retencionesAFavor = roundMoney(Number(impuestos.retenciones_a_favor));
+  const retencionesPorPagar = roundMoney(Number(impuestos.retenciones_por_pagar));
+
+  const inventarioTotal = roundMoney(Number(inventario.total));
+  const porCobrar = roundMoney(Number(cartera.por_cobrar));
+  const porPagar = roundMoney(Number(cartera.por_pagar));
+
+  const totalActivo = roundMoney(
+    cajaBancos + inventarioTotal + porCobrar + ivaAFavor + retencionesAFavor
+  );
+  const totalPasivo = roundMoney(porPagar + ivaAPagar + retencionesPorPagar);
+  const patrimonio = roundMoney(totalActivo - totalPasivo);
+
+  return {
+    as_of: asOf,
+    activo: {
+      caja_bancos: cajaBancos,
+      inventario: inventarioTotal,
+      cartera_por_cobrar: porCobrar,
+      iva_a_favor: ivaAFavor,
+      retenciones_a_favor: retencionesAFavor,
+      total: totalActivo,
+      cuentas,
+      inventario_detalle: {
+        productos: Number(inventario.productos),
+        sin_costo: Number(inventario.sin_costo),
+      },
+      cartera_detalle: { facturas: Number(cartera.facturas_cobrar) },
+    },
+    pasivo: {
+      cartera_por_pagar: porPagar,
+      iva_por_pagar: ivaAPagar,
+      retenciones_por_pagar: retencionesPorPagar,
+      total: totalPasivo,
+      cartera_detalle: { facturas: Number(cartera.facturas_pagar) },
+    },
+    patrimonio,
+    ecuacion: {
+      activo: totalActivo,
+      pasivo_mas_patrimonio: roundMoney(totalPasivo + patrimonio),
+      cuadra: Math.abs(totalActivo - (totalPasivo + patrimonio)) < 0.01,
+    },
+  };
+}
