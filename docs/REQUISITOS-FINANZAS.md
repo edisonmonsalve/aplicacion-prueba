@@ -57,6 +57,7 @@
 - RF-25: Registrar retenciones de fuente, IVA e ICA en la factura. Al confirmar se reconocen como activo fiscal (venta) o pasivo (compra) y reducen el neto a cobrar o pagar. No se admiten retenciones mayores que el total de la factura.
 - RF-26: Cerrar un periodo con una foto de sus totales (resumen, facturas, cartera, retenciones y transacciones) y bloquear nuevos asientos dentro del rango. Consultar los cierres y su detalle histórico.
 - RF-27: Reabrir un cierre vigente indicando el motivo. La reapertura no borra el cierre: lo marca como reabierto con usuario y fecha, y vuelve a permitir movimientos.
+- RF-28: Consultar el estado de resultados del periodo con ingresos, costo de ventas, margen bruto, gastos operativos y utilidad, desglosados por categoría y comparados contra el periodo anterior de igual duración, con variación porcentual por línea.
 
 ## Reglas de negocio
 
@@ -93,6 +94,7 @@
 - RN-26: El aging mide los días desde `fecha_vencimiento` hasta hoy y solo considera saldo pendiente mayor que cero. El DSO es simple: cartera por cobrar / ventas a crédito del periodo × días del periodo; si no hubo ventas a crédito, no se informa.
 - RN-27: Un cierre vigente (`cerrado`) bloquea cualquier asiento con fecha dentro de su rango, además de los presupuestos cerrados. No se permiten dos cierres vigentes superpuestos.
 - RN-28: La reapertura exige motivo y queda auditada; el cierre pasa a `reabierto` y no se elimina. Los totales del snapshot son inmutables y reflejan el momento del cierre.
+- RN-29: El estado de resultados usa solo asientos con `afecta_resultado = 1` (devengo). El costo de ventas se muestra separado de los gastos operativos para calcular el margen bruto; la utilidad es margen bruto − gastos. El comparativo usa el periodo inmediatamente anterior de igual número de días.
 
 ## Supuestos a confirmar
 

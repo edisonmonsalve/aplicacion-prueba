@@ -27,6 +27,7 @@ import {
   transactionSchema,
 } from "./finance.schema.js";
 import { getSuggestions } from "./suggestions.service.js";
+import { getPnl } from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
 
 export const financeRouter = Router();
@@ -111,4 +112,8 @@ financeRouter.get("/suggestions", async (_req, res) => {
 
 financeRouter.get("/summary", async (req, res) => {
   res.json(await getSummary(summaryQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/pnl", async (req, res) => {
+  res.json(await getPnl(summaryQuerySchema.parse(req.query)));
 });

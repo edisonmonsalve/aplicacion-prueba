@@ -11,6 +11,7 @@ import type {
   FinanceSummary,
   Paginated,
   PaginatedTransactions,
+  PnlReport,
   Suggestion,
   TransactionInput,
   TransactionsQuery,
@@ -47,6 +48,8 @@ export const reverseTransaction = async (id: number) =>
 
 export const getFinanceSummary = async (params: { desde?: string; hasta?: string }) =>
   (await api.get<FinanceSummary>("/finance/summary", { params })).data;
+export const getPnl = async (params: { desde?: string; hasta?: string }) =>
+  (await api.get<PnlReport>("/finance/pnl", { params })).data;
 export const getAvailability = async (productId: number) =>
   (await api.get<BudgetAvailability | null>("/finance/availability", { params: { product_id: productId } })).data;
 export const getSuggestions = async () => (await api.get<Suggestion[]>("/finance/suggestions")).data;

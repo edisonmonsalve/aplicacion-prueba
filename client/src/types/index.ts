@@ -422,6 +422,51 @@ export interface PeriodClosureInput {
   fecha_fin: string;
 }
 
+// ---------- Estado de resultados (P&L) ----------
+
+export interface PnlLine {
+  id: number;
+  nombre: string;
+  codigo: string | null;
+  total: number;
+  /** Participación de la línea sobre los ingresos del periodo actual. */
+  pct: number;
+  anterior: number;
+  variacion: number | null;
+}
+
+export interface PnlGroup {
+  total: number;
+  lineas: PnlLine[];
+}
+
+export interface PnlTotals {
+  ingresos: number;
+  costo_ventas: number;
+  margen_bruto: number;
+  margen_bruto_pct: number;
+  gastos: number;
+  utilidad: number;
+  utilidad_pct: number;
+}
+
+export interface PnlReport {
+  rango: { desde: string; hasta: string; dias: number };
+  comparativo: { desde: string; hasta: string; dias: number };
+  ingresos: PnlGroup;
+  costo_ventas: { total: number; pct: number; lineas: PnlLine[] };
+  margen_bruto: number;
+  margen_bruto_pct: number;
+  gastos: PnlGroup;
+  utilidad: number;
+  utilidad_pct: number;
+  comparativo_totales: PnlTotals;
+  variaciones: Record<
+    "ingresos" | "costo_ventas" | "margen_bruto" | "gastos" | "utilidad",
+    number | null
+  >;
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

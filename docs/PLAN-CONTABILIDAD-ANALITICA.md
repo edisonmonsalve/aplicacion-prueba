@@ -113,7 +113,7 @@ Los huecos principales eran:
 
 | ID | Mejora | Estado |
 |---|---|---|
-| R1 | Estado de resultados (P&L) por periodo y comparativo | Pendiente |
+| R1 | Estado de resultados (P&L) por periodo y comparativo | Hecho |
 | R2 | Flujo de caja por cuenta y por mes | Pendiente |
 | R3 | Balance simplificado (caja, inventario, cartera, impuestos) | Pendiente |
 | A1 | Rentabilidad por producto, categoría y cliente | Pendiente |
@@ -166,3 +166,4 @@ Los huecos principales eran:
 | 2026-11-11 | C3 (aging y DSO) | — | `/api/invoices/cartera/aging`; tramos corriente a +90 días, DSO simple, saldo vencido, por vencer en 7 días y principales deudores; panel en la página de Cartera |
 | 2026-11-11 | C4 (retenciones) | — | Asientos de retenciones a favor (venta) y por pagar (compra); fuente e ICA mueven caja, IVA retenido no; validación de retenciones ≤ total y pruebas de API |
 | 2026-11-11 | C5 (cierres) | — | Migración `V020`; `/api/period-closures` con snapshot, bloqueo de asientos, superposición controlada y reapertura auditada; página Cierres con detalle del snapshot |
+| 2026-11-11 | R1 (P&L) | — | `/api/finance/pnl`; ingresos, costo de ventas, margen bruto, gastos operativos y utilidad por categoría; comparativo contra el periodo anterior con variaciones; página Resultados |
