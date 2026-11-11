@@ -1068,3 +1068,211 @@ export async function getQuoteFunnel(query: QuoteFunnelQuery) {
     detalle,
   };
 }
+
+interface TrendsQuery {
+  desde?: string;
+  hasta?: string;
+}
+
+interface TrendTotals {
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  gastos: number;
+  utilidad: number;
+  margen_pct: number;
+  entradas: number;
+  salidas: number;
+  neto_caja: number;
+}
+
+/** Desplaza una fecha un número de años, ajustando el 29 de febrero. */
+function shiftYear(fecha: string, years: number) {
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  const ultimoDia = new Date(Date.UTC(anio + years, mes, 0)).getUTCDate();
+  return `${anio + years}-${String(mes).padStart(2, "0")}-${String(
+    Math.min(dia, ultimoDia)
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * Totales de resultado y caja de un rango, sin desglose mensual.
+ * Se usa para los periodos comparativos de las tendencias.
+ */
+async function trendTotals(desde: string, hasta: string): Promise<TrendTotals> {
+  const afectaCaja = "COALESCE(t.afecta_caja, fc.afecta_caja) = 1";
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_resultado = 1
+                         THEN t.monto ELSE 0 END), 0) AS ingresos,
+       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
+                          AND fc.codigo = 'costo_ventas'
+                         THEN t.monto ELSE 0 END), 0) AS costo_ventas,
+       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
+                          AND (fc.codigo IS NULL OR fc.codigo <> 'costo_ventas')
+                         THEN t.monto ELSE 0 END), 0) AS gastos,
+       COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('ingreso', 'pasivo')
+                         THEN t.monto ELSE 0 END), 0) AS entradas,
+       COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('gasto', 'activo')
+                         THEN t.monto ELSE 0 END), 0) AS salidas
+     FROM transactions t
+     JOIN finance_categories fc ON fc.id = t.finance_category_id
+     WHERE t.fecha BETWEEN ? AND ? AND ${VALID_TRANSACTION}`,
+    [desde, hasta]
+  );
+
+  const r = rows[0];
+  const ingresos = roundMoney(Number(r.ingresos));
+  const costoVentas = roundMoney(Number(r.costo_ventas));
+  const gastos = roundMoney(Number(r.gastos));
+  const margen = roundMoney(ingresos - costoVentas);
+  const entradas = roundMoney(Number(r.entradas));
+  const salidas = roundMoney(Number(r.salidas));
+  return {
+    ingresos,
+    costo_ventas: costoVentas,
+    margen,
+    gastos,
+    utilidad: roundMoney(margen - gastos),
+    margen_pct: pctOf(margen, ingresos),
+    entradas,
+    salidas,
+    neto_caja: roundMoney(entradas - salidas),
+  };
+}
+
+const growth = (current: number, previous: number) =>
+  previous === 0 ? null : roundMoney(((current - previous) / Math.abs(previous)) * 100);
+
+/**
+ * Tendencias mensuales de resultado y caja, con comparación de periodos.
+ *
+ * La serie incluye todos los meses del rango, incluso sin movimientos. Cada
+ * mes separa resultado (devengo) de caja real. La comparación usa el periodo
+ * inmediatamente anterior de igual duración y el mismo rango del año anterior.
+ */
+export async function getTrends(query: TrendsQuery) {
+  const hasta = query.hasta ?? today();
+  const desde = query.desde ?? `${hasta.slice(0, 7)}-01`;
+  if (desde > hasta) {
+    throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
+  }
+
+  const afectaCaja = "COALESCE(t.afecta_caja, fc.afecta_caja) = 1";
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT DATE_FORMAT(t.fecha, '%Y-%m') AS mes,
+            COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_resultado = 1
+                              THEN t.monto ELSE 0 END), 0) AS ingresos,
+            COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
+                               AND fc.codigo = 'costo_ventas'
+                              THEN t.monto ELSE 0 END), 0) AS costo_ventas,
+            COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
+                               AND (fc.codigo IS NULL OR fc.codigo <> 'costo_ventas')
+                              THEN t.monto ELSE 0 END), 0) AS gastos,
+            COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('ingreso', 'pasivo')
+                              THEN t.monto ELSE 0 END), 0) AS entradas,
+            COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('gasto', 'activo')
+                              THEN t.monto ELSE 0 END), 0) AS salidas
+     FROM transactions t
+     JOIN finance_categories fc ON fc.id = t.finance_category_id
+     WHERE t.fecha BETWEEN ? AND ? AND ${VALID_TRANSACTION}
+     GROUP BY mes
+     ORDER BY mes`,
+    [desde, hasta]
+  );
+
+  // Saldo de caja al iniciar el rango: saldos iniciales de las cuentas más los
+  // movimientos de caja anteriores a `desde`.
+  const [cajaRows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       (SELECT COALESCE(SUM(saldo_inicial), 0) FROM finance_accounts) +
+       COALESCE(SUM(CASE WHEN ${afectaCaja} THEN
+           CASE WHEN t.tipo IN ('ingreso', 'pasivo') THEN t.monto
+                WHEN t.tipo IN ('gasto', 'activo') THEN -t.monto
+                ELSE 0 END
+           ELSE 0 END), 0) AS saldo_inicial
+     FROM transactions t
+     JOIN finance_categories fc ON fc.id = t.finance_category_id
+     WHERE t.fecha < ? AND ${VALID_TRANSACTION}`,
+    [desde]
+  );
+
+  const byMonth = new Map(rows.map((r) => [String(r.mes), r]));
+  let saldoCaja = roundMoney(Number(cajaRows[0]?.saldo_inicial ?? 0));
+
+  const serie = mesesEntre(desde, hasta).map((mes) => {
+    const r = byMonth.get(mes);
+    const ingresos = roundMoney(Number(r?.ingresos ?? 0));
+    const costoVentas = roundMoney(Number(r?.costo_ventas ?? 0));
+    const margen = roundMoney(ingresos - costoVentas);
+    const gastos = roundMoney(Number(r?.gastos ?? 0));
+    const entradas = roundMoney(Number(r?.entradas ?? 0));
+    const salidas = roundMoney(Number(r?.salidas ?? 0));
+    const neto = roundMoney(entradas - salidas);
+    saldoCaja = roundMoney(saldoCaja + neto);
+    return {
+      mes,
+      ingresos,
+      costo_ventas: costoVentas,
+      margen,
+      margen_pct: pctOf(margen, ingresos),
+      gastos,
+      utilidad: roundMoney(margen - gastos),
+      entradas,
+      salidas,
+      neto_caja: neto,
+      saldo_caja: saldoCaja,
+      variacion_ingresos: null as number | null,
+      variacion_utilidad: null as number | null,
+    };
+  });
+
+  // Variación mes a mes dentro de la serie (los meses sin movimiento son 0).
+  for (let i = 1; i < serie.length; i += 1) {
+    serie[i].variacion_ingresos = growth(serie[i].ingresos, serie[i - 1].ingresos);
+    serie[i].variacion_utilidad = growth(serie[i].utilidad, serie[i - 1].utilidad);
+  }
+
+  const totales: TrendTotals = {
+    ingresos: roundMoney(serie.reduce((s, m) => s + m.ingresos, 0)),
+    costo_ventas: roundMoney(serie.reduce((s, m) => s + m.costo_ventas, 0)),
+    margen: roundMoney(serie.reduce((s, m) => s + m.margen, 0)),
+    gastos: roundMoney(serie.reduce((s, m) => s + m.gastos, 0)),
+    utilidad: roundMoney(serie.reduce((s, m) => s + m.utilidad, 0)),
+    margen_pct: 0,
+    entradas: roundMoney(serie.reduce((s, m) => s + m.entradas, 0)),
+    salidas: roundMoney(serie.reduce((s, m) => s + m.salidas, 0)),
+    neto_caja: roundMoney(serie.reduce((s, m) => s + m.neto_caja, 0)),
+  };
+  totales.margen_pct = pctOf(totales.margen, totales.ingresos);
+
+  const dias =
+    Math.floor(
+      (Date.parse(`${hasta}T12:00:00`) - Date.parse(`${desde}T12:00:00`)) / 86_400_000
+    ) + 1;
+  const anteriorHasta = addDays(desde, -1);
+  const anteriorDesde = addDays(desde, -dias);
+  const anioDesde = shiftYear(desde, -1);
+  const anioHasta = shiftYear(hasta, -1);
+
+  const [anterior, anioAnterior] = await Promise.all([
+    trendTotals(anteriorDesde, anteriorHasta),
+    trendTotals(anioDesde, anioHasta),
+  ]);
+
+  return {
+    rango: { desde, hasta, meses: serie.length, dias },
+    serie,
+    totales,
+    comparacion: {
+      anterior: { desde: anteriorDesde, hasta: anteriorHasta, totales: anterior },
+      anio_anterior: { desde: anioDesde, hasta: anioHasta, totales: anioAnterior },
+      variaciones: {
+        ingresos_vs_anterior: growth(totales.ingresos, anterior.ingresos),
+        utilidad_vs_anterior: growth(totales.utilidad, anterior.utilidad),
+        ingresos_vs_anio_anterior: growth(totales.ingresos, anioAnterior.ingresos),
+        utilidad_vs_anio_anterior: growth(totales.utilidad, anioAnterior.utilidad),
+      },
+    },
+  };
+}

@@ -705,6 +705,59 @@ export interface QuoteFunnelReport {
   detalle: QuoteFunnelDetail[];
 }
 
+// ---------- Tendencias mensuales ----------
+
+export interface TrendMonth {
+  mes: string;
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  margen_pct: number;
+  gastos: number;
+  utilidad: number;
+  entradas: number;
+  salidas: number;
+  neto_caja: number;
+  saldo_caja: number;
+  /** Variación contra el mes anterior; null si no hay base. */
+  variacion_ingresos: number | null;
+  variacion_utilidad: number | null;
+}
+
+export interface TrendTotals {
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  margen_pct: number;
+  gastos: number;
+  utilidad: number;
+  entradas: number;
+  salidas: number;
+  neto_caja: number;
+}
+
+export interface TrendComparison {
+  desde: string;
+  hasta: string;
+  totales: TrendTotals;
+}
+
+export interface TrendsReport {
+  rango: { desde: string; hasta: string; meses: number; dias: number };
+  serie: TrendMonth[];
+  totales: TrendTotals;
+  comparacion: {
+    anterior: TrendComparison;
+    anio_anterior: TrendComparison;
+    variaciones: {
+      ingresos_vs_anterior: number | null;
+      utilidad_vs_anterior: number | null;
+      ingresos_vs_anio_anterior: number | null;
+      utilidad_vs_anio_anterior: number | null;
+    };
+  };
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

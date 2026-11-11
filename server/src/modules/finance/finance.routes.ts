@@ -29,9 +29,18 @@ import {
   profitabilityQuerySchema,
   summaryQuerySchema,
   transactionSchema,
+  trendsQuerySchema,
 } from "./finance.schema.js";
 import { getSuggestions } from "./suggestions.service.js";
-import { getBalance, getCashFlow, getPnl, getProfitability, getInventoryAnalytics, getQuoteFunnel } from "./reports.service.js";
+import {
+  getBalance,
+  getCashFlow,
+  getInventoryAnalytics,
+  getPnl,
+  getProfitability,
+  getQuoteFunnel,
+  getTrends,
+} from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
 
 export const financeRouter = Router();
@@ -140,4 +149,8 @@ financeRouter.get("/inventory-analytics", async (req, res) => {
 
 financeRouter.get("/quotes-funnel", async (req, res) => {
   res.json(await getQuoteFunnel(summaryQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/trends", async (req, res) => {
+  res.json(await getTrends(trendsQuerySchema.parse(req.query)));
 });

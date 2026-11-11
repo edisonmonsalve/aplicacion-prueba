@@ -117,3 +117,5 @@ export const profitabilityQuerySchema = summaryQuerySchema.extend({
 export const inventoryAnalyticsQuerySchema = summaryQuerySchema.extend({
   dias_muerto: z.coerce.number().int().min(1).max(3650).optional(),
 });
+
+export const trendsQuerySchema = summaryQuerySchema;

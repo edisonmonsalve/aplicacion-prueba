@@ -63,6 +63,7 @@
 - RF-31: Consultar la rentabilidad de las ventas del periodo agrupada por producto, categoría de producto o cliente, con ingresos sin IVA, costo histórico de ventas, margen, margen porcentual, participación sobre los ingresos, unidades y número de facturas.
 - RF-32: Consultar la rotación de inventario, los días de inventario, el stock muerto con umbral configurable y la clasificación ABC por ingresos, con la última venta y los productos sin costo definido.
 - RF-33: Consultar el embudo de cotizaciones creadas en un periodo (creadas, enviadas, aprobadas y entregadas), sus tasas de conversión, los estados actuales y los tiempos promedio de aprobación, entrega y ciclo completo, con el detalle por cotización.
+- RF-34: Consultar la tendencia mensual de resultado y caja del periodo (ingresos, costo de ventas, margen, gastos, utilidad, entradas, salidas, neto y saldo de caja acumulado), con meses sin movimiento en cero, variación mes a mes y comparación contra el periodo anterior de igual duración y el mismo rango del año anterior.
 
 ## Reglas de negocio
 
@@ -105,6 +106,7 @@
 - RN-32: La rentabilidad se calcula solo con facturas de venta confirmadas y sus asientos vigentes. Ingresos y costo de ventas se toman de `transaction_allocations`, que guarda el reparto por línea con el costo histórico del momento de la venta; no se usa el costo actual del producto. Una factura anulada no entra. El margen es ingresos − costo y la participación se mide sobre los ingresos totales del periodo.
 - RN-33: La rotación es costo de ventas del periodo / valor del inventario actual al costo. Como no se guardan fotos históricas de existencias, el denominador es el inventario de hoy; los días de inventario son días del periodo / rotación. El stock muerto son productos con existencias y sin ventas en el umbral de días indicado (por defecto 90). El ABC se calcula por ingresos acumulados: A hasta 80 %, B hasta 95 %, C el resto; los productos sin ventas en el periodo son C.
 - RN-34: El embudo filtra cotizaciones por fecha de creación y es acumulativo: una cotización entregada también cuenta como enviada y aprobada. La conversión se mide contra la etapa anterior y contra el total creado. Los tiempos salen del historial de estados (creación → aprobación, aprobación → entrega y ciclo completo) y solo promedian las cotizaciones que alcanzaron la etapa; se informa la muestra. El estado actual aplica la regla de vencimiento de la cotización.
+- RN-35: La tendencia mensual incluye todos los meses del rango, con ceros cuando no hay movimientos. Separa resultado (asientos con `afecta_resultado = 1`, en devengo) de caja (asientos con `afecta_caja = 1`, respetando el override del asiento). El saldo de caja acumulado parte de los saldos iniciales de las cuentas más los movimientos de caja anteriores al rango. La comparación usa el periodo inmediatamente anterior de igual duración y el mismo rango del año anterior (ajustando el 29 de febrero); las variaciones son null cuando la base es cero.
 
 ## Supuestos a confirmar
 
