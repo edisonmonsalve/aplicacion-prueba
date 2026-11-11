@@ -49,13 +49,26 @@ export async function auditFinance(
 
 type FinanceNature = "ingreso" | "gasto" | "activo" | "pasivo";
 
-async function categoryByName(conn: PoolConnection, nombre: string, tipo: FinanceNature) {
+/**
+ * Busca una categoría de sistema por su código estable.
+ *
+ * Las categorías de negocio se identifican por `codigo` y no por el nombre
+ * visible: renombrar "Costo de ventas" no debe romper los asientos automáticos.
+ */
+export async function categoryIdByCode(
+  conn: PoolConnection,
+  codigo: string,
+  tipo: FinanceNature
+) {
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT id FROM finance_categories WHERE nombre = ? AND tipo = ? AND activo = 1 LIMIT 1",
-    [nombre, tipo]
+    "SELECT id FROM finance_categories WHERE codigo = ? AND tipo = ? AND activo = 1 LIMIT 1",
+    [codigo, tipo]
   );
   if (!rows[0]) {
-    throw new HttpError(500, `Falta la categoría financiera "${nombre}" (${tipo})`);
+    throw new HttpError(
+      500,
+      `Falta la categoría financiera de sistema "${codigo}" (${tipo}). Ejecuta las migraciones.`
+    );
   }
   return rows[0].id as number;
 }
@@ -82,12 +95,15 @@ interface AutoTransactionInput {
   tipo: FinanceNature;
   monto: number;
   fecha: string;
-  categoriaNombre: string;
+  /** Código estable de la categoría (ventas, costo_ventas, inventario, ...). */
+  categoriaCodigo: string;
   accountId?: number | null;
   productId?: number | null;
   quoteId?: number | null;
   invoiceId?: number | null;
   stockMovementId?: number | null;
+  /** NULL/undefined = lo decide la categoría. false = no mueve caja (crédito). */
+  afectaCaja?: boolean | null;
   descripcion: string;
   userId: number;
 }
@@ -103,19 +119,27 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
   await assertPeriodOpen(conn, input.fecha);
 
   const [categoriaId, accountId] = await Promise.all([
-    categoryByName(conn, input.categoriaNombre, input.tipo),
+    categoryIdByCode(conn, input.categoriaCodigo, input.tipo),
     defaultAccount(conn, input.accountId),
   ]);
 
+  const afectaCaja =
+    input.afectaCaja === undefined || input.afectaCaja === null
+      ? null
+      : input.afectaCaja
+        ? 1
+        : 0;
+
   const [res] = await conn.query<ResultSetHeader>(
     `INSERT INTO transactions
-       (tipo, monto, fecha, finance_category_id, account_id, product_id,
+       (tipo, monto, afecta_caja, fecha, finance_category_id, account_id, product_id,
         quote_id, invoice_id, stock_movement_id, descripcion, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
     [
       input.tipo,
       monto,
+      afectaCaja,
       input.fecha,
       categoriaId,
       accountId,

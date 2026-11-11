@@ -10,14 +10,18 @@
 - Inventario: activo que representa la mercancía comprada. La compra sí saca dinero de caja, pero no reduce la utilidad hasta que se vende.
 - Capital: saldo acumulado de caja y bancos hasta una fecha (saldo inicial + ingresos de caja - egresos de caja, incluidas las compras de inventario). No incluye asientos informativos.
 - Ejecución: lo real gastado/ingresado frente a lo planeado, en %.
+- Resultado (P&L): ingresos y gastos del periodo, incluidos los que no mueven caja (costo de ventas, IVA, ventas a crédito). Se controla con `afecta_resultado`.
+- Caja: entradas y salidas reales de dinero. Se controla con `afecta_caja`.
+- Código de sistema: identificador estable de una categoría contable (`ventas`, `costo_ventas`, `iva_por_pagar`, ...). No cambia aunque se renombre la categoría.
+- IVA neto: IVA por pagar menos IVA descontable del periodo. Si es negativo, es saldo a favor.
 
 ## Modelo de datos (resumen)
 
 - finance_accounts: caja/banco, saldo_inicial. Cada asiento se registra en una cuenta; las facturas pueden indicar si el dinero sale/entra por caja (efectivo) o por banco (transferencia).
-- finance_categories: nombre, tipo (ingreso | gasto | activo | pasivo), `afecta_caja` (1 = mueve caja/bancos; 0 = asiento informativo).
+- finance_categories: nombre, `codigo` único de sistema (nullable), tipo (ingreso | gasto | activo | pasivo), `afecta_caja` (1 = mueve caja/bancos; 0 = asiento informativo) y `afecta_resultado` (1 = entra al estado de resultados; 0 = solo caja/balance).
 - budgets: nombre, tipo de periodo, fecha_inicio, fecha_fin, ingreso_meta, alerta_pct (def. 80), estado (borrador | activo | cerrado).
 - budget_lines: budget_id, finance_category_id, product_id opcional, monto_planeado.
-- transactions: tipo, monto, fecha, finance_category_id, account_id, product_id opcional, quote_id opcional, stock_movement_id opcional, descripcion, anulada_de opcional.
+- transactions: tipo, monto, `afecta_caja` opcional (NULL = usa la categoría; 0/1 = override del asiento), fecha, finance_category_id, account_id, product_id opcional, quote_id opcional, stock_movement_id opcional, descripcion, anulada_de opcional.
 - products: nuevo campo costo.
 - stock_movements: nuevo campo costo_unitario (en entradas).
 - audit_log: usuario, entidad, entidad_id, acción, antes, después, fecha.
@@ -36,6 +40,10 @@
 - RF-10: Sugerencias de mejora basadas en reglas (ver RN-09).
 - RF-11: Exportar reportes a CSV.
 - RF-12: Elegir la cuenta de caja o banco al registrar una factura, para reflejar si el pago/cobro fue en efectivo o por transferencia. Si no se indica, se usa la primera cuenta activa.
+- RF-13: El resumen financiero muestra el IVA neto del periodo (por pagar − descontable) e indica si es saldo a favor o a cargo.
+- RF-14: El panel de Inicio muestra, para admin/contador/consulta, ingresos, egresos, utilidad, IVA neto y capital del mes, comparados con el mes anterior. El operador no ve información financiera.
+- RF-15: El inventario se informa a precio de venta y al costo, y se advierte cuántos productos activos no tienen costo definido.
+- RF-16: El rango de fechas del resumen financiero se conserva en la URL y se puede compartir por enlace.
 
 ## Reglas de negocio
 
@@ -56,10 +64,13 @@
 - RN-10: Todo cambio queda en audit_log.
 - RN-11: Un periodo cerrado no admite transacciones.
 - RN-12: Roles: admin (todo), contador (finanzas y cierres), operador (registra movimientos y cotizaciones), consulta (solo lectura).
+- RN-13: Los informes de resultado usan `afecta_resultado`; los de caja usan `afecta_caja`, respetando el override del asiento (`transactions.afecta_caja`) cuando no es NULL.
+- RN-14: Las categorías de sistema se buscan por `codigo`. Renombrar una categoría no cambia los asientos automáticos ni los informes.
+- RN-15: El IVA no es dinero propio: nunca suma al capital disponible. Se netea por periodo para informar el saldo a favor o a cargo.
 
 ## Supuestos a confirmar
 
-- El ingreso se reconoce al entregar la cotización (cobros y cartera en fase 3).
+- El ingreso se reconoce al confirmar la factura (devengo). La cartera, los cobros y los pagos parciales se incorporan en la fase C2.
 - Una sola empresa por instalación.
 
 # Tablas

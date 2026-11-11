@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, DatePicker, Alert, List } from "antd";
 const { RangePicker } = DatePicker;
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
@@ -23,16 +24,32 @@ const TIPO_LABEL: Record<FinanceCategoryTipo, string> = {
 export default function FinanceOverviewPage() {
   const { message, modal } = App.useApp();
   const { user } = useAuth();
+  const { get, update } = useUrlFilters();
   const canWrite = canWriteFinance(user?.rol);
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().startOf("month"),
-    dayjs(),
-  ]);
+  // El rango vive en la URL: sobrevive a recargas y se puede compartir.
+  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
+    const inicial = get("desde");
+    const final = get("hasta");
+    return [
+      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
+      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
+    ];
+  });
+
+  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    if (!value || !value[0] || !value[1]) return;
+    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
+    setRange(next);
+    update({
+      desde: next[0].format("YYYY-MM-DD"),
+      hasta: next[1].format("YYYY-MM-DD"),
+    });
+  };
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FinanceAccount | undefined>();
 
@@ -109,7 +126,7 @@ export default function FinanceOverviewPage() {
           <Tooltip title="Rango de fechas que se resume en las tarjetas y tablas">
             <RangePicker
               value={range}
-              onChange={(v) => v && setRange([v[0]!, v[1]!])}
+              onChange={changeRange}
               format="DD/MM/YYYY"
               allowClear={false}
             />
@@ -206,6 +223,19 @@ export default function FinanceOverviewPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="IVA pagado en compras (activo). No es dinero disponible.">IVA descontable</Tooltip>} value={s?.iva_descontable ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#1677ff" }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title={<Tooltip title="IVA por pagar menos IVA descontable del periodo. Un valor negativo es saldo a favor.">IVA neto</Tooltip>}
+              value={s?.iva_neto ?? 0}
+              formatter={(v) => money(Number(v))}
+              valueStyle={{ color: (s?.iva_neto ?? 0) > 0 ? "#fa8c16" : "#52c41a" }}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {(s?.iva_neto ?? 0) < 0 ? "Saldo a favor" : "A cargo del periodo"}
+            </Typography.Text>
           </Card>
         </Col>
       </Row>

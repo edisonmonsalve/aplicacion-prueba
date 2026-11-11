@@ -3,7 +3,7 @@ import { Button, Card, Table, Typography, message } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 import { getQuote } from "../../services/quotesService";
 import type { QuoteDetail, QuoteLine } from "../../types";
-import { StatusTag, money, fmtDate } from "./QuoteUtils";
+import { StatusTag, money, fmtDate } from "./quoteUtils";
 import PrintHeader from "@/components/print/PrintHeader";
 import PrintThemeProvider from "@/components/print/PrintThemeProvider";
 import { COMPANY } from "@/config/company";

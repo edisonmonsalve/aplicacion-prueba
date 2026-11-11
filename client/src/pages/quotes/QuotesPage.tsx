@@ -26,7 +26,7 @@ import dayjs from "dayjs";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { duplicateQuote, listQuotes } from "@/services/quotesService";
 import type { Quote, QuoteSortKey, QuoteStatus } from "@/types";
-import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/QuoteUtils";
+import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/quoteUtils";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";

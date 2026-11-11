@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, theme } from "antd";
-import { AppstoreOutlined, DollarOutlined, SwapOutlined, WarningOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
+import { AppstoreOutlined, DollarOutlined, PercentageOutlined, RiseOutlined, SwapOutlined, WalletOutlined, WarningOutlined } from "@ant-design/icons";
 import {
   Bar,
   BarChart,
@@ -20,7 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getDashboard } from "@/services/dashboardService";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency } from "@/utils/format";
-import { STATUS_OPTIONS } from "@/pages/quotes/QuoteUtils";
+import { STATUS_OPTIONS } from "@/pages/quotes/quoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
@@ -31,6 +31,8 @@ const HOME_TOOLTIPS: Record<string, string> = {
   "Movimientos hoy": "Entradas y salidas de stock registradas desde la medianoche de hoy.",
   "Valor del inventario":
     "Suma del precio de venta × stock actual de los productos activos. No es la utilidad ni el capital disponible.",
+  "Inventario al costo":
+    "Suma del costo × stock actual. Es el valor contable del activo y la base para calcular rotación y margen.",
 };
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -132,9 +134,33 @@ export default function HomePage() {
           color: token.colorSuccess,
           to: "/products?activo=1",
           hint: "Abre el catálogo activo que compone este valor",
+          sub: `Al costo: ${formatCurrency(data.valorInventarioCosto)}`,
+        },
+        {
+          title: "Inventario al costo",
+          value: formatCurrency(data.valorInventarioCosto),
+          icon: <WalletOutlined />,
+          color: token.colorInfo,
+          to: "/products?activo=1",
+          hint: "Valor contable del inventario: costo × stock",
+          sub:
+            data.productosSinCosto > 0
+              ? `${data.productosSinCosto} producto(s) sin costo`
+              : "Todos los productos tienen costo",
         },
       ]
     : [];
+
+  const fin = data?.finanzas;
+  const variacion = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return null;
+    return (
+      <Tag color={value >= 0 ? "green" : "red"} style={{ marginTop: 8 }}>
+        <RiseOutlined rotate={value >= 0 ? 0 : 180} /> {value >= 0 ? "+" : ""}
+        {value.toFixed(1)}% vs. mes anterior
+      </Tag>
+    );
+  };
 
   return (
     <div>
@@ -212,20 +238,90 @@ export default function HomePage() {
                       >
                         {s.icon}
                       </div>
-                      <Statistic
-                        title={
-                          <AntTooltip title={`${HOME_TOOLTIPS[s.title] ?? s.title} ${s.hint}.`}>
-                            <span>{s.title}</span>
-                          </AntTooltip>
-                        }
-                        value={s.value}
-                      />
+                      <div>
+                        <Statistic
+                          title={
+                            <AntTooltip title={`${HOME_TOOLTIPS[s.title] ?? s.title} ${s.hint}.`}>
+                              <span>{s.title}</span>
+                            </AntTooltip>
+                          }
+                          value={s.value}
+                        />
+                        {"sub" in s && s.sub && (
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                            {s.sub}
+                          </Typography.Text>
+                        )}
+                      </div>
                     </div>
                   </Card>
                 </Link>
               </Col>
             ))}
           </Row>
+
+          {fin && (
+            <>
+              <Typography.Title level={5} style={{ marginTop: 24 }}>
+                Finanzas del mes{" "}
+                <Typography.Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
+                  ({dayjs(fin.desde).format("MMMM YYYY")})
+                </Typography.Text>
+              </Typography.Title>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic
+                      title={<AntTooltip title="Ingresos de resultado del mes (incluye ventas a crédito)">Ingresos del mes</AntTooltip>}
+                      value={fin.ingresos}
+                      formatter={(v) => formatCurrency(Number(v))}
+                      valueStyle={{ color: token.colorSuccess }}
+                      prefix={<DollarOutlined />}
+                    />
+                    {variacion(fin.variacion_ingresos_pct)}
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic
+                      title={<AntTooltip title="Salidas reales de caja y bancos del mes">Egresos de caja</AntTooltip>}
+                      value={fin.egresos}
+                      formatter={(v) => formatCurrency(Number(v))}
+                      valueStyle={{ color: token.colorError }}
+                      prefix={<SwapOutlined />}
+                    />
+                    {variacion(fin.variacion_egresos_pct)}
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic
+                      title={<AntTooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad del mes</AntTooltip>}
+                      value={fin.utilidad}
+                      formatter={(v) => formatCurrency(Number(v))}
+                      valueStyle={{ color: fin.utilidad >= 0 ? token.colorSuccess : token.colorError }}
+                      prefix={<RiseOutlined />}
+                    />
+                    {variacion(fin.variacion_utilidad_pct)}
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic
+                      title={<AntTooltip title="IVA por pagar menos IVA descontable. Negativo = saldo a favor.">IVA neto</AntTooltip>}
+                      value={fin.iva_neto}
+                      formatter={(v) => formatCurrency(Number(v))}
+                      valueStyle={{ color: fin.iva_neto > 0 ? token.colorWarning : token.colorSuccess }}
+                      prefix={<PercentageOutlined />}
+                    />
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      Margen bruto {fin.margen_bruto_pct.toFixed(0)}% · Capital {formatCurrency(fin.capital_disponible)}
+                    </Typography.Text>
+                  </Card>
+                </Col>
+              </Row>
+            </>
+          )}
 
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} lg={14}>

@@ -71,16 +71,40 @@ export interface LowStockProduct {
   stock_minimo: number;
 }
 
+export interface DashboardFinance {
+  desde: string;
+  hasta: string;
+  ingresos: number;
+  egresos: number;
+  utilidad: number;
+  margen_bruto_pct: number;
+  iva_neto: number;
+  capital_disponible: number;
+  ingresos_anterior: number;
+  egresos_anterior: number;
+  utilidad_anterior: number;
+  variacion_ingresos_pct: number | null;
+  variacion_egresos_pct: number | null;
+  variacion_utilidad_pct: number | null;
+}
+
 export interface Dashboard {
   productosActivos: number;
   stockBajo: number;
   movimientosHoy: number;
+  /** Valor del inventario a precio de venta (precio × stock). */
   valorInventario: number;
+  /** Valor del inventario al costo (costo × stock). */
+  valorInventarioCosto: number;
+  /** Productos activos con stock y costo cero o sin definir. */
+  productosSinCosto: number;
   productosStockBajo: LowStockProduct[];
   ultimosMovimientos: StockMovement[];
   movimientosPorDia: { dia: string; tipo: MovementTipo; total: number }[];
   presupuestosPorEstado: { estado: QuoteStatus; total: number }[];
   topProductos: { sku: string; nombre: string; unidades: number }[];
+  /** Solo para admin, contador y consulta. */
+  finanzas?: DashboardFinance;
 }
 
 export type QuoteStatus = "borrador" | "enviado" | "aprobado" | "rechazado" | "entregado" | "vencido";
@@ -182,10 +206,14 @@ export type EjecucionEstado = "ok" | "alerta" | "excedido";
 export interface FinanceCategory {
   id: number;
   nombre: string;
+  /** Código estable de sistema (ventas, costo_ventas, iva_por_pagar, ...). */
+  codigo: string | null;
   tipo: FinanceCategoryTipo;
   activo: number;
   /** 1 = mueve caja/bancos; 0 = asiento informativo (costo de ventas, IVA, etc.). */
   afecta_caja: number;
+  /** 1 = entra al estado de resultados (P&L); 0 = solo caja o balance. */
+  afecta_resultado: number;
   lineas: number;
   transacciones: number;
 }
@@ -283,6 +311,9 @@ export interface FinanceTransaction {
   fecha: string;
   finance_category_id: number;
   categoria: string;
+  codigo: string | null;
+  /** 1 = entra al estado de resultados; 0 = solo caja/balance. */
+  afecta_resultado: number;
   /** 1 = mueve caja/bancos; 0 = asiento informativo que no afecta caja. */
   afecta_caja: number;
   account_id: number;
@@ -329,12 +360,16 @@ export interface FinanceSummary {
   margen_bruto_pct: number;
   iva_por_pagar: number;
   iva_descontable: number;
+  /** IVA por pagar − IVA descontable. Negativo = saldo a favor. */
+  iva_neto: number;
   capital_disponible: number;
   por_categoria: {
     id: number;
     nombre: string;
+    codigo: string | null;
     tipo: FinanceCategoryTipo;
     afecta_caja: number;
+    afecta_resultado: number;
     total: number;
   }[];
 }

@@ -24,7 +24,7 @@ import { getProducts } from "@/services/productsService";
 import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
 import StockTag from "@/components/StockTag";
 import type { QuoteLineForm } from "@/types";
-import { money } from "./QuoteUtils";
+import { money } from "./quoteUtils";
 
 interface ProductOpt {
   id: number;
