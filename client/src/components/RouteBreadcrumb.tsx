@@ -95,6 +95,10 @@ export function getRouteBreadcrumb(pathname: string): BreadcrumbEntry[] | null {
       items.push({ label: "Tendencias", to: "/finanzas/tendencias" });
       return finish();
     }
+    if (sub === "auditoria") {
+      items.push({ label: "Auditoría", to: "/finanzas/auditoria" });
+      return finish();
+    }
     if (sub === "presupuestos") {
       // El detalle del presupuesto también pinta su breadcrumb con el nombre.
       if (parts[2]) return null;

@@ -125,7 +125,7 @@ Los huecos principales eran:
 
 | ID | Mejora | Estado |
 |---|---|---|
-| G1 | Visor de auditoría (`audit_log`) | Pendiente |
+| G1 | Visor de auditoría (`audit_log`) | Hecho |
 | G2 | Panel de salud de datos (asientos huérfanos, stock negativo, sin costo) | Pendiente |
 | G3 | Índices analíticos y pruebas de invariantes contables | Pendiente |
 
@@ -173,3 +173,4 @@ Los huecos principales eran:
 | 2026-11-11 | A2 (rotación y ABC) | — | `/api/finance/inventory-analytics` con rotación, días de inventario, stock muerto configurable y clasificación ABC por ingresos; última venta y alertas de costo faltante; página Rotación |
 | 2026-11-11 | A3 (embudo) | — | `/api/finance/quotes-funnel` con embudo acumulativo creadas → enviadas → aprobadas → entregadas, conversiones, estados actuales, tiempos de aprobación/entrega/ciclo y detalle por cotización; página Embudo |
 | 2026-11-11 | A4 (tendencias) | — | `/api/finance/trends` con serie mensual de resultado (ingresos, costo, margen, gastos, utilidad) y caja (entradas, salidas, neto, saldo acumulado), meses sin movimiento en cero y comparación contra el periodo anterior de igual duración y el mismo rango del año anterior; página Tendencias con gráficos y tabla |
+| 2026-11-11 | G1 (auditoría) | — | `/api/audit` de solo lectura con filtros por entidad, entidad_id, acción, usuario y fechas, paginación, resumen por entidad y valores antes/después; página Auditoría con filas expandibles |

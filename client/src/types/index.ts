@@ -758,6 +758,31 @@ export interface TrendsReport {
   };
 }
 
+// ---------- Auditoría ----------
+
+export type AuditEntity =
+  | "budget"
+  | "transaction"
+  | "account"
+  | "payment"
+  | "period_closure";
+
+export interface AuditEntry {
+  id: number;
+  user_id: number | null;
+  usuario: string | null;
+  entidad: AuditEntity;
+  entidad_id: number;
+  accion: string;
+  antes: Record<string, unknown> | null;
+  despues: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface AuditList extends Paginated<AuditEntry> {
+  resumen_por_entidad: { entidad: AuditEntity; total: number }[];
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;
