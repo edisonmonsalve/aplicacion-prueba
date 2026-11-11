@@ -27,7 +27,7 @@ export async function assertPeriodOpen(conn: PoolConnection, fecha: string) {
 export async function auditFinance(
   conn: PoolConnection,
   userId: number,
-  entidad: "budget" | "transaction" | "account",
+  entidad: "budget" | "transaction" | "account" | "payment",
   entidadId: number,
   accion: string,
   antes: unknown,

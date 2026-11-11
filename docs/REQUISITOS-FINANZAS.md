@@ -49,6 +49,10 @@
 - RF-17: Mantener un maestro de clientes y proveedores con documento, contacto, condición de pago y estado, reutilizable en facturas.
 - RF-18: Vincular una factura a un tercero y definir su condición de pago (contado o crédito) y días de crédito. El vencimiento se calcula automáticamente.
 - RF-19: Consultar los terceros por nombre, documento, email, tipo y estado. El operador puede leerlos para facturar; solo admin y contador los crean o modifican.
+- RF-20: Consultar la cartera de cuentas por cobrar y por pagar con filtros por tipo, estado (pendiente, parcial, pagada, vencida), búsqueda y rango de fechas, y totales de por cobrar, por pagar, neto y vencido.
+- RF-21: Registrar cobros y pagos (totales o parciales) sobre facturas a crédito confirmadas, eligiendo fecha, monto, cuenta y método. El monto no puede superar el saldo pendiente.
+- RF-22: Anular un cobro o pago registrado, generando la contrapartida contable y devolviendo el saldo a la cartera. No se permite anular una factura con pagos válidos.
+- RF-23: Ver en el detalle de la factura el total neto, lo pagado, el saldo pendiente, el estado de cartera y el historial de movimientos.
 
 ## Reglas de negocio
 
@@ -74,13 +78,18 @@
 - RN-15: El tercero se valida por tipo (cliente para venta, proveedor para compra, ambos para los dos). La factura guarda un snapshot editable de nombre y documento.
 - RN-16: El vencimiento de una factura a crédito se calcula como fecha de factura + días de crédito, salvo que se indique una fecha explícita. Las facturas de contado vencen en su fecha.
 - RN-17: No se elimina un tercero con facturas asociadas; se desactiva.
+- RN-18: Las retenciones reducen el total neto de la factura y se reconocen como activo (venta) o pasivo (compra).
 - RN-19: Los informes de resultado usan `afecta_resultado`; los de caja usan `afecta_caja`, respetando el override del asiento (`transactions.afecta_caja`) cuando no es NULL.
 - RN-20: Las categorías de sistema se buscan por `codigo`. Renombrar una categoría no cambia los asientos automáticos ni los informes.
 - RN-21: El IVA no es dinero propio: nunca suma al capital disponible. Se netea por periodo para informar el saldo a favor o a cargo.
+- RN-22: Un pago/cobro no puede superar el saldo pendiente ni registrarse en una factura anulada o en borrador. Solo aplica a facturas a crédito confirmadas.
+- RN-23: Anular un pago o cobro genera una contrapartida de caja y deja el movimiento marcado como anulado; no se borra.
+- RN-24: Una factura con pagos válidos no se anula hasta anular esos pagos.
+- RN-25: La cartera se deriva de facturas confirmadas a crédito menos sus pagos válidos. El estado (pendiente, parcial, pagada, vencida) se calcula, no se guarda duplicado.
 
 ## Supuestos a confirmar
 
-- El ingreso se reconoce al confirmar la factura (devengo). La cartera, los cobros y los pagos parciales se incorporan en la fase C2.
+- El ingreso se reconoce al confirmar la factura (devengo). Los cobros y pagos parciales se registran sobre la cartera (C2) y mueven caja sin volver a afectar el resultado.
 - Una sola empresa por instalación.
 
 # Tablas
@@ -118,3 +127,11 @@
 - condicion_pago: contado | credito; dias_credito y fecha_vencimiento.
 - A crédito no se mueve caja al confirmar: los asientos llevan `afecta_caja = 0` como override.
 - La anulación copia el override a la contrapartida para no alterar el capital.
+
+## invoice_payments — cobros y pagos de cartera
+
+- invoice_id, fecha, monto DECIMAL(18,2), cuenta, método (efectivo, transferencia, tarjeta, otro), referencia y notas.
+- transaction_id vincula el asiento de caja (`cobro_cartera` o `pago_cartera`, `afecta_caja = 1`, sin afectar resultado).
+- estado: valido | anulado; la anulación guarda fecha y usuario y no borra el registro.
+- El saldo pendiente y el estado de cartera se derivan; no se almacenan en la factura.
+- Índices por factura/estado y por fecha para aging y conciliación.

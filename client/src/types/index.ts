@@ -345,7 +345,10 @@ export interface TransactionInput {
 export interface FinanceSummary {
   desde: string;
   hasta: string;
+  /** Entradas reales de caja/bancos (afecta_caja = 1). */
   ingresos: number;
+  /** Ingresos del estado de resultados: incluye ventas a crédito aún no cobradas. */
+  ingresos_totales: number;
   /** Salidas reales de caja/bancos: gastos y compras de activos (afecta_caja = 1). */
   egresos: number;
   /** Compras de inventario: salida de caja registrada como activo, no como gasto. */
@@ -518,8 +521,79 @@ export interface InvoiceDetail extends Invoice {
   notas: string | null;
   quote_numero: string | null;
   created_by: number;
+  /** Total de pagos/cobros válidos aplicados a la factura. */
+  pagado: number;
+  /** Saldo de cartera pendiente (0 si es de contado o está anulada). */
+  saldo_pendiente: number;
+  estado_cartera: CarteraEstado;
   items: InvoiceItem[];
   transacciones: InvoiceTransaction[];
+  pagos: InvoicePayment[];
+}
+
+// ---------- Cartera y pagos ----------
+
+export type CarteraEstado = "pendiente" | "parcial" | "pagada" | "vencida" | "no_aplica";
+export type PaymentMetodo = "efectivo" | "transferencia" | "tarjeta" | "otro";
+
+export interface InvoicePayment {
+  id: number;
+  fecha: string;
+  monto: number;
+  metodo: PaymentMetodo;
+  referencia: string | null;
+  notas: string | null;
+  estado: "valido" | "anulado";
+  cuenta: string | null;
+  creador: string;
+  created_at: string;
+  anulada_at: string | null;
+}
+
+export interface InvoiceReceivable {
+  id: number;
+  tipo: InvoiceTipo;
+  numero: string;
+  fecha: string;
+  contraparte: string;
+  party_id: number | null;
+  condicion_pago: PaymentCondition;
+  dias_credito: number;
+  fecha_vencimiento: string | null;
+  total_neto: number;
+  pagado: number;
+  saldo_pendiente: number;
+  estado_cartera: CarteraEstado;
+  dias_vencido: number;
+}
+
+export interface ReceivablesSummary {
+  por_cobrar: number;
+  por_pagar: number;
+  vencido: number;
+}
+
+export interface ReceivablesQuery {
+  page: number;
+  pageSize: number;
+  q?: string;
+  tipo?: InvoiceTipo;
+  estado?: CarteraEstado;
+  desde?: string;
+  hasta?: string;
+}
+
+export interface PaginatedReceivables extends Paginated<InvoiceReceivable> {
+  resumen: ReceivablesSummary;
+}
+
+export interface PaymentInput {
+  fecha: string;
+  monto: number;
+  account_id?: number | null;
+  metodo?: PaymentMetodo;
+  referencia?: string;
+  notas?: string;
 }
 
 export interface InvoiceItemInput {

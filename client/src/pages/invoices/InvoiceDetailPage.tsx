@@ -7,6 +7,7 @@ import {
   Descriptions,
   Popconfirm,
   Space,
+  Statistic,
   Table,
   Tag,
   Typography,
@@ -15,23 +16,53 @@ import { PrinterOutlined } from "@ant-design/icons";
 import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { cancelInvoice, confirmInvoice, getInvoice } from "@/services/invoicesService";
+import {
+  cancelInvoice,
+  cancelInvoicePayment,
+  confirmInvoice,
+  getInvoice,
+} from "@/services/invoicesService";
 import { getFinanceAccounts } from "@/services/financeService";
-import type { FinanceAccount, InvoiceDetail, InvoiceItem, InvoiceTransaction } from "@/types";
+import { canWriteFinance } from "@/utils/roles";
+import type {
+  FinanceAccount,
+  InvoiceDetail,
+  InvoiceItem,
+  InvoicePayment,
+  InvoiceTransaction,
+} from "@/types";
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
+import PaymentModal from "./PaymentModal";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+
+const CARTERA_META: Record<string, { label: string; color: string }> = {
+  pendiente: { label: "Pendiente", color: "blue" },
+  parcial: { label: "Parcial", color: "gold" },
+  pagada: { label: "Pagada", color: "green" },
+  vencida: { label: "Vencida", color: "red" },
+  no_aplica: { label: "No aplica", color: "default" },
+};
+
+const METODO_LABEL: Record<InvoicePayment["metodo"], string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  tarjeta: "Tarjeta",
+  otro: "Otro",
+};
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const invoiceId = Number(id);
   const navigate = useNavigate();
-  const { canOperate } = useAuth();
+  const { canOperate, user } = useAuth();
+  const canWrite = canWriteFinance(user?.rol);
   const { message, modal } = App.useApp();
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [busy, setBusy] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
 
   useDocumentTitle(invoice?.numero ?? "Factura");
 
@@ -69,6 +100,22 @@ export default function InvoiceDetailPage() {
         ? (e.response?.data as { message?: string } | undefined)?.message
         : undefined;
       message.error(msg ?? "No se pudo completar la acción");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelPayment = async (payment: InvoicePayment) => {
+    setBusy(true);
+    try {
+      await cancelInvoicePayment(invoiceId, payment.id);
+      message.success("Movimiento anulado");
+      await load();
+    } catch (e) {
+      const msg = isAxiosError(e)
+        ? (e.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(msg ?? "No se pudo anular el movimiento");
     } finally {
       setBusy(false);
     }
@@ -301,6 +348,106 @@ export default function InvoiceDetailPage() {
         </div>
       </Card>
 
+      {isConfirmed && esCredito && (
+        <Card
+          title="Cartera y pagos"
+          extra={
+            <Space>
+              <Tag color={CARTERA_META[invoice.estado_cartera]?.color}>
+                {CARTERA_META[invoice.estado_cartera]?.label ?? invoice.estado_cartera}
+              </Tag>
+              {canWrite && (
+                <Button
+                  type="primary"
+                  disabled={busy || invoice.saldo_pendiente <= 0}
+                  onClick={() => setPaymentOpen(true)}
+                >
+                  {invoice.tipo === "venta" ? "Registrar cobro" : "Registrar pago"}
+                </Button>
+              )}
+            </Space>
+          }
+        >
+          <Space size={[32, 12]} wrap style={{ marginBottom: 16 }}>
+            <Statistic title="Total neto" value={invoice.total_neto} precision={2} prefix="$" />
+            <Statistic
+              title="Pagado"
+              value={invoice.pagado}
+              precision={2}
+              prefix="$"
+              valueStyle={{ color: "#389e0d" }}
+            />
+            <Statistic
+              title="Saldo pendiente"
+              value={invoice.saldo_pendiente}
+              precision={2}
+              prefix="$"
+              valueStyle={{ color: invoice.saldo_pendiente > 0 ? "#cf1322" : undefined }}
+            />
+            <Statistic
+              title="Vencimiento"
+              value={invoice.fecha_vencimiento ? fmtDate(invoice.fecha_vencimiento) : "—"}
+            />
+          </Space>
+
+          <Table<InvoicePayment>
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: "max-content" }}
+            dataSource={invoice.pagos}
+            locale={{ emptyText: "Aún no hay cobros ni pagos registrados" }}
+            columns={[
+              { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
+              {
+                title: "Monto",
+                dataIndex: "monto",
+                align: "right",
+                render: (v: number, p) => (
+                  <Typography.Text delete={p.estado === "anulado"}>{money(v)}</Typography.Text>
+                ),
+              },
+              {
+                title: "Método",
+                dataIndex: "metodo",
+                render: (m: InvoicePayment["metodo"]) => METODO_LABEL[m] ?? m,
+              },
+              { title: "Cuenta", dataIndex: "cuenta", render: (v: string | null) => v ?? "—" },
+              { title: "Referencia", dataIndex: "referencia", render: (v: string | null) => v ?? "—" },
+              { title: "Registró", dataIndex: "creador" },
+              {
+                title: "Estado",
+                dataIndex: "estado",
+                render: (e: InvoicePayment["estado"]) =>
+                  e === "valido" ? <Tag color="green">Válido</Tag> : <Tag>Anulado</Tag>,
+              },
+              ...(canWrite
+                ? [
+                    {
+                      title: "",
+                      width: 90,
+                      render: (_: unknown, p: InvoicePayment) =>
+                        p.estado === "valido" ? (
+                          <Popconfirm
+                            title="¿Anular este movimiento?"
+                            description="Se registrará la contrapartida contable y el saldo volverá a la cartera."
+                            okText="Sí, anular"
+                            cancelText="No"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => cancelPayment(p)}
+                          >
+                            <Button size="small" danger disabled={busy}>
+                              Anular
+                            </Button>
+                          </Popconfirm>
+                        ) : null,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </Card>
+      )}
+
       <Card title="Líneas">
         <Table<InvoiceItem>
           rowKey={(r) => String(r.id ?? r.product_id)}
@@ -353,6 +500,17 @@ export default function InvoiceDetailPage() {
           />
         </Card>
       )}
+
+      <PaymentModal
+        open={paymentOpen}
+        invoice={invoice}
+        accounts={accounts}
+        onCancel={() => setPaymentOpen(false)}
+        onSaved={() => {
+          setPaymentOpen(false);
+          load();
+        }}
+      />
     </Space>
   );
 }

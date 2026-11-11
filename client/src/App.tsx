@@ -23,6 +23,7 @@ import FinanceOverviewPage from "@/pages/finance/FinanceOverviewPage";
 import BudgetsPage from "@/pages/finance/BudgetsPage";
 import BudgetDetailPage from "@/pages/finance/BudgetDetailPage";
 import TransactionsPage from "@/pages/finance/TransactionsPage";
+import ReceivablesPage from "@/pages/invoices/ReceivablesPage";
 import RequireOperate from "./components/RequireOperate";
 
 export default function App() {
@@ -80,6 +81,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <BudgetsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/cartera"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <ReceivablesPage />
                 </ProtectedRoute>
               }
             />

@@ -350,6 +350,9 @@ export async function getSummary(query: SummaryQuery) {
     desde,
     hasta,
     ingresos: round2(ingresos),
+    // Ingresos del estado de resultados (incluye ventas a crédito, que aún no
+    // mueven caja). `ingresos` sigue siendo la entrada real de dinero.
+    ingresos_totales: round2(ingresosTotales),
     egresos: round2(egresos),
     compras_inventario: round2(comprasInventario),
     gastos_totales: round2(gastosTotales),

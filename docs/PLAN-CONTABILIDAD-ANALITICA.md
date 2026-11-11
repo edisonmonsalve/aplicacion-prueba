@@ -102,7 +102,7 @@ Los huecos principales eran:
 | ID | Mejora | Estado |
 |---|---|---|
 | C1 | Maestro de terceros (clientes/proveedores) | Hecho |
-| C2 | Cartera CxC/CxP, condiciones de pago y pagos parciales | Pendiente |
+| C2 | Cartera CxC/CxP, condiciones de pago y pagos parciales | Hecho |
 | C3 | Aging, mora, DSO y alertas de cobro | Pendiente |
 | C4 | Retenciones contables (activo/pasivo, no solo informativas) | Pendiente |
 | C5 | Cierre de periodo formal con snapshot y reapertura auditada | Pendiente |
@@ -133,11 +133,11 @@ Los huecos principales eran:
   genera una cuenta por cobrar por `total_neto`.
 - **RN-14**: Una factura de compra a crédito no reduce la caja al confirmarse;
   genera una cuenta por pagar por `total_neto`.
-- **RN-15**: Un pago/cobro no puede superar el saldo pendiente ni registrarse en
+- **RN-22**: Un pago/cobro no puede superar el saldo pendiente ni registrarse en
   una factura anulada o en borrador.
-- **RN-16**: Anular un pago genera una contrapartida de caja y deja el pago
+- **RN-23**: Anular un pago genera una contrapartida de caja y deja el pago
   marcado como anulado; no se borra.
-- **RN-17**: Anular una factura exige que no tenga pagos válidos.
+- **RN-24**: Anular una factura exige que no tenga pagos válidos.
 - **RN-18**: Las retenciones reducen el valor neto de la factura y se reconocen
   como activo (venta) o pasivo (compra).
 - **RN-19**: Los informes usan `afecta_resultado` para el P&L y `afecta_caja`
@@ -160,3 +160,4 @@ Los huecos principales eran:
 | 2026-11-11 | Plan y rama | — | Rama `feat/contabilidad-analitica` creada desde `main` con el PR #27 fusionado |
 | 2026-11-11 | Fase 0 (QW-1..QW-5) | — | Migración `V017`; categorías por código; IVA neto; inventario al costo; dashboard mensual; rango en URL; imports `quoteUtils` normalizados |
 | 2026-11-11 | C1 (terceros) | — | Migración `V018`; CRUD `/api/third-parties`; página Terceros; vínculo `invoices.party_id`; condición de pago y vencimiento; ventas/compras a crédito no mueven caja |
+| 2026-11-11 | C2 (cartera y pagos) | — | Migración `V019`; cartera derivada con pagos parciales y anulación; `/api/invoices/cartera` y `/payments`; página Cartera; tarjeta de pagos en el detalle; `ingresos_totales` en el resumen |

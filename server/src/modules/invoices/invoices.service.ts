@@ -10,6 +10,7 @@ import {
   assertPartyType,
   findThirdPartyForInvoice,
 } from "../third-parties/third-parties.service.js";
+import { invoiceBalance, listInvoicePayments } from "./invoice-payments.service.js";
 import type {
   createInvoiceSchema,
   updateInvoiceSchema,
@@ -275,7 +276,18 @@ export async function getInvoice(id: number) {
      ORDER BY t.id`,
     [id]
   );
-  return { ...rows[0], quote_numero: quoteNumero, items, transacciones };
+  const [balance, pagos] = await Promise.all([
+    invoiceBalance(rows[0] as never),
+    listInvoicePayments(id),
+  ]);
+  return {
+    ...rows[0],
+    ...balance,
+    quote_numero: quoteNumero,
+    items,
+    transacciones,
+    pagos,
+  };
 }
 
 export async function createInvoice(input: InvoiceInput, actor: { id: number }) {
@@ -744,6 +756,18 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
     const inv = rows[0];
     if (!inv) throw new HttpError(404, "Factura no encontrada");
     if (inv.estado !== "confirmada") throw new HttpError(409, "Solo se anulan facturas confirmadas");
+
+    // RN-24: una factura con cobros/pagos válidos no se anula hasta revertirlos.
+    const [[{ pagos }]] = await conn.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS pagos FROM invoice_payments WHERE invoice_id = ? AND estado = 'valido'",
+      [id]
+    );
+    if (pagos > 0) {
+      throw new HttpError(
+        409,
+        `La factura tiene ${pagos} pago(s) válido(s). Anúlalos antes de anular la factura.`
+      );
+    }
 
     const [items] = await conn.query<RowDataPacket[]>(
       "SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id",

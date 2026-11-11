@@ -34,6 +34,7 @@ const { Sider, Header, Content } = Layout;
 const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
   { prefix: "/finanzas/transacciones", key: "/finanzas/transacciones" },
   { prefix: "/finanzas/presupuestos", key: "/finanzas/presupuestos" },
+  { prefix: "/finanzas/cartera", key: "/finanzas/cartera" },
   { prefix: "/finanzas", key: "/finanzas" },
   { prefix: "/cotizaciones", key: "/cotizaciones" },
   { prefix: "/facturas", key: "/facturas" },
@@ -86,6 +87,7 @@ export default function AppLayout() {
             label: "Finanzas",
             children: [
               { key: "/finanzas", label: "Resumen" },
+              { key: "/finanzas/cartera", label: "Cartera" },
               { key: "/finanzas/presupuestos", label: "Presupuestos" },
               { key: "/finanzas/transacciones", label: "Transacciones" },
             ],
