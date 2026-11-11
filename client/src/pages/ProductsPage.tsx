@@ -14,6 +14,7 @@ import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
 import type { Category, Product } from "@/types";
 import { useNavigate } from "react-router-dom";
 import TableSkeleton from "@/components/TableSkeleton";
+import PageHeader from "@/components/PageHeader";
 import MovementFormModal from "@/components/MovementFormModal";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -287,22 +288,22 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>Productos</Typography.Title>
-          <Typography.Text type="secondary">Gestiona el catálogo, precios, costos y stock.</Typography.Text>
-        </div>
-        <Space>
-          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
-            Exportar CSV
-          </Button>
-          {canOperate && (
-            <Button type="primary" onClick={openCreate}>
-              Nuevo producto
+      <PageHeader
+        title="Productos"
+        description="Gestiona el catálogo, precios, costos y stock."
+        extra={
+          <Space>
+            <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+              Exportar CSV
             </Button>
-          )}
-        </Space>
-      </div>
+            {canOperate && (
+              <Button type="primary" onClick={openCreate}>
+                Nuevo producto
+              </Button>
+            )}
+          </Space>
+        }
+      />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>

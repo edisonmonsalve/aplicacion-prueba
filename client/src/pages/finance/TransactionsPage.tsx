@@ -17,6 +17,7 @@ import type {
   FinanceAccount,
 } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
+import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { fetchAllPages, downloadCsv } from "@/utils/csv";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
@@ -317,23 +318,22 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Transacciones</Typography.Title>
-        <Space>
-          <Button icon={<DownloadOutlined />} onClick={exportCsv}>
-            Exportar CSV
-          </Button>
-          {canWrite && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-              Nueva
+      <PageHeader
+        title="Transacciones"
+        description="Registra y consulta los asientos reales. Las transacciones no se editan ni se borran: se anulan con una contrapartida. Los asientos de factura se anulan desde la propia factura."
+        extra={
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={exportCsv}>
+              Exportar CSV
             </Button>
-          )}
-        </Space>
-      </div>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-        Registra y consulta los asientos reales. Las transacciones no se editan ni se borran: se anulan
-        con una contrapartida. Los asientos de factura se anulan desde la propia factura.
-      </Typography.Paragraph>
+            {canWrite && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+                Nueva
+              </Button>
+            )}
+          </Space>
+        }
+      />
 
       <Alert
         type="info"

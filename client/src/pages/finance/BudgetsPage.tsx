@@ -10,6 +10,7 @@ import { money, fmtDate, BudgetEstadoTag, periodLabel } from "./FinanceUtils";
 import { canWriteFinance } from "@/utils/roles";
 import type { BudgetEstado, BudgetListItem, BudgetPeriodo, BudgetSortKey } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
+import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import BudgetFormModal from "./BudgetFormModal";
@@ -216,18 +217,17 @@ export default function BudgetsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Presupuestos</Typography.Title>
-        {canWrite && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            Nuevo
-          </Button>
-        )}
-      </div>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-        Planifica cuánto puedes gastar por periodo, categoría o producto. Solo puede haber un presupuesto activo
-        por periodo.
-      </Typography.Paragraph>
+      <PageHeader
+        title="Presupuestos"
+        description="Planifica cuánto puedes gastar por periodo, categoría o producto. Solo puede haber un presupuesto activo por periodo."
+        extra={
+          canWrite && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+              Nuevo
+            </Button>
+          )
+        }
+      />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>

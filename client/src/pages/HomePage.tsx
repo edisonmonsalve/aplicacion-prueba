@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
+import { Alert, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, SwapOutlined, WarningOutlined } from "@ant-design/icons";
 import {
   Bar,
@@ -23,6 +23,7 @@ import { formatCurrency } from "@/utils/format";
 import { STATUS_OPTIONS } from "@/pages/quotes/QuoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import PageHeader from "@/components/PageHeader";
 
 const HOME_TOOLTIPS: Record<string, string> = {
   "Productos activos": "Productos disponibles para vender u operar. Abre el catálogo filtrado por activos.",
@@ -137,15 +138,10 @@ export default function HomePage() {
 
   return (
     <div>
-      <Typography.Title level={2} style={{ marginBottom: 4 }}>
-        {greeting()}, {user?.nombre}
-      </Typography.Title>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 4 }}>
-        {dayjs().format("dddd, D [de] MMMM")}
-      </Typography.Paragraph>
-      <Typography.Paragraph type="secondary">
-        Resumen de tu inventario, cotizaciones y presupuestos.
-      </Typography.Paragraph>
+      <PageHeader
+        title={`${greeting()}, ${user?.nombre}`}
+        description={`${dayjs().format("dddd, D [de] MMMM")} · Resumen de tu inventario, cotizaciones y presupuestos.`}
+      />
 
       {loading && (
         <Row gutter={[16, 16]}>

@@ -29,6 +29,7 @@ import type { Quote, QuoteSortKey, QuoteStatus } from "@/types";
 import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/QuoteUtils";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
+import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/context/AuthContext";
 
@@ -304,39 +305,26 @@ export default function QuotesPage() {
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Cotizaciones
-          </Typography.Title>
-          <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
-            Crea, envía y da seguimiento a las cotizaciones de tus clientes.
-          </Typography.Text>
-        </div>
-        <Space>
-          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
-            Exportar CSV
-          </Button>
-          {canOperate && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => navigate("/cotizaciones/nuevo")}
-            >
-              Nuevo
+      <PageHeader
+        title="Cotizaciones"
+        description="Crea, envía y da seguimiento a las cotizaciones de tus clientes."
+        extra={
+          <Space>
+            <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+              Exportar CSV
             </Button>
-          )}
-        </Space>
-      </div>
+            {canOperate && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => navigate("/cotizaciones/nuevo")}
+              >
+                Nuevo
+              </Button>
+            )}
+          </Space>
+        }
+      />
 
       <div
         style={{

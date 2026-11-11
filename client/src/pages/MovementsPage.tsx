@@ -27,6 +27,7 @@ import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
 import type { StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
+import PageHeader from "@/components/PageHeader";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const DATE_FMT = "DD/MM/YYYY";
@@ -387,28 +388,15 @@ export default function MovementsPage() {
   return (
     <div>
       {contextHolder}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Movimientos de stock
-          </Typography.Title>
-          <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
-            Consulta el historial de entradas y salidas. El stock solo cambia registrando movimientos.
-          </Typography.Text>
-        </div>
-        <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
-          Exportar CSV
-        </Button>
-      </div>
+      <PageHeader
+        title="Movimientos de stock"
+        description="Consulta el historial de entradas y salidas. El stock solo cambia registrando movimientos."
+        extra={
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+            Exportar CSV
+          </Button>
+        }
+      />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>

@@ -7,6 +7,7 @@ import { listInvoices } from "@/services/invoicesService";
 import type { Invoice, InvoiceEstado, InvoiceSortKey, InvoiceSummary, InvoiceTipo } from "@/types";
 import { ESTADO_OPTIONS, InvoiceEstadoTag, InvoiceTipoTag, TIPO_OPTIONS, fmtDate, money } from "./InvoiceUtils";
 import TableSkeleton from "@/components/TableSkeleton";
+import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/context/AuthContext";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
@@ -180,30 +181,24 @@ export default function InvoicesPage() {
 
   return (
     <>
-      <div
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}
-      >
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Facturas
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            Registra compras y ventas, confirma para actualizar stock y finanzas.
-          </Typography.Text>
-        </div>
-        <Space>
-          <Tooltip title="Exporta todas las facturas que cumplen los filtros, no solo la página visible.">
-            <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
-              Exportar CSV
-            </Button>
-          </Tooltip>
-          {canOperate && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/facturas/nuevo")}>
-              Nueva
-            </Button>
-          )}
-        </Space>
-      </div>
+      <PageHeader
+        title="Facturas"
+        description="Registra compras y ventas, confirma para actualizar stock y finanzas."
+        extra={
+          <Space>
+            <Tooltip title="Exporta todas las facturas que cumplen los filtros, no solo la página visible.">
+              <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+                Exportar CSV
+              </Button>
+            </Tooltip>
+            {canOperate && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/facturas/nuevo")}>
+                Nueva
+              </Button>
+            )}
+          </Space>
+        }
+      />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>

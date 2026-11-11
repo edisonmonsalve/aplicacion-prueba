@@ -98,9 +98,17 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| U1 | Media | Ordenamiento por nombre, correo, rol, estado y fecha de creación. **Implementado** `[API]`: orden en el servidor (`sort`/`order`) persistido en la URL. Exportación CSV pendiente. |
-| U2 | Media | Confirmación de desactivación explicando la pérdida de acceso. |
-| U3 | Baja | Perfil: aclarar que nombre/correo los cambia un administrador y evitar el selector de tema duplicado. |
+| U1 | Media | Ordenamiento por nombre, correo, rol, estado y fecha de creación. **Implementado** `[API]`: orden en el servidor (`sort`/`order`) persistido en la URL. Exportación CSV de todas las páginas del filtro. |
+| U2 | Media | Confirmación de desactivación explicando la pérdida de acceso. **Implementado** con `ConfirmAction`: aviso de pérdida inmediata de acceso y conservación del historial; no permite desactivarse a sí mismo. |
+| U3 | Baja | Perfil: aclarar que nombre/correo los cambia un administrador y evitar el selector de tema duplicado. **Implementado**: nota en el perfil y selector de tema solo en el encabezado. |
+
+## 11. Pase global de jerarquía y espaciado
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| V1 | Media | Cabecera común de página con `PageHeader`: título, descripción corta, acciones a la derecha y etiqueta opcional. **Implementado** en Inicio, Productos, Categorías, Movimientos, Cotizaciones, Facturas, Resumen financiero, Presupuestos, Transacciones, Usuarios y Mi perfil. Unifica el orden visual, la jerarquía (`Title` nivel 3) y el aire inferior (20 px). En móvil las acciones pasan a una línea nueva. |
+| V2 | Baja | Descripciones de página alineadas bajo el título en lugar de párrafos sueltos con márgenes distintos; los filtros conservan 16 px antes de la tabla. **Implementado** en los módulos de listado y resumen. |
+| V3 | Baja | Estado local del tema centralizado en el encabezado; el perfil ya no repite el selector. **Implementado** (ver U3). |
 
 ## Ruta sugerida
 

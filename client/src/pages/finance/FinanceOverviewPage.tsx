@@ -10,6 +10,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { money } from "./FinanceUtils";
 import type { FinanceAccount, FinanceCategoryTipo, FinanceSummary, Suggestion } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import PageHeader from "@/components/PageHeader";
 import AccountFormModal from "./AccountFormModal";
 
 const TIPO_LABEL: Record<FinanceCategoryTipo, string> = {
@@ -101,9 +102,10 @@ export default function FinanceOverviewPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Resumen financiero</Typography.Title>
-        <Space>
+      <PageHeader
+        title="Resumen financiero"
+        description="Consulta los ingresos, egresos, utilidad y capital del periodo, además de las alertas y sugerencias del presupuesto activo."
+        extra={
           <Tooltip title="Rango de fechas que se resume en las tarjetas y tablas">
             <RangePicker
               value={range}
@@ -112,12 +114,8 @@ export default function FinanceOverviewPage() {
               allowClear={false}
             />
           </Tooltip>
-        </Space>
-      </div>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-        Consulta los ingresos, egresos, utilidad y capital del periodo, además de las alertas y sugerencias del
-        presupuesto activo.
-      </Typography.Paragraph>
+        }
+      />
 
       <Alert
         type="info"

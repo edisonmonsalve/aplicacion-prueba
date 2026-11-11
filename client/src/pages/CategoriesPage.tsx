@@ -4,6 +4,7 @@ import type { TableProps } from "antd";
 import { Link } from "react-router-dom";
 import CategoryFormModal from "@/components/CategoryFormModal";
 import ConfirmAction from "@/components/ConfirmAction";
+import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/context/AuthContext";
 import { deleteCategory, getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
@@ -158,30 +159,17 @@ export default function CategoriesPage() {
   return (
     <div>
       {contextHolder}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Categorías
-          </Typography.Title>
-          <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
-            Organiza los productos del catálogo por categorías.
-          </Typography.Text>
-        </div>
-        {isAdmin && (
-          <Button type="primary" onClick={openCreate}>
-            Nueva categoría
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Categorías"
+        description="Organiza los productos del catálogo por categorías."
+        extra={
+          isAdmin && (
+            <Button type="primary" onClick={openCreate}>
+              Nueva categoría
+            </Button>
+          )
+        }
+      />
 
       {categories.length > 0 && (
         <div

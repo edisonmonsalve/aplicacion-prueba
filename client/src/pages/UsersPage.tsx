@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { TableProps } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
 import { getUsers, setUserActivo, type UsersQuery, type UserSortKey } from "@/services/usersService";
@@ -10,8 +11,10 @@ import UserFormModal from "@/components/UserFormModal";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
 import ConfirmAction from "@/components/ConfirmAction";
+import PageHeader from "@/components/PageHeader";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { ROLES, roleColor, roleLabel } from "@/utils/roles";
+import { downloadCsv, fetchAllPages } from "@/utils/csv";
 
 const SORT_KEYS: UserSortKey[] = ["nombre", "email", "rol", "activo", "creado"];
 
@@ -55,6 +58,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -96,6 +100,32 @@ export default function UsersPage() {
   const clearFilters = () => {
     setSearchText("");
     update({ q: undefined, rol: undefined, activo: undefined, page: undefined });
+  };
+
+  // U1: exporta todas las páginas del filtro actual, no solo la visible.
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchAllPages<User>((p) =>
+        getUsers({ ...query, page: p, pageSize: 100 })
+      );
+      downloadCsv(
+        `usuarios-${dayjs().format("YYYY-MM-DD")}.csv`,
+        [
+          { header: "Nombre", value: (u) => u.nombre },
+          { header: "Correo", value: (u) => u.email },
+          { header: "Rol", value: (u) => roleLabel(u.rol) },
+          { header: "Estado", value: (u) => (u.activo ? "Activo" : "Inactivo") },
+          { header: "Creado", value: (u) => dayjs(u.created_at).format("DD/MM/YYYY") },
+        ],
+        all
+      );
+      messageApi.success(`${all.length} usuario(s) exportados`);
+    } catch {
+      messageApi.error("No se pudieron exportar los usuarios");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const toggleActivo = async (u: User) => {
@@ -187,15 +217,22 @@ export default function UsersPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>Usuarios</Typography.Title>
-          <Typography.Text type="secondary">Administra accesos, roles y estado de los usuarios.</Typography.Text>
-        </div>
-        <Button type="primary" onClick={openCreate}>
-          Nuevo usuario
-        </Button>
-      </div>
+      <PageHeader
+        title="Usuarios"
+        description="Administra accesos, roles y estado de los usuarios."
+        extra={
+          <Space>
+            <Tooltip title="Exporta todos los usuarios que cumplen los filtros, no solo la página visible.">
+              <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+                Exportar CSV
+              </Button>
+            </Tooltip>
+            <Button type="primary" onClick={openCreate}>
+              Nuevo usuario
+            </Button>
+          </Space>
+        }
+      />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>
@@ -206,7 +243,7 @@ export default function UsersPage() {
             placeholder="Nombre o correo"
             allowClear
             aria-label="Buscar usuarios"
-value={searchText}
+            value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onSearch={(q) => updateFilters({ q: q || undefined })}
             style={{ width: 280 }}
