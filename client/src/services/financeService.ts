@@ -14,6 +14,7 @@ import type {
   Paginated,
   PaginatedTransactions,
   PnlReport,
+  ProfitabilityReport,
   Suggestion,
   TransactionInput,
   TransactionsQuery,
@@ -59,6 +60,11 @@ export const getCashFlow = async (params: {
 }) => (await api.get<CashFlowReport>("/finance/cash-flow", { params })).data;
 export const getBalance = async (params: { hasta?: string }) =>
   (await api.get<BalanceReport>("/finance/balance", { params })).data;
+export const getProfitability = async (params: {
+  desde?: string;
+  hasta?: string;
+  grupo?: "producto" | "categoria" | "cliente";
+}) => (await api.get<ProfitabilityReport>("/finance/profitability", { params })).data;
 export const getAvailability = async (productId: number) =>
   (await api.get<BudgetAvailability | null>("/finance/availability", { params: { product_id: productId } })).data;
 export const getSuggestions = async () => (await api.get<Suggestion[]>("/finance/suggestions")).data;

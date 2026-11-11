@@ -541,6 +541,39 @@ export interface BalanceReport {
   };
 }
 
+// ---------- Rentabilidad analítica ----------
+
+export type ProfitGroup = "producto" | "categoria" | "cliente";
+
+export interface ProfitabilityRow {
+  key: string;
+  nombre: string;
+  sku: string | null;
+  categoria: string | null;
+  ingresos: number;
+  costo: number;
+  margen: number;
+  margen_pct: number;
+  /** Participación de la línea sobre los ingresos totales del periodo. */
+  participacion: number;
+  unidades: number;
+  facturas: number;
+}
+
+export interface ProfitabilityReport {
+  rango: { desde: string; hasta: string };
+  grupo: ProfitGroup;
+  resumen: {
+    ingresos: number;
+    costo: number;
+    margen: number;
+    margen_pct: number;
+    unidades: number;
+    facturas: number;
+  };
+  data: ProfitabilityRow[];
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

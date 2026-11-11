@@ -25,11 +25,12 @@ import {
   idSchema,
   listBudgetsQuerySchema,
   listTransactionsQuerySchema,
+  profitabilityQuerySchema,
   summaryQuerySchema,
   transactionSchema,
 } from "./finance.schema.js";
 import { getSuggestions } from "./suggestions.service.js";
-import { getBalance, getCashFlow, getPnl } from "./reports.service.js";
+import { getBalance, getCashFlow, getPnl, getProfitability } from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
 
 export const financeRouter = Router();
@@ -126,4 +127,8 @@ financeRouter.get("/cash-flow", async (req, res) => {
 
 financeRouter.get("/balance", async (req, res) => {
   res.json(await getBalance(balanceQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/profitability", async (req, res) => {
+  res.json(await getProfitability(profitabilityQuerySchema.parse(req.query)));
 });

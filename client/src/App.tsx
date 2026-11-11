@@ -27,6 +27,7 @@ import PeriodClosuresPage from "@/pages/finance/PeriodClosuresPage";
 import ProfitLossPage from "@/pages/finance/ProfitLossPage";
 import CashFlowPage from "@/pages/finance/CashFlowPage";
 import BalancePage from "@/pages/finance/BalancePage";
+import ProfitabilityPage from "@/pages/finance/ProfitabilityPage";
 import ReceivablesPage from "@/pages/invoices/ReceivablesPage";
 import RequireOperate from "./components/RequireOperate";
 
@@ -125,6 +126,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <BalancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/rentabilidad"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <ProfitabilityPage />
                 </ProtectedRoute>
               }
             />

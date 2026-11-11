@@ -109,3 +109,7 @@ export const cashFlowQuerySchema = summaryQuerySchema.extend({
 export const balanceQuerySchema = z.object({
   hasta: isoDate.optional(),
 });
+
+export const profitabilityQuerySchema = summaryQuerySchema.extend({
+  grupo: z.enum(["producto", "categoria", "cliente"]).optional(),
+});

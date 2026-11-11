@@ -60,6 +60,7 @@
 - RF-28: Consultar el estado de resultados del periodo con ingresos, costo de ventas, margen bruto, gastos operativos y utilidad, desglosados por categoría y comparados contra el periodo anterior de igual duración, con variación porcentual por línea.
 - RF-29: Consultar el flujo de caja real por cuenta y por mes, con saldo inicial del rango, entradas, salidas, neto y saldo final, y filtro por cuenta.
 - RF-30: Consultar un balance simplificado a una fecha con activo (caja y bancos, inventario al costo, cartera por cobrar, IVA a favor y retenciones a favor), pasivo (cartera por pagar, IVA por pagar y retenciones por pagar), patrimonio y verificación de que activo = pasivo + patrimonio.
+- RF-31: Consultar la rentabilidad de las ventas del periodo agrupada por producto, categoría de producto o cliente, con ingresos sin IVA, costo histórico de ventas, margen, margen porcentual, participación sobre los ingresos, unidades y número de facturas.
 
 ## Reglas de negocio
 
@@ -99,6 +100,7 @@
 - RN-29: El estado de resultados usa solo asientos con `afecta_resultado = 1` (devengo). El costo de ventas se muestra separado de los gastos operativos para calcular el margen bruto; la utilidad es margen bruto − gastos. El comparativo usa el periodo inmediatamente anterior de igual número de días.
 - RN-30: El flujo de caja usa solo asientos con `afecta_caja = 1` (con override). Ingresos y pasivos con impacto de caja suman; gastos y activos restan, igual que el saldo de cuentas. El saldo inicial del rango incluye los movimientos anteriores a la fecha inicial.
 - RN-31: El balance corta caja, cartera, IVA y retenciones a la fecha indicada. El inventario se valora con las existencias y el costo actual del producto (no es un histórico de costos). El IVA se netea: saldo a favor si el descontable supera el por pagar. El patrimonio es la cifra de cuadre (activo − pasivo), no un dato almacenado.
+- RN-32: La rentabilidad se calcula solo con facturas de venta confirmadas y sus asientos vigentes. Ingresos y costo de ventas se toman de `transaction_allocations`, que guarda el reparto por línea con el costo histórico del momento de la venta; no se usa el costo actual del producto. Una factura anulada no entra. El margen es ingresos − costo y la participación se mide sobre los ingresos totales del periodo.
 
 ## Supuestos a confirmar
 

@@ -488,3 +488,174 @@ export async function getBalance(query: BalanceQuery) {
     },
   };
 }
+
+type ProfitGroup = "producto" | "categoria" | "cliente";
+
+interface ProfitabilityQuery {
+  desde?: string;
+  hasta?: string;
+  grupo?: ProfitGroup;
+}
+
+interface ProfitRow {
+  key: string;
+  nombre: string;
+  sku: string | null;
+  categoria: string | null;
+  ingresos: number;
+  costo: number;
+  margen: number;
+  margen_pct: number;
+  /** Participación sobre los ingresos totales del periodo. */
+  participacion: number;
+  unidades: number;
+  facturas: number;
+}
+
+/**
+ * Agrupaciones disponibles para la rentabilidad.
+ *
+ * `key` es estable para React y para comparar entre consultas: usa el id del
+ * producto/categoría/tercero y cae al texto de la contraparte solo cuando la
+ * factura no tiene tercero vinculado.
+ */
+const PROFIT_GROUPS: Record<
+  ProfitGroup,
+  { key: string; nombre: string; sku: string; categoria: string }
+> = {
+  producto: {
+    key: "CONCAT('producto:', ii.product_id)",
+    nombre: "p.nombre",
+    sku: "p.sku",
+    categoria: "c.nombre",
+  },
+  categoria: {
+    key: "CONCAT('categoria:', p.category_id)",
+    nombre: "c.nombre",
+    sku: "NULL",
+    categoria: "NULL",
+  },
+  cliente: {
+    key:
+      "CASE WHEN i.party_id IS NOT NULL " +
+      "THEN CONCAT('tercero:', i.party_id) " +
+      "ELSE CONCAT('contraparte:', i.contraparte) END",
+    nombre: "COALESCE(tp.nombre, i.contraparte)",
+    sku: "NULL",
+    categoria: "NULL",
+  },
+};
+
+/**
+ * Rentabilidad por producto, categoría o cliente.
+ *
+ * Se apoya en `transaction_allocations`: al confirmar una venta, el ingreso y
+ * el costo de ventas se reparten por línea de factura con el costo histórico
+ * del momento. Así el margen no depende del costo actual del producto ni se
+ * distorsiona si luego cambia. Solo entran facturas de venta confirmadas y
+ * asientos vigentes (sin anulaciones).
+ */
+export async function getProfitability(query: ProfitabilityQuery) {
+  const hasta = query.hasta ?? today();
+  const desde = query.desde ?? `${hasta.slice(0, 7)}-01`;
+  if (desde > hasta) {
+    throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
+  }
+  const grupo = query.grupo ?? "producto";
+  const g = PROFIT_GROUPS[grupo];
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT ${g.key} AS grupo_key,
+            MAX(${g.nombre}) AS nombre,
+            MAX(${g.sku}) AS sku,
+            MAX(${g.categoria}) AS categoria,
+            COALESCE(SUM(CASE WHEN fc.codigo = 'ventas'
+                              THEN a.monto ELSE 0 END), 0) AS ingresos,
+            COALESCE(SUM(CASE WHEN fc.codigo = 'costo_ventas'
+                              THEN a.monto ELSE 0 END), 0) AS costo,
+            COALESCE(SUM(CASE WHEN fc.codigo = 'ventas'
+                              THEN ii.cantidad ELSE 0 END), 0) AS unidades,
+            COUNT(DISTINCT CASE WHEN fc.codigo = 'ventas'
+                                THEN i.id END) AS facturas
+     FROM transaction_allocations a
+     JOIN transactions t ON t.id = a.transaction_id
+     JOIN finance_categories fc ON fc.id = t.finance_category_id
+     JOIN invoice_items ii ON ii.id = a.invoice_item_id
+     JOIN invoices i ON i.id = ii.invoice_id
+     JOIN products p ON p.id = ii.product_id
+     LEFT JOIN categories c ON c.id = p.category_id
+     LEFT JOIN third_parties tp ON tp.id = i.party_id
+     WHERE i.tipo = 'venta'
+       AND i.estado = 'confirmada'
+       AND i.fecha BETWEEN ? AND ?
+       AND ${VALID_TRANSACTION}
+       AND fc.codigo IN ('ventas', 'costo_ventas')
+     GROUP BY grupo_key`,
+    [desde, hasta]
+  );
+
+  const sinTotales = rows.map((r) => {
+    const ingresos = roundMoney(Number(r.ingresos));
+    const costo = roundMoney(Number(r.costo));
+    const margen = roundMoney(ingresos - costo);
+    return {
+      key: String(r.grupo_key),
+      nombre: String(r.nombre ?? "Sin nombre"),
+      sku: r.sku ?? null,
+      categoria: r.categoria ?? null,
+      ingresos,
+      costo,
+      margen,
+      margen_pct: pctOf(margen, ingresos),
+      participacion: 0,
+      unidades: Number(r.unidades),
+      facturas: Number(r.facturas),
+    };
+  });
+
+  const totalIngresos = roundMoney(sinTotales.reduce((s, r) => s + r.ingresos, 0));
+  const totalCosto = roundMoney(sinTotales.reduce((s, r) => s + r.costo, 0));
+  const totalMargen = roundMoney(totalIngresos - totalCosto);
+
+  // Las facturas se cuentan una sola vez aunque una venta tenga líneas en
+  // varios productos, categorías o clientes.
+  const [facturaRows] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(DISTINCT i.id) AS facturas
+     FROM invoices i
+     WHERE i.tipo = 'venta'
+       AND i.estado = 'confirmada'
+       AND i.fecha BETWEEN ? AND ?
+       AND EXISTS (
+         SELECT 1
+         FROM invoice_items ii
+         JOIN transaction_allocations a ON a.invoice_item_id = ii.id
+         JOIN transactions t ON t.id = a.transaction_id
+         JOIN finance_categories fc ON fc.id = t.finance_category_id
+         WHERE ii.invoice_id = i.id
+           AND fc.codigo = 'ventas'
+           AND ${VALID_TRANSACTION}
+       )`,
+    [desde, hasta]
+  );
+
+  const data: ProfitRow[] = sinTotales
+    .map((r) => ({
+      ...r,
+      participacion: pctOf(r.ingresos, totalIngresos),
+    }))
+    .sort((a, b) => b.margen - a.margen || b.ingresos - a.ingresos || a.nombre.localeCompare(b.nombre));
+
+  return {
+    rango: { desde, hasta },
+    grupo,
+    resumen: {
+      ingresos: totalIngresos,
+      costo: totalCosto,
+      margen: totalMargen,
+      margen_pct: pctOf(totalMargen, totalIngresos),
+      unidades: data.reduce((s, r) => s + r.unidades, 0),
+      facturas: Number(facturaRows[0]?.facturas ?? 0),
+    },
+    data,
+  };
+}

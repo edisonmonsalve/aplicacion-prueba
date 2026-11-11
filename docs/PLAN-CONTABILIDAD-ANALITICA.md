@@ -116,7 +116,7 @@ Los huecos principales eran:
 | R1 | Estado de resultados (P&L) por periodo y comparativo | Hecho |
 | R2 | Flujo de caja por cuenta y por mes | Hecho |
 | R3 | Balance simplificado (caja, inventario, cartera, impuestos) | Hecho |
-| A1 | Rentabilidad por producto, categoría y cliente | Pendiente |
+| A1 | Rentabilidad por producto, categoría y cliente | Hecho |
 | A2 | Rotación, días de inventario, stock muerto y ABC | Pendiente |
 | A3 | Embudo de cotizaciones y tiempo de cierre | Pendiente |
 | A4 | Tendencias mensuales y comparación de periodos | Pendiente |
@@ -169,3 +169,4 @@ Los huecos principales eran:
 | 2026-11-11 | R1 (P&L) | — | `/api/finance/pnl`; ingresos, costo de ventas, margen bruto, gastos operativos y utilidad por categoría; comparativo contra el periodo anterior con variaciones; página Resultados |
 | 2026-11-11 | R2 (flujo de caja) | — | `/api/finance/cash-flow`; saldo inicial del rango, entradas, salidas y neto por cuenta y por mes, con filtro por cuenta y meses sin movimiento en cero; página Flujo de caja |
 | 2026-11-11 | R3 (balance) | — | `/api/finance/balance`; activo (caja, inventario al costo, cartera, IVA y retenciones a favor), pasivo, patrimonio derivado y ecuación de cuadre; página Balance a una fecha |
+| 2026-11-11 | A1 (rentabilidad) | — | `/api/finance/profitability` por producto, categoría y cliente usando `transaction_allocations` con costo histórico; margen, participación, unidades y facturas; página Rentabilidad |
