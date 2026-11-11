@@ -119,6 +119,7 @@ export default function CategoriesPage() {
           {
             title: "Acciones",
             width: 190,
+            fixed: "right" as const,
             render: (_: unknown, c: Category) => (
               <Space size={4}>
                 <Tooltip title="Editar el nombre de la categoría">

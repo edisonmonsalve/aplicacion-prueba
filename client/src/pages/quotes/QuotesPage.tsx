@@ -263,6 +263,7 @@ export default function QuotesPage() {
       key: "acciones",
       width: 72,
       align: "center",
+      fixed: "right" as const,
       render: (_, r) => (
         <Dropdown
           trigger={["click"]}

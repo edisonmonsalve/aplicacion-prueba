@@ -264,6 +264,9 @@ export default function ProductsPage() {
     },
     {
       title: "Acciones",
+      key: "acciones",
+      width: 140,
+      fixed: "right" as const,
       render: (_, p) => (
         <Space size={4}>
           {canOperate && (

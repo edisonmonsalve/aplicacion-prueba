@@ -304,6 +304,8 @@ export default function FinanceOverviewPage() {
                   {
                     title: <Tooltip title="Acciones">Acciones</Tooltip>,
                     key: "actions",
+                    width: 96,
+                    fixed: "right" as const,
                     render: (_: unknown, a: FinanceAccount) => (
                       <Space>
                         <Tooltip title="Editar nombre, tipo, saldo inicial o estado">

@@ -273,6 +273,8 @@ export default function TransactionsPage() {
     {
       title: <Tooltip title="Acciones disponibles">Acciones</Tooltip>,
       key: "actions",
+      width: 120,
+      fixed: "right" as const,
       render: (_: unknown, r: FinanceTransaction) => {
         const automatic = r.invoice_id !== null || r.quote_id !== null || r.stock_movement_id !== null;
         if (!canWrite || r.anulada_de !== null || r.anulada) return null;

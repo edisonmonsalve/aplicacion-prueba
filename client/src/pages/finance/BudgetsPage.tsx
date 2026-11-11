@@ -203,6 +203,8 @@ export default function BudgetsPage() {
     {
       title: "",
       key: "actions",
+      width: 90,
+      fixed: "right" as const,
       render: (_: unknown, r: BudgetListItem) => (
         <Tooltip title="Ver el detalle y la ejecución del presupuesto">
           <Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/finanzas/presupuestos/${r.id}`)}>

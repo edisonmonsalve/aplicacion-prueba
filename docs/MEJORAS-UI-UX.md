@@ -109,6 +109,9 @@ un cambio pequeño en el servidor.
 | V1 | Media | Cabecera común de página con `PageHeader`: título, descripción corta, acciones a la derecha y etiqueta opcional. **Implementado** en Inicio, Productos, Categorías, Movimientos, Cotizaciones, Facturas, Resumen financiero, Presupuestos, Transacciones, Usuarios, Mi perfil y en los detalles de factura, cotización y presupuesto. Unifica el orden visual, la jerarquía (`Title` nivel 3) y el aire inferior (20 px). En móvil las acciones pasan a una línea nueva. |
 | V2 | Baja | Descripciones de página alineadas bajo el título en lugar de párrafos sueltos con márgenes distintos; los filtros conservan 16 px antes de la tabla. **Implementado** en los módulos de listado y resumen. |
 | V3 | Baja | Estado local del tema centralizado en el encabezado; el perfil ya no repite el selector. **Implementado** (ver U3). |
+| V4 | Media | Tablas: contener el ancho en móvil (`scroll.x`) y fijar la columna de acciones a la derecha para que no quede fuera de pantalla en tablas anchas. **Implementado** en Productos, Categorías, Cotizaciones, Transacciones, Presupuestos, Cuentas y Usuarios. |
+
+QA visual con capturas reales en 1440×900 y 390×844 sobre las 14 vistas principales: sin errores de runtime; se corrigieron el desborde de la tabla de Usuarios en móvil y las acciones fuera de pantalla en Productos y Transacciones.
 
 ## Ruta sugerida
 

@@ -181,6 +181,9 @@ export default function UsersPage() {
     },
     {
       title: "Acciones",
+      key: "acciones",
+      width: 170,
+      fixed: "right" as const,
       render: (_, u) => (
         <Space>
           <Tooltip title="Editar los datos del usuario">
@@ -289,6 +292,7 @@ export default function UsersPage() {
           columns={columns}
           dataSource={users}
           loading={loading}
+          scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
               <Empty
