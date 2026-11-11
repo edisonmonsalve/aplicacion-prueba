@@ -62,6 +62,7 @@
 - RF-30: Consultar un balance simplificado a una fecha con activo (caja y bancos, inventario al costo, cartera por cobrar, IVA a favor y retenciones a favor), pasivo (cartera por pagar, IVA por pagar y retenciones por pagar), patrimonio y verificación de que activo = pasivo + patrimonio.
 - RF-31: Consultar la rentabilidad de las ventas del periodo agrupada por producto, categoría de producto o cliente, con ingresos sin IVA, costo histórico de ventas, margen, margen porcentual, participación sobre los ingresos, unidades y número de facturas.
 - RF-32: Consultar la rotación de inventario, los días de inventario, el stock muerto con umbral configurable y la clasificación ABC por ingresos, con la última venta y los productos sin costo definido.
+- RF-33: Consultar el embudo de cotizaciones creadas en un periodo (creadas, enviadas, aprobadas y entregadas), sus tasas de conversión, los estados actuales y los tiempos promedio de aprobación, entrega y ciclo completo, con el detalle por cotización.
 
 ## Reglas de negocio
 
@@ -103,6 +104,7 @@
 - RN-31: El balance corta caja, cartera, IVA y retenciones a la fecha indicada. El inventario se valora con las existencias y el costo actual del producto (no es un histórico de costos). El IVA se netea: saldo a favor si el descontable supera el por pagar. El patrimonio es la cifra de cuadre (activo − pasivo), no un dato almacenado.
 - RN-32: La rentabilidad se calcula solo con facturas de venta confirmadas y sus asientos vigentes. Ingresos y costo de ventas se toman de `transaction_allocations`, que guarda el reparto por línea con el costo histórico del momento de la venta; no se usa el costo actual del producto. Una factura anulada no entra. El margen es ingresos − costo y la participación se mide sobre los ingresos totales del periodo.
 - RN-33: La rotación es costo de ventas del periodo / valor del inventario actual al costo. Como no se guardan fotos históricas de existencias, el denominador es el inventario de hoy; los días de inventario son días del periodo / rotación. El stock muerto son productos con existencias y sin ventas en el umbral de días indicado (por defecto 90). El ABC se calcula por ingresos acumulados: A hasta 80 %, B hasta 95 %, C el resto; los productos sin ventas en el periodo son C.
+- RN-34: El embudo filtra cotizaciones por fecha de creación y es acumulativo: una cotización entregada también cuenta como enviada y aprobada. La conversión se mide contra la etapa anterior y contra el total creado. Los tiempos salen del historial de estados (creación → aprobación, aprobación → entrega y ciclo completo) y solo promedian las cotizaciones que alcanzaron la etapa; se informa la muestra. El estado actual aplica la regla de vencimiento de la cotización.
 
 ## Supuestos a confirmar
 

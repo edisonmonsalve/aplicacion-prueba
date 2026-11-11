@@ -16,6 +16,7 @@ import type {
   PaginatedTransactions,
   PnlReport,
   ProfitabilityReport,
+  QuoteFunnelReport,
   Suggestion,
   TransactionInput,
   TransactionsQuery,
@@ -71,6 +72,8 @@ export const getInventoryAnalytics = async (params: {
   hasta?: string;
   dias_muerto?: number;
 }) => (await api.get<InventoryAnalyticsReport>("/finance/inventory-analytics", { params })).data;
+export const getQuoteFunnel = async (params: { desde?: string; hasta?: string }) =>
+  (await api.get<QuoteFunnelReport>("/finance/quotes-funnel", { params })).data;
 export const getAvailability = async (productId: number) =>
   (await api.get<BudgetAvailability | null>("/finance/availability", { params: { product_id: productId } })).data;
 export const getSuggestions = async () => (await api.get<Suggestion[]>("/finance/suggestions")).data;

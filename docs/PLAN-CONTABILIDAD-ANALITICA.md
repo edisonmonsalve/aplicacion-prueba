@@ -118,7 +118,7 @@ Los huecos principales eran:
 | R3 | Balance simplificado (caja, inventario, cartera, impuestos) | Hecho |
 | A1 | Rentabilidad por producto, categoría y cliente | Hecho |
 | A2 | Rotación, días de inventario, stock muerto y ABC | Hecho |
-| A3 | Embudo de cotizaciones y tiempo de cierre | Pendiente |
+| A3 | Embudo de cotizaciones y tiempo de cierre | Hecho |
 | A4 | Tendencias mensuales y comparación de periodos | Pendiente |
 
 ### Fase 3 — Gobierno del dato
@@ -171,3 +171,4 @@ Los huecos principales eran:
 | 2026-11-11 | R3 (balance) | — | `/api/finance/balance`; activo (caja, inventario al costo, cartera, IVA y retenciones a favor), pasivo, patrimonio derivado y ecuación de cuadre; página Balance a una fecha |
 | 2026-11-11 | A1 (rentabilidad) | — | `/api/finance/profitability` por producto, categoría y cliente usando `transaction_allocations` con costo histórico; margen, participación, unidades y facturas; página Rentabilidad |
 | 2026-11-11 | A2 (rotación y ABC) | — | `/api/finance/inventory-analytics` con rotación, días de inventario, stock muerto configurable y clasificación ABC por ingresos; última venta y alertas de costo faltante; página Rotación |
+| 2026-11-11 | A3 (embudo) | — | `/api/finance/quotes-funnel` con embudo acumulativo creadas → enviadas → aprobadas → entregadas, conversiones, estados actuales, tiempos de aprobación/entrega/ciclo y detalle por cotización; página Embudo |

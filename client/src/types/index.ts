@@ -633,6 +633,78 @@ export interface InventoryAnalyticsReport {
   data: InventoryAnalyticsRow[];
 }
 
+// ---------- Embudo de cotizaciones ----------
+
+export type QuoteFunnelStageName = "creadas" | "enviadas" | "aprobadas" | "entregadas";
+
+export interface QuoteFunnelStage {
+  etapa: QuoteFunnelStageName;
+  cotizaciones: number;
+  monto: number;
+  /** Conversión contra la etapa anterior. */
+  tasa_conversion: number;
+  /** Conversión contra el total de cotizaciones creadas. */
+  tasa_global: number;
+}
+
+export type QuoteFunnelState =
+  | "borrador"
+  | "enviado"
+  | "vencido"
+  | "aprobado"
+  | "rechazado"
+  | "entregado";
+
+export interface QuoteFunnelStateRow {
+  estado: QuoteFunnelState;
+  cotizaciones: number;
+  monto: number;
+  participacion: number;
+}
+
+export interface QuoteFunnelTime {
+  promedio: number | null;
+  muestra: number;
+  minimo: number | null;
+  maximo: number | null;
+}
+
+export interface QuoteFunnelDetail {
+  id: number;
+  cliente: string;
+  total: number;
+  estado: QuoteFunnelState;
+  creado_at: string;
+  aprobado_at: string | null;
+  entregado_at: string | null;
+  dias_aprobacion: number | null;
+  dias_entrega: number | null;
+  dias_ciclo: number | null;
+}
+
+export interface QuoteFunnelReport {
+  rango: { desde: string; hasta: string };
+  resumen: {
+    cotizaciones: number;
+    monto: number;
+    enviadas: number;
+    aprobadas: number;
+    entregadas: number;
+    rechazadas: number;
+    tasa_aprobacion: number;
+    tasa_cierre: number;
+    ticket_promedio: number;
+  };
+  embudo: QuoteFunnelStage[];
+  estados: QuoteFunnelStateRow[];
+  tiempos: {
+    aprobacion: QuoteFunnelTime;
+    entrega: QuoteFunnelTime;
+    ciclo: QuoteFunnelTime;
+  };
+  detalle: QuoteFunnelDetail[];
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

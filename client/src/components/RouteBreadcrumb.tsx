@@ -87,6 +87,10 @@ export function getRouteBreadcrumb(pathname: string): BreadcrumbEntry[] | null {
       items.push({ label: "Rotación", to: "/finanzas/inventario" });
       return finish();
     }
+    if (sub === "embudo") {
+      items.push({ label: "Embudo", to: "/finanzas/embudo" });
+      return finish();
+    }
     if (sub === "presupuestos") {
       // El detalle del presupuesto también pinta su breadcrumb con el nombre.
       if (parts[2]) return null;

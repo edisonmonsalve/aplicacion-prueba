@@ -31,7 +31,7 @@ import {
   transactionSchema,
 } from "./finance.schema.js";
 import { getSuggestions } from "./suggestions.service.js";
-import { getBalance, getCashFlow, getPnl, getProfitability, getInventoryAnalytics } from "./reports.service.js";
+import { getBalance, getCashFlow, getPnl, getProfitability, getInventoryAnalytics, getQuoteFunnel } from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
 
 export const financeRouter = Router();
@@ -136,4 +136,8 @@ financeRouter.get("/profitability", async (req, res) => {
 
 financeRouter.get("/inventory-analytics", async (req, res) => {
   res.json(await getInventoryAnalytics(inventoryAnalyticsQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/quotes-funnel", async (req, res) => {
+  res.json(await getQuoteFunnel(summaryQuerySchema.parse(req.query)));
 });

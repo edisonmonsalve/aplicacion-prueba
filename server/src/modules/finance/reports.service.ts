@@ -873,3 +873,198 @@ export async function getInventoryAnalytics(query: InventoryAnalyticsQuery) {
     data,
   };
 }
+
+interface QuoteFunnelQuery {
+  desde?: string;
+  hasta?: string;
+}
+
+type QuoteState =
+  | "borrador"
+  | "enviado"
+  | "vencido"
+  | "aprobado"
+  | "rechazado"
+  | "entregado";
+
+interface QuoteFunnelRow {
+  id: number;
+  cliente: string;
+  total: number;
+  estado: QuoteState;
+  creado_at: string;
+  aprobado_at: string | null;
+  entregado_at: string | null;
+  dias_aprobacion: number | null;
+  dias_entrega: number | null;
+  dias_ciclo: number | null;
+}
+
+const dateOnly = (value: unknown): string | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
+};
+
+const average = (values: number[]) => ({
+  promedio: values.length
+    ? roundMoney(values.reduce((s, v) => s + v, 0) / values.length)
+    : null,
+  muestra: values.length,
+  minimo: values.length ? Math.min(...values) : null,
+  maximo: values.length ? Math.max(...values) : null,
+});
+
+/**
+ * Embudo de cotizaciones y tiempos de cierre.
+ *
+ * Las cotizaciones se filtran por fecha de creación. El embudo es acumulativo:
+ * una cotización entregada también cuenta como enviada y aprobada. La
+ * conversión se mide contra la etapa anterior y contra el total creado.
+ *
+ * Los tiempos salen de `quote_status_history`: creación → aprobación, aprobación
+ * → entrega y ciclo completo creación → entrega. Solo se promedian las
+ * cotizaciones que alcanzaron la etapa, por lo que se informa la muestra.
+ */
+export async function getQuoteFunnel(query: QuoteFunnelQuery) {
+  const hasta = query.hasta ?? today();
+  const desde = query.desde ?? `${hasta.slice(0, 7)}-01`;
+  if (desde > hasta) {
+    throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
+  }
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT q.id,
+            q.customer_nombre,
+            q.total,
+            DATE(q.created_at) AS creado_at,
+            MIN(CASE WHEN h.estado_nuevo = 'enviado'
+                     THEN DATE(h.created_at) END) AS enviado_at,
+            MIN(CASE WHEN h.estado_nuevo = 'aprobado'
+                     THEN DATE(h.created_at) END) AS aprobado_at,
+            MIN(CASE WHEN h.estado_nuevo = 'rechazado'
+                     THEN DATE(h.created_at) END) AS rechazado_at,
+            MIN(CASE WHEN h.estado_nuevo = 'entregado'
+                     THEN DATE(h.created_at) END) AS entregado_at,
+            CASE WHEN q.estado = 'enviado' AND q.fecha_validez < ?
+                 THEN 'vencido' ELSE q.estado END AS estado
+     FROM quotes q
+     LEFT JOIN quote_status_history h ON h.quote_id = q.id
+     WHERE DATE(q.created_at) BETWEEN ? AND ?
+     GROUP BY q.id, q.customer_nombre, q.total, q.created_at, q.estado,
+              q.fecha_validez
+     ORDER BY q.created_at DESC, q.id DESC`,
+    [today(), desde, hasta]
+  );
+
+  const detalle: QuoteFunnelRow[] = rows.map((r) => {
+    const creado = dateOnly(r.creado_at)!;
+    const aprobado = dateOnly(r.aprobado_at);
+    const entregado = dateOnly(r.entregado_at);
+    return {
+      id: Number(r.id),
+      cliente: String(r.customer_nombre),
+      total: roundMoney(Number(r.total)),
+      estado: String(r.estado) as QuoteState,
+      creado_at: creado,
+      aprobado_at: aprobado,
+      entregado_at: entregado,
+      dias_aprobacion: aprobado ? daysBetween(creado, aprobado) : null,
+      dias_entrega:
+        aprobado && entregado ? daysBetween(aprobado, entregado) : null,
+      dias_ciclo: entregado ? daysBetween(creado, entregado) : null,
+    };
+  });
+
+  const alcanzo = (estado: QuoteState, etapa: "enviado" | "aprobado" | "entregado") => {
+    const idx = ["borrador", "enviado", "aprobado", "entregado"].indexOf(estado);
+    const target = { enviado: 1, aprobado: 2, entregado: 3 }[etapa];
+    return idx >= target;
+  };
+
+  const creadas = detalle;
+  // Rechazadas y vencidas también pasaron por envío. Se consideran enviadas si
+  // su estado actual no es borrador o si tienen historial de una etapa posterior.
+  const enviadasReal = detalle.filter(
+    (q) => q.estado !== "borrador" || q.aprobado_at !== null || q.entregado_at !== null
+  );
+  const aprobadas = detalle.filter(
+    (q) => q.estado === "aprobado" || q.estado === "entregado" || q.aprobado_at !== null
+  );
+  const entregadas = detalle.filter(
+    (q) => q.estado === "entregado" || q.entregado_at !== null
+  );
+
+  const monto = (items: QuoteFunnelRow[]) =>
+    roundMoney(items.reduce((s, q) => s + q.total, 0));
+  const rate = (part: number, whole: number) =>
+    whole > 0 ? roundMoney((part / whole) * 100) : 0;
+
+  const etapas = [
+    { etapa: "creadas", cotizaciones: creadas.length, monto: monto(creadas) },
+    { etapa: "enviadas", cotizaciones: enviadasReal.length, monto: monto(enviadasReal) },
+    { etapa: "aprobadas", cotizaciones: aprobadas.length, monto: monto(aprobadas) },
+    { etapa: "entregadas", cotizaciones: entregadas.length, monto: monto(entregadas) },
+  ] as const;
+
+  const embudo = etapas.map((stage, index) => {
+    const anterior = index === 0 ? stage.cotizaciones : etapas[index - 1].cotizaciones;
+    return {
+      ...stage,
+      tasa_conversion:
+        index === 0 ? 100 : rate(stage.cotizaciones, anterior),
+      tasa_global: rate(stage.cotizaciones, creadas.length),
+    };
+  });
+
+  const estados = (["borrador", "enviado", "vencido", "aprobado", "rechazado", "entregado"] as const)
+    .map((estado) => {
+      const items = detalle.filter((q) => q.estado === estado);
+      return {
+        estado,
+        cotizaciones: items.length,
+        monto: monto(items),
+        participacion: rate(items.length, detalle.length),
+      };
+    })
+    .filter((e) => e.cotizaciones > 0);
+
+  const rechazadas = detalle.filter(
+    (q) => q.estado === "rechazado"
+  );
+
+  const tiempos = {
+    aprobacion: average(
+      detalle
+        .map((q) => q.dias_aprobacion)
+        .filter((d): d is number => d !== null)
+    ),
+    entrega: average(
+      detalle.map((q) => q.dias_entrega).filter((d): d is number => d !== null)
+    ),
+    ciclo: average(
+      detalle.map((q) => q.dias_ciclo).filter((d): d is number => d !== null)
+    ),
+  };
+
+  return {
+    rango: { desde, hasta },
+    resumen: {
+      cotizaciones: detalle.length,
+      monto: monto(detalle),
+      enviadas: enviadasReal.length,
+      aprobadas: aprobadas.length,
+      entregadas: entregadas.length,
+      rechazadas: rechazadas.length,
+      tasa_aprobacion: rate(aprobadas.length, enviadasReal.length),
+      tasa_cierre: rate(entregadas.length, creadas.length),
+      ticket_promedio: detalle.length
+        ? roundMoney(monto(detalle) / detalle.length)
+        : 0,
+    },
+    embudo,
+    estados,
+    tiempos,
+    detalle,
+  };
+}
