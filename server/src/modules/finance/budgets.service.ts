@@ -195,6 +195,23 @@ export async function listBudgets(query: BudgetListQuery) {
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  // Solo expresiones conocidas: nunca se interpola el valor recibido.
+  const sortColumns: Record<string, string> = {
+    nombre: "b.nombre",
+    periodo: "b.tipo_periodo",
+    inicio: "b.fecha_inicio",
+    estado: "b.estado",
+    lineas: "(SELECT COUNT(*) FROM budget_lines bl WHERE bl.budget_id = b.id)",
+    planeado:
+      "(SELECT COALESCE(SUM(bl.monto_planeado), 0) FROM budget_lines bl WHERE bl.budget_id = b.id)",
+    meta: "b.ingreso_meta",
+    creador: "u.nombre",
+  };
+  const sortAllowed = query.sort ? sortColumns[query.sort] : undefined;
+  const orderBy = sortAllowed
+    ? `${sortAllowed} ${query.order === "desc" ? "DESC" : "ASC"}, b.id DESC`
+    : "b.fecha_inicio DESC, b.id DESC";
+
   const [[{ total }]] = await pool.query<RowDataPacket[]>(
     `SELECT COUNT(*) AS total FROM budgets b ${clause}`,
     params
@@ -210,7 +227,7 @@ export async function listBudgets(query: BudgetListQuery) {
      FROM budgets b
      JOIN users u ON u.id = b.created_by
      ${clause}
-     ORDER BY b.fecha_inicio DESC, b.id DESC
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );

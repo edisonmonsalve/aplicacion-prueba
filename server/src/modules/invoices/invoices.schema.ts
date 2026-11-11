@@ -63,6 +63,10 @@ export const listQuerySchema = z.object({
   desde: z.string().optional(),
   hasta: z.string().optional(),
   q: z.string().trim().optional(),
+  sort: z
+    .enum(["numero", "tipo", "contraparte", "estado", "fecha", "total", "creador"])
+    .optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });
 
 export const idSchema = z.object({ id: z.coerce.number().int().positive() });

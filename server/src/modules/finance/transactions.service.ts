@@ -56,6 +56,21 @@ export async function listTransactions(query: TransactionListQuery) {
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  // Solo columnas conocidas: nunca se interpola el valor recibido.
+  const sortColumns: Record<string, string> = {
+    fecha: "t.fecha",
+    tipo: "t.tipo",
+    categoria: "fc.nombre",
+    cuenta: "fa.nombre",
+    producto: "p.nombre",
+    monto: "t.monto",
+    creador: "u.nombre",
+  };
+  const sortAllowed = query.sort ? sortColumns[query.sort] : undefined;
+  const orderBy = sortAllowed
+    ? `${sortAllowed} ${query.order === "desc" ? "DESC" : "ASC"}, t.fecha DESC, t.id DESC`
+    : "t.fecha DESC, t.id DESC";
+
   const [[{ total }]] = await pool.query<RowDataPacket[]>(
     `SELECT COUNT(*) AS total FROM transactions t ${clause}`,
     params
@@ -76,7 +91,7 @@ export async function listTransactions(query: TransactionListQuery) {
      JOIN users u ON u.id = t.created_by
      LEFT JOIN products p ON p.id = t.product_id
      ${clause}
-     ORDER BY t.fecha DESC, t.id DESC
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );

@@ -55,6 +55,10 @@ export const listBudgetsQuerySchema = z.object({
   tipo_periodo: z.enum(["dia", "semana", "mes", "anio"]).optional(),
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
+  sort: z
+    .enum(["nombre", "periodo", "inicio", "estado", "lineas", "planeado", "meta", "creador"])
+    .optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });
 
 export const transactionSchema = z.object({
@@ -85,6 +89,10 @@ export const listTransactionsQuerySchema = z.object({
   product_id: z.coerce.number().int().positive().optional(),
   quote_id: z.coerce.number().int().positive().optional(),
   invoice_id: z.coerce.number().int().positive().optional(),
+  sort: z
+    .enum(["fecha", "tipo", "categoria", "cuenta", "producto", "monto", "creador"])
+    .optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });
 
 export const summaryQuerySchema = z.object({

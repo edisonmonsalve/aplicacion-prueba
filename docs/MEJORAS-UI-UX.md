@@ -78,6 +78,7 @@ un cambio pequeño en el servidor.
 | F5 | Media | Exportar CSV y totales por tipo/estado. |
 | F6 | Media | Mostrar el saldo de la cuenta elegida y el impacto en caja antes de confirmar. |
 | F7 | Media | Al cambiar compra/venta, actualizar automáticamente el valor unitario sugerido (precio de venta o costo de compra), respetando precios escritos manualmente. **Implementado.** |
+| F8 | Media | Ordenamiento por columnas: número, tipo, contraparte, estado, fecha, total y creador. **Implementado** `[API]`: orden en el servidor (`sort`/`order`) persistido en la URL; todas las páginas respetan el orden. |
 
 ## 9. Finanzas
 
@@ -88,8 +89,8 @@ un cambio pequeño en el servidor.
 | N3 | Alta | En el detalle de presupuesto, separar error de carga de “Cargando…” (hoy puede quedar cargando para siempre). |
 | N4 | Media | Agrupar los KPI en “Caja”, “Resultado” e “Impuestos” y mostrar el periodo activo. |
 | N5 | Media | Tabla de cuentas con fila de totales, orden y acciones con `aria-label`. |
-| N6 | Media | Transacciones: orden por fecha/monto y resumen de la página (ingresos, egresos, neto). |
-| N7 | Media | Presupuestos: etiqueta “Vigente hoy”, filtro rápido y búsqueda con debounce. |
+| N6 | Media | Transacciones: orden por fecha, tipo, categoría, cuenta, producto y monto. **Implementado** `[API]`: orden en el servidor persistido en la URL. Resumen de la página (ingresos, egresos, neto) pendiente. |
+| N7 | Media | Presupuestos: orden por nombre, periodo, rango, estado, líneas, planeado, meta y creador. **Implementado** `[API]`: orden en el servidor persistido en la URL. Etiqueta “Vigente hoy”, filtro rápido y búsqueda con debounce pendientes. |
 | N8 | Media | Formulario de presupuesto: drawer a pantalla completa en móvil y búsqueda remota de productos. |
 | N9 | Media | Detalle de presupuesto: filtro “Solo alertas/excedidos”, orden por ejecución y botón “Volver”. |
 
@@ -97,7 +98,7 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| U1 | Media | Ordenamiento y exportación CSV de usuarios. |
+| U1 | Media | Ordenamiento por nombre, correo, rol, estado y fecha de creación. **Implementado** `[API]`: orden en el servidor (`sort`/`order`) persistido en la URL. Exportación CSV pendiente. |
 | U2 | Media | Confirmación de desactivación explicando la pérdida de acceso. |
 | U3 | Baja | Perfil: aclarar que nombre/correo los cambia un administrador y evitar el selector de tema duplicado. |
 

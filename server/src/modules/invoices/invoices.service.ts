@@ -146,6 +146,21 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  // Solo columnas conocidas: nunca se interpola el valor recibido.
+  const sortColumns: Record<string, string> = {
+    numero: "i.numero",
+    tipo: "i.tipo",
+    contraparte: "i.contraparte",
+    estado: "i.estado",
+    fecha: "i.fecha",
+    total: "i.total",
+    creador: "u.nombre",
+  };
+  const sortAllowed = query.sort ? sortColumns[query.sort] : undefined;
+  const orderBy = sortAllowed
+    ? `${sortAllowed} ${query.order === "desc" ? "DESC" : "ASC"}, i.id DESC`
+    : "i.id DESC";
+
   const [[{ total }]] = await pool.query<RowDataPacket[]>(
     `SELECT COUNT(*) AS total FROM invoices i ${clause}`,
     params
@@ -157,7 +172,7 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
             u.nombre AS creador
      FROM invoices i JOIN users u ON u.id = i.created_by
      ${clause}
-     ORDER BY i.id DESC LIMIT ? OFFSET ?`,
+     ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );
   return { data, total, page: query.page, pageSize: query.pageSize };

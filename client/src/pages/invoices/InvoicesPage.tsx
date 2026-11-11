@@ -4,13 +4,33 @@ import { PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listInvoices } from "@/services/invoicesService";
-import type { Invoice, InvoiceEstado, InvoiceTipo } from "@/types";
+import type { Invoice, InvoiceEstado, InvoiceSortKey, InvoiceTipo } from "@/types";
 import { ESTADO_OPTIONS, InvoiceEstadoTag, InvoiceTipoTag, TIPO_OPTIONS, fmtDate, money } from "./InvoiceUtils";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/context/AuthContext";
 
 const FMT = "YYYY-MM-DD";
+
+const SORT_KEYS: InvoiceSortKey[] = [
+  "numero",
+  "tipo",
+  "contraparte",
+  "estado",
+  "fecha",
+  "total",
+  "creador",
+];
+
+const SORT_BY_FIELD: Record<string, InvoiceSortKey> = {
+  numero: "numero",
+  tipo: "tipo",
+  contraparte: "contraparte",
+  estado: "estado",
+  fecha: "fecha",
+  total: "total",
+  creador: "creador",
+};
 
 export default function InvoicesPage() {
   const navigate = useNavigate();
@@ -22,6 +42,12 @@ export default function InvoicesPage() {
   const estado = (sp.get("estado") as InvoiceEstado | null) ?? undefined;
   const desde = sp.get("desde") ?? undefined;
   const hasta = sp.get("hasta") ?? undefined;
+  const rawSort = sp.get("sort");
+  const sort = SORT_KEYS.includes(rawSort as InvoiceSortKey)
+    ? (rawSort as InvoiceSortKey)
+    : undefined;
+  const rawOrder = sp.get("order");
+  const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = Number(sp.get("page") ?? 1);
   const pageSize = Number(sp.get("pageSize") ?? 10);
 
@@ -44,7 +70,7 @@ export default function InvoicesPage() {
     let cancelled = false;
     setLoading(true);
     // El backend lista por tipo/estado/fecha; "q" (contraparte) lo filtramos client-side si el API no lo soporta
-    listInvoices({ tipo, estado, desde, hasta, page, pageSize })
+    listInvoices({ tipo, estado, desde, hasta, sort, order: sort ? order : undefined, page, pageSize })
       .then((r) => {
         if (cancelled) return;
         const filtered = q
@@ -64,7 +90,7 @@ export default function InvoicesPage() {
     return () => {
       cancelled = true;
     };
-  }, [q, tipo, estado, desde, hasta, page, pageSize]);
+  }, [q, tipo, estado, desde, hasta, sort, order, page, pageSize]);
 
   const update = (changes: Record<string, string | undefined>, resetPage = true) =>
     setSp(
@@ -79,6 +105,9 @@ export default function InvoicesPage() {
       },
       { replace: true }
     );
+
+  const sortOrderFor = (key: InvoiceSortKey): "ascend" | "descend" | null =>
+    sort === key ? (order === "desc" ? "descend" : "ascend") : null;
 
   const hasFilters = !!(q || tipo || estado || desde || hasta);
   const firstLoad = loading && rows.length === 0;
@@ -201,20 +230,79 @@ export default function InvoicesPage() {
             total,
             showSizeChanger: true,
             showTotal: (t) => `${t} facturas`,
-            onChange: (p, s) => update({ page: String(p), pageSize: String(s) }, false),
+          }}
+          onChange={(pagination, _filters, sorter, extra) => {
+            if (extra.action === "sort") {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const nextSort = s?.order ? SORT_BY_FIELD[String(s.field)] : undefined;
+              // Al cambiar el orden se vuelve a la primera página.
+              update(
+                {
+                  sort: nextSort,
+                  order: nextSort
+                    ? s?.order === "descend"
+                      ? "desc"
+                      : "asc"
+                    : undefined,
+                  pageSize: pagination.pageSize ? String(pagination.pageSize) : undefined,
+                },
+                true
+              );
+              return;
+            }
+            // Paginar conserva el orden vigente.
+            update(
+              {
+                page: String(pagination.current ?? 1),
+                pageSize: pagination.pageSize ? String(pagination.pageSize) : undefined,
+              },
+              false
+            );
           }}
           columns={[
-            { title: "Número", dataIndex: "numero" },
-            { title: "Tipo", dataIndex: "tipo", render: (t: InvoiceTipo) => <InvoiceTipoTag tipo={t} /> },
-            { title: "Contraparte", dataIndex: "contraparte" },
+            { title: "Número", dataIndex: "numero", sorter: true, sortOrder: sortOrderFor("numero") },
+            {
+              title: "Tipo",
+              dataIndex: "tipo",
+              sorter: true,
+              sortOrder: sortOrderFor("tipo"),
+              render: (t: InvoiceTipo) => <InvoiceTipoTag tipo={t} />,
+            },
+            {
+              title: "Contraparte",
+              dataIndex: "contraparte",
+              sorter: true,
+              sortOrder: sortOrderFor("contraparte"),
+            },
             {
               title: "Estado",
               dataIndex: "estado",
+              sorter: true,
+              sortOrder: sortOrderFor("estado"),
               render: (e: InvoiceEstado) => <InvoiceEstadoTag estado={e} />,
             },
-            { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
-            { title: <Tooltip title="Total de la factura">Total</Tooltip>, dataIndex: "total", align: "right", render: (v: number) => <strong>{money(v)}</strong> },
-            { title: "Creado por", dataIndex: "creador", responsive: ["lg"] },
+            {
+              title: "Fecha",
+              dataIndex: "fecha",
+              sorter: true,
+              sortOrder: sortOrderFor("fecha"),
+              render: (v: string) => fmtDate(v),
+            },
+            {
+              title: <Tooltip title="Total de la factura">Total</Tooltip>,
+              dataIndex: "total",
+              align: "right",
+              sorter: true,
+              sortOrder: sortOrderFor("total"),
+              render: (v: number) => <strong>{money(v)}</strong>,
+            },
+            {
+              title: "Creado por",
+              dataIndex: "creador",
+              responsive: ["lg"],
+              sorter: true,
+              sortOrder: sortOrderFor("creador"),
+            },
           ]}
         />
       )}

@@ -18,6 +18,8 @@ export const listQuerySchema = z.object({
   q: z.string().trim().optional(),
   rol: rol.optional(),
   activo: z.enum(["0", "1"]).optional(),
+  sort: z.enum(["nombre", "email", "rol", "activo", "creado"]).optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });
 
 export const activoSchema = z.object({ activo: z.boolean() });

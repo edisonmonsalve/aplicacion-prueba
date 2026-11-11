@@ -8,12 +8,30 @@ import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { money, fmtDate } from "./FinanceUtils";
 import { canWriteFinance } from "@/utils/roles";
-import type { FinanceTransaction, TransactionsQuery, FinanceCategory, FinanceAccount } from "@/types";
+import type { FinanceTransaction, TransactionsQuery, TransactionSortKey, FinanceCategory, FinanceAccount } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { fetchAllPages, downloadCsv } from "@/utils/csv";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import TransactionFormModal from "./TransactionFormModal";
+
+const SORT_KEYS: TransactionSortKey[] = [
+  "fecha",
+  "tipo",
+  "categoria",
+  "cuenta",
+  "producto",
+  "monto",
+];
+
+const SORT_BY_FIELD: Record<string, TransactionSortKey> = {
+  fecha: "fecha",
+  tipo: "tipo",
+  categoria: "categoria",
+  cuenta: "cuenta",
+  producto: "producto",
+  monto: "monto",
+};
 
 const TIPO_OPTIONS = [
   { value: "ingreso", label: "Ingreso" },
@@ -54,6 +72,12 @@ export default function TransactionsPage() {
   const hasta = get("hasta") ?? defaultHasta;
   const categoryId = getNumber("finance_category_id");
   const accountId = getNumber("account_id");
+  const rawSort = get("sort");
+  const sort = SORT_KEYS.includes(rawSort as TransactionSortKey)
+    ? (rawSort as TransactionSortKey)
+    : undefined;
+  const rawOrder = get("order");
+  const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const filters = useMemo<TransactionsQuery>(
     () => ({
       page,
@@ -63,8 +87,10 @@ export default function TransactionsPage() {
       hasta,
       finance_category_id: categoryId,
       account_id: accountId,
+      sort,
+      order: sort ? order : undefined,
     }),
-    [page, pageSize, tipo, desde, hasta, categoryId, accountId]
+    [page, pageSize, tipo, desde, hasta, categoryId, accountId, sort, order]
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [reversing, setReversing] = useState<number | null>(null);
@@ -141,11 +167,22 @@ export default function TransactionsPage() {
     }
   };
 
+  const sortOrderFor = (key: TransactionSortKey): "ascend" | "descend" | null =>
+    sort === key ? (order === "desc" ? "descend" : "ascend") : null;
+
   const columns = [
-    { title: <Tooltip title="Fecha de la transacción">Fecha</Tooltip>, dataIndex: "fecha", render: (v: string) => fmtDate(v) },
+    {
+      title: <Tooltip title="Fecha de la transacción">Fecha</Tooltip>,
+      dataIndex: "fecha",
+      sorter: true,
+      sortOrder: sortOrderFor("fecha"),
+      render: (v: string) => fmtDate(v),
+    },
     {
       title: <Tooltip title="Naturaleza contable del asiento">Tipo</Tooltip>,
       dataIndex: "tipo",
+      sorter: true,
+      sortOrder: sortOrderFor("tipo"),
       render: (t: FinanceTransaction["tipo"]) => {
         const meta = TIPO_META[t];
         return <Tag color={meta.color}>{meta.label}</Tag>;
@@ -154,6 +191,8 @@ export default function TransactionsPage() {
     {
       title: <Tooltip title="Categoría financiera del asiento">Categoría</Tooltip>,
       dataIndex: "categoria",
+      sorter: true,
+      sortOrder: sortOrderFor("categoria"),
       render: (v: string, r: FinanceTransaction) => (
         <Space size={4} wrap>
           {v}
@@ -165,8 +204,19 @@ export default function TransactionsPage() {
         </Space>
       ),
     },
-    { title: <Tooltip title="Cuenta financiera">Cuenta</Tooltip>, dataIndex: "cuenta" },
-    { title: <Tooltip title="Producto asociado">Producto</Tooltip>, dataIndex: "producto", render: (v: string | null) => v ?? "—" },
+    {
+      title: <Tooltip title="Cuenta financiera">Cuenta</Tooltip>,
+      dataIndex: "cuenta",
+      sorter: true,
+      sortOrder: sortOrderFor("cuenta"),
+    },
+    {
+      title: <Tooltip title="Producto asociado">Producto</Tooltip>,
+      dataIndex: "producto",
+      sorter: true,
+      sortOrder: sortOrderFor("producto"),
+      render: (v: string | null) => v ?? "—",
+    },
     {
       title: <Tooltip title="Documento que originó el asiento">Documento</Tooltip>,
       render: (_: unknown, r: FinanceTransaction) =>
@@ -187,6 +237,8 @@ export default function TransactionsPage() {
       title: <Tooltip title="Importe del asiento">Monto</Tooltip>,
       dataIndex: "monto",
       align: "right" as const,
+      sorter: true,
+      sortOrder: sortOrderFor("monto"),
       render: (v: number, r: FinanceTransaction) => (
         <Typography.Text
           type={r.tipo === "ingreso" ? "success" : r.tipo === "gasto" ? "danger" : "secondary"}
@@ -381,7 +433,29 @@ export default function TransactionsPage() {
             total,
             showSizeChanger: true,
             showTotal: (t) => `${t} transacciones`,
-            onChange: (p, s) => update({ page: p, pageSize: s }),
+          }}
+          onChange={(pagination, _filters, sorter, extra) => {
+            if (extra.action === "sort") {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const nextSort = s?.order ? SORT_BY_FIELD[String(s.field)] : undefined;
+              // Al cambiar el orden se vuelve a la primera página.
+              update({
+                page: 1,
+                pageSize: pagination.pageSize ?? pageSize,
+                sort: nextSort,
+                order: nextSort
+                  ? s?.order === "descend"
+                    ? "desc"
+                    : "asc"
+                  : undefined,
+              });
+              return;
+            }
+            // Paginar conserva el orden vigente.
+            update({
+              page: pagination.current ?? 1,
+              pageSize: pagination.pageSize ?? pageSize,
+            });
           }}
         />
       )}

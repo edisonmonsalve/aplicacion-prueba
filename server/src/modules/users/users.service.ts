@@ -29,12 +29,24 @@ export async function listUsers(query: z.infer<typeof listQuerySchema>) {
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  const sortColumns: Record<string, string> = {
+    nombre: "nombre",
+    email: "email",
+    rol: "rol",
+    activo: "activo",
+    creado: "created_at",
+  };
+  const sortAllowed = query.sort ? sortColumns[query.sort] : undefined;
+  const orderBy = sortAllowed
+    ? `${sortAllowed} ${query.order === "desc" ? "DESC" : "ASC"}, id DESC`
+    : "id DESC";
+
   const [[{ total }]] = await pool.query<RowDataPacket[]>(
     `SELECT COUNT(*) AS total FROM users ${clause}`,
     params
   );
   const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT ${COLUMNS} FROM users ${clause} ORDER BY id DESC LIMIT ? OFFSET ?`,
+    `SELECT ${COLUMNS} FROM users ${clause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );
 

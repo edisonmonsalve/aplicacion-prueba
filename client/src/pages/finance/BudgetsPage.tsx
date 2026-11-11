@@ -6,11 +6,33 @@ import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { money, fmtDate, BudgetEstadoTag, periodLabel } from "./FinanceUtils";
 import { canWriteFinance } from "@/utils/roles";
-import type { BudgetEstado, BudgetListItem, BudgetPeriodo } from "@/types";
+import type { BudgetEstado, BudgetListItem, BudgetPeriodo, BudgetSortKey } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import BudgetFormModal from "./BudgetFormModal";
+
+const SORT_KEYS: BudgetSortKey[] = [
+  "nombre",
+  "periodo",
+  "inicio",
+  "estado",
+  "lineas",
+  "planeado",
+  "meta",
+  "creador",
+];
+
+const SORT_BY_FIELD: Record<string, BudgetSortKey> = {
+  nombre: "nombre",
+  tipo_periodo: "periodo",
+  inicio: "inicio",
+  estado: "estado",
+  lineas: "lineas",
+  planeado_total: "planeado",
+  ingreso_meta: "meta",
+  creador: "creador",
+};
 
 const PERIOD_OPTIONS = ["dia", "semana", "mes", "anio"].map((p) => ({ value: p, label: periodLabel(p as "dia" | "semana" | "mes" | "anio") }));
 const STATUS_OPTIONS = (["borrador", "activo", "cerrado"] as BudgetEstado[]).map((e) => ({
@@ -30,6 +52,12 @@ export default function BudgetsPage() {
   const q = get("q") ?? "";
   const estado = (get("estado") as BudgetEstado) ?? undefined;
   const tipo = (get("tipo_periodo") as BudgetPeriodo) ?? undefined;
+  const rawSort = get("sort");
+  const sort = SORT_KEYS.includes(rawSort as BudgetSortKey)
+    ? (rawSort as BudgetSortKey)
+    : undefined;
+  const rawOrder = get("order");
+  const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const [searchText, setSearchText] = useState(q);
@@ -52,7 +80,7 @@ export default function BudgetsPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listBudgets({ page, pageSize, q: q || undefined, estado, tipo_periodo: tipo })
+    listBudgets({ page, pageSize, q: q || undefined, estado, tipo_periodo: tipo, sort, order: sort ? order : undefined })
       .then((r) => {
         if (cancelled) return;
         setRows(r.data);
@@ -63,20 +91,68 @@ export default function BudgetsPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize, q, estado, tipo, message]);
+  }, [page, pageSize, q, estado, tipo, sort, order, message]);
+
+  const sortOrderFor = (key: BudgetSortKey): "ascend" | "descend" | null =>
+    sort === key ? (order === "desc" ? "descend" : "ascend") : null;
 
   const columns = [
-    { title: <Tooltip title="Nombre del presupuesto">Nombre</Tooltip>, dataIndex: "nombre" },
-    { title: <Tooltip title="Granularidad del periodo">Periodo</Tooltip>, dataIndex: "tipo_periodo", render: (p: BudgetPeriodo) => periodLabel(p) },
+    {
+      title: <Tooltip title="Nombre del presupuesto">Nombre</Tooltip>,
+      dataIndex: "nombre",
+      sorter: true,
+      sortOrder: sortOrderFor("nombre"),
+    },
+    {
+      title: <Tooltip title="Granularidad del periodo">Periodo</Tooltip>,
+      dataIndex: "tipo_periodo",
+      sorter: true,
+      sortOrder: sortOrderFor("periodo"),
+      render: (p: BudgetPeriodo) => periodLabel(p),
+    },
     {
       title: <Tooltip title="Fechas de inicio y fin del periodo">Rango</Tooltip>,
+      key: "inicio",
+      sorter: true,
+      sortOrder: sortOrderFor("inicio"),
       render: (_: unknown, r: BudgetListItem) => `${fmtDate(r.fecha_inicio)} → ${fmtDate(r.fecha_fin)}`,
     },
-    { title: <Tooltip title="Estado del presupuesto">Estado</Tooltip>, dataIndex: "estado", render: (e: BudgetEstado) => <BudgetEstadoTag estado={e} /> },
-    { title: <Tooltip title="Cantidad de líneas planeadas en el presupuesto">Líneas</Tooltip>, dataIndex: "lineas", align: "right" as const },
-    { title: <Tooltip title="Monto total planeado en todas las líneas">Planeado</Tooltip>, dataIndex: "planeado_total", align: "right" as const, render: (v: number) => money(v) },
-    { title: <Tooltip title="Ingreso total esperado para el periodo">Meta ingresos</Tooltip>, dataIndex: "ingreso_meta", align: "right" as const, render: (v: number) => money(v) },
-    { title: <Tooltip title="Usuario que creó el presupuesto">Creado por</Tooltip>, dataIndex: "creador" },
+    {
+      title: <Tooltip title="Estado del presupuesto">Estado</Tooltip>,
+      dataIndex: "estado",
+      sorter: true,
+      sortOrder: sortOrderFor("estado"),
+      render: (e: BudgetEstado) => <BudgetEstadoTag estado={e} />,
+    },
+    {
+      title: <Tooltip title="Cantidad de líneas planeadas en el presupuesto">Líneas</Tooltip>,
+      dataIndex: "lineas",
+      align: "right" as const,
+      sorter: true,
+      sortOrder: sortOrderFor("lineas"),
+    },
+    {
+      title: <Tooltip title="Monto total planeado en todas las líneas">Planeado</Tooltip>,
+      dataIndex: "planeado_total",
+      align: "right" as const,
+      sorter: true,
+      sortOrder: sortOrderFor("planeado"),
+      render: (v: number) => money(v),
+    },
+    {
+      title: <Tooltip title="Ingreso total esperado para el periodo">Meta ingresos</Tooltip>,
+      dataIndex: "ingreso_meta",
+      align: "right" as const,
+      sorter: true,
+      sortOrder: sortOrderFor("meta"),
+      render: (v: number) => money(v),
+    },
+    {
+      title: <Tooltip title="Usuario que creó el presupuesto">Creado por</Tooltip>,
+      dataIndex: "creador",
+      sorter: true,
+      sortOrder: sortOrderFor("creador"),
+    },
     {
       title: "",
       key: "actions",
@@ -187,7 +263,29 @@ export default function BudgetsPage() {
             total,
             showSizeChanger: true,
             showTotal: (t) => `${t} presupuestos`,
-            onChange: (p, s) => update({ page: p, pageSize: s }),
+          }}
+          onChange={(pagination, _filters, sorter, extra) => {
+            if (extra.action === "sort") {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const nextSort = s?.order ? SORT_BY_FIELD[String(s.field)] : undefined;
+              // Al cambiar el orden se vuelve a la primera página.
+              update({
+                page: 1,
+                pageSize: pagination.pageSize ?? pageSize,
+                sort: nextSort,
+                order: nextSort
+                  ? s?.order === "descend"
+                    ? "desc"
+                    : "asc"
+                  : undefined,
+              });
+              return;
+            }
+            // Paginar conserva el orden vigente.
+            update({
+              page: pagination.current ?? 1,
+              pageSize: pagination.pageSize ?? pageSize,
+            });
           }}
         />
       )}

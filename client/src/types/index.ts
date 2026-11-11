@@ -375,7 +375,19 @@ export interface BudgetsQuery {
   tipo_periodo?: BudgetPeriodo;
   desde?: string;
   hasta?: string;
+  sort?: BudgetSortKey;
+  order?: "asc" | "desc";
 }
+
+export type BudgetSortKey =
+  | "nombre"
+  | "periodo"
+  | "inicio"
+  | "estado"
+  | "lineas"
+  | "planeado"
+  | "meta"
+  | "creador";
 
 export interface TransactionsQuery {
   page: number;
@@ -388,7 +400,18 @@ export interface TransactionsQuery {
   product_id?: number;
   quote_id?: number;
   invoice_id?: number;
+  sort?: TransactionSortKey;
+  order?: "asc" | "desc";
 }
+
+export type TransactionSortKey =
+  | "fecha"
+  | "tipo"
+  | "categoria"
+  | "cuenta"
+  | "producto"
+  | "monto"
+  | "creador";
 
 // ---------- Módulo de facturación ----------
 
@@ -481,4 +504,15 @@ export interface InvoicesQuery {
   estado?: InvoiceEstado;
   desde?: string;
   hasta?: string;
+  sort?: InvoiceSortKey;
+  order?: "asc" | "desc";
 }
+
+export type InvoiceSortKey =
+  | "numero"
+  | "tipo"
+  | "contraparte"
+  | "estado"
+  | "fecha"
+  | "total"
+  | "creador";

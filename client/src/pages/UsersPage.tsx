@@ -3,7 +3,7 @@ import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, m
 import type { TableProps } from "antd";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
-import { getUsers, setUserActivo, type UsersQuery } from "@/services/usersService";
+import { getUsers, setUserActivo, type UsersQuery, type UserSortKey } from "@/services/usersService";
 import { getErrorMessage } from "@/utils/errors";
 import type { User } from "@/types";
 import UserFormModal from "@/components/UserFormModal";
@@ -13,6 +13,16 @@ import ConfirmAction from "@/components/ConfirmAction";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { ROLES, roleColor, roleLabel } from "@/utils/roles";
 
+const SORT_KEYS: UserSortKey[] = ["nombre", "email", "rol", "activo", "creado"];
+
+const SORT_BY_FIELD: Record<string, UserSortKey> = {
+  nombre: "nombre",
+  email: "email",
+  rol: "rol",
+  activo: "activo",
+  created_at: "creado",
+};
+
 export default function UsersPage() {
   const { user: me } = useAuth();
   const [messageApi, contextHolder] = message.useMessage();
@@ -21,11 +31,25 @@ export default function UsersPage() {
   const q = get("q") ?? "";
   const rol = (get("rol") as UsersQuery["rol"]) ?? undefined;
   const activo = (get("activo") as UsersQuery["activo"]) ?? undefined;
+  const rawSort = get("sort");
+  const sort = SORT_KEYS.includes(rawSort as UserSortKey)
+    ? (rawSort as UserSortKey)
+    : undefined;
+  const rawOrder = get("order");
+  const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const query = useMemo<UsersQuery>(
-    () => ({ page, pageSize, q: q || undefined, rol, activo }),
-    [page, pageSize, q, rol, activo]
+    () => ({
+      page,
+      pageSize,
+      q: q || undefined,
+      rol,
+      activo,
+      sort,
+      order: sort ? order : undefined,
+    }),
+    [page, pageSize, q, rol, activo, sort, order]
   );
   const [searchText, setSearchText] = useState(q);
   const [users, setUsers] = useState<User[]>([]);
@@ -66,6 +90,9 @@ export default function UsersPage() {
 
   const hasFilters = Boolean(query.q || query.rol || query.activo);
 
+  const sortOrderFor = (key: UserSortKey): "ascend" | "descend" | null =>
+    sort === key ? (order === "desc" ? "descend" : "ascend") : null;
+
   const clearFilters = () => {
     setSearchText("");
     update({ q: undefined, rol: undefined, activo: undefined, page: undefined });
@@ -98,22 +125,28 @@ export default function UsersPage() {
   };
 
   const columns: TableProps<User>["columns"] = [
-    { title: "Nombre", dataIndex: "nombre" },
-    { title: "Correo", dataIndex: "email" },
+    { title: "Nombre", dataIndex: "nombre", sorter: true, sortOrder: sortOrderFor("nombre") },
+    { title: "Correo", dataIndex: "email", sorter: true, sortOrder: sortOrderFor("email") },
     {
       title: <Tooltip title="Rol de acceso del usuario">Rol</Tooltip>,
       dataIndex: "rol",
+      sorter: true,
+      sortOrder: sortOrderFor("rol"),
       render: (rol: User["rol"]) => <Tag color={roleColor(rol)}>{roleLabel(rol)}</Tag>,
     },
     {
       title: <Tooltip title="Activo o inactivo">Estado</Tooltip>,
       dataIndex: "activo",
+      sorter: true,
+      sortOrder: sortOrderFor("activo"),
       render: (activo: number) =>
         activo ? <Tag color="green">Activo</Tag> : <Tag color="red">Inactivo</Tag>,
     },
     {
       title: "Creado",
       dataIndex: "created_at",
+      sorter: true,
+      sortOrder: sortOrderFor("creado"),
       render: (value: string) => dayjs(value).format("DD/MM/YYYY"),
     },
     {
@@ -241,7 +274,29 @@ value={searchText}
             pageSize: query.pageSize,
             total,
             showSizeChanger: true,
-            onChange: (page, pageSize) => update({ page, pageSize }),
+          }}
+          onChange={(pagination, _filters, sorter, extra) => {
+            if (extra.action === "sort") {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const nextSort = s?.order ? SORT_BY_FIELD[String(s.field)] : undefined;
+              // Al cambiar el orden se vuelve a la primera página.
+              update({
+                page: 1,
+                pageSize: pagination.pageSize ?? query.pageSize,
+                sort: nextSort,
+                order: nextSort
+                  ? s?.order === "descend"
+                    ? "desc"
+                    : "asc"
+                  : undefined,
+              });
+              return;
+            }
+            // Paginar conserva el orden vigente.
+            update({
+              page: pagination.current ?? 1,
+              pageSize: pagination.pageSize ?? query.pageSize,
+            });
           }}
         />
       )}
