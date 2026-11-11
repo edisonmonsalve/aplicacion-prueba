@@ -10,6 +10,7 @@ import {
   TagsOutlined,
   FileTextOutlined,
   FileDoneOutlined,
+  ContactsOutlined,
   TeamOutlined,
   DollarOutlined,
   MoonOutlined,
@@ -36,6 +37,7 @@ const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
   { prefix: "/finanzas", key: "/finanzas" },
   { prefix: "/cotizaciones", key: "/cotizaciones" },
   { prefix: "/facturas", key: "/facturas" },
+  { prefix: "/terceros", key: "/terceros" },
   { prefix: "/products", key: "/products" },
   { prefix: "/movements", key: "/movements" },
   { prefix: "/categories", key: "/categories" },
@@ -75,6 +77,7 @@ export default function AppLayout() {
     { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
     { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
     { key: "/facturas", icon: <FileDoneOutlined />, label: "Facturas" },
+    { key: "/terceros", icon: <ContactsOutlined />, label: "Terceros" },
     ...(canAccessFinance(user?.rol)
       ? [
           {

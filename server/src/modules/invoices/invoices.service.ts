@@ -1,10 +1,15 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { z } from "zod";
 import { pool } from "../../config/Db.js";
+import { addDays } from "../../utils/dates.js";
 import { HttpError } from "../../utils/http-error.js";
 import { createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
 import { registerMovement } from "../movements/movements.service.js";
 import { formatQuoteNumber } from "../quotes/quotes.format.js";
+import {
+  assertPartyType,
+  findThirdPartyForInvoice,
+} from "../third-parties/third-parties.service.js";
 import type {
   createInvoiceSchema,
   updateInvoiceSchema,
@@ -96,6 +101,34 @@ function totalRetenciones(inv: {
   );
 }
 
+type PaymentCondition = "contado" | "credito";
+
+/**
+ * Resuelve la condición de pago de la factura.
+ *
+ * El tercero aporta los valores por defecto; la factura puede sobrescribirlos.
+ * A crédito, el vencimiento se calcula desde la fecha de la factura salvo que
+ * el usuario indique una fecha explícita.
+ */
+function resolvePaymentTerms(params: {
+  condicion?: PaymentCondition | null;
+  diasCredito?: number | null;
+  fechaVencimiento?: string | null;
+  fecha: string;
+  fallbackCondicion: PaymentCondition;
+  fallbackDias: number;
+}) {
+  const condicion = params.condicion ?? params.fallbackCondicion;
+  const dias =
+    condicion === "contado"
+      ? 0
+      : params.diasCredito ?? params.fallbackDias;
+  const fecha_vencimiento =
+    params.fechaVencimiento ??
+    (condicion === "credito" ? addDays(params.fecha, dias) : params.fecha);
+  return { condicion_pago: condicion, dias_credito: dias, fecha_vencimiento };
+}
+
 async function nextNumber(conn: PoolConnection, tipo: "venta" | "compra") {
   await conn.query(
     "INSERT IGNORE INTO invoice_counters (tipo, last_number) VALUES (?, 0)",
@@ -168,7 +201,9 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.documento,
             i.orden_compra, i.estado, i.subtotal, i.descuento_total,
-            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.account_id, i.created_at,
+            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.party_id,
+            i.condicion_pago, i.dias_credito, i.fecha_vencimiento,
+            i.account_id, i.created_at,
             u.nombre AS creador
      FROM invoices i JOIN users u ON u.id = i.created_by
      ${clause}
@@ -250,12 +285,26 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
     const retenciones = totalRetenciones(input);
     const totalNeto = roundMoney(totals.total - retenciones);
 
+    const partyId = input.party_id ?? null;
+    const party = partyId ? await findThirdPartyForInvoice(conn, partyId) : null;
+    if (party) assertPartyType(party, input.tipo);
+
+    const terms = resolvePaymentTerms({
+      condicion: input.condicion_pago,
+      diasCredito: input.dias_credito,
+      fechaVencimiento: input.fecha_vencimiento,
+      fecha: input.fecha,
+      fallbackCondicion: party?.condicion_pago ?? "contado",
+      fallbackDias: Number(party?.dias_credito ?? 0),
+    });
+
     const [res] = await conn.query<ResultSetHeader>(
       `INSERT INTO invoices
          (tipo, numero, fecha, contraparte, documento, orden_compra, email,
           subtotal, descuento_total, impuesto_total, total, retencion_fuente,
-          retencion_iva, retencion_ica, total_neto, notas, quote_id, account_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          retencion_iva, retencion_ica, total_neto, notas, quote_id, party_id,
+          condicion_pago, dias_credito, fecha_vencimiento, account_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.tipo,
         numero,
@@ -274,6 +323,10 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
         totalNeto,
         input.notas ?? null,
         input.quote_id ?? null,
+        partyId,
+        terms.condicion_pago,
+        terms.dias_credito,
+        terms.fecha_vencimiento,
         input.account_id ?? null,
         actor.id,
       ]
@@ -325,22 +378,48 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
     });
     const totalNeto = roundMoney(totals.total - retenciones);
 
+    const tipo = input.tipo ?? current.tipo;
+    const partyId = input.party_id !== undefined ? input.party_id : current.party_id;
+    const party = partyId ? await findThirdPartyForInvoice(conn, partyId) : null;
+    if (party) assertPartyType(party, tipo);
+
+    const fecha = input.fecha ?? current.fecha;
+    const partyChanged = input.party_id !== undefined && input.party_id !== current.party_id;
+    const condicion = (input.condicion_pago ??
+      (partyChanged && party ? party.condicion_pago : current.condicion_pago) ??
+      "contado") as PaymentCondition;
+    const fallbackDias =
+      partyChanged && party ? Number(party.dias_credito ?? 0) : Number(current.dias_credito ?? 0);
+    const terms = resolvePaymentTerms({
+      condicion,
+      diasCredito: input.dias_credito,
+      fechaVencimiento: input.fecha_vencimiento,
+      fecha,
+      fallbackCondicion: condicion,
+      fallbackDias,
+    });
+
     await conn.query(
       `UPDATE invoices SET
          tipo = ?, fecha = ?, contraparte = ?, documento = ?, orden_compra = ?,
-         email = ?, notas = ?, quote_id = ?, account_id = ?, subtotal = ?, descuento_total = ?,
-         impuesto_total = ?, total = ?, retencion_fuente = ?, retencion_iva = ?,
-         retencion_ica = ?, total_neto = ?
+         email = ?, notas = ?, quote_id = ?, party_id = ?, condicion_pago = ?,
+         dias_credito = ?, fecha_vencimiento = ?, account_id = ?, subtotal = ?,
+         descuento_total = ?, impuesto_total = ?, total = ?, retencion_fuente = ?,
+         retencion_iva = ?, retencion_ica = ?, total_neto = ?
        WHERE id = ?`,
       [
-        input.tipo ?? current.tipo,
-        input.fecha ?? current.fecha,
+        tipo,
+        fecha,
         input.contraparte ?? current.contraparte,
         input.documento !== undefined ? input.documento : current.documento,
         input.orden_compra !== undefined ? input.orden_compra : current.orden_compra,
         input.email !== undefined ? input.email : current.email,
         input.notas !== undefined ? input.notas : current.notas,
         input.quote_id !== undefined ? input.quote_id : current.quote_id,
+        partyId,
+        terms.condicion_pago,
+        terms.dias_credito,
+        terms.fecha_vencimiento,
         input.account_id !== undefined ? input.account_id : current.account_id,
         totals.subtotal,
         totals.descuento_total,
@@ -397,6 +476,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     if (items.length === 0) throw new HttpError(409, "La factura no tiene líneas");
 
     const isVenta = inv.tipo === "venta";
+    // A crédito se reconoce el ingreso/activo, pero la caja se mueve al cobrar
+    // o pagar (fase C2). El override del asiento gana sobre la categoría.
+    const afectaCaja = inv.condicion_pago === "credito" ? false : undefined;
     if (!isVenta && inv.quote_id) {
       throw new HttpError(400, "Una factura de compra no puede vincularse a una cotización");
     }
@@ -555,6 +637,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           fecha: inv.fecha,
           categoriaCodigo: "ventas",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
@@ -568,6 +651,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           fecha: inv.fecha,
           categoriaCodigo: "iva_por_pagar",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `IVA factura ${inv.numero}`,
           userId: actor.id,
@@ -590,6 +674,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           fecha: inv.fecha,
           categoriaCodigo: "costo_ventas",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `Costo de ventas factura ${inv.numero}`,
           userId: actor.id,
@@ -618,6 +703,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           fecha: inv.fecha,
           categoriaCodigo: "inventario",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
@@ -631,6 +717,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           fecha: inv.fecha,
           categoriaCodigo: "iva_descontable",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `IVA factura ${inv.numero}`,
           userId: actor.id,
@@ -716,12 +803,13 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
     for (const t of originals) {
       await conn.query(
         `INSERT INTO transactions
-           (tipo, monto, fecha, finance_category_id, account_id, product_id,
+           (tipo, monto, afecta_caja, fecha, finance_category_id, account_id, product_id,
             quote_id, invoice_id, stock_movement_id, descripcion, anulada_de, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?)`,
         [
           t.tipo,
           t.monto,
+          t.afecta_caja,
           t.fecha,
           t.finance_category_id,
           t.account_id,

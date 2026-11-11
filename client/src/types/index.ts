@@ -480,6 +480,10 @@ export interface Invoice {
   retencion_ica: number;
   total_neto: number;
   quote_id: number | null;
+  party_id: number | null;
+  condicion_pago: "contado" | "credito";
+  dias_credito: number;
+  fecha_vencimiento: string | null;
   account_id: number | null;
   orden_compra: string | null;
   created_at: string;
@@ -535,6 +539,10 @@ export interface InvoiceInput {
   email?: string;
   notas?: string;
   quote_id?: number | null;
+  party_id?: number | null;
+  condicion_pago?: "contado" | "credito";
+  dias_credito?: number;
+  fecha_vencimiento?: string | null;
   account_id?: number | null;
   retencion_fuente?: number;
   retencion_iva?: number;
@@ -576,3 +584,55 @@ export interface InvoiceSummary {
 export interface PaginatedInvoices extends Paginated<Invoice> {
   resumen: InvoiceSummary;
 }
+
+// ---------- Maestro de terceros ----------
+
+export type ThirdPartyTipo = "cliente" | "proveedor" | "ambos";
+export type ThirdPartyDocumento = "NIT" | "CC" | "CE" | "PASAPORTE" | "OTRO";
+export type PaymentCondition = "contado" | "credito";
+
+export interface ThirdParty {
+  id: number;
+  tipo: ThirdPartyTipo;
+  tipo_documento: ThirdPartyDocumento;
+  documento: string | null;
+  nombre: string;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  ciudad: string | null;
+  condicion_pago: PaymentCondition;
+  dias_credito: number;
+  notas: string | null;
+  activo: number;
+  facturas: number;
+  ventas: number;
+  compras: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ThirdPartyInput {
+  tipo: ThirdPartyTipo;
+  tipo_documento: ThirdPartyDocumento;
+  documento?: string;
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  ciudad?: string;
+  condicion_pago: PaymentCondition;
+  dias_credito: number;
+  notas?: string;
+  activo?: boolean;
+}
+
+export interface ThirdPartiesQuery {
+  page: number;
+  pageSize: number;
+  q?: string;
+  tipo?: ThirdPartyTipo;
+  activo?: 0 | 1;
+}
+
+export interface PaginatedThirdParties extends Paginated<ThirdParty> {}

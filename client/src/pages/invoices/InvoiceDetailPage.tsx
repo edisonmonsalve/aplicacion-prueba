@@ -78,16 +78,25 @@ export default function InvoiceDetailPage() {
 
   const isDraft = invoice.estado === "borrador";
   const isConfirmed = invoice.estado === "confirmada";
+  const esCredito = invoice.condicion_pago === "credito";
 
   // F6: cuenta que usará el asiento y saldo resultante tras confirmar.
   const account = invoice.account_id
     ? accounts.find((a) => a.id === invoice.account_id)
     : accounts.find((a) => a.activo);
-  const signedImpact =
-    invoice.tipo === "venta" ? Number(invoice.total_neto) : -Number(invoice.total_neto);
+  const signedImpact = esCredito
+    ? 0
+    : invoice.tipo === "venta"
+      ? Number(invoice.total_neto)
+      : -Number(invoice.total_neto);
   const saldoResultante = account
     ? Number(account.saldo_actual) + signedImpact
     : null;
+  const impactoTexto = esCredito
+    ? `Queda en cartera ${invoice.tipo === "venta" ? "por cobrar" : "por pagar"}: ${money(
+        invoice.total_neto
+      )}`
+    : `Impacto en caja: ${signedImpact >= 0 ? "+" : "−"}${money(Math.abs(signedImpact))}`;
 
   const openConfirm = () => {
     modal.confirm({
@@ -106,17 +115,27 @@ export default function InvoiceDetailPage() {
                 Cuenta: <strong>{account.nombre}</strong> ({account.tipo})
               </span>
               <span>Saldo actual: {money(account.saldo_actual)}</span>
-              <span>
-                Impacto en caja: {signedImpact >= 0 ? "+" : "−"}
-                {money(Math.abs(signedImpact))}
-              </span>
-              <span>
-                Saldo resultante: <strong>{money(saldoResultante!)}</strong>
-              </span>
-              {saldoResultante! < 0 && (
-                <Typography.Text type="danger">
-                  La cuenta quedaría con saldo negativo.
-                </Typography.Text>
+              {esCredito ? (
+                <span>
+                  A crédito no mueve caja al confirmar. Queda en cartera{" "}
+                  {invoice.tipo === "venta" ? "por cobrar" : "por pagar"}:{" "}
+                  <strong>{money(invoice.total_neto)}</strong>
+                </span>
+              ) : (
+                <>
+                  <span>
+                    Impacto en caja: {signedImpact >= 0 ? "+" : "−"}
+                    {money(Math.abs(signedImpact))}
+                  </span>
+                  <span>
+                    Saldo resultante: <strong>{money(saldoResultante!)}</strong>
+                  </span>
+                  {saldoResultante! < 0 && (
+                    <Typography.Text type="danger">
+                      La cuenta quedaría con saldo negativo.
+                    </Typography.Text>
+                  )}
+                </>
               )}
             </>
           ) : (
@@ -184,17 +203,21 @@ export default function InvoiceDetailPage() {
 
       {isDraft && (
         <Alert
-          type={saldoResultante !== null && saldoResultante < 0 ? "warning" : "info"}
+          type={!esCredito && saldoResultante !== null && saldoResultante < 0 ? "warning" : "info"}
           showIcon
           message={
-            account
-              ? `Impacto en caja: ${signedImpact >= 0 ? "+" : "−"}${money(Math.abs(signedImpact))} · Saldo resultante: ${money(saldoResultante!)}`
-              : "Esta factura no tiene cuenta asignada ni hay cuentas activas por defecto"
+            esCredito
+              ? impactoTexto
+              : account
+                ? `${impactoTexto} · Saldo resultante: ${money(saldoResultante!)}`
+                : "Esta factura no tiene cuenta asignada ni hay cuentas activas por defecto"
           }
           description={
-            account
-              ? `Cuenta ${account.nombre} (${account.tipo}) · Saldo actual ${money(account.saldo_actual)}. Al confirmar se actualiza el stock y se registran los asientos financieros.`
-              : "Asigna una cuenta desde Editar para poder ver el saldo y el impacto antes de confirmar."
+            esCredito
+              ? "Condición a crédito: al confirmar se reconoce el ingreso/activo y el IVA, pero la caja se mueve cuando se registre el cobro o pago."
+              : account
+                ? `Cuenta ${account.nombre} (${account.tipo}) · Saldo actual ${money(account.saldo_actual)}. Al confirmar se actualiza el stock y se registran los asientos financieros.`
+                : "Asigna una cuenta desde Editar para poder ver el saldo y el impacto antes de confirmar."
           }
         />
       )}
@@ -218,6 +241,12 @@ export default function InvoiceDetailPage() {
               {invoice.contraparte}
             </Descriptions.Item>
             <Descriptions.Item label="Fecha">{fmtDate(invoice.fecha)}</Descriptions.Item>
+            <Descriptions.Item label="Condición de pago">
+              {esCredito ? `Crédito ${invoice.dias_credito} días` : "Contado"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Vencimiento">
+              {invoice.fecha_vencimiento ? fmtDate(invoice.fecha_vencimiento) : "—"}
+            </Descriptions.Item>
             <Descriptions.Item label="Documento">{invoice.documento ?? "—"}</Descriptions.Item>
             <Descriptions.Item label="Orden de compra">{invoice.orden_compra ?? "—"}</Descriptions.Item>
             <Descriptions.Item label="Cotización">

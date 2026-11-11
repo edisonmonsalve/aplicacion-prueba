@@ -26,6 +26,7 @@ export async function resetDb() {
   await pool.query("DELETE FROM stock_movements");
   await pool.query("DELETE FROM invoices");
   await pool.query("DELETE FROM invoice_counters");
+  await pool.query("DELETE FROM third_parties");
   await pool.query("DELETE FROM budget_lines");
   await pool.query("DELETE FROM budgets");
   await pool.query("DELETE FROM quote_audit_log");

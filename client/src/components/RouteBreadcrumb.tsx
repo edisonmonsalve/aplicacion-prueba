@@ -7,6 +7,7 @@ const SECTIONS: Record<string, { label: string; to: string }> = {
   categories: { label: "Categorías", to: "/categories" },
   cotizaciones: { label: "Cotizaciones", to: "/cotizaciones" },
   facturas: { label: "Facturas", to: "/facturas" },
+  terceros: { label: "Terceros", to: "/terceros" },
   finanzas: { label: "Finanzas", to: "/finanzas" },
   users: { label: "Usuarios", to: "/users" },
   perfil: { label: "Mi perfil", to: "/perfil" },

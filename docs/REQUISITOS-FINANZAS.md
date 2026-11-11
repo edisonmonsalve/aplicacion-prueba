@@ -19,6 +19,8 @@
 
 - finance_accounts: caja/banco, saldo_inicial. Cada asiento se registra en una cuenta; las facturas pueden indicar si el dinero sale/entra por caja (efectivo) o por banco (transferencia).
 - finance_categories: nombre, `codigo` único de sistema (nullable), tipo (ingreso | gasto | activo | pasivo), `afecta_caja` (1 = mueve caja/bancos; 0 = asiento informativo) y `afecta_resultado` (1 = entra al estado de resultados; 0 = solo caja/balance).
+- third_parties: tipo (cliente | proveedor | ambos), tipo_documento, documento único, nombre, email, teléfono, dirección, ciudad, condición de pago, días de crédito, notas y activo.
+- invoices: además de los datos del documento, `party_id`, `condicion_pago`, `dias_credito` y `fecha_vencimiento`. `contraparte` y `documento` se conservan como snapshot.
 - budgets: nombre, tipo de periodo, fecha_inicio, fecha_fin, ingreso_meta, alerta_pct (def. 80), estado (borrador | activo | cerrado).
 - budget_lines: budget_id, finance_category_id, product_id opcional, monto_planeado.
 - transactions: tipo, monto, `afecta_caja` opcional (NULL = usa la categoría; 0/1 = override del asiento), fecha, finance_category_id, account_id, product_id opcional, quote_id opcional, stock_movement_id opcional, descripcion, anulada_de opcional.
@@ -44,6 +46,9 @@
 - RF-14: El panel de Inicio muestra, para admin/contador/consulta, ingresos, egresos, utilidad, IVA neto y capital del mes, comparados con el mes anterior. El operador no ve información financiera.
 - RF-15: El inventario se informa a precio de venta y al costo, y se advierte cuántos productos activos no tienen costo definido.
 - RF-16: El rango de fechas del resumen financiero se conserva en la URL y se puede compartir por enlace.
+- RF-17: Mantener un maestro de clientes y proveedores con documento, contacto, condición de pago y estado, reutilizable en facturas.
+- RF-18: Vincular una factura a un tercero y definir su condición de pago (contado o crédito) y días de crédito. El vencimiento se calcula automáticamente.
+- RF-19: Consultar los terceros por nombre, documento, email, tipo y estado. El operador puede leerlos para facturar; solo admin y contador los crean o modifican.
 
 ## Reglas de negocio
 
@@ -64,9 +69,14 @@
 - RN-10: Todo cambio queda en audit_log.
 - RN-11: Un periodo cerrado no admite transacciones.
 - RN-12: Roles: admin (todo), contador (finanzas y cierres), operador (registra movimientos y cotizaciones), consulta (solo lectura).
-- RN-13: Los informes de resultado usan `afecta_resultado`; los de caja usan `afecta_caja`, respetando el override del asiento (`transactions.afecta_caja`) cuando no es NULL.
-- RN-14: Las categorías de sistema se buscan por `codigo`. Renombrar una categoría no cambia los asientos automáticos ni los informes.
-- RN-15: El IVA no es dinero propio: nunca suma al capital disponible. Se netea por periodo para informar el saldo a favor o a cargo.
+- RN-13: Una factura de venta a crédito reconoce el ingreso y el IVA al confirmarse, pero no mueve caja. El saldo queda en cartera por cobrar.
+- RN-14: Una factura de compra a crédito reconoce el inventario y el IVA descontable, pero no reduce caja. El saldo queda en cartera por pagar.
+- RN-15: El tercero se valida por tipo (cliente para venta, proveedor para compra, ambos para los dos). La factura guarda un snapshot editable de nombre y documento.
+- RN-16: El vencimiento de una factura a crédito se calcula como fecha de factura + días de crédito, salvo que se indique una fecha explícita. Las facturas de contado vencen en su fecha.
+- RN-17: No se elimina un tercero con facturas asociadas; se desactiva.
+- RN-19: Los informes de resultado usan `afecta_resultado`; los de caja usan `afecta_caja`, respetando el override del asiento (`transactions.afecta_caja`) cuando no es NULL.
+- RN-20: Las categorías de sistema se buscan por `codigo`. Renombrar una categoría no cambia los asientos automáticos ni los informes.
+- RN-21: El IVA no es dinero propio: nunca suma al capital disponible. Se netea por periodo para informar el saldo a favor o a cargo.
 
 ## Supuestos a confirmar
 
@@ -90,7 +100,21 @@
 
 ## transactions — movimientos reales
 
-- tipo: ingreso | gasto, monto DECIMAL(18,2), fecha, cuenta y categoría financiera.
+- tipo: ingreso | gasto, monto DECIMAL(18,2), `afecta_caja` opcional (NULL = usa la categoría; 0/1 = override del asiento), fecha, cuenta y categoría financiera.
 - Vínculos opcionales a producto, cotización y movimiento de stock.
 - anulada_de autorreferente: una transacción solo puede anularse una vez.
 - Idempotencia: una cotización genera máximo un ingreso y un gasto; un movimiento de stock máximo un egreso.
+
+## third_parties — clientes y proveedores
+
+- tipo: cliente | proveedor | ambos; tipo_documento y documento único (nullable).
+- Condición de pago por defecto y días de crédito, que la factura puede sobrescribir.
+- activo: un tercero con facturas no se elimina, se desactiva.
+- Índices por nombre y por tipo/estado para búsquedas y filtros.
+
+## invoices — condición de pago y cartera
+
+- party_id opcional; la contraparte textual se conserva como snapshot.
+- condicion_pago: contado | credito; dias_credito y fecha_vencimiento.
+- A crédito no se mueve caja al confirmar: los asientos llevan `afecta_caja = 0` como override.
+- La anulación copia el override a la contrapartida para no alterar el capital.

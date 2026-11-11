@@ -50,6 +50,11 @@ Los huecos principales eran:
 - **Trazabilidad**: toda operación sensible queda en `audit_log`.
 - **Códigos de sistema**: las categorías contables se identifican por `codigo`,
   no por nombre visible.
+- **Terceros**: clientes y proveedores se registran una vez y se reutilizan. La
+  factura conserva un snapshot de nombre/documento y se vincula con `party_id`.
+- **Condición de pago**: contado mueve caja al confirmar; crédito genera cartera
+  y mueve caja al registrar el cobro o pago. El vencimiento se calcula con los
+  días de crédito.
 
 ## 3. Modelo de datos objetivo
 
@@ -96,7 +101,7 @@ Los huecos principales eran:
 
 | ID | Mejora | Estado |
 |---|---|---|
-| C1 | Maestro de terceros (clientes/proveedores) | Pendiente |
+| C1 | Maestro de terceros (clientes/proveedores) | Hecho |
 | C2 | Cartera CxC/CxP, condiciones de pago y pagos parciales | Pendiente |
 | C3 | Aging, mora, DSO y alertas de cobro | Pendiente |
 | C4 | Retenciones contables (activo/pasivo, no solo informativas) | Pendiente |
@@ -154,3 +159,4 @@ Los huecos principales eran:
 |---|---|---|---|
 | 2026-11-11 | Plan y rama | — | Rama `feat/contabilidad-analitica` creada desde `main` con el PR #27 fusionado |
 | 2026-11-11 | Fase 0 (QW-1..QW-5) | — | Migración `V017`; categorías por código; IVA neto; inventario al costo; dashboard mensual; rango en URL; imports `quoteUtils` normalizados |
+| 2026-11-11 | C1 (terceros) | — | Migración `V018`; CRUD `/api/third-parties`; página Terceros; vínculo `invoices.party_id`; condición de pago y vencimiento; ventas/compras a crédito no mueven caja |

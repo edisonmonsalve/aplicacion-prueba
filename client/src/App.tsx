@@ -16,6 +16,7 @@ import InvoicesPage from "@/pages/invoices/InvoicesPage";
 import InvoiceDetailPage from "@/pages/invoices/InvoiceDetailPage";
 import InvoiceFormPage from "@/pages/invoices/InvoiceFormPage";
 import InvoicePrintPage from "@/pages/invoices/InvoicePrintPage";
+import ThirdPartiesPage from "@/pages/ThirdPartiesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import FinanceOverviewPage from "@/pages/finance/FinanceOverviewPage";
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="/cotizaciones/:id/imprimir" element={<QuotePrintPage />} />
             <Route path="/facturas" element={<InvoicesPage />} />
             <Route path="/facturas/:id" element={<InvoiceDetailPage />} />
+            <Route path="/terceros" element={<ThirdPartiesPage />} />
             <Route path="/facturas/:id/imprimir" element={<InvoicePrintPage />} />
             <Route element={<RequireOperate />}>
               <Route path="facturas/nuevo" element={<InvoiceFormPage />} />

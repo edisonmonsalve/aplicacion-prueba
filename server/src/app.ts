@@ -12,6 +12,7 @@ import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
 import { quotesRouter } from "./modules/quotes/quotes.routes.js";
 import { financeRouter } from "./modules/finance/finance.routes.js";
 import { invoicesRouter } from "./modules/invoices/invoices.routes.js";
+import { thirdPartiesRouter } from "./modules/third-parties/third-parties.routes.js";
 
 
 export const app = express();
@@ -33,5 +34,6 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/quotes", quotesRouter);
 app.use("/api/finance", financeRouter);
 app.use("/api/invoices", invoicesRouter);
+app.use("/api/third-parties", thirdPartiesRouter);
 
 app.use(errorHandler); // siempre al final
