@@ -53,6 +53,7 @@
 - RF-21: Registrar cobros y pagos (totales o parciales) sobre facturas a crédito confirmadas, eligiendo fecha, monto, cuenta y método. El monto no puede superar el saldo pendiente.
 - RF-22: Anular un cobro o pago registrado, generando la contrapartida contable y devolviendo el saldo a la cartera. No se permite anular una factura con pagos válidos.
 - RF-23: Ver en el detalle de la factura el total neto, lo pagado, el saldo pendiente, el estado de cartera y el historial de movimientos.
+- RF-24: Ver el aging de la cartera por tramos (corriente, 1-30, 31-60, 61-90 y más de 90 días), el DSO, el saldo vencido, lo que vence en 7 días y los principales deudores.
 
 ## Reglas de negocio
 
@@ -86,6 +87,7 @@
 - RN-23: Anular un pago o cobro genera una contrapartida de caja y deja el movimiento marcado como anulado; no se borra.
 - RN-24: Una factura con pagos válidos no se anula hasta anular esos pagos.
 - RN-25: La cartera se deriva de facturas confirmadas a crédito menos sus pagos válidos. El estado (pendiente, parcial, pagada, vencida) se calcula, no se guarda duplicado.
+- RN-26: El aging mide los días desde `fecha_vencimiento` hasta hoy y solo considera saldo pendiente mayor que cero. El DSO es simple: cartera por cobrar / ventas a crédito del periodo × días del periodo; si no hubo ventas a crédito, no se informa.
 
 ## Supuestos a confirmar
 

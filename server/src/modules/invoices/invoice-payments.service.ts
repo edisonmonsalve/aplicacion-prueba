@@ -9,7 +9,7 @@ import {
   createAutoTransaction,
   roundMoney,
 } from "../finance/finance.shared.js";
-import type { CreatePaymentInput, ReceivableQuery } from "./invoice-payments.schema.js";
+import type { AgingQuery, CreatePaymentInput, ReceivableQuery } from "./invoice-payments.schema.js";
 
 type InvoiceForCartera = {
   id: number;
@@ -73,13 +73,11 @@ export async function invoiceBalance(invoice: InvoiceForCartera) {
 }
 
 /**
- * Cartera CxC/CxP derivada de facturas confirmadas a crédito.
- *
- * No duplica saldos: el pendiente se calcula como total_neto menos los pagos
- * válidos. El estado se deriva de la fecha de vencimiento y del saldo.
+ * Consulta base de cartera: facturas confirmadas a crédito con su saldo
+ * derivado de los pagos válidos. Se reutiliza en la lista y en el aging para
+ * que ambos informes midan exactamente lo mismo.
  */
-export async function listReceivables(query: ReceivableQuery) {
-  const inner = `
+export const CARTERA_DERIVED = `
     SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.party_id,
            i.condicion_pago, i.dias_credito, i.fecha_vencimiento, i.total_neto,
            COALESCE(p.pagado, 0) AS pagado,
@@ -102,6 +100,15 @@ export async function listReceivables(query: ReceivableQuery) {
       GROUP BY invoice_id
     ) p ON p.invoice_id = i.id
     WHERE i.estado = 'confirmada' AND i.condicion_pago = 'credito'`;
+
+/**
+ * Cartera CxC/CxP derivada de facturas confirmadas a crédito.
+ *
+ * No duplica saldos: el pendiente se calcula como total_neto menos los pagos
+ * válidos. El estado se deriva de la fecha de vencimiento y del saldo.
+ */
+export async function listReceivables(query: ReceivableQuery) {
+  const inner = CARTERA_DERIVED;
 
   const where: string[] = [];
   const params: (string | number)[] = [];
@@ -157,6 +164,118 @@ export async function listReceivables(query: ReceivableQuery) {
       por_pagar: Number(resumen.por_pagar),
       vencido: Number(resumen.vencido),
     },
+  };
+}
+
+const bucket = (row: RowDataPacket | undefined) => ({
+  corriente: roundMoney(Number(row?.corriente ?? 0)),
+  d1_30: roundMoney(Number(row?.d1_30 ?? 0)),
+  d31_60: roundMoney(Number(row?.d31_60 ?? 0)),
+  d61_90: roundMoney(Number(row?.d61_90 ?? 0)),
+  d90_mas: roundMoney(Number(row?.d90_mas ?? 0)),
+  total: roundMoney(Number(row?.total ?? 0)),
+});
+
+/**
+ * Aging de cartera, DSO y alertas de cobro.
+ *
+ * Los tramos se miden desde `fecha_vencimiento` hasta hoy: corriente (aún no
+ * vence), 1-30, 31-60, 61-90 y más de 90 días. El DSO es simple: cartera por
+ * cobrar actual dividida entre las ventas a crédito del periodo, multiplicada
+ * por los días del periodo. Si no hubo ventas a crédito, no se informa.
+ */
+export async function carteraAging(query: AgingQuery) {
+  const hasta = query.hasta ?? today();
+  const desde = query.desde ?? `${hasta.slice(0, 7)}-01`;
+  if (desde > hasta) {
+    throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
+  }
+  const periodoDias = Math.floor(
+    (Date.parse(`${hasta}T12:00:00`) - Date.parse(`${desde}T12:00:00`)) / 86_400_000
+  ) + 1;
+
+  const [agingRows] = await pool.query<RowDataPacket[]>(
+    `SELECT c.tipo,
+            COALESCE(SUM(CASE WHEN c.dias_vencido <= 0 THEN c.saldo_pendiente ELSE 0 END), 0) AS corriente,
+            COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 1 AND 30 THEN c.saldo_pendiente ELSE 0 END), 0) AS d1_30,
+            COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 31 AND 60 THEN c.saldo_pendiente ELSE 0 END), 0) AS d31_60,
+            COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 61 AND 90 THEN c.saldo_pendiente ELSE 0 END), 0) AS d61_90,
+            COALESCE(SUM(CASE WHEN c.dias_vencido > 90 THEN c.saldo_pendiente ELSE 0 END), 0) AS d90_mas,
+            COALESCE(SUM(c.saldo_pendiente), 0) AS total
+     FROM (${CARTERA_DERIVED}) c
+     WHERE c.saldo_pendiente > 0
+     GROUP BY c.tipo`,
+    []
+  );
+  const ventaRow = agingRows.find((r) => r.tipo === "venta");
+  const compraRow = agingRows.find((r) => r.tipo === "compra");
+
+  const [[totales]] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN c.tipo = 'venta' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_cobrar,
+       COALESCE(SUM(CASE WHEN c.tipo = 'compra' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_pagar,
+       COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido,
+       COALESCE(SUM(CASE WHEN c.tipo = 'venta' AND c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido_cobrar,
+       COALESCE(SUM(CASE WHEN c.tipo = 'venta' AND c.dias_vencido BETWEEN -7 AND 0
+                         THEN c.saldo_pendiente ELSE 0 END), 0) AS por_vencer_7d,
+       COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN 1 ELSE 0 END), 0) AS facturas_vencidas
+     FROM (${CARTERA_DERIVED}) c
+     WHERE c.saldo_pendiente > 0`,
+    []
+  );
+
+  // DSO simple: cuántos días de ventas a crédito representa la cartera actual.
+  const [[ventas]] = await pool.query<RowDataPacket[]>(
+    `SELECT COALESCE(SUM(i.total_neto), 0) AS total, COUNT(*) AS facturas
+     FROM invoices i
+     WHERE i.tipo = 'venta' AND i.estado = 'confirmada'
+       AND i.condicion_pago = 'credito'
+       AND i.fecha BETWEEN ? AND ?`,
+    [desde, hasta]
+  );
+  const ventasCredito = roundMoney(Number(ventas.total));
+  const porCobrar = roundMoney(Number(totales.por_cobrar));
+  const dso =
+    ventasCredito > 0 ? roundMoney((porCobrar / ventasCredito) * periodoDias) : null;
+
+  const [topDeudores] = await pool.query<RowDataPacket[]>(
+    `SELECT c.contraparte, c.party_id,
+            COALESCE(SUM(c.saldo_pendiente), 0) AS saldo,
+            COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido,
+            COALESCE(MAX(c.dias_vencido), 0) AS max_dias
+     FROM (${CARTERA_DERIVED}) c
+     WHERE c.tipo = 'venta' AND c.saldo_pendiente > 0
+     GROUP BY c.contraparte, c.party_id
+     ORDER BY vencido DESC, saldo DESC
+     LIMIT 5`,
+    []
+  );
+
+  return {
+    as_of: today(),
+    periodo: { desde, hasta, dias: periodoDias },
+    dso,
+    ventas_credito: ventasCredito,
+    facturas_credito: Number(ventas.facturas),
+    totales: {
+      por_cobrar: porCobrar,
+      por_pagar: roundMoney(Number(totales.por_pagar)),
+      vencido: roundMoney(Number(totales.vencido)),
+      vencido_cobrar: roundMoney(Number(totales.vencido_cobrar)),
+      por_vencer_7d: roundMoney(Number(totales.por_vencer_7d)),
+      facturas_vencidas: Number(totales.facturas_vencidas),
+    },
+    aging: {
+      venta: bucket(ventaRow),
+      compra: bucket(compraRow),
+    },
+    top_deudores: topDeudores.map((r) => ({
+      contraparte: r.contraparte,
+      party_id: r.party_id,
+      saldo: roundMoney(Number(r.saldo)),
+      vencido: roundMoney(Number(r.vencido)),
+      max_dias: Number(r.max_dias),
+    })),
   };
 }
 

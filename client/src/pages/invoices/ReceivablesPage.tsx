@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Alert,
   App,
   Button,
   Card,
@@ -18,7 +19,7 @@ import {
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import { getFinanceAccounts } from "@/services/financeService";
-import { listReceivables } from "@/services/invoicesService";
+import { getCarteraAging, listReceivables } from "@/services/invoicesService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
@@ -26,6 +27,7 @@ import { useAuth } from "@/context/AuthContext";
 import PageHeader from "@/components/PageHeader";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
+  CarteraAging,
   CarteraEstado,
   FinanceAccount,
   InvoiceReceivable,
@@ -71,6 +73,7 @@ export default function ReceivablesPage() {
     resumen: { por_cobrar: 0, por_pagar: 0, vencido: 0 },
   });
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
+  const [aging, setAging] = useState<CarteraAging | null>(null);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState(q);
 
@@ -102,6 +105,13 @@ export default function ReceivablesPage() {
       .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar la cartera")))
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    getCarteraAging({ desde, hasta })
+      .then((a) => {
+        if (!cancelled) setAging(a);
+      })
+      .catch(() => {
+        // El aging es complementario: la lista sigue funcionando sin él.
       });
     return () => {
       cancelled = true;
@@ -177,6 +187,128 @@ export default function ReceivablesPage() {
           </Card>
         </Col>
       </Row>
+
+      {aging && (
+        <>
+          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Col xs={24} lg={14}>
+              <Card
+                size="small"
+                title="Antigüedad por cobrar"
+                extra={
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Al {fmtDate(aging.as_of)}
+                  </Typography.Text>
+                }
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
+                  {[
+                    { label: "Corriente", value: aging.aging.venta.corriente, color: "#389e0d" },
+                    { label: "1-30 días", value: aging.aging.venta.d1_30, color: "#d48806" },
+                    { label: "31-60 días", value: aging.aging.venta.d31_60, color: "#d46b08" },
+                    { label: "61-90 días", value: aging.aging.venta.d61_90, color: "#cf1322" },
+                    { label: "+90 días", value: aging.aging.venta.d90_mas, color: "#a8071a" },
+                  ].map((b) => (
+                    <div key={b.label} style={{ minWidth: 130 }}>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {b.label}
+                      </Typography.Text>
+                      <div style={{ fontWeight: 600, color: b.value > 0 ? b.color : undefined }}>
+                        {money(b.value)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} lg={10}>
+              <Card size="small" title="Indicadores de cobro">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
+                  <Statistic
+                    title={<Tooltip title="Días de ventas a crédito que representa la cartera por cobrar actual.">DSO</Tooltip>}
+                    value={aging.dso === null ? "—" : aging.dso}
+                    precision={aging.dso === null ? undefined : 1}
+                    suffix={aging.dso === null ? undefined : "días"}
+                  />
+                  <Statistic
+                    title="Vencido por cobrar"
+                    value={aging.totales.vencido_cobrar}
+                    precision={2}
+                    prefix="$"
+                    valueStyle={{ color: aging.totales.vencido_cobrar > 0 ? "#cf1322" : undefined }}
+                  />
+                  <Statistic
+                    title="Por vencer (7 días)"
+                    value={aging.totales.por_vencer_7d}
+                    precision={2}
+                    prefix="$"
+                  />
+                </div>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Ventas a crédito del periodo: {money(aging.ventas_credito)} ·{" "}
+                  {aging.facturas_credito} factura(s)
+                </Typography.Text>
+              </Card>
+            </Col>
+          </Row>
+
+          {aging.totales.facturas_vencidas > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={`${aging.totales.facturas_vencidas} factura(s) vencida(s)`}
+              description={`Saldo vencido por cobrar: ${money(
+                aging.totales.vencido_cobrar
+              )}. Revisa los cobros pendientes y prioriza los tramos de mayor mora.`}
+            />
+          )}
+
+          {aging.top_deudores.length > 0 && (
+            <Card
+              size="small"
+              title="Principales deudores"
+              style={{ marginBottom: 16 }}
+              extra={
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Ordenados por saldo vencido
+                </Typography.Text>
+              }
+            >
+              <Table
+                rowKey={(r) => `${r.party_id ?? r.contraparte}`}
+                size="small"
+                pagination={false}
+                scroll={{ x: "max-content" }}
+                dataSource={aging.top_deudores}
+                columns={[
+                  { title: "Cliente", dataIndex: "contraparte" },
+                  {
+                    title: "Saldo",
+                    dataIndex: "saldo",
+                    align: "right",
+                    render: (v: number) => money(v),
+                  },
+                  {
+                    title: "Vencido",
+                    dataIndex: "vencido",
+                    align: "right",
+                    render: (v: number) => (
+                      <Typography.Text type={v > 0 ? "danger" : undefined}>{money(v)}</Typography.Text>
+                    ),
+                  },
+                  {
+                    title: "Mora máxima",
+                    dataIndex: "max_dias",
+                    align: "right",
+                    render: (d: number) => (d > 0 ? `${d} días` : "—"),
+                  },
+                ]}
+              />
+            </Card>
+          )}
+        </>
+      )}
 
       <div
         style={{

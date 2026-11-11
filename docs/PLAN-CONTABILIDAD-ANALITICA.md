@@ -103,7 +103,7 @@ Los huecos principales eran:
 |---|---|---|
 | C1 | Maestro de terceros (clientes/proveedores) | Hecho |
 | C2 | Cartera CxC/CxP, condiciones de pago y pagos parciales | Hecho |
-| C3 | Aging, mora, DSO y alertas de cobro | Pendiente |
+| C3 | Aging, mora, DSO y alertas de cobro | Hecho |
 | C4 | Retenciones contables (activo/pasivo, no solo informativas) | Pendiente |
 | C5 | Cierre de periodo formal con snapshot y reapertura auditada | Pendiente |
 
@@ -161,3 +161,4 @@ Los huecos principales eran:
 | 2026-11-11 | Fase 0 (QW-1..QW-5) | — | Migración `V017`; categorías por código; IVA neto; inventario al costo; dashboard mensual; rango en URL; imports `quoteUtils` normalizados |
 | 2026-11-11 | C1 (terceros) | — | Migración `V018`; CRUD `/api/third-parties`; página Terceros; vínculo `invoices.party_id`; condición de pago y vencimiento; ventas/compras a crédito no mueven caja |
 | 2026-11-11 | C2 (cartera y pagos) | — | Migración `V019`; cartera derivada con pagos parciales y anulación; `/api/invoices/cartera` y `/payments`; página Cartera; tarjeta de pagos en el detalle; `ingresos_totales` en el resumen |
+| 2026-11-11 | C3 (aging y DSO) | — | `/api/invoices/cartera/aging`; tramos corriente a +90 días, DSO simple, saldo vencido, por vencer en 7 días y principales deudores; panel en la página de Cartera |

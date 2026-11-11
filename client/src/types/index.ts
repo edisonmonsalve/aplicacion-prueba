@@ -596,6 +596,40 @@ export interface PaymentInput {
   notas?: string;
 }
 
+export interface AgingBucket {
+  corriente: number;
+  d1_30: number;
+  d31_60: number;
+  d61_90: number;
+  d90_mas: number;
+  total: number;
+}
+
+export interface CarteraAging {
+  as_of: string;
+  periodo: { desde: string; hasta: string; dias: number };
+  /** Días de ventas a crédito que representa la cartera actual; null sin ventas. */
+  dso: number | null;
+  ventas_credito: number;
+  facturas_credito: number;
+  totales: {
+    por_cobrar: number;
+    por_pagar: number;
+    vencido: number;
+    vencido_cobrar: number;
+    por_vencer_7d: number;
+    facturas_vencidas: number;
+  };
+  aging: { venta: AgingBucket; compra: AgingBucket };
+  top_deudores: {
+    contraparte: string;
+    party_id: number | null;
+    saldo: number;
+    vencido: number;
+    max_dias: number;
+  }[];
+}
+
 export interface InvoiceItemInput {
   product_id: number;
   cantidad: number;

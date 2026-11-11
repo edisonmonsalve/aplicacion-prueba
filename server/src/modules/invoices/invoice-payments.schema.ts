@@ -35,5 +35,11 @@ export const paymentParamsSchema = z.object({
   paymentId: z.coerce.number().int().positive(),
 });
 
+export const agingQuerySchema = z.object({
+  desde: z.string().optional(),
+  hasta: z.string().optional(),
+});
+
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type ReceivableQuery = z.infer<typeof receivableQuerySchema>;
+export type AgingQuery = z.infer<typeof agingQuerySchema>;

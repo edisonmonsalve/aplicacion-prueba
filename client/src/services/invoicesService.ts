@@ -1,5 +1,6 @@
 import { api } from "./api";
 import type {
+  CarteraAging,
   InvoiceDetail,
   InvoiceInput,
   InvoicePayment,
@@ -33,6 +34,9 @@ export const cancelInvoice = async (id: number) =>
 
 export const listReceivables = async (q: ReceivablesQuery) =>
   (await api.get<PaginatedReceivables>("/invoices/cartera", { params: q })).data;
+
+export const getCarteraAging = async (params?: { desde?: string; hasta?: string }) =>
+  (await api.get<CarteraAging>("/invoices/cartera/aging", { params })).data;
 
 export const listInvoicePayments = async (id: number) =>
   (await api.get<InvoicePayment[]>(`/invoices/${id}/payments`)).data;

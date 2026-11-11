@@ -17,11 +17,13 @@ import {
 } from "./invoices.schema.js";
 import {
   createPaymentSchema,
+  agingQuerySchema,
   paymentParamsSchema,
   receivableQuerySchema,
 } from "./invoice-payments.schema.js";
 import {
   cancelPayment,
+  carteraAging,
   createPayment,
   listInvoicePayments,
   listReceivables,
@@ -36,6 +38,12 @@ invoicesRouter.use(authenticate);
 invoicesRouter.get("/cartera", requireRole("admin", "contador", "consulta"), async (req, res, next) => {
   try {
     res.json(await listReceivables(receivableQuerySchema.parse(req.query)));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.get("/cartera/aging", requireRole("admin", "contador", "consulta"), async (req, res, next) => {
+  try {
+    res.json(await carteraAging(agingQuerySchema.parse(req.query)));
   } catch (err) { next(err); }
 });
 

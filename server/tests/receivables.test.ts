@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
 import { today } from "../src/utils/dates.js";
+import { addDays } from "../src/utils/dates.js";
 import { bearer, resetDb, userWithToken } from "./helpers.js";
 
 async function setup() {
@@ -47,16 +48,24 @@ async function setup() {
   return { admin, contador, consulta, operador, productId, partyId: party.body.id as number };
 }
 
-async function creditSale(adminToken: string, partyId: number, productId: number, cantidad = 2) {
+async function creditSale(
+  adminToken: string,
+  partyId: number,
+  productId: number,
+  cantidad = 2,
+  fecha = today(),
+  precio = 100,
+  impuesto: 0 | 19 = 19
+) {
   const created = await request(app)
     .post("/api/invoices")
     .set(bearer(adminToken))
     .send({
       tipo: "venta",
-      fecha: today(),
+      fecha,
       contraparte: "Cliente Cartera SAS",
       party_id: partyId,
-      items: [{ product_id: productId, cantidad, precio_unitario: 100, impuesto_pct: 19 }],
+      items: [{ product_id: productId, cantidad, precio_unitario: precio, impuesto_pct: impuesto }],
     });
   await request(app)
     .post(`/api/invoices/${created.body.id}/confirmar`)
@@ -260,5 +269,58 @@ describe("Cartera CxC/CxP y pagos parciales", () => {
       .set(bearer(admin.token));
     expect(after.body.estado_cartera).toBe("pagada");
     expect(Number(after.body.saldo_pendiente)).toBe(0);
+  });
+
+  it("calcula aging, mora y DSO de la cartera", async () => {
+    // Vencida hace 15 días (factura de hace 45 con 30 días de crédito).
+    await creditSale(admin.token, partyId, productId, 2, addDays(today(), -45), 100, 0);
+    // Aún corriente.
+    await creditSale(admin.token, partyId, productId, 1, today(), 100, 0);
+
+    const res = await request(app)
+      .get(`/api/invoices/cartera/aging?desde=${addDays(today(), -60)}&hasta=${today()}`)
+      .set(bearer(consulta.token));
+    expect(res.status).toBe(200);
+    expect(Number(res.body.totales.por_cobrar)).toBe(300);
+    expect(Number(res.body.totales.vencido)).toBe(200);
+    expect(Number(res.body.totales.vencido_cobrar)).toBe(200);
+    expect(Number(res.body.totales.facturas_vencidas)).toBe(1);
+
+    expect(Number(res.body.aging.venta.corriente)).toBe(100);
+    expect(Number(res.body.aging.venta.d1_30)).toBe(200);
+    expect(Number(res.body.aging.venta.total)).toBe(300);
+
+    expect(Number(res.body.ventas_credito)).toBe(300);
+    expect(res.body.dso).toBeGreaterThan(0);
+    expect(res.body.top_deudores[0]).toMatchObject({
+      contraparte: "Cliente Cartera SAS",
+      saldo: 300,
+      vencido: 200,
+    });
+
+    const forbidden = await request(app)
+      .get("/api/invoices/cartera/aging")
+      .set(bearer(operador.token));
+    expect(forbidden.status).toBe(403);
+  });
+
+  it("clasifica la mora en tramos y descuenta los pagos del aging", async () => {
+    // Vencida hace 100 días: tramo de más de 90.
+    const id = await creditSale(admin.token, partyId, productId, 2, addDays(today(), -130), 100, 0);
+
+    const payment = await request(app)
+      .post(`/api/invoices/${id}/payments`)
+      .set(bearer(admin.token))
+      .send({ fecha: today(), monto: 50 });
+    expect(payment.status).toBe(201);
+
+    const res = await request(app)
+      .get("/api/invoices/cartera/aging")
+      .set(bearer(admin.token));
+    expect(res.status).toBe(200);
+    expect(Number(res.body.aging.venta.d90_mas)).toBe(150);
+    expect(Number(res.body.aging.venta.total)).toBe(150);
+    expect(Number(res.body.aging.venta.corriente)).toBe(0);
+    expect(res.body.top_deudores[0].max_dias).toBeGreaterThan(90);
   });
 });
