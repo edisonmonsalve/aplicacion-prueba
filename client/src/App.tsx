@@ -28,6 +28,7 @@ import ProfitLossPage from "@/pages/finance/ProfitLossPage";
 import CashFlowPage from "@/pages/finance/CashFlowPage";
 import BalancePage from "@/pages/finance/BalancePage";
 import ProfitabilityPage from "@/pages/finance/ProfitabilityPage";
+import InventoryAnalyticsPage from "@/pages/finance/InventoryAnalyticsPage";
 import ReceivablesPage from "@/pages/invoices/ReceivablesPage";
 import RequireOperate from "./components/RequireOperate";
 
@@ -134,6 +135,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <ProfitabilityPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/inventario"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <InventoryAnalyticsPage />
                 </ProtectedRoute>
               }
             />

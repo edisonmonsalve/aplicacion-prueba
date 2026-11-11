@@ -574,6 +574,65 @@ export interface ProfitabilityReport {
   data: ProfitabilityRow[];
 }
 
+// ---------- Rotación y ABC de inventario ----------
+
+export type InventoryAbcClass = "A" | "B" | "C";
+
+export interface InventoryAnalyticsRow {
+  id: number;
+  sku: string;
+  nombre: string;
+  categoria: string | null;
+  activo: number;
+  stock_actual: number;
+  costo_unitario: number;
+  valor_inventario: number;
+  unidades_vendidas: number;
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  margen_pct: number;
+  /** Costo de ventas / valor del inventario actual; null si no hay inventario. */
+  rotacion: number | null;
+  dias_inventario: number | null;
+  ultima_venta: string | null;
+  dias_sin_venta: number | null;
+  stock_muerto: boolean;
+  sin_costo: boolean;
+  participacion: number;
+  acumulado: number;
+  clase_abc: InventoryAbcClass;
+}
+
+export interface InventoryAbcGroup {
+  clase: InventoryAbcClass;
+  productos: number;
+  ingresos: number;
+  participacion: number;
+}
+
+export interface InventoryAnalyticsReport {
+  rango: {
+    desde: string;
+    hasta: string;
+    dias: number;
+    dias_muerto: number;
+  };
+  resumen: {
+    valor_inventario: number;
+    costo_ventas: number;
+    ingresos: number;
+    rotacion: number | null;
+    dias_inventario: number | null;
+    productos: number;
+    productos_vendidos: number;
+    stock_muerto: { productos: number; valor: number };
+    sin_costo: number;
+    abc: InventoryAbcGroup[];
+  };
+  data: InventoryAnalyticsRow[];
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

@@ -659,3 +659,217 @@ export async function getProfitability(query: ProfitabilityQuery) {
     data,
   };
 }
+
+interface InventoryAnalyticsQuery {
+  desde?: string;
+  hasta?: string;
+  /** Días sin venta a partir de los cuales el stock se considera muerto. */
+  dias_muerto?: number;
+}
+
+type AbcClass = "A" | "B" | "C";
+
+interface InventoryRow {
+  id: number;
+  sku: string;
+  nombre: string;
+  categoria: string | null;
+  activo: number;
+  stock_actual: number;
+  costo_unitario: number;
+  valor_inventario: number;
+  unidades_vendidas: number;
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  margen_pct: number;
+  rotacion: number | null;
+  dias_inventario: number | null;
+  ultima_venta: string | null;
+  dias_sin_venta: number | null;
+  stock_muerto: boolean;
+  sin_costo: boolean;
+  participacion: number;
+  acumulado: number;
+  clase_abc: AbcClass;
+}
+
+const daysBetween = (desde: string, hasta: string) =>
+  Math.floor(
+    (Date.parse(`${hasta}T12:00:00`) - Date.parse(`${desde}T12:00:00`)) / 86_400_000
+  );
+
+/**
+ * Rotación y clasificación ABC del inventario.
+ *
+ * - Ventas del periodo: facturas de venta confirmadas. El costo sale de
+ *   `transaction_allocations` (costo histórico del momento de la venta).
+ * - Rotación = costo de ventas / valor del inventario actual. Como no se
+ *   guardan fotos históricas de existencias, el denominador es el inventario
+ *   de hoy valorizado al costo actual; se informa así en la interfaz.
+ * - Días de inventario = días del periodo / rotación.
+ * - Stock muerto: productos con existencias y sin ventas en `dias_muerto`
+ *   días (por defecto 90), contados desde la fecha final del rango.
+ * - ABC por ingresos: A hasta el 80 % acumulado, B hasta el 95 %, C el resto.
+ */
+export async function getInventoryAnalytics(query: InventoryAnalyticsQuery) {
+  const hasta = query.hasta ?? today();
+  const desde = query.desde ?? `${hasta.slice(0, 7)}-01`;
+  if (desde > hasta) {
+    throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
+  }
+  const diasMuerto = query.dias_muerto ?? 90;
+  const diasPeriodo = daysBetween(desde, hasta) + 1;
+
+  // Dos subconsultas independientes para no multiplicar filas: las ventas se
+  // agregan por producto y el costo de ventas sale de las asignaciones.
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT p.id, p.sku, p.nombre, p.activo, p.stock_actual, p.costo,
+            c.nombre AS categoria,
+            COALESCE(v.unidades, 0) AS unidades,
+            COALESCE(v.ingresos, 0) AS ingresos,
+            COALESCE(k.costo, 0) AS costo_ventas,
+            u.ultima_venta
+     FROM products p
+     LEFT JOIN categories c ON c.id = p.category_id
+     LEFT JOIN (
+       SELECT ii.product_id,
+              SUM(ii.cantidad) AS unidades,
+              SUM(ii.cantidad * ii.precio_unitario *
+                  (1 - ii.descuento_pct / 100)) AS ingresos
+       FROM invoice_items ii
+       JOIN invoices i ON i.id = ii.invoice_id
+       WHERE i.tipo = 'venta'
+         AND i.estado = 'confirmada'
+         AND i.fecha BETWEEN ? AND ?
+       GROUP BY ii.product_id
+     ) v ON v.product_id = p.id
+     LEFT JOIN (
+       SELECT a.product_id, SUM(a.monto) AS costo
+       FROM transaction_allocations a
+       JOIN transactions t ON t.id = a.transaction_id
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       JOIN invoice_items ii ON ii.id = a.invoice_item_id
+       JOIN invoices i ON i.id = ii.invoice_id
+       WHERE i.tipo = 'venta'
+         AND i.estado = 'confirmada'
+         AND i.fecha BETWEEN ? AND ?
+         AND fc.codigo = 'costo_ventas'
+         AND ${VALID_TRANSACTION}
+       GROUP BY a.product_id
+     ) k ON k.product_id = p.id
+     LEFT JOIN (
+       SELECT ii.product_id, MAX(i.fecha) AS ultima_venta
+       FROM invoice_items ii
+       JOIN invoices i ON i.id = ii.invoice_id
+       WHERE i.tipo = 'venta' AND i.estado = 'confirmada'
+       GROUP BY ii.product_id
+     ) u ON u.product_id = p.id
+     WHERE p.stock_actual > 0 OR COALESCE(v.unidades, 0) > 0
+     ORDER BY p.nombre`,
+    [desde, hasta, desde, hasta]
+  );
+
+  const base = rows.map((r) => {
+    const stock = Number(r.stock_actual);
+    const costoUnitario = Number(r.costo ?? 0);
+    const valor = roundMoney(stock * costoUnitario);
+    const ingresos = roundMoney(Number(r.ingresos));
+    const costoVentas = roundMoney(Number(r.costo_ventas));
+    const margen = roundMoney(ingresos - costoVentas);
+    const rotacionRaw = valor > 0 ? costoVentas / valor : null;
+    const ultimaVenta = r.ultima_venta
+      ? r.ultima_venta instanceof Date
+        ? r.ultima_venta.toISOString().slice(0, 10)
+        : String(r.ultima_venta).slice(0, 10)
+      : null;
+    const diasSinVenta = ultimaVenta ? daysBetween(ultimaVenta, hasta) : null;
+    return {
+      id: Number(r.id),
+      sku: String(r.sku),
+      nombre: String(r.nombre),
+      categoria: r.categoria ?? null,
+      activo: Number(r.activo),
+      stock_actual: stock,
+      costo_unitario: roundMoney(costoUnitario),
+      valor_inventario: valor,
+      unidades_vendidas: Number(r.unidades),
+      ingresos,
+      costo_ventas: costoVentas,
+      margen,
+      margen_pct: pctOf(margen, ingresos),
+      rotacion: rotacionRaw === null ? null : roundMoney(rotacionRaw),
+      dias_inventario:
+        rotacionRaw && rotacionRaw > 0 ? roundMoney(diasPeriodo / rotacionRaw) : null,
+      ultima_venta: ultimaVenta,
+      dias_sin_venta: diasSinVenta,
+      stock_muerto:
+        stock > 0 && (diasSinVenta === null || diasSinVenta > diasMuerto),
+      sin_costo: stock > 0 && costoUnitario === 0,
+      participacion: 0,
+      acumulado: 0,
+      clase_abc: "C" as AbcClass,
+    };
+  });
+
+  const totalIngresos = roundMoney(base.reduce((s, r) => s + r.ingresos, 0));
+  const totalCostoVentas = roundMoney(base.reduce((s, r) => s + r.costo_ventas, 0));
+
+  // ABC: se acumula sobre ingresos ordenados de mayor a menor. Los productos
+  // sin ventas en el periodo quedan en C (no aportan ingresos).
+  const porIngresos = [...base].sort(
+    (a, b) => b.ingresos - a.ingresos || a.nombre.localeCompare(b.nombre)
+  );
+  let acumulado = 0;
+  for (const row of porIngresos) {
+    row.participacion = pctOf(row.ingresos, totalIngresos);
+    if (row.ingresos > 0) acumulado += row.ingresos;
+    row.acumulado = pctOf(acumulado, totalIngresos);
+    row.clase_abc =
+      row.ingresos <= 0 ? "C" : row.acumulado <= 80 ? "A" : row.acumulado <= 95 ? "B" : "C";
+  }
+
+  const valorInventario = roundMoney(
+    porIngresos.reduce((s, r) => s + r.valor_inventario, 0)
+  );
+  const rotacionRaw = valorInventario > 0 ? totalCostoVentas / valorInventario : null;
+
+  const muertos = porIngresos.filter((r) => r.stock_muerto);
+  const sinCosto = porIngresos.filter((r) => r.sin_costo);
+
+  const abc = (["A", "B", "C"] as const).map((clase) => {
+    const items = porIngresos.filter((r) => r.clase_abc === clase);
+    const ingresos = roundMoney(items.reduce((s, r) => s + r.ingresos, 0));
+    return {
+      clase,
+      productos: items.length,
+      ingresos,
+      participacion: pctOf(ingresos, totalIngresos),
+    };
+  });
+
+  const data: InventoryRow[] = porIngresos.sort(
+    (a, b) => b.ingresos - a.ingresos || a.nombre.localeCompare(b.nombre)
+  );
+
+  return {
+    rango: { desde, hasta, dias: diasPeriodo, dias_muerto: diasMuerto },
+    resumen: {
+      valor_inventario: valorInventario,
+      costo_ventas: totalCostoVentas,
+      ingresos: totalIngresos,
+      rotacion: rotacionRaw === null ? null : roundMoney(rotacionRaw),
+      dias_inventario:
+        rotacionRaw && rotacionRaw > 0 ? roundMoney(diasPeriodo / rotacionRaw) : null,
+      productos: porIngresos.filter((r) => r.stock_actual > 0).length,
+      productos_vendidos: porIngresos.filter((r) => r.unidades_vendidas > 0).length,
+      stock_muerto: {
+        productos: muertos.length,
+        valor: roundMoney(muertos.reduce((s, r) => s + r.valor_inventario, 0)),
+      },
+      sin_costo: sinCosto.length,
+      abc,
+    },
+    data,
+  };
+}

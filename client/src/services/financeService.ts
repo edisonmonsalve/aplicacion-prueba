@@ -11,6 +11,7 @@ import type {
   FinanceAccountInput,
   FinanceCategory,
   FinanceSummary,
+  InventoryAnalyticsReport,
   Paginated,
   PaginatedTransactions,
   PnlReport,
@@ -65,6 +66,11 @@ export const getProfitability = async (params: {
   hasta?: string;
   grupo?: "producto" | "categoria" | "cliente";
 }) => (await api.get<ProfitabilityReport>("/finance/profitability", { params })).data;
+export const getInventoryAnalytics = async (params: {
+  desde?: string;
+  hasta?: string;
+  dias_muerto?: number;
+}) => (await api.get<InventoryAnalyticsReport>("/finance/inventory-analytics", { params })).data;
 export const getAvailability = async (productId: number) =>
   (await api.get<BudgetAvailability | null>("/finance/availability", { params: { product_id: productId } })).data;
 export const getSuggestions = async () => (await api.get<Suggestion[]>("/finance/suggestions")).data;

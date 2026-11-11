@@ -113,3 +113,7 @@ export const balanceQuerySchema = z.object({
 export const profitabilityQuerySchema = summaryQuerySchema.extend({
   grupo: z.enum(["producto", "categoria", "cliente"]).optional(),
 });
+
+export const inventoryAnalyticsQuerySchema = summaryQuerySchema.extend({
+  dias_muerto: z.coerce.number().int().min(1).max(3650).optional(),
+});
