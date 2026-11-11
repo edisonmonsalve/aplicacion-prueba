@@ -55,6 +55,8 @@
 - RF-23: Ver en el detalle de la factura el total neto, lo pagado, el saldo pendiente, el estado de cartera y el historial de movimientos.
 - RF-24: Ver el aging de la cartera por tramos (corriente, 1-30, 31-60, 61-90 y más de 90 días), el DSO, el saldo vencido, lo que vence en 7 días y los principales deudores.
 - RF-25: Registrar retenciones de fuente, IVA e ICA en la factura. Al confirmar se reconocen como activo fiscal (venta) o pasivo (compra) y reducen el neto a cobrar o pagar. No se admiten retenciones mayores que el total de la factura.
+- RF-26: Cerrar un periodo con una foto de sus totales (resumen, facturas, cartera, retenciones y transacciones) y bloquear nuevos asientos dentro del rango. Consultar los cierres y su detalle histórico.
+- RF-27: Reabrir un cierre vigente indicando el motivo. La reapertura no borra el cierre: lo marca como reabierto con usuario y fecha, y vuelve a permitir movimientos.
 
 ## Reglas de negocio
 
@@ -89,6 +91,8 @@
 - RN-24: Una factura con pagos válidos no se anula hasta anular esos pagos.
 - RN-25: La cartera se deriva de facturas confirmadas a crédito menos sus pagos válidos. El estado (pendiente, parcial, pagada, vencida) se calcula, no se guarda duplicado.
 - RN-26: El aging mide los días desde `fecha_vencimiento` hasta hoy y solo considera saldo pendiente mayor que cero. El DSO es simple: cartera por cobrar / ventas a crédito del periodo × días del periodo; si no hubo ventas a crédito, no se informa.
+- RN-27: Un cierre vigente (`cerrado`) bloquea cualquier asiento con fecha dentro de su rango, además de los presupuestos cerrados. No se permiten dos cierres vigentes superpuestos.
+- RN-28: La reapertura exige motivo y queda auditada; el cierre pasa a `reabierto` y no se elimina. Los totales del snapshot son inmutables y reflejan el momento del cierre.
 
 ## Supuestos a confirmar
 
@@ -139,3 +143,11 @@
 - estado: valido | anulado; la anulación guarda fecha y usuario y no borra el registro.
 - El saldo pendiente y el estado de cartera se derivan; no se almacenan en la factura.
 - Índices por factura/estado y por fecha para aging y conciliación.
+
+## period_closures — cierre formal de periodos
+
+- nombre, fecha_inicio y fecha_fin; el rango no puede superponerse con otro cierre vigente.
+- estado: cerrado | reabierto. Un cierre vigente bloquea asientos dentro del rango.
+- snapshot JSON con el resumen del periodo, conteo de facturas, transacciones, cartera y retenciones; es inmutable.
+- cerrado_by/cerrado_at y, al reabrir, reabierto_by/reabierto_at y motivo_reapertura.
+- Cada cierre y reapertura queda en `audit_log` con la entidad `period_closure`.

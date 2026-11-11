@@ -377,6 +377,51 @@ export interface FinanceSummary {
   }[];
 }
 
+export interface PeriodClosureSnapshot {
+  generado_at: string;
+  desde: string;
+  hasta: string;
+  resumen: FinanceSummary;
+  facturas: {
+    total: number;
+    confirmadas: number;
+    anuladas: number;
+    ventas: number;
+    compras: number;
+  };
+  transacciones: number;
+  cartera: {
+    por_cobrar: number;
+    por_pagar: number;
+  };
+  retenciones: {
+    ventas: number;
+    compras: number;
+  };
+}
+
+export type PeriodClosureEstado = "cerrado" | "reabierto";
+
+export interface PeriodClosure {
+  id: number;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: PeriodClosureEstado;
+  snapshot: PeriodClosureSnapshot;
+  cerrado_at: string;
+  reabierto_at: string | null;
+  motivo_reapertura: string | null;
+  cerrado_por: string;
+  reabierto_por: string | null;
+}
+
+export interface PeriodClosureInput {
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

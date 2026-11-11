@@ -63,6 +63,10 @@ export function getRouteBreadcrumb(pathname: string): BreadcrumbEntry[] | null {
       items.push({ label: "Cartera", to: "/finanzas/cartera" });
       return finish();
     }
+    if (sub === "cierres") {
+      items.push({ label: "Cierres", to: "/finanzas/cierres" });
+      return finish();
+    }
     if (sub === "presupuestos") {
       // El detalle del presupuesto también pinta su breadcrumb con el nombre.
       if (parts[2]) return null;

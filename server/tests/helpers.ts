@@ -15,6 +15,7 @@ export async function resetDb() {
   // Los pagos referencian facturas, cuentas y transacciones: se borran primero.
   await pool.query("DELETE FROM invoice_payments");
   await pool.query("DELETE FROM transactions");
+  await pool.query("DELETE FROM period_closures");
   // La factura puede referenciar una cuenta; se suelta antes de borrarlas.
   await pool.query("UPDATE invoices SET account_id = NULL");
   // Las cuentas creadas por las pruebas no forman parte del seed: se limpian y

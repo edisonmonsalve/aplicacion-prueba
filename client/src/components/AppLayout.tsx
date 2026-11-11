@@ -35,6 +35,7 @@ const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
   { prefix: "/finanzas/transacciones", key: "/finanzas/transacciones" },
   { prefix: "/finanzas/presupuestos", key: "/finanzas/presupuestos" },
   { prefix: "/finanzas/cartera", key: "/finanzas/cartera" },
+  { prefix: "/finanzas/cierres", key: "/finanzas/cierres" },
   { prefix: "/finanzas", key: "/finanzas" },
   { prefix: "/cotizaciones", key: "/cotizaciones" },
   { prefix: "/facturas", key: "/facturas" },
@@ -88,6 +89,7 @@ export default function AppLayout() {
             children: [
               { key: "/finanzas", label: "Resumen" },
               { key: "/finanzas/cartera", label: "Cartera" },
+              { key: "/finanzas/cierres", label: "Cierres" },
               { key: "/finanzas/presupuestos", label: "Presupuestos" },
               { key: "/finanzas/transacciones", label: "Transacciones" },
             ],

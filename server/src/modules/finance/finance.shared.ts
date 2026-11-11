@@ -22,12 +22,25 @@ export async function assertPeriodOpen(conn: PoolConnection, fecha: string) {
       `El periodo "${rows[0].nombre}" está cerrado y no admite transacciones`
     );
   }
+  const [closures] = await conn.query<RowDataPacket[]>(
+    `SELECT nombre
+     FROM period_closures
+     WHERE estado = 'cerrado' AND ? BETWEEN fecha_inicio AND fecha_fin
+     LIMIT 1`,
+    [fecha]
+  );
+  if (closures[0]) {
+    throw new HttpError(
+      409,
+      `El cierre "${closures[0].nombre}" está vigente y no admite transacciones en esa fecha`
+    );
+  }
 }
 
 export async function auditFinance(
   conn: PoolConnection,
   userId: number,
-  entidad: "budget" | "transaction" | "account" | "payment",
+  entidad: "budget" | "transaction" | "account" | "payment" | "period_closure",
   entidadId: number,
   accion: string,
   antes: unknown,

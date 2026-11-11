@@ -23,6 +23,7 @@ import FinanceOverviewPage from "@/pages/finance/FinanceOverviewPage";
 import BudgetsPage from "@/pages/finance/BudgetsPage";
 import BudgetDetailPage from "@/pages/finance/BudgetDetailPage";
 import TransactionsPage from "@/pages/finance/TransactionsPage";
+import PeriodClosuresPage from "@/pages/finance/PeriodClosuresPage";
 import ReceivablesPage from "@/pages/invoices/ReceivablesPage";
 import RequireOperate from "./components/RequireOperate";
 
@@ -89,6 +90,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <ReceivablesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/cierres"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <PeriodClosuresPage />
                 </ProtectedRoute>
               }
             />

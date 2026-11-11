@@ -73,8 +73,10 @@ Los huecos principales eran:
   condiciones de pago y estado.
 - **`invoice_payments`**: pagos y cobros parciales, con cuenta, método,
   referencia, anulación y vínculo al asiento de caja.
-- **`period_closures`** (fase de cierre): snapshot de totales por periodo,
-  responsable, fecha y estado (`cerrado | reabierto`).
+- **`period_closures`**: cierre formal con nombre, rango, snapshot JSON de
+  totales (resumen, facturas, cartera y retenciones), responsable, fecha y
+  estado (`cerrado | reabierto`). La reapertura guarda motivo, usuario y fecha;
+  nunca se borra el cierre.
 
 ### 3.3 Derivaciones (no se guardan duplicadas)
 
@@ -105,7 +107,7 @@ Los huecos principales eran:
 | C2 | Cartera CxC/CxP, condiciones de pago y pagos parciales | Hecho |
 | C3 | Aging, mora, DSO y alertas de cobro | Hecho |
 | C4 | Retenciones contables (activo/pasivo, no solo informativas) | Hecho |
-| C5 | Cierre de periodo formal con snapshot y reapertura auditada | Pendiente |
+| C5 | Cierre de periodo formal con snapshot y reapertura auditada | Hecho |
 
 ### Fase 2 — Informes y analítica
 
@@ -163,3 +165,4 @@ Los huecos principales eran:
 | 2026-11-11 | C2 (cartera y pagos) | — | Migración `V019`; cartera derivada con pagos parciales y anulación; `/api/invoices/cartera` y `/payments`; página Cartera; tarjeta de pagos en el detalle; `ingresos_totales` en el resumen |
 | 2026-11-11 | C3 (aging y DSO) | — | `/api/invoices/cartera/aging`; tramos corriente a +90 días, DSO simple, saldo vencido, por vencer en 7 días y principales deudores; panel en la página de Cartera |
 | 2026-11-11 | C4 (retenciones) | — | Asientos de retenciones a favor (venta) y por pagar (compra); fuente e ICA mueven caja, IVA retenido no; validación de retenciones ≤ total y pruebas de API |
+| 2026-11-11 | C5 (cierres) | — | Migración `V020`; `/api/period-closures` con snapshot, bloqueo de asientos, superposición controlada y reapertura auditada; página Cierres con detalle del snapshot |
