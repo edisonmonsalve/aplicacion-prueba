@@ -1,5 +1,5 @@
 import request from "supertest";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
 import { bearer, resetDb, userWithToken } from "./helpers.js";
@@ -36,7 +36,7 @@ async function setup() {
 }
 
 describe("Módulo de Facturación — RF-XX", () => {
-  let admin: any;
+  let admin: Awaited<ReturnType<typeof userWithToken>>;
   let productId: number;
 
   beforeEach(async () => {

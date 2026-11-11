@@ -22,9 +22,10 @@ import { createInvoice, getInvoice, updateInvoice } from "@/services/invoicesSer
 import { getProducts } from "@/services/productsService";
 import { getFinanceAccounts } from "@/services/financeService";
 import { listQuotes, getQuote } from "@/services/quotesService";
+import { listThirdParties } from "@/services/thirdPartiesService";
 import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
 import StockTag from "@/components/StockTag";
-import type { FinanceAccount, InvoiceTipo, Quote } from "@/types";
+import type { FinanceAccount, InvoiceTipo, PaymentCondition, Quote, ThirdParty } from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
 
 interface ProductOpt {
@@ -54,6 +55,9 @@ interface FormValues {
   email?: string;
   notas?: string;
   quote_id?: number | null;
+  party_id?: number | null;
+  condicion_pago?: PaymentCondition;
+  dias_credito?: number;
   account_id?: number;
   retencion_fuente?: number;
   retencion_iva?: number;
@@ -93,12 +97,14 @@ export default function InvoiceFormPage() {
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
+  const [parties, setParties] = useState<ThirdParty[]>([]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const loadedQuoteRef = useRef<number | null>(null);
   const lineas = Form.useWatch("items", form) ?? [];
   const tipo = Form.useWatch("tipo", form);
   const quoteIdForm = Form.useWatch("quote_id", form);
+  const condicionPago = Form.useWatch("condicion_pago", form) ?? "contado";
   // Catálogo actual sin reejecutar el efecto de precios en cada búsqueda.
   const productsRef = useRef(products);
   productsRef.current = products;
@@ -129,7 +135,8 @@ export default function InvoiceFormPage() {
 
   // M3: retenciones prellenadas automáticamente según el tipo de factura.
   // Los porcentajes son parámetros configurables (no tarifas legales hardcodeadas sin confirmar);
-  // por defecto 0 y siempre editables. Reducen el total_neto, son informativas.
+  // por defecto 0 y siempre editables. Reducen el total_neto y, al confirmar,
+  // se reconocen como activo fiscal (venta) o pasivo (compra).
   const DEFAULT_RETENCIONES: Record<InvoiceTipo, { fuente: number; iva: number; ica: number }> = {
     venta: { fuente: 0, iva: 0, ica: 0 },
     compra: { fuente: 0, iva: 0, ica: 0 },
@@ -156,7 +163,7 @@ export default function InvoiceFormPage() {
   const search = async (q: string) => {
     try {
       const r = await getProducts({ q, page: 1, pageSize: 20 });
-      setProducts((prev) => ({ ...prev, ...Object.fromEntries(r.data.map((p: any) => [p.id, p])) }));
+      setProducts((prev) => ({ ...prev, ...Object.fromEntries(r.data.map((p) => [p.id, p])) }));
     } catch {
       message.error("No se pudo buscar productos");
     }
@@ -175,6 +182,34 @@ export default function InvoiceFormPage() {
       })
       .catch(() => message.error("No se pudieron cargar las cuentas"));
   }, [editId, form]);
+
+  // Terceros disponibles según el tipo de factura. Se incluyen los "ambos".
+  useEffect(() => {
+    listThirdParties({
+      page: 1,
+      pageSize: 100,
+      tipo: tipo === "compra" ? "proveedor" : "cliente",
+      activo: 1,
+    })
+      .then((r) => setParties(r.data))
+      .catch(() => {
+        // Sin terceros la factura sigue funcionando con la contraparte libre.
+      });
+  }, [tipo]);
+
+  // Al elegir un tercero se copian sus datos como snapshot editable.
+  const onPartyChange = (partyId?: number) => {
+    if (!partyId) return;
+    const p = parties.find((x) => x.id === partyId);
+    if (!p) return;
+    form.setFieldsValue({
+      contraparte: p.nombre,
+      documento: p.documento ?? undefined,
+      email: p.email ?? undefined,
+      condicion_pago: p.condicion_pago,
+      dias_credito: p.condicion_pago === "credito" ? p.dias_credito : 0,
+    });
+  };
 
   // Cotizaciones aprobadas o entregadas que pueden facturarse.
   useEffect(() => {
@@ -330,6 +365,9 @@ export default function InvoiceFormPage() {
           email: d.email ?? undefined,
           notas: d.notas ?? undefined,
           quote_id: d.quote_id ?? undefined,
+          party_id: d.party_id ?? undefined,
+          condicion_pago: d.condicion_pago ?? "contado",
+          dias_credito: d.dias_credito ?? 0,
           account_id: d.account_id ?? undefined,
           retencion_fuente: d.retencion_fuente,
           retencion_iva: d.retencion_iva,
@@ -396,6 +434,9 @@ export default function InvoiceFormPage() {
       email: v.email?.trim() || undefined,
       notas: v.notas?.trim() || undefined,
       quote_id: v.tipo === "venta" ? v.quote_id ?? null : null,
+      party_id: v.party_id ?? null,
+      condicion_pago: v.condicion_pago ?? "contado",
+      dias_credito: v.condicion_pago === "credito" ? v.dias_credito ?? 0 : 0,
       account_id: v.account_id ?? null,
       retencion_fuente: v.retencion_fuente ?? 0,
       retencion_iva: v.retencion_iva ?? 0,
@@ -431,7 +472,7 @@ export default function InvoiceFormPage() {
         layout="vertical"
         onFinish={onFinish}
         onValuesChange={() => setDirty(true)}
-        initialValues={{ tipo: initialTipo, fecha: dayjs(), items: [{}] }}
+        initialValues={{ tipo: initialTipo, fecha: dayjs(), condicion_pago: "contado", dias_credito: 0, items: [{}] }}
       >
         <Alert
           type="info"
@@ -453,6 +494,24 @@ export default function InvoiceFormPage() {
           </Form.Item>
           <Form.Item name="fecha" label="Fecha" rules={[{ required: true }]}>
             <DatePicker format="DD/MM/YYYY" />
+          </Form.Item>
+          <Form.Item
+            name="party_id"
+            label={tipo === "compra" ? "Proveedor registrado" : "Cliente registrado"}
+            tooltip="Opcional. Al elegirlo se cargan documento, email y condición de pago. Los datos quedan como snapshot editable en la factura."
+          >
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="Sin tercero (escribir manualmente)"
+              style={{ width: 320 }}
+              onChange={onPartyChange}
+              options={parties.map((p) => ({
+                value: p.id,
+                label: `${p.nombre}${p.documento ? ` · ${p.documento}` : ""}`,
+              }))}
+            />
           </Form.Item>
           <Form.Item
             name="contraparte"
@@ -493,6 +552,29 @@ export default function InvoiceFormPage() {
           <Form.Item name="email" label="Email" rules={[{ type: "email", message: "Email inválido" }]}>
             <Input style={{ width: 240 }} />
           </Form.Item>
+          <Form.Item
+            name="condicion_pago"
+            label="Condición de pago"
+            tooltip="Contado mueve la caja al confirmar. Crédito reconoce el ingreso/activo y deja el saldo en cartera hasta el cobro o pago."
+          >
+            <Select
+              style={{ width: 160 }}
+              options={[
+                { value: "contado", label: "Contado" },
+                { value: "credito", label: "Crédito" },
+              ]}
+              onChange={(v) => {
+                if (v === "contado") form.setFieldsValue({ dias_credito: 0 });
+                else if (!form.getFieldValue("dias_credito"))
+                  form.setFieldsValue({ dias_credito: 30 });
+              }}
+            />
+          </Form.Item>
+          {condicionPago === "credito" && (
+            <Form.Item name="dias_credito" label="Días de crédito" initialValue={30}>
+              <InputNumber min={0} max={3650} style={{ width: 130 }} />
+            </Form.Item>
+          )}
         </Space>
 
         <Form.Item name="notas" label="Notas">

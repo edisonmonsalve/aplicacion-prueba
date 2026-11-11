@@ -30,7 +30,7 @@ import {
   deliverQuote,
 } from "../../services/quotesService";
 import type { QuoteDetail, QuoteInvoice, QuoteLine, QuoteStatus, StockFailure } from "../../types";
-import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/QuoteUtils";
+import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/quoteUtils";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";

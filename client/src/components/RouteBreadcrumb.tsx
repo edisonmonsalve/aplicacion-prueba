@@ -7,6 +7,7 @@ const SECTIONS: Record<string, { label: string; to: string }> = {
   categories: { label: "Categorías", to: "/categories" },
   cotizaciones: { label: "Cotizaciones", to: "/cotizaciones" },
   facturas: { label: "Facturas", to: "/facturas" },
+  terceros: { label: "Terceros", to: "/terceros" },
   finanzas: { label: "Finanzas", to: "/finanzas" },
   users: { label: "Usuarios", to: "/users" },
   perfil: { label: "Mi perfil", to: "/perfil" },
@@ -58,6 +59,50 @@ export function getRouteBreadcrumb(pathname: string): BreadcrumbEntry[] | null {
 
   if (parts[0] === "finanzas") {
     const sub = parts[1];
+    if (sub === "cartera") {
+      items.push({ label: "Cartera", to: "/finanzas/cartera" });
+      return finish();
+    }
+    if (sub === "cierres") {
+      items.push({ label: "Cierres", to: "/finanzas/cierres" });
+      return finish();
+    }
+    if (sub === "resultados") {
+      items.push({ label: "Resultados", to: "/finanzas/resultados" });
+      return finish();
+    }
+    if (sub === "flujo-caja") {
+      items.push({ label: "Flujo de caja", to: "/finanzas/flujo-caja" });
+      return finish();
+    }
+    if (sub === "balance") {
+      items.push({ label: "Balance", to: "/finanzas/balance" });
+      return finish();
+    }
+    if (sub === "rentabilidad") {
+      items.push({ label: "Rentabilidad", to: "/finanzas/rentabilidad" });
+      return finish();
+    }
+    if (sub === "inventario") {
+      items.push({ label: "Rotación", to: "/finanzas/inventario" });
+      return finish();
+    }
+    if (sub === "embudo") {
+      items.push({ label: "Embudo", to: "/finanzas/embudo" });
+      return finish();
+    }
+    if (sub === "tendencias") {
+      items.push({ label: "Tendencias", to: "/finanzas/tendencias" });
+      return finish();
+    }
+    if (sub === "auditoria") {
+      items.push({ label: "Auditoría", to: "/finanzas/auditoria" });
+      return finish();
+    }
+    if (sub === "salud") {
+      items.push({ label: "Salud de datos", to: "/finanzas/salud" });
+      return finish();
+    }
     if (sub === "presupuestos") {
       // El detalle del presupuesto también pinta su breadcrumb con el nombre.
       if (parts[2]) return null;

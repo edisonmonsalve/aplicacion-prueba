@@ -15,11 +15,58 @@ import {
   listQuerySchema,
   updateInvoiceSchema,
 } from "./invoices.schema.js";
-import { z } from "zod";
+import {
+  createPaymentSchema,
+  agingQuerySchema,
+  paymentParamsSchema,
+  receivableQuerySchema,
+} from "./invoice-payments.schema.js";
+import {
+  cancelPayment,
+  carteraAging,
+  createPayment,
+  listInvoicePayments,
+  listReceivables,
+} from "./invoice-payments.service.js";
 
 export const invoicesRouter = Router();
 
 invoicesRouter.use(authenticate);
+
+// Cartera CxC/CxP. Va antes de /:id para que "cartera" no se interprete como id.
+invoicesRouter.get("/cartera", requireRole("admin", "contador", "consulta"), async (req, res, next) => {
+  try {
+    res.json(await listReceivables(receivableQuerySchema.parse(req.query)));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.get("/cartera/aging", requireRole("admin", "contador", "consulta"), async (req, res, next) => {
+  try {
+    res.json(await carteraAging(agingQuerySchema.parse(req.query)));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.get("/:id/payments", requireRole("admin", "contador", "consulta"), async (req, res, next) => {
+  try {
+    const id = idSchema.parse(req.params).id;
+    res.json(await listInvoicePayments(id));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.post("/:id/payments", requireRole("admin", "contador"), async (req, res, next) => {
+  try {
+    const id = idSchema.parse(req.params).id;
+    const input = createPaymentSchema.parse(req.body);
+    res.status(201).json(await createPayment(id, input, req.user!));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.post("/:id/payments/:paymentId/anular", requireRole("admin", "contador"), async (req, res, next) => {
+  try {
+    const { id, paymentId } = paymentParamsSchema.parse(req.params);
+    res.json(await cancelPayment(id, paymentId, req.user!));
+  } catch (err) { next(err); }
+});
 
 invoicesRouter.get("/", requireRole("admin", "contador", "operador", "consulta"), async (req, res, next) => {
   try {

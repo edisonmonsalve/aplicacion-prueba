@@ -19,15 +19,30 @@ import {
 } from "./finance.service.js";
 import {
   accountSchema,
+  balanceQuerySchema,
   budgetSchema,
+  cashFlowQuerySchema,
   idSchema,
+  inventoryAnalyticsQuerySchema,
   listBudgetsQuerySchema,
   listTransactionsQuerySchema,
+  profitabilityQuerySchema,
   summaryQuerySchema,
   transactionSchema,
+  trendsQuerySchema,
 } from "./finance.schema.js";
 import { getSuggestions } from "./suggestions.service.js";
+import {
+  getBalance,
+  getCashFlow,
+  getInventoryAnalytics,
+  getPnl,
+  getProfitability,
+  getQuoteFunnel,
+  getTrends,
+} from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
+import { getDataHealth } from "./data-health.service.js";
 
 export const financeRouter = Router();
 
@@ -111,4 +126,36 @@ financeRouter.get("/suggestions", async (_req, res) => {
 
 financeRouter.get("/summary", async (req, res) => {
   res.json(await getSummary(summaryQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/pnl", async (req, res) => {
+  res.json(await getPnl(summaryQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/cash-flow", async (req, res) => {
+  res.json(await getCashFlow(cashFlowQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/balance", async (req, res) => {
+  res.json(await getBalance(balanceQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/profitability", async (req, res) => {
+  res.json(await getProfitability(profitabilityQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/inventory-analytics", async (req, res) => {
+  res.json(await getInventoryAnalytics(inventoryAnalyticsQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/quotes-funnel", async (req, res) => {
+  res.json(await getQuoteFunnel(summaryQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/trends", async (req, res) => {
+  res.json(await getTrends(trendsQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/data-health", async (_req, res) => {
+  res.json(await getDataHealth());
 });

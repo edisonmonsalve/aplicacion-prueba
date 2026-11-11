@@ -1,10 +1,17 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { z } from "zod";
 import { pool } from "../../config/Db.js";
+import { addDays } from "../../utils/dates.js";
 import { HttpError } from "../../utils/http-error.js";
 import { createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
+import type { AuthUser } from "../../types/express.js";
 import { registerMovement } from "../movements/movements.service.js";
 import { formatQuoteNumber } from "../quotes/quotes.format.js";
+import {
+  assertPartyType,
+  findThirdPartyForInvoice,
+} from "../third-parties/third-parties.service.js";
+import { invoiceBalance, listInvoicePayments } from "./invoice-payments.service.js";
 import type {
   createInvoiceSchema,
   updateInvoiceSchema,
@@ -96,6 +103,44 @@ function totalRetenciones(inv: {
   );
 }
 
+/** Una retención mayor que la factura dejaría un neto negativo a pagar. */
+function assertRetentions(retenciones: number, total: number) {
+  if (retenciones > roundMoney(total)) {
+    throw new HttpError(
+      400,
+      `Las retenciones (${retenciones.toFixed(2)}) no pueden superar el total de la factura (${total.toFixed(2)})`
+    );
+  }
+}
+
+type PaymentCondition = "contado" | "credito";
+
+/**
+ * Resuelve la condición de pago de la factura.
+ *
+ * El tercero aporta los valores por defecto; la factura puede sobrescribirlos.
+ * A crédito, el vencimiento se calcula desde la fecha de la factura salvo que
+ * el usuario indique una fecha explícita.
+ */
+function resolvePaymentTerms(params: {
+  condicion?: PaymentCondition | null;
+  diasCredito?: number | null;
+  fechaVencimiento?: string | null;
+  fecha: string;
+  fallbackCondicion: PaymentCondition;
+  fallbackDias: number;
+}) {
+  const condicion = params.condicion ?? params.fallbackCondicion;
+  const dias =
+    condicion === "contado"
+      ? 0
+      : params.diasCredito ?? params.fallbackDias;
+  const fecha_vencimiento =
+    params.fechaVencimiento ??
+    (condicion === "credito" ? addDays(params.fecha, dias) : params.fecha);
+  return { condicion_pago: condicion, dias_credito: dias, fecha_vencimiento };
+}
+
 async function nextNumber(conn: PoolConnection, tipo: "venta" | "compra") {
   await conn.query(
     "INSERT IGNORE INTO invoice_counters (tipo, last_number) VALUES (?, 0)",
@@ -168,7 +213,9 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.documento,
             i.orden_compra, i.estado, i.subtotal, i.descuento_total,
-            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.account_id, i.created_at,
+            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.party_id,
+            i.condicion_pago, i.dias_credito, i.fecha_vencimiento,
+            i.account_id, i.created_at,
             u.nombre AS creador
      FROM invoices i JOIN users u ON u.id = i.created_by
      ${clause}
@@ -240,7 +287,18 @@ export async function getInvoice(id: number) {
      ORDER BY t.id`,
     [id]
   );
-  return { ...rows[0], quote_numero: quoteNumero, items, transacciones };
+  const [balance, pagos] = await Promise.all([
+    invoiceBalance(rows[0] as never),
+    listInvoicePayments(id),
+  ]);
+  return {
+    ...rows[0],
+    ...balance,
+    quote_numero: quoteNumero,
+    items,
+    transacciones,
+    pagos,
+  };
 }
 
 export async function createInvoice(input: InvoiceInput, actor: { id: number }) {
@@ -248,14 +306,29 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
     const numero = await nextNumber(conn, input.tipo);
     const totals = calcTotals(input.items);
     const retenciones = totalRetenciones(input);
+    assertRetentions(retenciones, totals.total);
     const totalNeto = roundMoney(totals.total - retenciones);
+
+    const partyId = input.party_id ?? null;
+    const party = partyId ? await findThirdPartyForInvoice(conn, partyId) : null;
+    if (party) assertPartyType(party, input.tipo);
+
+    const terms = resolvePaymentTerms({
+      condicion: input.condicion_pago,
+      diasCredito: input.dias_credito,
+      fechaVencimiento: input.fecha_vencimiento,
+      fecha: input.fecha,
+      fallbackCondicion: party?.condicion_pago ?? "contado",
+      fallbackDias: Number(party?.dias_credito ?? 0),
+    });
 
     const [res] = await conn.query<ResultSetHeader>(
       `INSERT INTO invoices
          (tipo, numero, fecha, contraparte, documento, orden_compra, email,
           subtotal, descuento_total, impuesto_total, total, retencion_fuente,
-          retencion_iva, retencion_ica, total_neto, notas, quote_id, account_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          retencion_iva, retencion_ica, total_neto, notas, quote_id, party_id,
+          condicion_pago, dias_credito, fecha_vencimiento, account_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.tipo,
         numero,
@@ -274,6 +347,10 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
         totalNeto,
         input.notas ?? null,
         input.quote_id ?? null,
+        partyId,
+        terms.condicion_pago,
+        terms.dias_credito,
+        terms.fecha_vencimiento,
         input.account_id ?? null,
         actor.id,
       ]
@@ -324,23 +401,49 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
       retencion_ica: input.retencion_ica ?? current.retencion_ica,
     });
     const totalNeto = roundMoney(totals.total - retenciones);
+    assertRetentions(retenciones, totals.total);
+    const tipo = input.tipo ?? current.tipo;
+    const partyId = input.party_id !== undefined ? input.party_id : current.party_id;
+    const party = partyId ? await findThirdPartyForInvoice(conn, partyId) : null;
+    if (party) assertPartyType(party, tipo);
+
+    const fecha = input.fecha ?? current.fecha;
+    const partyChanged = input.party_id !== undefined && input.party_id !== current.party_id;
+    const condicion = (input.condicion_pago ??
+      (partyChanged && party ? party.condicion_pago : current.condicion_pago) ??
+      "contado") as PaymentCondition;
+    const fallbackDias =
+      partyChanged && party ? Number(party.dias_credito ?? 0) : Number(current.dias_credito ?? 0);
+    const terms = resolvePaymentTerms({
+      condicion,
+      diasCredito: input.dias_credito,
+      fechaVencimiento: input.fecha_vencimiento,
+      fecha,
+      fallbackCondicion: condicion,
+      fallbackDias,
+    });
 
     await conn.query(
       `UPDATE invoices SET
          tipo = ?, fecha = ?, contraparte = ?, documento = ?, orden_compra = ?,
-         email = ?, notas = ?, quote_id = ?, account_id = ?, subtotal = ?, descuento_total = ?,
-         impuesto_total = ?, total = ?, retencion_fuente = ?, retencion_iva = ?,
-         retencion_ica = ?, total_neto = ?
+         email = ?, notas = ?, quote_id = ?, party_id = ?, condicion_pago = ?,
+         dias_credito = ?, fecha_vencimiento = ?, account_id = ?, subtotal = ?,
+         descuento_total = ?, impuesto_total = ?, total = ?, retencion_fuente = ?,
+         retencion_iva = ?, retencion_ica = ?, total_neto = ?
        WHERE id = ?`,
       [
-        input.tipo ?? current.tipo,
-        input.fecha ?? current.fecha,
+        tipo,
+        fecha,
         input.contraparte ?? current.contraparte,
         input.documento !== undefined ? input.documento : current.documento,
         input.orden_compra !== undefined ? input.orden_compra : current.orden_compra,
         input.email !== undefined ? input.email : current.email,
         input.notas !== undefined ? input.notas : current.notas,
         input.quote_id !== undefined ? input.quote_id : current.quote_id,
+        partyId,
+        terms.condicion_pago,
+        terms.dias_credito,
+        terms.fecha_vencimiento,
         input.account_id !== undefined ? input.account_id : current.account_id,
         totals.subtotal,
         totals.descuento_total,
@@ -397,6 +500,10 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     if (items.length === 0) throw new HttpError(409, "La factura no tiene líneas");
 
     const isVenta = inv.tipo === "venta";
+    // A crédito se reconoce el ingreso/activo, pero la caja se mueve al cobrar
+    // o pagar (fase C2). El override del asiento gana sobre la categoría.
+    const esCredito = inv.condicion_pago === "credito";
+    const afectaCaja = esCredito ? false : undefined;
     if (!isVenta && inv.quote_id) {
       throw new HttpError(400, "Una factura de compra no puede vincularse a una cotización");
     }
@@ -445,6 +552,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     }
 
     const costByItem = new Map<number, number>();
+    // Los movimientos internos de la factura se registran con rol admin para que
+    // el costo histórico quede guardado aunque quien confirme sea contador u operador.
+    const systemActor: AuthUser = { id: actor.id, rol: "admin" };
 
     if (isVenta) {
       if (!quoteWasDelivered) {
@@ -478,7 +588,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
               quoteId: inv.quote_id ?? undefined,
               skipFinance: true,
             },
-            { id: actor.id, rol: "admin" } as any,
+            systemActor,
             conn
           );
           costByItem.set(it.id, Number(movement.costo_unitario ?? 0));
@@ -534,7 +644,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
             invoiceId: id,
             skipFinance: true,
           },
-          { id: actor.id, rol: "admin" } as any,
+          systemActor,
           conn
         );
       }
@@ -553,8 +663,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           tipo: "ingreso",
           monto: baseTotal,
           fecha: inv.fecha,
-          categoriaNombre: "Ventas",
+          categoriaCodigo: "ventas",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
@@ -566,10 +677,45 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           tipo: "pasivo",
           monto: ivaTotal,
           fecha: inv.fecha,
-          categoriaNombre: "IVA por pagar",
+          categoriaCodigo: "iva_por_pagar",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `IVA factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      // Retenciones que el cliente practica al pagar. Son un activo fiscal
+      // (saldo a favor), no un menor ingreso: el ingreso ya se reconoció por la
+      // base completa. Fuente e ICA reducen el dinero recibido; la retención de
+      // IVA no mueve caja porque el IVA tampoco forma parte del capital.
+      const retFuenteIca = roundMoney(
+        Number(inv.retencion_fuente ?? 0) + Number(inv.retencion_ica ?? 0)
+      );
+      const retIva = roundMoney(Number(inv.retencion_iva ?? 0));
+      if (retFuenteIca > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "activo",
+          monto: retFuenteIca,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_a_favor",
+          accountId,
+          afectaCaja: esCredito ? false : true,
+          invoiceId: id,
+          descripcion: `Retenciones practicadas factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      if (retIva > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "activo",
+          monto: retIva,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_a_favor",
+          accountId,
+          afectaCaja: false,
+          invoiceId: id,
+          descripcion: `Retención de IVA factura ${inv.numero}`,
           userId: actor.id,
         });
       }
@@ -588,8 +734,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           tipo: "gasto",
           monto: cogs,
           fecha: inv.fecha,
-          categoriaNombre: "Costo de ventas",
+          categoriaCodigo: "costo_ventas",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `Costo de ventas factura ${inv.numero}`,
           userId: actor.id,
@@ -616,8 +763,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           tipo: "activo",
           monto: baseTotal,
           fecha: inv.fecha,
-          categoriaNombre: "Inventario",
+          categoriaCodigo: "inventario",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
@@ -629,10 +777,44 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           tipo: "activo",
           monto: ivaTotal,
           fecha: inv.fecha,
-          categoriaNombre: "IVA descontable",
+          categoriaCodigo: "iva_descontable",
           accountId,
+          afectaCaja,
           invoiceId: id,
           descripcion: `IVA factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      // Retenciones que la empresa practica al proveedor. Son un pasivo con la
+      // autoridad tributaria. Fuente e ICA reducen el dinero pagado; la
+      // retención de IVA no mueve caja por la misma razón que en la venta.
+      const retFuenteIca = roundMoney(
+        Number(inv.retencion_fuente ?? 0) + Number(inv.retencion_ica ?? 0)
+      );
+      const retIva = roundMoney(Number(inv.retencion_iva ?? 0));
+      if (retFuenteIca > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "pasivo",
+          monto: retFuenteIca,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_por_pagar",
+          accountId,
+          afectaCaja: esCredito ? false : true,
+          invoiceId: id,
+          descripcion: `Retenciones asumidas factura ${inv.numero}`,
+          userId: actor.id,
+        });
+      }
+      if (retIva > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "pasivo",
+          monto: retIva,
+          fecha: inv.fecha,
+          categoriaCodigo: "retenciones_por_pagar",
+          accountId,
+          afectaCaja: false,
+          invoiceId: id,
+          descripcion: `Retención de IVA factura ${inv.numero}`,
           userId: actor.id,
         });
       }
@@ -658,12 +840,20 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
     if (!inv) throw new HttpError(404, "Factura no encontrada");
     if (inv.estado !== "confirmada") throw new HttpError(409, "Solo se anulan facturas confirmadas");
 
-    const [items] = await conn.query<RowDataPacket[]>(
-      "SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id",
+    // RN-24: una factura con cobros/pagos válidos no se anula hasta revertirlos.
+    const [[{ pagos }]] = await conn.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS pagos FROM invoice_payments WHERE invoice_id = ? AND estado = 'valido'",
       [id]
     );
+    if (pagos > 0) {
+      throw new HttpError(
+        409,
+        `La factura tiene ${pagos} pago(s) válido(s). Anúlalos antes de anular la factura.`
+      );
+    }
 
     // 1. Revertir el stock que movió esta factura (no el que movió la cotización).
+    const systemActor: AuthUser = { id: actor.id, rol: "admin" };
     const [movements] = await conn.query<RowDataPacket[]>(
       "SELECT * FROM stock_movements WHERE invoice_id = ? ORDER BY id",
       [id]
@@ -681,7 +871,7 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
           invoiceId: id,
           skipFinance: true,
         },
-        { id: actor.id, rol: "admin" } as any,
+        systemActor,
         conn
       );
     }
@@ -716,12 +906,13 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
     for (const t of originals) {
       await conn.query(
         `INSERT INTO transactions
-           (tipo, monto, fecha, finance_category_id, account_id, product_id,
+           (tipo, monto, afecta_caja, fecha, finance_category_id, account_id, product_id,
             quote_id, invoice_id, stock_movement_id, descripcion, anulada_de, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?)`,
         [
           t.tipo,
           t.monto,
+          t.afecta_caja,
           t.fecha,
           t.finance_category_id,
           t.account_id,

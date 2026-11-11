@@ -136,8 +136,8 @@ export async function updateUser(
       [...params, id]
     );
     if (res.affectedRows === 0) throw new HttpError(404, "Usuario no encontrado");
-  } catch (err: any) {
-    if (err?.code === "ER_DUP_ENTRY") {
+  } catch (err) {
+    if ((err as { code?: string } | null)?.code === "ER_DUP_ENTRY") {
       throw new HttpError(409, "El email ya está registrado");
     }
     throw err;

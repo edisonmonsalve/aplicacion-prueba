@@ -16,12 +16,24 @@ import InvoicesPage from "@/pages/invoices/InvoicesPage";
 import InvoiceDetailPage from "@/pages/invoices/InvoiceDetailPage";
 import InvoiceFormPage from "@/pages/invoices/InvoiceFormPage";
 import InvoicePrintPage from "@/pages/invoices/InvoicePrintPage";
+import ThirdPartiesPage from "@/pages/ThirdPartiesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import FinanceOverviewPage from "@/pages/finance/FinanceOverviewPage";
 import BudgetsPage from "@/pages/finance/BudgetsPage";
 import BudgetDetailPage from "@/pages/finance/BudgetDetailPage";
 import TransactionsPage from "@/pages/finance/TransactionsPage";
+import PeriodClosuresPage from "@/pages/finance/PeriodClosuresPage";
+import ProfitLossPage from "@/pages/finance/ProfitLossPage";
+import CashFlowPage from "@/pages/finance/CashFlowPage";
+import BalancePage from "@/pages/finance/BalancePage";
+import ProfitabilityPage from "@/pages/finance/ProfitabilityPage";
+import InventoryAnalyticsPage from "@/pages/finance/InventoryAnalyticsPage";
+import QuotesFunnelPage from "@/pages/finance/QuotesFunnelPage";
+import TrendsPage from "@/pages/finance/TrendsPage";
+import AuditPage from "@/pages/finance/AuditPage";
+import DataHealthPage from "@/pages/finance/DataHealthPage";
+import ReceivablesPage from "@/pages/invoices/ReceivablesPage";
 import RequireOperate from "./components/RequireOperate";
 
 export default function App() {
@@ -60,6 +72,7 @@ export default function App() {
             <Route path="/cotizaciones/:id/imprimir" element={<QuotePrintPage />} />
             <Route path="/facturas" element={<InvoicesPage />} />
             <Route path="/facturas/:id" element={<InvoiceDetailPage />} />
+            <Route path="/terceros" element={<ThirdPartiesPage />} />
             <Route path="/facturas/:id/imprimir" element={<InvoicePrintPage />} />
             <Route element={<RequireOperate />}>
               <Route path="facturas/nuevo" element={<InvoiceFormPage />} />
@@ -78,6 +91,94 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <BudgetsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/cartera"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <ReceivablesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/cierres"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <PeriodClosuresPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/resultados"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <ProfitLossPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/flujo-caja"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <CashFlowPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/balance"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <BalancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/rentabilidad"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <ProfitabilityPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/inventario"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <InventoryAnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/embudo"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <QuotesFunnelPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/tendencias"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <TrendsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/auditoria"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <AuditPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/salud"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <DataHealthPage />
                 </ProtectedRoute>
               }
             />

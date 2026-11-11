@@ -567,7 +567,7 @@ describe("Finanzas: API", () => {
   });
 
   it("GET /finance/availability y /finance/suggestions respetan permisos", async () => {
-    const { admin, operador, productId } = await setup();
+    const { operador, productId } = await setup();
     expect((await request(app).get(`/api/finance/availability?product_id=${productId}`).set(bearer(operador.token))).status).toBe(403);
     expect((await request(app).get("/api/finance/suggestions").set(bearer(operador.token))).status).toBe(403);
   });

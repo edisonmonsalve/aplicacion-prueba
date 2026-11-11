@@ -71,16 +71,40 @@ export interface LowStockProduct {
   stock_minimo: number;
 }
 
+export interface DashboardFinance {
+  desde: string;
+  hasta: string;
+  ingresos: number;
+  egresos: number;
+  utilidad: number;
+  margen_bruto_pct: number;
+  iva_neto: number;
+  capital_disponible: number;
+  ingresos_anterior: number;
+  egresos_anterior: number;
+  utilidad_anterior: number;
+  variacion_ingresos_pct: number | null;
+  variacion_egresos_pct: number | null;
+  variacion_utilidad_pct: number | null;
+}
+
 export interface Dashboard {
   productosActivos: number;
   stockBajo: number;
   movimientosHoy: number;
+  /** Valor del inventario a precio de venta (precio × stock). */
   valorInventario: number;
+  /** Valor del inventario al costo (costo × stock). */
+  valorInventarioCosto: number;
+  /** Productos activos con stock y costo cero o sin definir. */
+  productosSinCosto: number;
   productosStockBajo: LowStockProduct[];
   ultimosMovimientos: StockMovement[];
   movimientosPorDia: { dia: string; tipo: MovementTipo; total: number }[];
   presupuestosPorEstado: { estado: QuoteStatus; total: number }[];
   topProductos: { sku: string; nombre: string; unidades: number }[];
+  /** Solo para admin, contador y consulta. */
+  finanzas?: DashboardFinance;
 }
 
 export type QuoteStatus = "borrador" | "enviado" | "aprobado" | "rechazado" | "entregado" | "vencido";
@@ -182,10 +206,14 @@ export type EjecucionEstado = "ok" | "alerta" | "excedido";
 export interface FinanceCategory {
   id: number;
   nombre: string;
+  /** Código estable de sistema (ventas, costo_ventas, iva_por_pagar, ...). */
+  codigo: string | null;
   tipo: FinanceCategoryTipo;
   activo: number;
   /** 1 = mueve caja/bancos; 0 = asiento informativo (costo de ventas, IVA, etc.). */
   afecta_caja: number;
+  /** 1 = entra al estado de resultados (P&L); 0 = solo caja o balance. */
+  afecta_resultado: number;
   lineas: number;
   transacciones: number;
 }
@@ -283,6 +311,9 @@ export interface FinanceTransaction {
   fecha: string;
   finance_category_id: number;
   categoria: string;
+  codigo: string | null;
+  /** 1 = entra al estado de resultados; 0 = solo caja/balance. */
+  afecta_resultado: number;
   /** 1 = mueve caja/bancos; 0 = asiento informativo que no afecta caja. */
   afecta_caja: number;
   account_id: number;
@@ -314,7 +345,10 @@ export interface TransactionInput {
 export interface FinanceSummary {
   desde: string;
   hasta: string;
+  /** Entradas reales de caja/bancos (afecta_caja = 1). */
   ingresos: number;
+  /** Ingresos del estado de resultados: incluye ventas a crédito aún no cobradas. */
+  ingresos_totales: number;
   /** Salidas reales de caja/bancos: gastos y compras de activos (afecta_caja = 1). */
   egresos: number;
   /** Compras de inventario: salida de caja registrada como activo, no como gasto. */
@@ -329,14 +363,452 @@ export interface FinanceSummary {
   margen_bruto_pct: number;
   iva_por_pagar: number;
   iva_descontable: number;
+  /** IVA por pagar − IVA descontable. Negativo = saldo a favor. */
+  iva_neto: number;
   capital_disponible: number;
   por_categoria: {
     id: number;
     nombre: string;
+    codigo: string | null;
     tipo: FinanceCategoryTipo;
     afecta_caja: number;
+    afecta_resultado: number;
     total: number;
   }[];
+}
+
+export interface PeriodClosureSnapshot {
+  generado_at: string;
+  desde: string;
+  hasta: string;
+  resumen: FinanceSummary;
+  facturas: {
+    total: number;
+    confirmadas: number;
+    anuladas: number;
+    ventas: number;
+    compras: number;
+  };
+  transacciones: number;
+  cartera: {
+    por_cobrar: number;
+    por_pagar: number;
+  };
+  retenciones: {
+    ventas: number;
+    compras: number;
+  };
+}
+
+export type PeriodClosureEstado = "cerrado" | "reabierto";
+
+export interface PeriodClosure {
+  id: number;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: PeriodClosureEstado;
+  snapshot: PeriodClosureSnapshot;
+  cerrado_at: string;
+  reabierto_at: string | null;
+  motivo_reapertura: string | null;
+  cerrado_por: string;
+  reabierto_por: string | null;
+}
+
+export interface PeriodClosureInput {
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
+// ---------- Estado de resultados (P&L) ----------
+
+export interface PnlLine {
+  id: number;
+  nombre: string;
+  codigo: string | null;
+  total: number;
+  /** Participación de la línea sobre los ingresos del periodo actual. */
+  pct: number;
+  anterior: number;
+  variacion: number | null;
+}
+
+export interface PnlGroup {
+  total: number;
+  lineas: PnlLine[];
+}
+
+export interface PnlTotals {
+  ingresos: number;
+  costo_ventas: number;
+  margen_bruto: number;
+  margen_bruto_pct: number;
+  gastos: number;
+  utilidad: number;
+  utilidad_pct: number;
+}
+
+export interface PnlReport {
+  rango: { desde: string; hasta: string; dias: number };
+  comparativo: { desde: string; hasta: string; dias: number };
+  ingresos: PnlGroup;
+  costo_ventas: { total: number; pct: number; lineas: PnlLine[] };
+  margen_bruto: number;
+  margen_bruto_pct: number;
+  gastos: PnlGroup;
+  utilidad: number;
+  utilidad_pct: number;
+  comparativo_totales: PnlTotals;
+  variaciones: Record<
+    "ingresos" | "costo_ventas" | "margen_bruto" | "gastos" | "utilidad",
+    number | null
+  >;
+}
+
+// ---------- Flujo de caja ----------
+
+export interface CashFlowAccountRow {
+  id: number;
+  nombre: string;
+  tipo: string;
+  activo: number;
+  saldo_inicial: number;
+  entradas: number;
+  salidas: number;
+  neto: number;
+  saldo_final: number;
+}
+
+export interface CashFlowMonth {
+  /** AAAA-MM */
+  mes: string;
+  entradas: number;
+  salidas: number;
+  neto: number;
+}
+
+export interface CashFlowReport {
+  rango: { desde: string; hasta: string };
+  filtro_cuenta: number | null;
+  totales: {
+    saldo_inicial: number;
+    entradas: number;
+    salidas: number;
+    neto: number;
+    saldo_final: number;
+  };
+  por_cuenta: CashFlowAccountRow[];
+  por_mes: CashFlowMonth[];
+}
+
+// ---------- Balance simplificado ----------
+
+export interface BalanceCuenta {
+  id: number;
+  nombre: string;
+  tipo: string;
+  activo: number;
+  saldo: number;
+}
+
+export interface BalanceReport {
+  as_of: string;
+  activo: {
+    caja_bancos: number;
+    inventario: number;
+    cartera_por_cobrar: number;
+    iva_a_favor: number;
+    retenciones_a_favor: number;
+    total: number;
+    cuentas: BalanceCuenta[];
+    inventario_detalle: { productos: number; sin_costo: number };
+    cartera_detalle: { facturas: number };
+  };
+  pasivo: {
+    cartera_por_pagar: number;
+    iva_por_pagar: number;
+    retenciones_por_pagar: number;
+    total: number;
+    cartera_detalle: { facturas: number };
+  };
+  patrimonio: number;
+  ecuacion: {
+    activo: number;
+    pasivo_mas_patrimonio: number;
+    cuadra: boolean;
+  };
+}
+
+// ---------- Rentabilidad analítica ----------
+
+export type ProfitGroup = "producto" | "categoria" | "cliente";
+
+export interface ProfitabilityRow {
+  key: string;
+  nombre: string;
+  sku: string | null;
+  categoria: string | null;
+  ingresos: number;
+  costo: number;
+  margen: number;
+  margen_pct: number;
+  /** Participación de la línea sobre los ingresos totales del periodo. */
+  participacion: number;
+  unidades: number;
+  facturas: number;
+}
+
+export interface ProfitabilityReport {
+  rango: { desde: string; hasta: string };
+  grupo: ProfitGroup;
+  resumen: {
+    ingresos: number;
+    costo: number;
+    margen: number;
+    margen_pct: number;
+    unidades: number;
+    facturas: number;
+  };
+  data: ProfitabilityRow[];
+}
+
+// ---------- Rotación y ABC de inventario ----------
+
+export type InventoryAbcClass = "A" | "B" | "C";
+
+export interface InventoryAnalyticsRow {
+  id: number;
+  sku: string;
+  nombre: string;
+  categoria: string | null;
+  activo: number;
+  stock_actual: number;
+  costo_unitario: number;
+  valor_inventario: number;
+  unidades_vendidas: number;
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  margen_pct: number;
+  /** Costo de ventas / valor del inventario actual; null si no hay inventario. */
+  rotacion: number | null;
+  dias_inventario: number | null;
+  ultima_venta: string | null;
+  dias_sin_venta: number | null;
+  stock_muerto: boolean;
+  sin_costo: boolean;
+  participacion: number;
+  acumulado: number;
+  clase_abc: InventoryAbcClass;
+}
+
+export interface InventoryAbcGroup {
+  clase: InventoryAbcClass;
+  productos: number;
+  ingresos: number;
+  participacion: number;
+}
+
+export interface InventoryAnalyticsReport {
+  rango: {
+    desde: string;
+    hasta: string;
+    dias: number;
+    dias_muerto: number;
+  };
+  resumen: {
+    valor_inventario: number;
+    costo_ventas: number;
+    ingresos: number;
+    rotacion: number | null;
+    dias_inventario: number | null;
+    productos: number;
+    productos_vendidos: number;
+    stock_muerto: { productos: number; valor: number };
+    sin_costo: number;
+    abc: InventoryAbcGroup[];
+  };
+  data: InventoryAnalyticsRow[];
+}
+
+// ---------- Embudo de cotizaciones ----------
+
+export type QuoteFunnelStageName = "creadas" | "enviadas" | "aprobadas" | "entregadas";
+
+export interface QuoteFunnelStage {
+  etapa: QuoteFunnelStageName;
+  cotizaciones: number;
+  monto: number;
+  /** Conversión contra la etapa anterior. */
+  tasa_conversion: number;
+  /** Conversión contra el total de cotizaciones creadas. */
+  tasa_global: number;
+}
+
+export type QuoteFunnelState =
+  | "borrador"
+  | "enviado"
+  | "vencido"
+  | "aprobado"
+  | "rechazado"
+  | "entregado";
+
+export interface QuoteFunnelStateRow {
+  estado: QuoteFunnelState;
+  cotizaciones: number;
+  monto: number;
+  participacion: number;
+}
+
+export interface QuoteFunnelTime {
+  promedio: number | null;
+  muestra: number;
+  minimo: number | null;
+  maximo: number | null;
+}
+
+export interface QuoteFunnelDetail {
+  id: number;
+  cliente: string;
+  total: number;
+  estado: QuoteFunnelState;
+  creado_at: string;
+  aprobado_at: string | null;
+  entregado_at: string | null;
+  dias_aprobacion: number | null;
+  dias_entrega: number | null;
+  dias_ciclo: number | null;
+}
+
+export interface QuoteFunnelReport {
+  rango: { desde: string; hasta: string };
+  resumen: {
+    cotizaciones: number;
+    monto: number;
+    enviadas: number;
+    aprobadas: number;
+    entregadas: number;
+    rechazadas: number;
+    tasa_aprobacion: number;
+    tasa_cierre: number;
+    ticket_promedio: number;
+  };
+  embudo: QuoteFunnelStage[];
+  estados: QuoteFunnelStateRow[];
+  tiempos: {
+    aprobacion: QuoteFunnelTime;
+    entrega: QuoteFunnelTime;
+    ciclo: QuoteFunnelTime;
+  };
+  detalle: QuoteFunnelDetail[];
+}
+
+// ---------- Tendencias mensuales ----------
+
+export interface TrendMonth {
+  mes: string;
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  margen_pct: number;
+  gastos: number;
+  utilidad: number;
+  entradas: number;
+  salidas: number;
+  neto_caja: number;
+  saldo_caja: number;
+  /** Variación contra el mes anterior; null si no hay base. */
+  variacion_ingresos: number | null;
+  variacion_utilidad: number | null;
+}
+
+export interface TrendTotals {
+  ingresos: number;
+  costo_ventas: number;
+  margen: number;
+  margen_pct: number;
+  gastos: number;
+  utilidad: number;
+  entradas: number;
+  salidas: number;
+  neto_caja: number;
+}
+
+export interface TrendComparison {
+  desde: string;
+  hasta: string;
+  totales: TrendTotals;
+}
+
+export interface TrendsReport {
+  rango: { desde: string; hasta: string; meses: number; dias: number };
+  serie: TrendMonth[];
+  totales: TrendTotals;
+  comparacion: {
+    anterior: TrendComparison;
+    anio_anterior: TrendComparison;
+    variaciones: {
+      ingresos_vs_anterior: number | null;
+      utilidad_vs_anterior: number | null;
+      ingresos_vs_anio_anterior: number | null;
+      utilidad_vs_anio_anterior: number | null;
+    };
+  };
+}
+
+// ---------- Auditoría ----------
+
+export type AuditEntity =
+  | "budget"
+  | "transaction"
+  | "account"
+  | "payment"
+  | "period_closure";
+
+export interface AuditEntry {
+  id: number;
+  user_id: number | null;
+  usuario: string | null;
+  entidad: AuditEntity;
+  entidad_id: number;
+  accion: string;
+  antes: Record<string, unknown> | null;
+  despues: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface AuditList extends Paginated<AuditEntry> {
+  resumen_por_entidad: { entidad: AuditEntity; total: number }[];
+}
+
+// ---------- Salud de datos ----------
+
+export type DataHealthCode =
+  | "asientos_huerfanos"
+  | "pagos_huerfanos"
+  | "stock_negativo"
+  | "productos_sin_costo";
+
+export interface DataHealthCheck {
+  codigo: DataHealthCode;
+  titulo: string;
+  descripcion: string;
+  severidad: "alta" | "media";
+  hallazgos: number;
+  detalle: Record<string, unknown>[];
+}
+
+export interface DataHealthReport {
+  generado_at: string;
+  estado: "ok" | "alerta";
+  resumen: {
+    checks: number;
+    con_problemas: number;
+    total_hallazgos: number;
+  };
+  checks: DataHealthCheck[];
 }
 
 export interface StockFailure {
@@ -445,6 +917,10 @@ export interface Invoice {
   retencion_ica: number;
   total_neto: number;
   quote_id: number | null;
+  party_id: number | null;
+  condicion_pago: "contado" | "credito";
+  dias_credito: number;
+  fecha_vencimiento: string | null;
   account_id: number | null;
   orden_compra: string | null;
   created_at: string;
@@ -479,8 +955,113 @@ export interface InvoiceDetail extends Invoice {
   notas: string | null;
   quote_numero: string | null;
   created_by: number;
+  /** Total de pagos/cobros válidos aplicados a la factura. */
+  pagado: number;
+  /** Saldo de cartera pendiente (0 si es de contado o está anulada). */
+  saldo_pendiente: number;
+  estado_cartera: CarteraEstado;
   items: InvoiceItem[];
   transacciones: InvoiceTransaction[];
+  pagos: InvoicePayment[];
+}
+
+// ---------- Cartera y pagos ----------
+
+export type CarteraEstado = "pendiente" | "parcial" | "pagada" | "vencida" | "no_aplica";
+export type PaymentMetodo = "efectivo" | "transferencia" | "tarjeta" | "otro";
+
+export interface InvoicePayment {
+  id: number;
+  fecha: string;
+  monto: number;
+  metodo: PaymentMetodo;
+  referencia: string | null;
+  notas: string | null;
+  estado: "valido" | "anulado";
+  cuenta: string | null;
+  creador: string;
+  created_at: string;
+  anulada_at: string | null;
+}
+
+export interface InvoiceReceivable {
+  id: number;
+  tipo: InvoiceTipo;
+  numero: string;
+  fecha: string;
+  contraparte: string;
+  party_id: number | null;
+  condicion_pago: PaymentCondition;
+  dias_credito: number;
+  fecha_vencimiento: string | null;
+  total_neto: number;
+  pagado: number;
+  saldo_pendiente: number;
+  estado_cartera: CarteraEstado;
+  dias_vencido: number;
+}
+
+export interface ReceivablesSummary {
+  por_cobrar: number;
+  por_pagar: number;
+  vencido: number;
+}
+
+export interface ReceivablesQuery {
+  page: number;
+  pageSize: number;
+  q?: string;
+  tipo?: InvoiceTipo;
+  estado?: CarteraEstado;
+  desde?: string;
+  hasta?: string;
+}
+
+export interface PaginatedReceivables extends Paginated<InvoiceReceivable> {
+  resumen: ReceivablesSummary;
+}
+
+export interface PaymentInput {
+  fecha: string;
+  monto: number;
+  account_id?: number | null;
+  metodo?: PaymentMetodo;
+  referencia?: string;
+  notas?: string;
+}
+
+export interface AgingBucket {
+  corriente: number;
+  d1_30: number;
+  d31_60: number;
+  d61_90: number;
+  d90_mas: number;
+  total: number;
+}
+
+export interface CarteraAging {
+  as_of: string;
+  periodo: { desde: string; hasta: string; dias: number };
+  /** Días de ventas a crédito que representa la cartera actual; null sin ventas. */
+  dso: number | null;
+  ventas_credito: number;
+  facturas_credito: number;
+  totales: {
+    por_cobrar: number;
+    por_pagar: number;
+    vencido: number;
+    vencido_cobrar: number;
+    por_vencer_7d: number;
+    facturas_vencidas: number;
+  };
+  aging: { venta: AgingBucket; compra: AgingBucket };
+  top_deudores: {
+    contraparte: string;
+    party_id: number | null;
+    saldo: number;
+    vencido: number;
+    max_dias: number;
+  }[];
 }
 
 export interface InvoiceItemInput {
@@ -500,6 +1081,10 @@ export interface InvoiceInput {
   email?: string;
   notas?: string;
   quote_id?: number | null;
+  party_id?: number | null;
+  condicion_pago?: "contado" | "credito";
+  dias_credito?: number;
+  fecha_vencimiento?: string | null;
   account_id?: number | null;
   retencion_fuente?: number;
   retencion_iva?: number;
@@ -541,3 +1126,55 @@ export interface InvoiceSummary {
 export interface PaginatedInvoices extends Paginated<Invoice> {
   resumen: InvoiceSummary;
 }
+
+// ---------- Maestro de terceros ----------
+
+export type ThirdPartyTipo = "cliente" | "proveedor" | "ambos";
+export type ThirdPartyDocumento = "NIT" | "CC" | "CE" | "PASAPORTE" | "OTRO";
+export type PaymentCondition = "contado" | "credito";
+
+export interface ThirdParty {
+  id: number;
+  tipo: ThirdPartyTipo;
+  tipo_documento: ThirdPartyDocumento;
+  documento: string | null;
+  nombre: string;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  ciudad: string | null;
+  condicion_pago: PaymentCondition;
+  dias_credito: number;
+  notas: string | null;
+  activo: number;
+  facturas: number;
+  ventas: number;
+  compras: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ThirdPartyInput {
+  tipo: ThirdPartyTipo;
+  tipo_documento: ThirdPartyDocumento;
+  documento?: string;
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  ciudad?: string;
+  condicion_pago: PaymentCondition;
+  dias_credito: number;
+  notas?: string;
+  activo?: boolean;
+}
+
+export interface ThirdPartiesQuery {
+  page: number;
+  pageSize: number;
+  q?: string;
+  tipo?: ThirdPartyTipo;
+  activo?: 0 | 1;
+}
+
+export type PaginatedThirdParties = Paginated<ThirdParty>;

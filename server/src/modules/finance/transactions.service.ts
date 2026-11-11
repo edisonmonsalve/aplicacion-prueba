@@ -78,7 +78,8 @@ export async function listTransactions(query: TransactionListQuery) {
 
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT t.id, t.tipo, t.monto, t.fecha, t.finance_category_id, fc.nombre AS categoria,
-            fc.afecta_caja,
+            fc.codigo, fc.afecta_resultado,
+            COALESCE(t.afecta_caja, fc.afecta_caja) AS afecta_caja,
             t.account_id, fa.nombre AS cuenta, t.product_id,
             p.sku, p.nombre AS producto, t.quote_id, t.invoice_id,
             t.stock_movement_id,
@@ -259,25 +260,29 @@ export async function getSummary(query: SummaryQuery) {
     throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
   }
 
+  // COALESCE: el asiento puede sobrescribir el impacto de caja de su categoría
+  // (una venta a crédito reconoce ingreso, pero no mueve caja hasta el cobro).
+  const afectaCaja = "COALESCE(t.afecta_caja, fc.afecta_caja)";
   const [totals] = await pool.query<RowDataPacket[]>(
     `SELECT
-       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_caja = 1
+       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND ${afectaCaja} = 1
                          THEN t.monto ELSE 0 END), 0) AS ingresos,
-       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso'
+       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_resultado = 1
                          THEN t.monto ELSE 0 END), 0) AS ingresos_totales,
-       COALESCE(SUM(CASE WHEN t.tipo IN ('gasto', 'activo') AND fc.afecta_caja = 1
+       COALESCE(SUM(CASE WHEN t.tipo IN ('gasto', 'activo') AND ${afectaCaja} = 1
                          THEN t.monto ELSE 0 END), 0) AS egresos,
-       COALESCE(SUM(CASE WHEN t.tipo = 'activo' AND fc.afecta_caja = 1
+       COALESCE(SUM(CASE WHEN t.tipo = 'activo' AND ${afectaCaja} = 1
                          THEN t.monto ELSE 0 END), 0) AS compras_inventario,
-       COALESCE(SUM(CASE WHEN t.tipo = 'gasto'
+       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
                          THEN t.monto ELSE 0 END), 0) AS gastos_totales,
-       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_caja = 0
+       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
+                          AND ${afectaCaja} = 0
                          THEN t.monto ELSE 0 END), 0) AS gastos_no_caja,
-       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.nombre = 'Costo de ventas'
+       COALESCE(SUM(CASE WHEN fc.codigo = 'costo_ventas'
                          THEN t.monto ELSE 0 END), 0) AS costo_ventas,
-       COALESCE(SUM(CASE WHEN t.tipo = 'pasivo' AND fc.nombre = 'IVA por pagar'
+       COALESCE(SUM(CASE WHEN fc.codigo = 'iva_por_pagar'
                          THEN t.monto ELSE 0 END), 0) AS iva_por_pagar,
-       COALESCE(SUM(CASE WHEN t.tipo = 'activo' AND fc.nombre = 'IVA descontable'
+       COALESCE(SUM(CASE WHEN fc.codigo = 'iva_descontable'
                          THEN t.monto ELSE 0 END), 0) AS iva_descontable
      FROM transactions t
      JOIN finance_categories fc ON fc.id = t.finance_category_id
@@ -299,6 +304,9 @@ export async function getSummary(query: SummaryQuery) {
   // cambio, solo se mueve con categorías afecta_caja = 1.
   const utilidad = ingresosTotales - gastosTotales;
   const margenBruto = ingresosTotales - costoVentas;
+  // IVA del periodo: lo cobrado en ventas menos lo pagado en compras. Un valor
+  // negativo significa saldo a favor.
+  const ivaNeto = ivaPorPagar - ivaDescontable;
 
   // M2: el costo de ventas es parte del asiento y del presupuesto, pero no reduce el capital de
   // caja: la compra del inventario ya sacó el dinero al registrarse como activo. El capital de
@@ -314,7 +322,7 @@ export async function getSummary(query: SummaryQuery) {
                 FROM transactions t
                 JOIN finance_categories fc ON fc.id = t.finance_category_id
                 WHERE ${VALID_TRANSACTION}
-                  AND fc.afecta_caja = 1
+                  AND ${afectaCaja} = 1
                   AND t.fecha <= ?
                   AND t.account_id IN (SELECT id FROM finance_accounts WHERE activo = 1)
               ), 0) AS capital
@@ -325,13 +333,14 @@ export async function getSummary(query: SummaryQuery) {
   const capitalDisponible = Number(capitalRows[0].capital);
 
   const [porCategoria] = await pool.query<RowDataPacket[]>(
-    `SELECT fc.id, fc.nombre, fc.tipo, fc.afecta_caja, COALESCE(SUM(t.monto), 0) AS total
+    `SELECT fc.id, fc.nombre, fc.codigo, fc.tipo, fc.afecta_caja,
+            fc.afecta_resultado, COALESCE(SUM(t.monto), 0) AS total
      FROM finance_categories fc
      LEFT JOIN transactions t
        ON t.finance_category_id = fc.id
       AND t.fecha BETWEEN ? AND ?
       AND ${VALID_TRANSACTION}
-     GROUP BY fc.id, fc.nombre, fc.tipo, fc.afecta_caja
+     GROUP BY fc.id, fc.nombre, fc.codigo, fc.tipo, fc.afecta_caja, fc.afecta_resultado
      HAVING total > 0
      ORDER BY total DESC, fc.nombre`,
     [desde, hasta]
@@ -341,6 +350,9 @@ export async function getSummary(query: SummaryQuery) {
     desde,
     hasta,
     ingresos: round2(ingresos),
+    // Ingresos del estado de resultados (incluye ventas a crédito, que aún no
+    // mueven caja). `ingresos` sigue siendo la entrada real de dinero.
+    ingresos_totales: round2(ingresosTotales),
     egresos: round2(egresos),
     compras_inventario: round2(comprasInventario),
     gastos_totales: round2(gastosTotales),
@@ -351,6 +363,7 @@ export async function getSummary(query: SummaryQuery) {
     margen_bruto_pct: ingresosTotales > 0 ? round2((margenBruto / ingresosTotales) * 100) : 0,
     iva_por_pagar: round2(ivaPorPagar),
     iva_descontable: round2(ivaDescontable),
+    iva_neto: round2(ivaNeto),
     capital_disponible: round2(capitalDisponible),
     por_categoria: porCategoria.map((c) => ({ ...c, total: round2(Number(c.total)) })),
   };

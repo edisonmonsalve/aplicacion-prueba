@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import type { OkPacket, ResultSetHeader, RowDataPacket } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
@@ -12,7 +12,10 @@ export async function resetDb() {
   // La auto-referencia de anulaciones impide borrar en bloque sin soltarla primero
   await pool.query("UPDATE transactions SET anulada_de = NULL");
   await pool.query("DELETE FROM transaction_allocations");
+  // Los pagos referencian facturas, cuentas y transacciones: se borran primero.
+  await pool.query("DELETE FROM invoice_payments");
   await pool.query("DELETE FROM transactions");
+  await pool.query("DELETE FROM period_closures");
   // La factura puede referenciar una cuenta; se suelta antes de borrarlas.
   await pool.query("UPDATE invoices SET account_id = NULL");
   // Las cuentas creadas por las pruebas no forman parte del seed: se limpian y
@@ -26,6 +29,7 @@ export async function resetDb() {
   await pool.query("DELETE FROM stock_movements");
   await pool.query("DELETE FROM invoices");
   await pool.query("DELETE FROM invoice_counters");
+  await pool.query("DELETE FROM third_parties");
   await pool.query("DELETE FROM budget_lines");
   await pool.query("DELETE FROM budgets");
   await pool.query("DELETE FROM quote_audit_log");

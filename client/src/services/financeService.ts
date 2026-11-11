@@ -5,15 +5,23 @@ import type {
   BudgetInput,
   BudgetListItem,
   BudgetsQuery,
+  BalanceReport,
+  CashFlowReport,
+  DataHealthReport,
   FinanceAccount,
   FinanceAccountInput,
   FinanceCategory,
   FinanceSummary,
+  InventoryAnalyticsReport,
   Paginated,
   PaginatedTransactions,
+  PnlReport,
+  ProfitabilityReport,
+  QuoteFunnelReport,
   Suggestion,
   TransactionInput,
   TransactionsQuery,
+  TrendsReport,
 } from "@/types";
 
 export const getFinanceAccounts = async () => (await api.get<FinanceAccount[]>("/finance/accounts")).data;
@@ -47,6 +55,31 @@ export const reverseTransaction = async (id: number) =>
 
 export const getFinanceSummary = async (params: { desde?: string; hasta?: string }) =>
   (await api.get<FinanceSummary>("/finance/summary", { params })).data;
+export const getPnl = async (params: { desde?: string; hasta?: string }) =>
+  (await api.get<PnlReport>("/finance/pnl", { params })).data;
+export const getCashFlow = async (params: {
+  desde?: string;
+  hasta?: string;
+  account_id?: number;
+}) => (await api.get<CashFlowReport>("/finance/cash-flow", { params })).data;
+export const getBalance = async (params: { hasta?: string }) =>
+  (await api.get<BalanceReport>("/finance/balance", { params })).data;
+export const getProfitability = async (params: {
+  desde?: string;
+  hasta?: string;
+  grupo?: "producto" | "categoria" | "cliente";
+}) => (await api.get<ProfitabilityReport>("/finance/profitability", { params })).data;
+export const getInventoryAnalytics = async (params: {
+  desde?: string;
+  hasta?: string;
+  dias_muerto?: number;
+}) => (await api.get<InventoryAnalyticsReport>("/finance/inventory-analytics", { params })).data;
+export const getQuoteFunnel = async (params: { desde?: string; hasta?: string }) =>
+  (await api.get<QuoteFunnelReport>("/finance/quotes-funnel", { params })).data;
+export const getTrends = async (params: { desde?: string; hasta?: string }) =>
+  (await api.get<TrendsReport>("/finance/trends", { params })).data;
+export const getDataHealth = async () =>
+  (await api.get<DataHealthReport>("/finance/data-health")).data;
 export const getAvailability = async (productId: number) =>
   (await api.get<BudgetAvailability | null>("/finance/availability", { params: { product_id: productId } })).data;
 export const getSuggestions = async () => (await api.get<Suggestion[]>("/finance/suggestions")).data;

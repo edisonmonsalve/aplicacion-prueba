@@ -15,16 +15,21 @@ export async function listAccounts() {
   // IVA son informativos y quedan fuera de ingresos, egresos y saldo.
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT a.id, a.nombre, a.tipo, a.saldo_inicial, a.activo,
-            COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_caja = 1
+            COALESCE(SUM(CASE WHEN t.tipo = 'ingreso'
+                               AND COALESCE(t.afecta_caja, fc.afecta_caja) = 1
                               THEN t.monto ELSE 0 END), 0) AS ingresos,
-            COALESCE(SUM(CASE WHEN t.tipo IN ('gasto', 'activo') AND fc.afecta_caja = 1
+            COALESCE(SUM(CASE WHEN t.tipo IN ('gasto', 'activo')
+                               AND COALESCE(t.afecta_caja, fc.afecta_caja) = 1
                               THEN t.monto ELSE 0 END), 0) AS egresos,
             a.saldo_inicial
-              + COALESCE(SUM(CASE WHEN fc.afecta_caja = 1 AND t.tipo = 'ingreso'
+              + COALESCE(SUM(CASE WHEN COALESCE(t.afecta_caja, fc.afecta_caja) = 1
+                                   AND t.tipo = 'ingreso'
                                   THEN t.monto
-                                  WHEN fc.afecta_caja = 1 AND t.tipo IN ('gasto', 'activo')
+                                  WHEN COALESCE(t.afecta_caja, fc.afecta_caja) = 1
+                                   AND t.tipo IN ('gasto', 'activo')
                                   THEN -t.monto
-                                  WHEN fc.afecta_caja = 1 AND t.tipo = 'pasivo'
+                                  WHEN COALESCE(t.afecta_caja, fc.afecta_caja) = 1
+                                   AND t.tipo = 'pasivo'
                                   THEN t.monto
                                   ELSE 0 END), 0)
               AS saldo_actual
@@ -41,7 +46,8 @@ export async function listAccounts() {
 
 export async function listFinanceCategories() {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT fc.id, fc.nombre, fc.tipo, fc.activo, fc.afecta_caja,
+    `SELECT fc.id, fc.nombre, fc.codigo, fc.tipo, fc.activo, fc.afecta_caja,
+            fc.afecta_resultado,
             (SELECT COUNT(*) FROM budget_lines bl WHERE bl.finance_category_id = fc.id) AS lineas,
             (SELECT COUNT(*) FROM transactions t WHERE t.finance_category_id = fc.id) AS transacciones
      FROM finance_categories fc

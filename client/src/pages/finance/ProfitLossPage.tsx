@@ -1,0 +1,350 @@
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  App,
+  Card,
+  Col,
+  DatePicker,
+  Row,
+  Statistic,
+  Table,
+  Typography,
+} from "antd";
+import dayjs from "dayjs";
+import { getPnl } from "@/services/financeService";
+import { getErrorMessage } from "@/utils/errors";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
+import PageHeader from "@/components/PageHeader";
+import TableSkeleton from "@/components/TableSkeleton";
+import type { PnlReport } from "@/types";
+import { fmtDate, money } from "./FinanceUtils";
+
+const FMT = "YYYY-MM-DD";
+
+type RowTipo = "section" | "line" | "subtotal";
+
+interface PnlRow {
+  key: string;
+  concepto: string;
+  actual: number;
+  /** Participación sobre los ingresos del periodo. */
+  pct: number | null;
+  anterior: number | null;
+  variacion: number | null;
+  tipo: RowTipo;
+  /** Los aumentos de gasto/costo se pintan como negativos. */
+  gasto?: boolean;
+}
+
+const pctOf = (value: number, base: number) =>
+  base > 0 ? Math.round((value / base) * 1000) / 10 : 0;
+
+function buildRows(r: PnlReport): PnlRow[] {
+  const rows: PnlRow[] = [
+    {
+      key: "ingresos",
+      concepto: "Ingresos",
+      actual: r.ingresos.total,
+      pct: r.ingresos.total > 0 ? 100 : 0,
+      anterior: r.comparativo_totales.ingresos,
+      variacion: r.variaciones.ingresos,
+      tipo: "section",
+    },
+    ...r.ingresos.lineas.map((l) => ({
+      key: `ingreso-${l.id}`,
+      concepto: l.nombre,
+      actual: l.total,
+      pct: l.pct,
+      anterior: l.anterior,
+      variacion: l.variacion,
+      tipo: "line" as const,
+      gasto: false,
+    })),
+    {
+      key: "costo-ventas",
+      concepto: "Costo de ventas",
+      actual: r.costo_ventas.total,
+      pct: r.costo_ventas.pct,
+      anterior: r.comparativo_totales.costo_ventas,
+      variacion: r.variaciones.costo_ventas,
+      tipo: "section",
+      gasto: true,
+    },
+    // Normalmente hay una sola categoría de costo; si hay más, se detallan.
+    ...(r.costo_ventas.lineas.length > 1
+      ? r.costo_ventas.lineas.map((l) => ({
+          key: `costo-${l.id}`,
+          concepto: l.nombre,
+          actual: l.total,
+          pct: l.pct,
+          anterior: l.anterior,
+          variacion: l.variacion,
+          tipo: "line" as const,
+          gasto: true,
+        }))
+      : []),
+    {
+      key: "margen-bruto",
+      concepto: "Margen bruto",
+      actual: r.margen_bruto,
+      pct: r.margen_bruto_pct,
+      anterior: r.comparativo_totales.margen_bruto,
+      variacion: r.variaciones.margen_bruto,
+      tipo: "subtotal",
+    },
+    {
+      key: "gastos",
+      concepto: "Gastos operativos",
+      actual: r.gastos.total,
+      pct: pctOf(r.gastos.total, r.ingresos.total),
+      anterior: r.comparativo_totales.gastos,
+      variacion: r.variaciones.gastos,
+      tipo: "section",
+      gasto: true,
+    },
+    ...r.gastos.lineas.map((l) => ({
+      key: `gasto-${l.id}`,
+      concepto: l.nombre,
+      actual: l.total,
+      pct: l.pct,
+      anterior: l.anterior,
+      variacion: l.variacion,
+      tipo: "line" as const,
+      gasto: true,
+    })),
+    {
+      key: "utilidad",
+      concepto: "Utilidad",
+      actual: r.utilidad,
+      pct: r.utilidad_pct,
+      anterior: r.comparativo_totales.utilidad,
+      variacion: r.variaciones.utilidad,
+      tipo: "subtotal",
+    },
+  ];
+  return rows;
+}
+
+function Variation({ value, gasto }: { value: number | null; gasto?: boolean }) {
+  if (value === null) {
+    return <Typography.Text type="secondary">—</Typography.Text>;
+  }
+  const positive = value >= 0;
+  // En ingresos/utilidad una subida es buena; en costos y gastos, mala.
+  const good = gasto ? !positive : positive;
+  const color = value === 0 ? undefined : good ? "#389e0d" : "#cf1322";
+  return (
+    <Typography.Text style={{ color }}>
+      {positive ? "+" : ""}
+      {value.toFixed(1)} %
+    </Typography.Text>
+  );
+}
+
+export default function ProfitLossPage() {
+  const { message } = App.useApp();
+  const { get, update } = useUrlFilters();
+  const [report, setReport] = useState<PnlReport | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
+    const inicial = get("desde");
+    const final = get("hasta");
+    return [
+      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
+      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
+    ];
+  });
+
+  useDocumentTitle("Estado de resultados");
+
+  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    if (!value || !value[0] || !value[1]) return;
+    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
+    setRange(next);
+    update({
+      desde: next[0].format(FMT),
+      hasta: next[1].format(FMT),
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    getPnl({
+      desde: range[0].format(FMT),
+      hasta: range[1].format(FMT),
+    })
+      .then((r) => {
+        if (!cancelled) setReport(r);
+      })
+      .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar el estado de resultados")))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [range, message]);
+
+  const rows = report ? buildRows(report) : [];
+  const sinMovimiento =
+    report &&
+    report.ingresos.total === 0 &&
+    report.costo_ventas.total === 0 &&
+    report.gastos.total === 0;
+
+  return (
+    <>
+      <PageHeader
+        title="Estado de resultados"
+        description="Resultado por devengo: incluye ventas a crédito y excluye cobros de cartera, que solo mueven caja. Comparado con el periodo anterior de igual duración."
+        extra={
+          <DatePicker.RangePicker
+            format="DD/MM/YYYY"
+            value={range}
+            onChange={changeRange}
+            allowClear={false}
+          />
+        }
+      />
+
+      {report && (
+        <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
+          Periodo: {fmtDate(report.rango.desde)} — {fmtDate(report.rango.hasta)} (
+          {report.rango.dias} días) · Comparado con {fmtDate(report.comparativo.desde)} —{" "}
+          {fmtDate(report.comparativo.hasta)}
+        </Typography.Paragraph>
+      )}
+
+      {sinMovimiento && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Sin movimientos de resultado en el periodo"
+          description="Registra transacciones o confirma facturas para ver el estado de resultados."
+        />
+      )}
+
+      {report && (
+        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="Ingresos"
+                value={report.ingresos.total}
+                precision={2}
+                prefix="$"
+                valueStyle={{ color: "#1677ff" }}
+              />
+              <Variation value={report.variaciones.ingresos} />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="Margen bruto"
+                value={report.margen_bruto}
+                precision={2}
+                prefix="$"
+                suffix={<span style={{ fontSize: 13 }}>{report.margen_bruto_pct.toFixed(1)} %</span>}
+                valueStyle={{ color: "#389e0d" }}
+              />
+              <Variation value={report.variaciones.margen_bruto} />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="Gastos operativos"
+                value={report.gastos.total}
+                precision={2}
+                prefix="$"
+                valueStyle={{ color: "#d46b08" }}
+              />
+              <Variation value={report.variaciones.gastos} gasto />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="Utilidad"
+                value={report.utilidad}
+                precision={2}
+                prefix="$"
+                suffix={<span style={{ fontSize: 13 }}>{report.utilidad_pct.toFixed(1)} %</span>}
+                valueStyle={{ color: report.utilidad < 0 ? "#cf1322" : "#389e0d" }}
+              />
+              <Variation value={report.variaciones.utilidad} />
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {loading && !report ? (
+        <TableSkeleton />
+      ) : (
+        <Table<PnlRow>
+          rowKey="key"
+          loading={loading}
+          dataSource={rows}
+          pagination={false}
+          scroll={{ x: "max-content" }}
+          rowClassName={(r) =>
+            r.tipo === "subtotal"
+              ? "pnl-subtotal"
+              : r.tipo === "section"
+                ? "pnl-section"
+                : "pnl-line"
+          }
+          columns={[
+            {
+              title: "Concepto",
+              dataIndex: "concepto",
+              render: (texto: string, r) => {
+                if (r.tipo === "line") {
+                  return (
+                    <span style={{ paddingLeft: 20, color: "#666" }}>{texto}</span>
+                  );
+                }
+                return <strong>{texto}</strong>;
+              },
+            },
+            {
+              title: "Periodo",
+              dataIndex: "actual",
+              align: "right",
+              render: (v: number) => money(v),
+            },
+            {
+              title: "% ingresos",
+              dataIndex: "pct",
+              align: "right",
+              render: (v: number | null) =>
+                v === null ? "—" : `${v.toFixed(1)} %`,
+            },
+            {
+              title: "Periodo anterior",
+              dataIndex: "anterior",
+              align: "right",
+              render: (v: number | null) => (v === null ? "—" : money(v)),
+            },
+            {
+              title: "Variación",
+              dataIndex: "variacion",
+              align: "right",
+              render: (v: number | null, r) => <Variation value={v} gasto={r.gasto} />,
+            },
+          ]}
+        />
+      )}
+
+      <style>{`
+        .pnl-section td { border-top: 1px solid #f0f0f0; }
+        .pnl-subtotal td { background: #fafafa; }
+      `}</style>
+    </>
+  );
+}

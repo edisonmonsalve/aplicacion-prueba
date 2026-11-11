@@ -101,3 +101,21 @@ export const summaryQuerySchema = z.object({
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
 });
+
+export const cashFlowQuerySchema = summaryQuerySchema.extend({
+  account_id: z.coerce.number().int().positive().optional(),
+});
+
+export const balanceQuerySchema = z.object({
+  hasta: isoDate.optional(),
+});
+
+export const profitabilityQuerySchema = summaryQuerySchema.extend({
+  grupo: z.enum(["producto", "categoria", "cliente"]).optional(),
+});
+
+export const inventoryAnalyticsQuerySchema = summaryQuerySchema.extend({
+  dias_muerto: z.coerce.number().int().min(1).max(3650).optional(),
+});
+
+export const trendsQuerySchema = summaryQuerySchema;
