@@ -16,20 +16,22 @@ export async function resetDb() {
   await pool.query("DELETE FROM invoice_payments");
   await pool.query("DELETE FROM transactions");
   await pool.query("DELETE FROM period_closures");
-  // La factura puede referenciar una cuenta; se suelta antes de borrarlas.
+  // Las notas referencian facturas y movimientos; se borran antes que ambos.
+  await pool.query("DELETE FROM invoice_adjustment_items");
+  await pool.query("DELETE FROM invoice_adjustments");
+  await pool.query("DELETE FROM stock_movements");
+  await pool.query("DELETE FROM invoice_items");
   await pool.query("UPDATE invoices SET account_id = NULL");
+  await pool.query("DELETE FROM invoices");
+  await pool.query("DELETE FROM invoice_counters");
+  await pool.query("DELETE FROM adjustment_counters");
+  await pool.query("DELETE FROM third_parties");
   // Las cuentas creadas por las pruebas no forman parte del seed: se limpian y
   // se deja la cuenta base que crea la migración V007.
   await pool.query("DELETE FROM finance_accounts WHERE nombre <> 'Caja principal'");
   await pool.query(
     "UPDATE finance_accounts SET saldo_inicial = 0, activo = 1, tipo = 'caja' WHERE nombre = 'Caja principal'"
   );
-  await pool.query("DELETE FROM invoice_items");
-  // stock_movements referencia invoices y quotes: debe borrarse antes que ambos
-  await pool.query("DELETE FROM stock_movements");
-  await pool.query("DELETE FROM invoices");
-  await pool.query("DELETE FROM invoice_counters");
-  await pool.query("DELETE FROM third_parties");
   await pool.query("DELETE FROM budget_lines");
   await pool.query("DELETE FROM budgets");
   await pool.query("DELETE FROM quote_audit_log");

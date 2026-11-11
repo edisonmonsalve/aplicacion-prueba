@@ -18,6 +18,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   cancelInvoice,
+  cancelInvoiceAdjustment,
   cancelInvoicePayment,
   confirmInvoice,
   getInvoice,
@@ -26,6 +27,8 @@ import { getFinanceAccounts } from "@/services/financeService";
 import { canWriteFinance } from "@/utils/roles";
 import type {
   FinanceAccount,
+  InvoiceAdjustment,
+  InvoiceAdjustmentItem,
   InvoiceDetail,
   InvoiceItem,
   InvoicePayment,
@@ -33,6 +36,7 @@ import type {
 } from "@/types";
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import PaymentModal from "./PaymentModal";
+import InvoiceAdjustmentModal from "./InvoiceAdjustmentModal";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -63,6 +67,7 @@ export default function InvoiceDetailPage() {
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [busy, setBusy] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
 
   useDocumentTitle(invoice?.numero ?? "Factura");
 
@@ -116,6 +121,22 @@ export default function InvoiceDetailPage() {
         ? (e.response?.data as { message?: string } | undefined)?.message
         : undefined;
       message.error(msg ?? "No se pudo anular el movimiento");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelAdjustment = async (adj: InvoiceAdjustment) => {
+    setBusy(true);
+    try {
+      await cancelInvoiceAdjustment(invoiceId, adj.id);
+      message.success("Nota anulada");
+      await load();
+    } catch (e) {
+      const msg = isAxiosError(e)
+        ? (e.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(msg ?? "No se pudo anular la nota");
     } finally {
       setBusy(false);
     }
@@ -198,6 +219,8 @@ export default function InvoiceDetailPage() {
     });
   };
 
+  if (!invoice) return <Card loading />;
+
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
       <PageBreadcrumb
@@ -243,6 +266,11 @@ export default function InvoiceDetailPage() {
                   Anular
                 </Button>
               </Popconfirm>
+            )}
+            {canWrite && isConfirmed && (
+              <Button onClick={() => setAdjustmentOpen(true)} disabled={busy}>
+                Nota crédito/débito
+              </Button>
             )}
           </Space>
         }
@@ -471,6 +499,77 @@ export default function InvoiceDetailPage() {
         />
       </Card>
 
+      {invoice.ajustes && invoice.ajustes.length > 0 && (
+        <Card title="Notas crédito/débito">
+          <Table<InvoiceAdjustment>
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: "max-content" }}
+            dataSource={invoice.ajustes}
+            expandable={{
+              expandedRowRender: (a) => (
+                <Table<InvoiceAdjustmentItem>
+                  rowKey="id"
+                  pagination={false}
+                  size="small"
+                  dataSource={a.items}
+                  columns={[
+                    { title: "SKU", dataIndex: "sku" },
+                    { title: "Producto", dataIndex: "producto" },
+                    { title: "Cant.", dataIndex: "cantidad", align: "right" },
+                    { title: "Precio unit.", dataIndex: "precio_unitario", align: "right", render: money },
+                    { title: "Total línea", dataIndex: "total_linea", align: "right", render: money },
+                  ]}
+                />
+              ),
+            }}
+            columns={[
+              { title: "Número", dataIndex: "numero" },
+              {
+                title: "Tipo",
+                dataIndex: "tipo",
+                render: (t: InvoiceAdjustment["tipo"]) =>
+                  t === "credito" ? <Tag color="green">Crédito</Tag> : <Tag color="orange">Débito</Tag>,
+              },
+              { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
+              { title: "Motivo", dataIndex: "motivo", render: (v: string | null) => v ?? "—" },
+              { title: "Total", dataIndex: "total", align: "right", render: money },
+              { title: "Neto", dataIndex: "total_neto", align: "right", render: money },
+              {
+                title: "Estado",
+                dataIndex: "estado",
+                render: (e: InvoiceAdjustment["estado"]) =>
+                  e === "confirmada" ? <Tag color="green">Confirmada</Tag> : <Tag>Anulada</Tag>,
+              },
+              { title: "Registró", dataIndex: "creador" },
+              ...(canWrite
+                ? [
+                    {
+                      title: "",
+                      width: 90,
+                      render: (_: unknown, a: InvoiceAdjustment) =>
+                        a.estado === "confirmada" ? (
+                          <Popconfirm
+                            title="¿Anular esta nota?"
+                            description="Se revertirá el stock y se registrará la contrapartida contable."
+                            okText="Sí, anular"
+                            cancelText="No"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => cancelAdjustment(a)}
+                          >
+                            <Button size="small" danger disabled={busy}>
+                              Anular
+                            </Button>
+                          </Popconfirm>
+                        ) : null,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </Card>
+      )}
+
       {invoice.transacciones.length > 0 && (
         <Card title="Asientos financieros">
           <Table<InvoiceTransaction>
@@ -508,6 +607,16 @@ export default function InvoiceDetailPage() {
         onCancel={() => setPaymentOpen(false)}
         onSaved={() => {
           setPaymentOpen(false);
+          load();
+        }}
+      />
+
+      <InvoiceAdjustmentModal
+        open={adjustmentOpen}
+        invoice={invoice}
+        onCancel={() => setAdjustmentOpen(false)}
+        onSaved={() => {
+          setAdjustmentOpen(false);
           load();
         }}
       />

@@ -40,7 +40,13 @@ export async function assertPeriodOpen(conn: PoolConnection, fecha: string) {
 export async function auditFinance(
   conn: PoolConnection,
   userId: number,
-  entidad: "budget" | "transaction" | "account" | "payment" | "period_closure",
+  entidad:
+    | "budget"
+    | "transaction"
+    | "account"
+    | "payment"
+    | "period_closure"
+    | "invoice_adjustment",
   entidadId: number,
   accion: string,
   antes: unknown,
@@ -114,6 +120,7 @@ interface AutoTransactionInput {
   productId?: number | null;
   quoteId?: number | null;
   invoiceId?: number | null;
+  invoiceAdjustmentId?: number | null;
   stockMovementId?: number | null;
   /** NULL/undefined = lo decide la categoría. false = no mueve caja (crédito). */
   afectaCaja?: boolean | null;
@@ -127,7 +134,9 @@ interface AutoTransactionInput {
  */
 export async function createAutoTransaction(conn: PoolConnection, input: AutoTransactionInput) {
   const monto = roundMoney(input.monto);
-  if (monto <= 0) return null;
+  // Las notas crédito usan montos negativos para netear el asiento original.
+  // El cero no genera movimiento; el signo se conserva tal cual.
+  if (monto === 0) return null;
 
   await assertPeriodOpen(conn, input.fecha);
 
@@ -146,8 +155,8 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
   const [res] = await conn.query<ResultSetHeader>(
     `INSERT INTO transactions
        (tipo, monto, afecta_caja, fecha, finance_category_id, account_id, product_id,
-        quote_id, invoice_id, stock_movement_id, descripcion, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        quote_id, invoice_id, invoice_adjustment_id, stock_movement_id, descripcion, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
     [
       input.tipo,
@@ -159,6 +168,7 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
       input.productId ?? null,
       input.quoteId ?? null,
       input.invoiceId ?? null,
+      input.invoiceAdjustmentId ?? null,
       input.stockMovementId ?? null,
       input.descripcion,
       input.userId,
@@ -175,6 +185,7 @@ export async function createAutoTransaction(conn: PoolConnection, input: AutoTra
       product_id: input.productId ?? null,
       quote_id: input.quoteId ?? null,
       invoice_id: input.invoiceId ?? null,
+      invoice_adjustment_id: input.invoiceAdjustmentId ?? null,
       stock_movement_id: input.stockMovementId ?? null,
       descripcion: input.descripcion,
       origen: "automatico",

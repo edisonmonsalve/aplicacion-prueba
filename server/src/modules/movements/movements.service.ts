@@ -13,6 +13,7 @@ export type MovementInput = z.infer<typeof createMovementSchema> & {
   // y para dejar trazabilidad documental.
   skipFinance?: boolean;
   invoiceId?: number;
+  invoiceAdjustmentId?: number;
   quoteId?: number;
   precio_unitario?: number;
 };
@@ -72,12 +73,18 @@ async function applyMovement(
 
   // Entrada: costo de compra (dado o del producto).
   // Salida: costo histórico al momento de la salida, para costo de ventas.
+  // Las devoluciones internas de notas (skipFinance) pueden fijar el costo
+  // histórico de la línea original aunque sea una salida.
   const costoUnitario =
     input.tipo === "entrada"
       ? actor.rol === "admin" && input.costo_unitario !== undefined
         ? input.costo_unitario
         : Number(product.costo ?? 0)
-      : Number(product.costo ?? 0);
+      : actor.rol === "admin" &&
+          input.skipFinance &&
+          input.costo_unitario !== undefined
+        ? input.costo_unitario
+        : Number(product.costo ?? 0);
 
   // Precio comercial de la salida: el de la línea de cotización/factura si se
   // conoce; si no, el precio del catálogo para ventas manuales. No es costo.
@@ -90,8 +97,8 @@ async function applyMovement(
   const [res] = await conn.query<ResultSetHeader>(
     `INSERT INTO stock_movements
        (product_id, user_id, tipo, origen, cantidad, costo_unitario, precio_unitario,
-        motivo, invoice_id, quote_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        motivo, invoice_id, invoice_adjustment_id, quote_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.product_id,
       actor.id,
@@ -102,6 +109,7 @@ async function applyMovement(
       precioUnitario,
       input.motivo ?? null,
       input.invoiceId ?? null,
+      input.invoiceAdjustmentId ?? null,
       input.quoteId ?? null,
     ]
   );

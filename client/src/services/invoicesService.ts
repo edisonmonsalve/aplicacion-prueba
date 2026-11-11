@@ -1,6 +1,7 @@
 import { api } from "./api";
 import type {
   CarteraAging,
+  InvoiceAdjustment,
   InvoiceDetail,
   InvoiceInput,
   InvoicePayment,
@@ -55,5 +56,36 @@ export const cancelInvoicePayment = async (id: number, paymentId: number) =>
   (
     await api.post<{ id: number; estado: string; saldo_pendiente: number }>(
       `/invoices/${id}/payments/${paymentId}/anular`
+    )
+  ).data;
+
+export const listInvoiceAdjustments = async (id: number) =>
+  (await api.get<InvoiceAdjustment[]>(`/invoices/${id}/notas`)).data;
+
+export const createInvoiceAdjustment = async (
+  id: number,
+  input: {
+    tipo: "credito" | "debito";
+    fecha: string;
+    motivo?: string;
+    afecta_stock?: boolean;
+    items: { invoice_item_id: number; cantidad: number; precio_unitario?: number; descuento_pct?: number; impuesto_pct?: number }[];
+  }
+) =>
+  (
+    await api.post<{
+      id: number;
+      numero: string;
+      tipo: string;
+      estado: string;
+      total: number;
+      total_neto: number;
+    }>(`/invoices/${id}/notas`, input)
+  ).data;
+
+export const cancelInvoiceAdjustment = async (id: number, adjustmentId: number) =>
+  (
+    await api.post<{ id: number; numero: string; estado: string }>(
+      `/invoices/${id}/notas/${adjustmentId}/anular`
     )
   ).data;

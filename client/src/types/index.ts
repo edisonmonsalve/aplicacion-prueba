@@ -765,7 +765,8 @@ export type AuditEntity =
   | "transaction"
   | "account"
   | "payment"
-  | "period_closure";
+  | "period_closure"
+  | "invoice_adjustment";
 
 export interface AuditEntry {
   id: number;
@@ -963,6 +964,10 @@ export interface InvoiceDetail extends Invoice {
   items: InvoiceItem[];
   transacciones: InvoiceTransaction[];
   pagos: InvoicePayment[];
+  ajuste_notas?: number;
+  notas_credito?: number;
+  notas_debito?: number;
+  ajustes?: InvoiceAdjustment[];
 }
 
 // ---------- Cartera y pagos ----------
@@ -982,6 +987,44 @@ export interface InvoicePayment {
   creador: string;
   created_at: string;
   anulada_at: string | null;
+}
+
+export type InvoiceAdjustmentTipo = "credito" | "debito";
+export type InvoiceAdjustmentEstado = "confirmada" | "anulada";
+
+export interface InvoiceAdjustmentItem {
+  id: number;
+  adjustment_id: number;
+  invoice_item_id: number;
+  product_id: number;
+  cantidad: number;
+  precio_unitario: number;
+  descuento_pct: number;
+  impuesto_pct: number;
+  total_linea: number;
+  sku?: string;
+  producto?: string;
+}
+
+export interface InvoiceAdjustment {
+  id: number;
+  invoice_id: number;
+  tipo: InvoiceAdjustmentTipo;
+  numero: string;
+  fecha: string;
+  motivo: string | null;
+  subtotal: number;
+  descuento_total: number;
+  impuesto_total: number;
+  retencion_total: number;
+  total: number;
+  total_neto: number;
+  afecta_stock: number;
+  estado: InvoiceAdjustmentEstado;
+  creador: string;
+  anulada_por?: string | null;
+  anulada_at?: string | null;
+  items: InvoiceAdjustmentItem[];
 }
 
 export interface InvoiceReceivable {

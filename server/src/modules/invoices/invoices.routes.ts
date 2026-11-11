@@ -28,6 +28,15 @@ import {
   listInvoicePayments,
   listReceivables,
 } from "./invoice-payments.service.js";
+import {
+  adjustmentParamsSchema,
+  createAdjustmentSchema,
+} from "./invoice-adjustments.schema.js";
+import {
+  cancelAdjustment,
+  createAdjustment,
+  listAdjustments,
+} from "./invoice-adjustments.service.js";
 
 export const invoicesRouter = Router();
 
@@ -65,6 +74,29 @@ invoicesRouter.post("/:id/payments/:paymentId/anular", requireRole("admin", "con
   try {
     const { id, paymentId } = paymentParamsSchema.parse(req.params);
     res.json(await cancelPayment(id, paymentId, req.user!));
+  } catch (err) { next(err); }
+});
+
+// Notas crédito/débito sobre facturas confirmadas.
+invoicesRouter.get("/:id/notas", requireRole("admin", "contador", "consulta", "operador"), async (req, res, next) => {
+  try {
+    const id = idSchema.parse(req.params).id;
+    res.json(await listAdjustments(id));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.post("/:id/notas", requireRole("admin", "contador"), async (req, res, next) => {
+  try {
+    const id = idSchema.parse(req.params).id;
+    const input = createAdjustmentSchema.parse(req.body);
+    res.status(201).json(await createAdjustment(id, input, req.user!));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.post("/:id/notas/:adjustmentId/anular", requireRole("admin", "contador"), async (req, res, next) => {
+  try {
+    const { id, adjustmentId } = adjustmentParamsSchema.parse(req.params);
+    res.json(await cancelAdjustment(id, adjustmentId, req.user!));
   } catch (err) { next(err); }
 });
 

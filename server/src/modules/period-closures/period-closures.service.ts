@@ -42,7 +42,7 @@ async function buildSnapshot(desde: string, hasta: string) {
          COALESCE(SUM(CASE WHEN c.tipo = 'compra' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_pagar
        FROM (
          SELECT i.tipo,
-                GREATEST(i.total_neto - COALESCE(p.pagado, 0), 0) AS saldo_pendiente
+                GREATEST(i.total_neto + COALESCE(n.ajuste, 0) - COALESCE(p.pagado, 0), 0) AS saldo_pendiente
          FROM invoices i
          LEFT JOIN (
            SELECT invoice_id, SUM(monto) AS pagado
@@ -50,6 +50,13 @@ async function buildSnapshot(desde: string, hasta: string) {
            WHERE estado = 'valido'
            GROUP BY invoice_id
          ) p ON p.invoice_id = i.id
+         LEFT JOIN (
+           SELECT invoice_id,
+                  SUM(CASE WHEN tipo = 'credito' THEN -total_neto ELSE total_neto END) AS ajuste
+           FROM invoice_adjustments
+           WHERE estado = 'confirmada'
+           GROUP BY invoice_id
+         ) n ON n.invoice_id = i.id
          WHERE i.estado = 'confirmada' AND i.condicion_pago = 'credito'
            AND i.fecha BETWEEN ? AND ?
        ) c`,

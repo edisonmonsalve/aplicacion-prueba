@@ -113,21 +113,29 @@ describe("Esquema financiero", () => {
     expect(Number(rows[0].total)).toBe(0);
   });
 
-  it("no admite transacciones con monto cero o negativo", async () => {
+  it("no admite transacciones con monto cero", async () => {
     const user = await createUser("admin");
     const categoryId = await financeCategory("ingreso");
     const accountId = await financeAccount();
 
-    for (const monto of [0, -100]) {
-      await expect(
-        pool.query(
-          `INSERT INTO transactions
-             (tipo, monto, fecha, finance_category_id, account_id, created_by)
-           VALUES ('ingreso', ?, CURDATE(), ?, ?, ?)`,
-          [monto, categoryId, accountId, user.id]
-        )
-      ).rejects.toThrow();
-    }
+    await expect(
+      pool.query(
+        `INSERT INTO transactions
+           (tipo, monto, fecha, finance_category_id, account_id, created_by)
+         VALUES ('ingreso', ?, CURDATE(), ?, ?, ?)`,
+        [0, categoryId, accountId, user.id]
+      )
+    ).rejects.toThrow();
+
+    // Las notas crédito usan montos negativos: deben ser válidos.
+    const [res] = await pool.query<ResultSetHeader>(
+      `INSERT INTO transactions
+         (tipo, monto, fecha, finance_category_id, account_id, created_by)
+       VALUES ('ingreso', ?, CURDATE(), ?, ?, ?)`,
+      [-100, categoryId, accountId, user.id]
+    );
+    expect(res.affectedRows).toBe(1);
+    await pool.query("DELETE FROM transactions WHERE id = ?", [res.insertId]);
   });
 
   it("una transacción solo puede anularse una vez", async () => {

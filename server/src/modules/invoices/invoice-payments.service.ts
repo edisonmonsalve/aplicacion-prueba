@@ -25,19 +25,20 @@ export type CarteraEstado = "pendiente" | "parcial" | "pagada" | "vencida" | "no
 
 export function receivableState(
   invoice: InvoiceForCartera,
-  pagado: number
+  pagado: number,
+  ajuste = 0
 ): CarteraEstado {
   if (invoice.estado !== "confirmada") return "no_aplica";
   if (invoice.condicion_pago !== "credito") return "pagada";
-  const saldo = roundMoney(Number(invoice.total_neto) - pagado);
+  const saldo = roundMoney(Number(invoice.total_neto) + ajuste - pagado);
   if (saldo <= 0) return "pagada";
   if (invoice.fecha_vencimiento && invoice.fecha_vencimiento < today()) return "vencida";
   return pagado > 0 ? "parcial" : "pendiente";
 }
 
-export function saldoPendiente(invoice: InvoiceForCartera, pagado: number) {
+export function saldoPendiente(invoice: InvoiceForCartera, pagado: number, ajuste = 0) {
   if (invoice.estado !== "confirmada" || invoice.condicion_pago !== "credito") return 0;
-  return Math.max(0, roundMoney(Number(invoice.total_neto) - pagado));
+  return Math.max(0, roundMoney(Number(invoice.total_neto) + ajuste - pagado));
 }
 
 /** Pagos de una factura, incluidos los anulados para conservar la historia. */
@@ -64,11 +65,24 @@ export async function invoiceBalance(invoice: InvoiceForCartera) {
      WHERE invoice_id = ? AND estado = 'valido'`,
     [invoice.id]
   );
+  const [[nota]] = await pool.query<RowDataPacket[]>(
+    `SELECT COALESCE(SUM(CASE WHEN tipo = 'credito' THEN total_neto ELSE 0 END), 0) AS credito,
+            COALESCE(SUM(CASE WHEN tipo = 'debito' THEN total_neto ELSE 0 END), 0) AS debito
+     FROM invoice_adjustments
+     WHERE invoice_id = ? AND estado = 'confirmada'`,
+    [invoice.id]
+  );
   const pagado = roundMoney(Number(row.pagado));
+  const credito = roundMoney(Number(nota.credito));
+  const debito = roundMoney(Number(nota.debito));
+  const ajuste = roundMoney(debito - credito);
   return {
     pagado,
-    saldo_pendiente: saldoPendiente(invoice, pagado),
-    estado_cartera: receivableState(invoice, pagado),
+    notas_credito: credito,
+    notas_debito: debito,
+    ajuste_notas: ajuste,
+    saldo_pendiente: saldoPendiente(invoice, pagado, ajuste),
+    estado_cartera: receivableState(invoice, pagado, ajuste),
   };
 }
 
@@ -81,9 +95,10 @@ export const CARTERA_DERIVED = `
     SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.party_id,
            i.condicion_pago, i.dias_credito, i.fecha_vencimiento, i.total_neto,
            COALESCE(p.pagado, 0) AS pagado,
-           GREATEST(i.total_neto - COALESCE(p.pagado, 0), 0) AS saldo_pendiente,
+           COALESCE(n.ajuste, 0) AS ajuste_notas,
+           GREATEST(i.total_neto + COALESCE(n.ajuste, 0) - COALESCE(p.pagado, 0), 0) AS saldo_pendiente,
            CASE
-             WHEN i.total_neto - COALESCE(p.pagado, 0) <= 0 THEN 'pagada'
+             WHEN i.total_neto + COALESCE(n.ajuste, 0) - COALESCE(p.pagado, 0) <= 0 THEN 'pagada'
              WHEN i.fecha_vencimiento < CURDATE() THEN 'vencida'
              WHEN COALESCE(p.pagado, 0) > 0 THEN 'parcial'
              ELSE 'pendiente'
@@ -99,6 +114,13 @@ export const CARTERA_DERIVED = `
       WHERE estado = 'valido'
       GROUP BY invoice_id
     ) p ON p.invoice_id = i.id
+    LEFT JOIN (
+      SELECT invoice_id,
+             SUM(CASE WHEN tipo = 'credito' THEN -total_neto ELSE total_neto END) AS ajuste
+      FROM invoice_adjustments
+      WHERE estado = 'confirmada'
+      GROUP BY invoice_id
+    ) n ON n.invoice_id = i.id
     WHERE i.estado = 'confirmada' AND i.condicion_pago = 'credito'`;
 
 /**
@@ -309,7 +331,13 @@ export async function createPayment(
        WHERE invoice_id = ? AND estado = 'valido'`,
       [invoiceId]
     );
-    const saldo = saldoPendiente(invoice, Number(paid.pagado));
+    const [[nota]] = await conn.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(CASE WHEN tipo = 'credito' THEN -total_neto ELSE total_neto END), 0) AS ajuste
+       FROM invoice_adjustments
+       WHERE invoice_id = ? AND estado = 'confirmada'`,
+      [invoiceId]
+    );
+    const saldo = saldoPendiente(invoice, Number(paid.pagado), Number(nota.ajuste));
     if (roundMoney(input.monto) > saldo) {
       throw new HttpError(
         400,
@@ -369,11 +397,18 @@ export async function createPayment(
     });
 
     const pagado = roundMoney(Number(paid.pagado) + input.monto);
+    const [[nota2]] = await conn.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(CASE WHEN tipo = 'credito' THEN -total_neto ELSE total_neto END), 0) AS ajuste
+       FROM invoice_adjustments
+       WHERE invoice_id = ? AND estado = 'confirmada'`,
+      [invoiceId]
+    );
+    const ajuste = roundMoney(Number(nota2.ajuste));
     return {
       id: paymentId,
       transaction_id: txId,
       pagado,
-      saldo_pendiente: Math.max(0, roundMoney(Number(invoice.total_neto) - pagado)),
+      saldo_pendiente: Math.max(0, roundMoney(Number(invoice.total_neto) + ajuste - pagado)),
     };
   });
 }
@@ -442,10 +477,16 @@ export async function cancelPayment(
        WHERE invoice_id = ? AND estado = 'valido'`,
       [invoiceId]
     );
+    const [[nota]] = await conn.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(CASE WHEN tipo = 'credito' THEN -total_neto ELSE total_neto END), 0) AS ajuste
+       FROM invoice_adjustments
+       WHERE invoice_id = ? AND estado = 'confirmada'`,
+      [invoiceId]
+    );
     return {
       id: paymentId,
       estado: "anulado",
-      saldo_pendiente: saldoPendiente(invoice, Number(paid.pagado)),
+      saldo_pendiente: saldoPendiente(invoice, Number(paid.pagado), Number(nota.ajuste)),
     };
   });
 }

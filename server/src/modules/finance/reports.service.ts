@@ -106,7 +106,7 @@ async function pnlRange(desde: string, hasta: string) {
        AND fc.afecta_resultado = 1
        AND t.tipo IN ('ingreso', 'gasto')
      GROUP BY fc.id, fc.nombre, fc.codigo, fc.tipo
-     HAVING total > 0
+     HAVING total <> 0
      ORDER BY total DESC, fc.nombre`,
     [desde, hasta]
   );
@@ -395,7 +395,7 @@ export async function getBalance(query: BalanceQuery) {
               COALESCE(SUM(CASE WHEN c.tipo = 'compra' AND c.saldo > 0 THEN 1 ELSE 0 END), 0) AS facturas_pagar
        FROM (
          SELECT i.tipo,
-                GREATEST(i.total_neto - COALESCE(p.pagado, 0), 0) AS saldo
+                GREATEST(i.total_neto + COALESCE(n.ajuste, 0) - COALESCE(p.pagado, 0), 0) AS saldo
          FROM invoices i
          LEFT JOIN (
            SELECT invoice_id, SUM(monto) AS pagado
@@ -403,6 +403,13 @@ export async function getBalance(query: BalanceQuery) {
            WHERE estado = 'valido' AND fecha <= ?
            GROUP BY invoice_id
          ) p ON p.invoice_id = i.id
+         LEFT JOIN (
+           SELECT invoice_id,
+                  SUM(CASE WHEN tipo = 'credito' THEN -total_neto ELSE total_neto END) AS ajuste
+           FROM invoice_adjustments
+           WHERE estado = 'confirmada'
+           GROUP BY invoice_id
+         ) n ON n.invoice_id = i.id
          WHERE i.estado = 'confirmada' AND i.condicion_pago = 'credito'
            AND i.fecha <= ?
        ) c`,

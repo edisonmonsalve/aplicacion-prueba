@@ -341,7 +341,7 @@ export async function getSummary(query: SummaryQuery) {
       AND t.fecha BETWEEN ? AND ?
       AND ${VALID_TRANSACTION}
      GROUP BY fc.id, fc.nombre, fc.codigo, fc.tipo, fc.afecta_caja, fc.afecta_resultado
-     HAVING total > 0
+     HAVING total <> 0
      ORDER BY total DESC, fc.nombre`,
     [desde, hasta]
   );

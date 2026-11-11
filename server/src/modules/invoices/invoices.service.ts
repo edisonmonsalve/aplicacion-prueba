@@ -12,6 +12,15 @@ import {
   findThirdPartyForInvoice,
 } from "../third-parties/third-parties.service.js";
 import { invoiceBalance, listInvoicePayments } from "./invoice-payments.service.js";
+import { listAdjustments } from "./invoice-adjustments.service.js";
+import {
+  calcLine,
+  calcTotals,
+  insertAllocations,
+  netUnitCost,
+  rowToLine,
+  totalsFromRows,
+} from "./invoices.shared.js";
 import type {
   createInvoiceSchema,
   updateInvoiceSchema,
@@ -19,77 +28,6 @@ import type {
 } from "./invoices.schema.js";
 
 type InvoiceInput = z.infer<typeof createInvoiceSchema>;
-type InvoiceItemInput = InvoiceInput["items"][number];
-type LineCalc = {
-  bruto: number;
-  descuento: number;
-  base: number;
-  impuesto: number;
-  total: number;
-};
-
-function calcLine(item: {
-  cantidad: number;
-  precio_unitario: number;
-  descuento_pct: number;
-  impuesto_pct: number;
-}): LineCalc {
-  const bruto = item.cantidad * item.precio_unitario;
-  const descuento = (bruto * item.descuento_pct) / 100;
-  const base = bruto - descuento;
-  const impuesto = (base * item.impuesto_pct) / 100;
-  return {
-    bruto: roundMoney(bruto),
-    descuento: roundMoney(descuento),
-    base: roundMoney(base),
-    impuesto: roundMoney(impuesto),
-    total: roundMoney(base + impuesto),
-  };
-}
-
-function calcTotals(items: { cantidad: number; precio_unitario: number; descuento_pct: number; impuesto_pct: number }[]) {
-  return items.reduce(
-    (acc, item) => {
-      const l = calcLine(item);
-      return {
-        subtotal: roundMoney(acc.subtotal + l.bruto),
-        descuento_total: roundMoney(acc.descuento_total + l.descuento),
-        impuesto_total: roundMoney(acc.impuesto_total + l.impuesto),
-        total: roundMoney(acc.total + l.total),
-      };
-    },
-    { subtotal: 0, descuento_total: 0, impuesto_total: 0, total: 0 }
-  );
-}
-
-function rowToLine(it: RowDataPacket) {
-  return calcLine({
-    cantidad: Number(it.cantidad),
-    precio_unitario: Number(it.precio_unitario),
-    descuento_pct: Number(it.descuento_pct),
-    impuesto_pct: Number(it.impuesto_pct),
-  });
-}
-
-function totalsFromRows(items: RowDataPacket[]) {
-  return items.reduce(
-    (acc, it) => {
-      const l = rowToLine(it);
-      return {
-        subtotal: roundMoney(acc.subtotal + l.bruto),
-        descuento_total: roundMoney(acc.descuento_total + l.descuento),
-        impuesto_total: roundMoney(acc.impuesto_total + l.impuesto),
-        total: roundMoney(acc.total + l.total),
-      };
-    },
-    { subtotal: 0, descuento_total: 0, impuesto_total: 0, total: 0 }
-  );
-}
-
-// Costo unitario de compra: neto de descuento, sin IVA (el IVA es descontable).
-function netUnitCost(item: RowDataPacket | InvoiceItemInput) {
-  return roundMoney(Number(item.precio_unitario) * (1 - Number(item.descuento_pct) / 100));
-}
 
 function totalRetenciones(inv: {
   retencion_fuente?: number | null;
@@ -155,27 +93,6 @@ async function nextNumber(conn: PoolConnection, tipo: "venta" | "compra") {
   await conn.query("UPDATE invoice_counters SET last_number = ? WHERE tipo = ?", [next, tipo]);
   const prefix = tipo === "venta" ? "FAC" : "COM";
   return `${prefix}-${String(next).padStart(4, "0")}`;
-}
-
-async function insertAllocations(
-  conn: PoolConnection,
-  transactionId: number,
-  allocations: { invoiceItemId: number; productId: number; monto: number }[],
-  total: number
-) {
-  if (allocations.length === 0) return;
-  const sum = roundMoney(allocations.reduce((s, a) => s + a.monto, 0));
-  const diff = roundMoney(total - sum);
-  if (diff !== 0) {
-    allocations[allocations.length - 1].monto = roundMoney(
-      allocations[allocations.length - 1].monto + diff
-    );
-  }
-  await conn.query(
-    `INSERT INTO transaction_allocations (transaction_id, invoice_item_id, product_id, monto)
-     VALUES ?`,
-    [allocations.map((a) => [transactionId, a.invoiceItemId, a.productId, a.monto])]
-  );
 }
 
 export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
@@ -270,10 +187,20 @@ export async function getInvoice(id: number) {
   const [items] = await pool.query<RowDataPacket[]>(
     `SELECT ii.id, ii.product_id, p.sku, p.nombre AS producto, ii.cantidad,
             ii.precio_unitario, ii.descuento_pct, ii.impuesto_pct, ii.total_linea,
-            ii.costo_anterior
-     FROM invoice_items ii JOIN products p ON p.id = ii.product_id
+            ii.costo_anterior,
+            COALESCE(ac.cantidad_acreditada, 0) AS cantidad_acreditada,
+            ii.cantidad - COALESCE(ac.cantidad_acreditada, 0) AS cantidad_disponible
+     FROM invoice_items ii
+     JOIN products p ON p.id = ii.product_id
+     LEFT JOIN (
+       SELECT iai.invoice_item_id, SUM(iai.cantidad) AS cantidad_acreditada
+       FROM invoice_adjustment_items iai
+       JOIN invoice_adjustments ia ON ia.id = iai.adjustment_id
+       WHERE ia.invoice_id = ? AND ia.tipo = 'credito' AND ia.estado = 'confirmada'
+       GROUP BY iai.invoice_item_id
+     ) ac ON ac.invoice_item_id = ii.id
      WHERE ii.invoice_id = ? ORDER BY ii.id`,
-    [id]
+    [id, id]
   );
   const [transacciones] = await pool.query<RowDataPacket[]>(
     `SELECT t.id, t.tipo, t.monto, t.descripcion, fc.nombre AS categoria,
@@ -287,9 +214,10 @@ export async function getInvoice(id: number) {
      ORDER BY t.id`,
     [id]
   );
-  const [balance, pagos] = await Promise.all([
+  const [balance, pagos, notas] = await Promise.all([
     invoiceBalance(rows[0] as never),
     listInvoicePayments(id),
+    listAdjustments(id),
   ]);
   return {
     ...rows[0],
@@ -298,6 +226,7 @@ export async function getInvoice(id: number) {
     items,
     transacciones,
     pagos,
+    ajustes: notas,
   };
 }
 
@@ -631,7 +560,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
       // modifica con edición manual; una compra no lo sobrescribe (M1). El costo neto de la
       // línea se guarda como costo histórico del movimiento de entrada.
       for (const it of items) {
-        const netCost = netUnitCost(it);
+        const netCost = netUnitCost(it as { precio_unitario: number; descuento_pct: number });
 
         await registerMovement(
           {
@@ -849,6 +778,17 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
       throw new HttpError(
         409,
         `La factura tiene ${pagos} pago(s) válido(s). Anúlalos antes de anular la factura.`
+      );
+    }
+
+    const [[{ notas }]] = await conn.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS notas FROM invoice_adjustments WHERE invoice_id = ? AND estado = 'confirmada'",
+      [id]
+    );
+    if (notas > 0) {
+      throw new HttpError(
+        409,
+        `La factura tiene ${notas} nota(s) confirmada(s). Anúlalas antes de anular la factura.`
       );
     }
 
