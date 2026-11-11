@@ -163,6 +163,38 @@ describe("Finanzas: API", () => {
     expect((await request(app).delete(`/api/finance/budgets/${id}`).set(bearer(admin.token))).status).toBe(409);
   });
 
+  it("filtra presupuestos vigentes hoy y ordena por nombre", async () => {
+    const { admin, ingresoCat } = await setup();
+    await post(
+      "/api/finance/budgets",
+      admin.token,
+      budgetBody(ingresoCat, { nombre: "B vigente" })
+    );
+    await post(
+      "/api/finance/budgets",
+      admin.token,
+      budgetBody(ingresoCat, {
+        nombre: "A pasado",
+        fecha_inicio: addDays(today(), -10),
+        fecha_fin: addDays(today(), -5),
+      })
+    );
+
+    const vigentes = await request(app)
+      .get("/api/finance/budgets?vigente=1")
+      .set(bearer(admin.token));
+    expect(vigentes.body.total).toBe(1);
+    expect(vigentes.body.data[0].nombre).toBe("B vigente");
+
+    const ordenados = await request(app)
+      .get("/api/finance/budgets?sort=nombre&order=asc")
+      .set(bearer(admin.token));
+    expect(ordenados.body.data.map((b: { nombre: string }) => b.nombre)).toEqual([
+      "A pasado",
+      "B vigente",
+    ]);
+  });
+
   it("permite ajustar un presupuesto activo y bloquea la edición de uno cerrado", async () => {
     const { admin, ingresoCat } = await setup();
     const created = await post(
@@ -289,6 +321,7 @@ describe("Finanzas: API", () => {
 
     const list = await request(app).get("/api/finance/transactions").set(bearer(admin.token));
     expect(list.body.total).toBe(2);
+    expect(list.body.resumen).toEqual({ ingresos: 0, egresos: 0, neto: 0 });
     const original = list.body.data.find((t: { id: number }) => t.id === id);
     expect(original.anulada).toBe(1);
     expect(list.body.data.find((t: { anulada_de: number }) => t.anulada_de === id)).toBeTruthy();

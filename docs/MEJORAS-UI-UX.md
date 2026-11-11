@@ -84,15 +84,15 @@ un cambio pequeño en el servidor.
 
 | # | Prioridad | Mejora |
 |---|---|---|
-| N1 | Alta | La tabla de cuentas debe tener `loading`; hoy muestra “Aún no hay cuentas” mientras carga. |
-| N2 | Alta | Estado de error con “Reintentar” en el resumen; hoy los KPI quedan en cero sin avisar. |
-| N3 | Alta | En el detalle de presupuesto, separar error de carga de “Cargando…” (hoy puede quedar cargando para siempre). |
-| N4 | Media | Agrupar los KPI en “Caja”, “Resultado” e “Impuestos” y mostrar el periodo activo. |
-| N5 | Media | Tabla de cuentas con fila de totales, orden y acciones con `aria-label`. |
-| N6 | Media | Transacciones: orden por fecha, tipo, categoría, cuenta, producto y monto. **Implementado** `[API]`: orden en el servidor persistido en la URL. Resumen de la página (ingresos, egresos, neto) pendiente. |
-| N7 | Media | Presupuestos: orden por nombre, periodo, rango, estado, líneas, planeado, meta y creador. **Implementado** `[API]`: orden en el servidor persistido en la URL. Etiqueta “Vigente hoy”, filtro rápido y búsqueda con debounce pendientes. |
-| N8 | Media | Formulario de presupuesto: drawer a pantalla completa en móvil y búsqueda remota de productos. |
-| N9 | Media | Detalle de presupuesto: filtro “Solo alertas/excedidos”, orden por ejecución y botón “Volver”. |
+| N1 | Alta | La tabla de cuentas debe tener `loading`; hoy muestra “Aún no hay cuentas” mientras carga. **Implementado**: `loading` en la tabla de cuentas. |
+| N2 | Alta | Estado de error con “Reintentar” en el resumen; hoy los KPI quedan en cero sin avisar. **Implementado**: alerta de error con botón Reintentar. |
+| N3 | Alta | En el detalle de presupuesto, separar error de carga de “Cargando…” (hoy puede quedar cargando para siempre). **Implementado**: error con Reintentar/Volver separado del estado de carga. |
+| N4 | Media | Agrupar los KPI en “Caja”, “Resultado” e “Impuestos” y mostrar el periodo activo. **Implementado**: KPI agrupados por bloque y periodo visible. |
+| N5 | Media | Tabla de cuentas con fila de totales, orden y acciones con `aria-label`. **Implementado**: fila de totales, orden por columnas y `aria-label` en acciones. |
+| N6 | Media | Transacciones: orden por fecha, tipo, categoría, cuenta, producto y monto. **Implementado** `[API]`: orden en el servidor persistido en la URL y resumen del filtro (ingresos, egresos, neto). |
+| N7 | Media | Presupuestos: orden por nombre, periodo, rango, estado, líneas, planeado, meta y creador. **Implementado** `[API]`: orden en el servidor persistido en la URL, etiqueta “Vigente hoy”, filtro rápido y búsqueda con debounce. |
+| N8 | Media | Formulario de presupuesto: drawer a pantalla completa en móvil y búsqueda remota de productos. **Implementado**: `Drawer` responsive y búsqueda remota de productos por SKU o nombre. |
+| N9 | Media | Detalle de presupuesto: filtro “Solo alertas/excedidos”, orden por ejecución y botón “Volver”. **Implementado**: checkbox “Solo líneas con alerta o excedidas”, orden por columnas y botón Volver. |
 
 ## 10. Usuarios y perfil
 

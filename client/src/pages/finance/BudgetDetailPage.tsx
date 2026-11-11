@@ -4,6 +4,7 @@ import {
   App,
   Button,
   Card,
+  Checkbox,
   Col,
   Descriptions,
   Progress,
@@ -14,7 +15,13 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { EditOutlined, CheckOutlined, LockOutlined, DeleteOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  EditOutlined,
+  CheckOutlined,
+  LockOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { getBudget, deleteBudget, activateBudget, closeBudget } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
@@ -50,17 +57,20 @@ export default function BudgetDetailPage() {
   const canWrite = canWriteFinance(user?.rol);
   const [budget, setBudget] = useState<BudgetDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [soloAlertas, setSoloAlertas] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
   useDocumentTitle("Detalle de presupuesto");
 
   const load = async () => {
     setLoading(true);
+    setError(null);
     try {
       const b = await getBudget(budgetId);
       setBudget(b);
     } catch (err) {
-      message.error(getErrorMessage(err, "No se pudo cargar el presupuesto"));
+      setError(getErrorMessage(err, "No se pudo cargar el presupuesto"));
     } finally {
       setLoading(false);
     }
@@ -71,7 +81,33 @@ export default function BudgetDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [budgetId]);
 
-  if (loading || !budget) return <Typography.Paragraph>Cargando…</Typography.Paragraph>;
+  // N3: no confundir un error de carga con una pantalla que sigue cargando.
+  if (loading) return <Card loading />;
+  if (!budget) {
+    return (
+      <div>
+        <PageBreadcrumb
+          items={[
+            { label: "Finanzas", to: "/finanzas" },
+            { label: "Presupuestos", to: "/finanzas/presupuestos" },
+            { label: "Detalle" },
+          ]}
+        />
+        <Alert
+          type="error"
+          showIcon
+          message="No se pudo cargar el presupuesto"
+          description={error ?? "El presupuesto no existe o no tienes acceso."}
+          action={
+            <Space>
+              <Button onClick={load}>Reintentar</Button>
+              <Button onClick={() => navigate("/finanzas/presupuestos")}>Volver</Button>
+            </Space>
+          }
+        />
+      </div>
+    );
+  }
 
   const r = budget.resumen;
   const isBorrador = budget.estado === "borrador";
@@ -98,6 +134,10 @@ export default function BudgetDetailPage() {
         : "ok";
   const nombreLinea = (l: BudgetLine) =>
     `${l.categoria}${l.producto ? ` · ${l.producto}` : l.producto_categoria ? ` · ${l.producto_categoria}` : ""}`;
+
+  const lineasVisibles = soloAlertas
+    ? budget.lineas.filter((l) => l.estado !== "ok")
+    : budget.lineas;
 
   const doActivate = () => {
     modal.confirm({
@@ -156,6 +196,8 @@ export default function BudgetDetailPage() {
     {
       title: <Tooltip title="Categoría financiera planificada">Categoría</Tooltip>,
       dataIndex: "categoria",
+      sorter: (a: BudgetLine, b: BudgetLine) =>
+        a.categoria.localeCompare(b.categoria, "es", { sensitivity: "base" }),
       render: (categoria: string, l: BudgetLine) => (
         <Space size={4}>
           <Tag color={TIPO_COLOR[l.tipo_categoria]}>{TIPO_LABEL(l.tipo_categoria)}</Tag>
@@ -173,13 +215,14 @@ export default function BudgetDetailPage() {
             ? `Categoría producto · ${l.producto_categoria}`
             : "General",
     },
-    { title: <Tooltip title="Monto planeado para la línea">Planeado</Tooltip>, dataIndex: "monto_planeado", align: "right" as const, render: (v: number) => money(v) },
-    { title: <Tooltip title="Monto real ejecutado en el periodo">Real</Tooltip>, dataIndex: "real", align: "right" as const, render: (v: number) => money(v) },
-    { title: <Tooltip title="Monto disponible (planeado - real)">Disponible</Tooltip>, dataIndex: "disponible", align: "right" as const, render: (v: number) => money(v) },
+    { title: <Tooltip title="Monto planeado para la línea">Planeado</Tooltip>, dataIndex: "monto_planeado", align: "right" as const, sorter: (a: BudgetLine, b: BudgetLine) => a.monto_planeado - b.monto_planeado, render: (v: number) => money(v) },
+    { title: <Tooltip title="Monto real ejecutado en el periodo">Real</Tooltip>, dataIndex: "real", align: "right" as const, sorter: (a: BudgetLine, b: BudgetLine) => a.real - b.real, render: (v: number) => money(v) },
+    { title: <Tooltip title="Monto disponible (planeado - real)">Disponible</Tooltip>, dataIndex: "disponible", align: "right" as const, sorter: (a: BudgetLine, b: BudgetLine) => a.disponible - b.disponible, render: (v: number) => money(v) },
     {
       title: <Tooltip title="Porcentaje de ejecución (real / planeado)">Ejecución</Tooltip>,
       dataIndex: "ejecucion_pct",
       width: 190,
+      sorter: (a: BudgetLine, b: BudgetLine) => a.ejecucion_pct - b.ejecucion_pct,
       render: (v: number, l: BudgetLine) => (
         <Tooltip
           title={
@@ -218,6 +261,13 @@ export default function BudgetDetailPage() {
       />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Space>
+          <Tooltip title="Volver a la lista de presupuestos">
+            <Button
+              icon={<ArrowLeftOutlined />}
+              aria-label="Volver a la lista de presupuestos"
+              onClick={() => navigate("/finanzas/presupuestos")}
+            />
+          </Tooltip>
           <Typography.Title level={3} style={{ margin: 0 }}>
             {budget.nombre}
           </Typography.Title>
@@ -405,13 +455,28 @@ export default function BudgetDetailPage() {
         </Space>
       </Card>
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space wrap split={<span style={{ color: "#d9d9d9" }}>|</span>}>
+          <Checkbox checked={soloAlertas} onChange={(e) => setSoloAlertas(e.target.checked)}>
+            Solo líneas con alerta o excedidas
+          </Checkbox>
+          <Typography.Text type="secondary">
+            {lineasVisibles.length} de {budget.lineas.length} línea(s)
+          </Typography.Text>
+        </Space>
+      </Card>
+
       <Table<BudgetLine>
         rowKey="id"
-        dataSource={budget.lineas}
+        dataSource={lineasVisibles}
         columns={columns}
         pagination={false}
         scroll={{ x: "max-content" }}
-        locale={{ emptyText: "Este presupuesto aún no tiene líneas" }}
+        locale={{
+          emptyText: soloAlertas
+            ? "Todas las líneas están dentro de su monto planeado"
+            : "Este presupuesto aún no tiene líneas",
+        }}
       />
 
       <BudgetFormModal

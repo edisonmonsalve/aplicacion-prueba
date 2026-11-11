@@ -9,8 +9,8 @@ import type {
   FinanceAccountInput,
   FinanceCategory,
   FinanceSummary,
-  FinanceTransaction,
   Paginated,
+  PaginatedTransactions,
   Suggestion,
   TransactionInput,
   TransactionsQuery,
@@ -39,7 +39,7 @@ export const closeBudget = async (id: number) =>
   (await api.post<{ id: number; estado: "cerrado" }>(`/finance/budgets/${id}/close`)).data;
 
 export const listTransactions = async (q: TransactionsQuery) =>
-  (await api.get<Paginated<FinanceTransaction>>("/finance/transactions", { params: q })).data;
+  (await api.get<PaginatedTransactions>("/finance/transactions", { params: q })).data;
 export const createTransaction = async (input: TransactionInput) =>
   (await api.post<{ id: number }>("/finance/transactions", input)).data;
 export const reverseTransaction = async (id: number) =>

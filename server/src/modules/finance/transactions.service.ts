@@ -96,7 +96,27 @@ export async function listTransactions(query: TransactionListQuery) {
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );
 
-  return { data, total, page: query.page, pageSize: query.pageSize };
+  // N6: resumen del filtro completo (no solo la página), sin anuladas ni anulaciones.
+  const resumenClause = where.length
+    ? `WHERE ${where.join(" AND ")} AND ${VALID_TRANSACTION}`
+    : `WHERE ${VALID_TRANSACTION}`;
+  const [[totales]] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0) AS ingresos,
+       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0) AS egresos
+     FROM transactions t ${resumenClause}`,
+    params
+  );
+  const ingresos = Number(totales.ingresos);
+  const egresos = Number(totales.egresos);
+
+  return {
+    data,
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    resumen: { ingresos, egresos, neto: round2(ingresos - egresos) },
+  };
 }
 
 type FinanceNature = "ingreso" | "gasto" | "activo" | "pasivo";

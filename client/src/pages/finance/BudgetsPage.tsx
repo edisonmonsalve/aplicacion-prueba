@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";import { App, Button, Empty, Input, Select, Table, Tooltip, Typography } from "antd";
+import { useEffect, useState } from "react";
+import { App, Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import dayjs from "dayjs";
 import { listBudgets } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
@@ -40,6 +42,13 @@ const STATUS_OPTIONS = (["borrador", "activo", "cerrado"] as BudgetEstado[]).map
   label: e.charAt(0).toUpperCase() + e.slice(1),
 }));
 
+const HOY = () => dayjs().format("YYYY-MM-DD");
+
+const esVigenteHoy = (b: BudgetListItem) => {
+  const hoy = HOY();
+  return hoy >= b.fecha_inicio.slice(0, 10) && hoy <= b.fecha_fin.slice(0, 10);
+};
+
 export default function BudgetsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -52,6 +61,7 @@ export default function BudgetsPage() {
   const q = get("q") ?? "";
   const estado = (get("estado") as BudgetEstado) ?? undefined;
   const tipo = (get("tipo_periodo") as BudgetPeriodo) ?? undefined;
+  const vigente = get("vigente") === "1" ? "1" : undefined;
   const rawSort = get("sort");
   const sort = SORT_KEYS.includes(rawSort as BudgetSortKey)
     ? (rawSort as BudgetSortKey)
@@ -63,11 +73,17 @@ export default function BudgetsPage() {
   const [searchText, setSearchText] = useState(q);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const hasFilters = Boolean(q || estado || tipo);
+  const hasFilters = Boolean(q || estado || tipo || vigente);
 
   const clearFilters = () => {
     setSearchText("");
-    update({ q: undefined, estado: undefined, tipo_periodo: undefined, page: undefined });
+    update({
+      q: undefined,
+      estado: undefined,
+      tipo_periodo: undefined,
+      vigente: undefined,
+      page: undefined,
+    });
   };
 
   useDocumentTitle("Presupuestos");
@@ -77,10 +93,29 @@ export default function BudgetsPage() {
     setSearchText(q);
   }, [q]);
 
+  // N7: búsqueda con debounce; solo actualiza la URL cuando el texto cambió.
+  useEffect(() => {
+    if (searchText === q) return;
+    const t = setTimeout(() => {
+      update({ q: searchText || undefined, page: undefined });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, q]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listBudgets({ page, pageSize, q: q || undefined, estado, tipo_periodo: tipo, sort, order: sort ? order : undefined })
+    listBudgets({
+      page,
+      pageSize,
+      q: q || undefined,
+      estado,
+      tipo_periodo: tipo,
+      vigente,
+      sort,
+      order: sort ? order : undefined,
+    })
       .then((r) => {
         if (cancelled) return;
         setRows(r.data);
@@ -91,7 +126,7 @@ export default function BudgetsPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize, q, estado, tipo, sort, order, message]);
+  }, [page, pageSize, q, estado, tipo, vigente, sort, order, message]);
 
   const sortOrderFor = (key: BudgetSortKey): "ascend" | "descend" | null =>
     sort === key ? (order === "desc" ? "descend" : "ascend") : null;
@@ -115,7 +150,18 @@ export default function BudgetsPage() {
       key: "inicio",
       sorter: true,
       sortOrder: sortOrderFor("inicio"),
-      render: (_: unknown, r: BudgetListItem) => `${fmtDate(r.fecha_inicio)} → ${fmtDate(r.fecha_fin)}`,
+      render: (_: unknown, r: BudgetListItem) => (
+        <Space size={4} wrap>
+          <span>
+            {fmtDate(r.fecha_inicio)} → {fmtDate(r.fecha_fin)}
+          </span>
+          {esVigenteHoy(r) && (
+            <Tooltip title="La fecha de hoy está dentro de este periodo">
+              <Tag color="blue">Vigente hoy</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
     {
       title: <Tooltip title="Estado del presupuesto">Estado</Tooltip>,
@@ -222,6 +268,20 @@ export default function BudgetsPage() {
             options={PERIOD_OPTIONS}
             onChange={(v) => update({ tipo_periodo: v, page: undefined })}
           />
+        </div>
+        <div>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Filtro rápido
+          </Typography.Text>
+          <Tooltip title="Mostrar solo los presupuestos cuya fecha de inicio y fin incluyen hoy">
+            <Button
+              type={vigente ? "primary" : "default"}
+              aria-pressed={!!vigente}
+              onClick={() => update({ vigente: vigente ? undefined : "1", page: undefined })}
+            >
+              Vigente hoy
+            </Button>
+          </Tooltip>
         </div>
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
       </div>

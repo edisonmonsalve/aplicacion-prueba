@@ -27,6 +27,7 @@ export default function FinanceOverviewPage() {
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().startOf("month"),
     dayjs(),
@@ -38,6 +39,7 @@ export default function FinanceOverviewPage() {
 
   const load = async () => {
     setLoading(true);
+    setError(null);
     try {
       const desde = range[0].format("YYYY-MM-DD");
       const hasta = range[1].format("YYYY-MM-DD");
@@ -46,7 +48,7 @@ export default function FinanceOverviewPage() {
       setAccounts(a);
       setSuggestions(sg);
     } catch (err) {
-      message.error(getErrorMessage(err, "No se pudo cargar el resumen financiero"));
+      setError(getErrorMessage(err, "No se pudo cargar el resumen financiero"));
     } finally {
       setLoading(false);
     }
@@ -87,6 +89,16 @@ export default function FinanceOverviewPage() {
 
   const s = summary;
 
+  const totalesCuentas = accounts.reduce(
+    (acc, a) => ({
+      saldo_inicial: acc.saldo_inicial + Number(a.saldo_inicial),
+      ingresos: acc.ingresos + Number(a.ingresos),
+      egresos: acc.egresos + Number(a.egresos),
+      saldo_actual: acc.saldo_actual + Number(a.saldo_actual),
+    }),
+    { saldo_inicial: 0, ingresos: 0, egresos: 0, saldo_actual: 0 }
+  );
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -115,6 +127,28 @@ export default function FinanceOverviewPage() {
         description="La compra de inventario es salida de caja y se registra como activo: no reduce la utilidad. El costo de ventas reduce la utilidad y el margen, pero no mueve caja. El capital disponible y los egresos de caja solo consideran asientos que afectan caja o bancos."
       />
 
+      {error && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="No se pudo cargar el resumen financiero"
+          description={error}
+          action={
+            <Button size="small" onClick={load}>
+              Reintentar
+            </Button>
+          }
+        />
+      )}
+
+      <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+        Periodo: {range[0].format("DD/MM/YYYY")} – {range[1].format("DD/MM/YYYY")}
+      </Typography.Text>
+
+      <Typography.Title level={5} style={{ marginTop: 0 }}>
+        Caja y bancos
+      </Typography.Title>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
@@ -128,21 +162,22 @@ export default function FinanceOverviewPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
             <Statistic title={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>} value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>} value={s?.compras_inventario ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#fa8c16" }} />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>Activo, no gasto</Typography.Text>
+          </Card>
+        </Col>
+      </Row>
+
+      <Typography.Title level={5}>Resultado</Typography.Title>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -161,6 +196,10 @@ export default function FinanceOverviewPage() {
             <Statistic title={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>} value={s?.margen_bruto_pct ?? 0} suffix="%" precision={0} />
           </Card>
         </Col>
+      </Row>
+
+      <Typography.Title level={5}>Impuestos</Typography.Title>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="IVA generado en ventas (pasivo). No es dinero disponible.">IVA por pagar</Tooltip>} value={s?.iva_por_pagar ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#722ed1" }} />
@@ -215,13 +254,36 @@ export default function FinanceOverviewPage() {
         <Table<FinanceAccount>
           rowKey="id"
           dataSource={accounts}
+          loading={loading}
           pagination={false}
           scroll={{ x: "max-content" }}
           locale={{ emptyText: "Aún no hay cuentas financieras" }}
+          summary={() => (
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0}>
+                <strong>Totales</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={1} />
+              <Table.Summary.Cell index={2} align="right">
+                <strong>{money(totalesCuentas.saldo_inicial)}</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={3} align="right">
+                <strong>{money(totalesCuentas.ingresos)}</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={4} align="right">
+                <strong>{money(totalesCuentas.egresos)}</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={5} align="right">
+                <strong>{money(totalesCuentas.saldo_actual)}</strong>
+              </Table.Summary.Cell>
+              {canWrite && <Table.Summary.Cell index={6} />}
+            </Table.Summary.Row>
+          )}
           columns={[
             {
               title: <Tooltip title="Nombre de la cuenta">Cuenta</Tooltip>,
               dataIndex: "nombre",
+              sorter: (a, b) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
               render: (v: string, a) => (
                 <Space>
                   {v}
@@ -232,12 +294,13 @@ export default function FinanceOverviewPage() {
             {
               title: <Tooltip title="Tipo de cuenta">Tipo</Tooltip>,
               dataIndex: "tipo",
+              sorter: (a, b) => a.tipo.localeCompare(b.tipo),
               render: (v: string) => (v === "banco" ? "Banco" : "Caja"),
             },
-            { title: <Tooltip title="Saldo inicial de la cuenta">Saldo inicial</Tooltip>, dataIndex: "saldo_inicial", align: "right", render: (v: number) => money(v) },
-            { title: <Tooltip title="Ingresos que entran a la cuenta">Ingresos</Tooltip>, dataIndex: "ingresos", align: "right", render: (v: number) => money(v) },
-            { title: <Tooltip title="Egresos que salen de la cuenta. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>, dataIndex: "egresos", align: "right", render: (v: number) => money(v) },
-            { title: <Tooltip title="Saldo inicial + ingresos - egresos de caja de la cuenta">Saldo actual</Tooltip>, dataIndex: "saldo_actual", align: "right", render: (v: number) => money(v) },
+            { title: <Tooltip title="Saldo inicial de la cuenta">Saldo inicial</Tooltip>, dataIndex: "saldo_inicial", align: "right", sorter: (a, b) => a.saldo_inicial - b.saldo_inicial, render: (v: number) => money(v) },
+            { title: <Tooltip title="Ingresos que entran a la cuenta">Ingresos</Tooltip>, dataIndex: "ingresos", align: "right", sorter: (a, b) => a.ingresos - b.ingresos, render: (v: number) => money(v) },
+            { title: <Tooltip title="Egresos que salen de la cuenta. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>, dataIndex: "egresos", align: "right", sorter: (a, b) => a.egresos - b.egresos, render: (v: number) => money(v) },
+            { title: <Tooltip title="Saldo inicial + ingresos - egresos de caja de la cuenta">Saldo actual</Tooltip>, dataIndex: "saldo_actual", align: "right", sorter: (a, b) => a.saldo_actual - b.saldo_actual, render: (v: number) => money(v) },
             ...(canWrite
               ? [
                   {
@@ -246,13 +309,19 @@ export default function FinanceOverviewPage() {
                     render: (_: unknown, a: FinanceAccount) => (
                       <Space>
                         <Tooltip title="Editar nombre, tipo, saldo inicial o estado">
-                          <Button size="small" icon={<EditOutlined />} onClick={() => openEditAccount(a)} />
+                          <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            aria-label={`Editar cuenta ${a.nombre}`}
+                            onClick={() => openEditAccount(a)}
+                          />
                         </Tooltip>
                         <Tooltip title="Eliminar (solo si no tiene transacciones)">
                           <Button
                             size="small"
                             danger
                             icon={<DeleteOutlined />}
+                            aria-label={`Eliminar cuenta ${a.nombre}`}
                             onClick={() => doDeleteAccount(a)}
                           />
                         </Tooltip>

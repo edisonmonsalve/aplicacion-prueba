@@ -8,7 +8,14 @@ import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { money, fmtDate } from "./FinanceUtils";
 import { canWriteFinance } from "@/utils/roles";
-import type { FinanceTransaction, TransactionsQuery, TransactionSortKey, FinanceCategory, FinanceAccount } from "@/types";
+import type {
+  FinanceTransaction,
+  TransactionsQuery,
+  TransactionsSummary,
+  TransactionSortKey,
+  FinanceCategory,
+  FinanceAccount,
+} from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { fetchAllPages, downloadCsv } from "@/utils/csv";
@@ -61,6 +68,7 @@ export default function TransactionsPage() {
   const canWrite = canWriteFinance(user?.rol);
   const [rows, setRows] = useState<FinanceTransaction[]>([]);
   const [total, setTotal] = useState(0);
+  const [resumen, setResumen] = useState<TransactionsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const { get, getNumber, getPositiveInt, update } = useUrlFilters();
   const defaultDesde = dayjs().startOf("month").format("YYYY-MM-DD");
@@ -110,6 +118,7 @@ export default function TransactionsPage() {
       const r = await listTransactions(filters);
       setRows(r.data);
       setTotal(r.total);
+      setResumen(r.resumen);
     } catch (err) {
       message.error(getErrorMessage(err, "No se pudieron cargar las transacciones"));
     } finally {
@@ -396,6 +405,21 @@ export default function TransactionsPage() {
           <Button onClick={clearFilters}>Limpiar filtros</Button>
         )}
       </div>
+
+      {resumen && (
+        <Space size={[8, 8]} wrap style={{ marginBottom: 16 }}>
+          <Typography.Text type="secondary">Totales del filtro (sin anuladas):</Typography.Text>
+          <Tooltip title="Suma de los asientos de tipo ingreso">
+            <Tag color="green">Ingresos: {money(resumen.ingresos)}</Tag>
+          </Tooltip>
+          <Tooltip title="Suma de los asientos de tipo gasto">
+            <Tag color="red">Egresos: {money(resumen.egresos)}</Tag>
+          </Tooltip>
+          <Tooltip title="Ingresos menos egresos del filtro actual">
+            <Tag color={resumen.neto < 0 ? "red" : "blue"}>Neto: {money(resumen.neto)}</Tag>
+          </Tooltip>
+        </Space>
+      )}
 
       {firstLoad ? (
         <TableSkeleton />

@@ -375,6 +375,7 @@ export interface BudgetsQuery {
   tipo_periodo?: BudgetPeriodo;
   desde?: string;
   hasta?: string;
+  vigente?: "0" | "1";
   sort?: BudgetSortKey;
   order?: "asc" | "desc";
 }
@@ -412,6 +413,16 @@ export type TransactionSortKey =
   | "producto"
   | "monto"
   | "creador";
+
+export interface TransactionsSummary {
+  ingresos: number;
+  egresos: number;
+  neto: number;
+}
+
+export interface PaginatedTransactions extends Paginated<FinanceTransaction> {
+  resumen: TransactionsSummary;
+}
 
 // ---------- Módulo de facturación ----------
 

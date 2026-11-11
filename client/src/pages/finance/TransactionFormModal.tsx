@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Form, Input, InputNumber, Modal, Select, message, DatePicker } from "antd";
 import dayjs from "dayjs";
-import { getFinanceAccounts, getFinanceCategories, listBudgets } from "@/services/financeService";
+import {
+  createTransaction,
+  getFinanceAccounts,
+  getFinanceCategories,
+  listBudgets,
+} from "@/services/financeService";
 import { getProducts } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
 import { money } from "./FinanceUtils";
@@ -89,8 +94,7 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
     };
     setSaving(true);
     try {
-      const finance = await import("@/services/financeService");
-      await finance.createTransaction(input);
+      await createTransaction(input);
       messageApi.success("Transacción registrada");
       onSaved();
       onClose();

@@ -55,6 +55,8 @@ export const listBudgetsQuerySchema = z.object({
   tipo_periodo: z.enum(["dia", "semana", "mes", "anio"]).optional(),
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
+  // Filtro rápido: solo presupuestos cuyo rango contiene la fecha de hoy.
+  vigente: z.enum(["0", "1"]).optional(),
   sort: z
     .enum(["nombre", "periodo", "inicio", "estado", "lineas", "planeado", "meta", "creador"])
     .optional(),

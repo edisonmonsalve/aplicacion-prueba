@@ -3,10 +3,11 @@ import {
   Alert,
   Button,
   DatePicker,
+  Drawer,
   Form,
+  Grid,
   Input,
   InputNumber,
-  Modal,
   Select,
   Space,
   Tooltip,
@@ -15,7 +16,7 @@ import {
 } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
-import { getFinanceCategories } from "@/services/financeService";
+import { createBudget, getFinanceCategories, updateBudget } from "@/services/financeService";
 import { getProducts } from "@/services/productsService";
 import { getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
@@ -45,12 +46,20 @@ interface FormValues {
   lineas: LineValues[];
 }
 
+interface ProductOption {
+  value: number;
+  label: string;
+}
+
 export default function BudgetFormModal({ open, budget, onClose, onSaved }: Props) {
   const [form] = Form.useForm<FormValues>();
   const [messageApi, contextHolder] = message.useMessage();
+  const screens = Grid.useBreakpoint();
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
-  const [productOptions, setProductOptions] = useState<{ value: number; label: string }[]>([]);
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [productLoading, setProductLoading] = useState(false);
   const [productCategoryOptions, setProductCategoryOptions] = useState<
     { value: number; label: string }[]
   >([]);
@@ -67,17 +76,6 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
     getFinanceCategories()
       .then(setCategories)
       .catch(() => messageApi.error("No se pudieron cargar las categorías"));
-    getProducts({ page: 1, pageSize: 100 })
-      .then((r) => {
-        const fetched = r.data.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }));
-        // Conserva opciones de líneas ya existentes que no estén en la primera página.
-        setProductOptions((prev) => {
-          const merged = new Map(fetched.map((o) => [o.value, o]));
-          for (const o of prev) if (!merged.has(o.value)) merged.set(o.value, o);
-          return [...merged.values()];
-        });
-      })
-      .catch(() => messageApi.error("No se pudieron cargar los productos"));
     getCategories()
       .then((r: Category[]) => {
         setProductCategoryOptions(r.map((c) => ({ value: c.id, label: c.nombre })));
@@ -85,8 +83,39 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
       .catch(() => messageApi.error("No se pudieron cargar las categorías de producto"));
   }, [open, messageApi]);
 
+  // N8: búsqueda remota de productos, sin limitarse a los primeros 100.
   useEffect(() => {
     if (!open) return;
+    let ignore = false;
+    const timer = setTimeout(() => {
+      setProductLoading(true);
+      getProducts({ page: 1, pageSize: 20, q: productSearch.trim() || undefined })
+        .then((r) => {
+          if (ignore) return;
+          const fetched = r.data.map((p) => ({ value: p.id, label: `${p.sku} · ${p.nombre}` }));
+          // Conserva las opciones ya elegidas para que el selector muestre su etiqueta.
+          setProductOptions((prev) => {
+            const merged = new Map(prev.map((o) => [o.value, o] as const));
+            for (const o of fetched) merged.set(o.value, o);
+            return [...merged.values()];
+          });
+        })
+        .catch(() => {
+          if (!ignore) messageApi.error("No se pudieron buscar productos");
+        })
+        .finally(() => {
+          if (!ignore) setProductLoading(false);
+        });
+    }, 300);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [open, productSearch, messageApi]);
+
+  useEffect(() => {
+    if (!open) return;
+    setProductSearch("");
     if (!budget) {
       form.resetFields();
       form.setFieldsValue({
@@ -142,8 +171,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
 
     setSaving(true);
     try {
-      const finance = await import("@/services/financeService");
-      const res = budget ? await finance.updateBudget(budget.id, input) : await finance.createBudget(input);
+      const res = budget ? await updateBudget(budget.id, input) : await createBudget(input);
       messageApi.success(budget ? "Presupuesto actualizado" : "Presupuesto creado");
       onSaved(res.id);
       onClose();
@@ -155,17 +183,21 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
   };
 
   return (
-    <Modal
+    <Drawer
       open={open}
       title={budget ? (budget.estado === "activo" ? "Ajustar presupuesto" : "Editar presupuesto") : "Nuevo presupuesto"}
-      width={860}
-      okText={budget ? "Guardar" : "Crear"}
-      cancelText="Cancelar"
-      confirmLoading={saving}
-      onOk={handleOk}
-      onCancel={onClose}
+      width={screens.md ? 760 : "100%"}
+      onClose={onClose}
       maskClosable={false}
-      destroyOnClose
+      destroyOnHidden
+      footer={
+        <Space style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button type="primary" loading={saving} onClick={handleOk}>
+            {budget ? "Guardar" : "Crear"}
+          </Button>
+        </Space>
+      }
     >
       {contextHolder}
       {budget?.estado === "activo" && (
@@ -271,12 +303,15 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                       optionFilterProp="label"
                     />
                   </Form.Item>
-                  <Form.Item {...rest} name={[name, "product_id"]} label="Producto" tooltip="Alcance por producto específico (opcional)." style={{ flex: 2, minWidth: 200 }}>
+                  <Form.Item {...rest} name={[name, "product_id"]} label="Producto" tooltip="Alcance por producto específico (opcional). Escribe para buscar en todo el catálogo." style={{ flex: 2, minWidth: 200 }}>
                     <Select
                       placeholder="Producto (opcional)"
                       allowClear
                       showSearch
-                      optionFilterProp="label"
+                      loading={productLoading}
+                      filterOption={false}
+                      onSearch={setProductSearch}
+                      notFoundContent={productLoading ? "Buscando…" : undefined}
                       options={productOptions}
                       onChange={() => form.setFieldValue(["lineas", name, "product_category_id"], undefined)}
                     />
@@ -320,6 +355,6 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
           )}
         </Form.List>
       </Form>
-    </Modal>
+    </Drawer>
   );
 }

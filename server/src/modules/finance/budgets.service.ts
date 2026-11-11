@@ -193,6 +193,9 @@ export async function listBudgets(query: BudgetListQuery) {
     where.push("b.fecha_inicio <= ?");
     params.push(query.hasta);
   }
+  if (query.vigente === "1") {
+    where.push("CURDATE() BETWEEN b.fecha_inicio AND b.fecha_fin");
+  }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   // Solo expresiones conocidas: nunca se interpola el valor recibido.
