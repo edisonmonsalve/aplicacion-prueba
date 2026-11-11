@@ -1,6 +1,24 @@
+html {
+  background-color: #f1f7f6;
+}
+
+html[data-theme="dark"] {
+  background-color: #0b1412;
+}
+
 body {
   font-variant-numeric: tabular-nums;
+  background-color: inherit;
 } /* cifras alineadas en tablas y totales */
+
+/* Mientras se cambia de tema, evita que tablas, tarjetas y bordes animen el
+   color de fondo en varios pasos (se percibía como un parpadeo). */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+  animation-duration: 0.01ms !important;
+}
 
 @media print {
   .no-print,
@@ -288,6 +306,7 @@ body {
   .print-document {
     padding: 20px 16px;
     border-radius: 10px;
+    overflow-x: auto;
   }
   .print-header {
     flex-direction: column;
@@ -328,6 +347,7 @@ body {
     border-top: 0;
     border-radius: 0;
     box-shadow: none;
+    overflow: visible;
     font-size: 12px;
   }
   .print-section,

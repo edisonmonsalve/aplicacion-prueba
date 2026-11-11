@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Button, Card, ConfigProvider, Table, Typography, message, theme } from "antd";
+import { Button, Card, Table, Typography, message } from "antd";
 import { PrinterOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { getInvoice } from "@/services/invoicesService";
 import type { InvoiceDetail, InvoiceItem } from "@/types";
 import { InvoiceEstadoTag, fmtDate, money } from "./InvoiceUtils";
 import PrintHeader from "@/components/print/PrintHeader";
+import PrintThemeProvider from "@/components/print/PrintThemeProvider";
 import { COMPANY } from "@/config/company";
 
 export default function InvoicePrintPage() {
@@ -38,15 +39,7 @@ export default function InvoicePrintPage() {
     invoice.retencion_fuente + invoice.retencion_iva + invoice.retencion_ica;
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: theme.defaultAlgorithm,
-        token: {
-          colorPrimary: "#0d9488",
-          fontFamily: "'Plus Jakarta Sans Variable', system-ui, sans-serif",
-        },
-      }}
-    >
+    <PrintThemeProvider>
       <div className="print-area">
         <div className="no-print print-toolbar">
           <Button onClick={() => navigate(`/facturas/${invoice.id}`)}>Volver</Button>
@@ -196,6 +189,6 @@ export default function InvoicePrintPage() {
       </footer>
         </article>
       </div>
-    </ConfigProvider>
+    </PrintThemeProvider>
   );
 }
