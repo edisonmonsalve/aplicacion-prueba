@@ -127,7 +127,7 @@ Los huecos principales eran:
 |---|---|---|
 | G1 | Visor de auditoría (`audit_log`) | Hecho |
 | G2 | Panel de salud de datos (asientos huérfanos, stock negativo, sin costo) | Hecho |
-| G3 | Índices analíticos y pruebas de invariantes contables | Pendiente |
+| G3 | Índices analíticos y pruebas de invariantes contables | Hecho |
 
 ## 5. Reglas de negocio nuevas
 
@@ -175,3 +175,4 @@ Los huecos principales eran:
 | 2026-11-11 | A4 (tendencias) | — | `/api/finance/trends` con serie mensual de resultado (ingresos, costo, margen, gastos, utilidad) y caja (entradas, salidas, neto, saldo acumulado), meses sin movimiento en cero y comparación contra el periodo anterior de igual duración y el mismo rango del año anterior; página Tendencias con gráficos y tabla |
 | 2026-11-11 | G1 (auditoría) | — | `/api/audit` de solo lectura con filtros por entidad, entidad_id, acción, usuario y fechas, paginación, resumen por entidad y valores antes/después; página Auditoría con filas expandibles |
 | 2026-11-11 | G2 (salud de datos) | — | `/api/finance/data-health` con comprobaciones de asientos huérfanos, pagos sin asiento vigente, stock negativo y productos sin costo; estado global, resumen y detalle por hallazgo; página Salud de datos |
+| 2026-11-11 | G3 (índices e invariantes) | — | Migración `V021` con índices compuestos para facturas, ítems, pagos, productos y cierres; pruebas de invariantes de totales, retenciones, asientos vigentes, anulaciones, cartera, pagos, asignaciones y ecuación del balance |
