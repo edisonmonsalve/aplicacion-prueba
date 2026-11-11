@@ -12,9 +12,6 @@ async function setup() {
   const contador = await userWithToken("contador");
   const consulta = await userWithToken("consulta");
 
-  const categorias = await request(app)
-    .get("/api/finance/categories")
-    .set(bearer(admin.token));
   const cuentas = await request(app)
     .get("/api/finance/accounts")
     .set(bearer(admin.token));

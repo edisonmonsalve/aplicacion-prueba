@@ -536,6 +536,16 @@ export async function activateBudget(id: number, actor: AuthUser) {
   });
 }
 
+type BudgetLineView = {
+  finance_category_id: number;
+  product_id: number | null;
+  product_category_id: number | null;
+  monto_planeado: number;
+  real: number;
+  disponible: number;
+  ejecucion_pct: number;
+};
+
 export async function getAvailability(productId: number) {
   const financeCategoryId = await (async () => {
     const [rows] = await pool.query<RowDataPacket[]>(
@@ -564,22 +574,22 @@ export async function getAvailability(productId: number) {
 
   // Preferir el presupuesto más específico (fecha de inicio más cercana) y, dentro de él,
   // la línea del producto; si no existe, la de su categoría; por último, la general.
-  for (const b of budgets as RowDataPacket[]) {
-    const detail = (await getBudget(b.id as number)) as any;
-    const lines = detail.lineas as any[];
+  for (const b of budgets) {
+    const detail = await getBudget(Number(b.id));
+    const lines = detail.lineas as unknown as BudgetLineView[];
     const productLine = lines.find(
-      (l: any) =>
+      (l) =>
         l.finance_category_id === financeCategoryId && l.product_id === productId
     );
     const categoryLine = productCategoryId
       ? lines.find(
-          (l: any) =>
+          (l) =>
             l.finance_category_id === financeCategoryId &&
             l.product_category_id === productCategoryId
         )
       : undefined;
     const generalLine = lines.find(
-      (l: any) =>
+      (l) =>
         l.finance_category_id === financeCategoryId &&
         l.product_id === null &&
         l.product_category_id === null
@@ -587,8 +597,8 @@ export async function getAvailability(productId: number) {
     const line = productLine ?? categoryLine ?? generalLine;
     if (!line) continue;
     return {
-      budget_id: detail.id,
-      budget_nombre: detail.nombre,
+      budget_id: Number(b.id),
+      budget_nombre: String(b.nombre),
       finance_category_id: financeCategoryId,
       product_id: productId,
       product_category_id: line.product_category_id ?? null,

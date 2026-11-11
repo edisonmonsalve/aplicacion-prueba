@@ -1177,4 +1177,4 @@ export interface ThirdPartiesQuery {
   activo?: 0 | 1;
 }
 
-export interface PaginatedThirdParties extends Paginated<ThirdParty> {}
+export type PaginatedThirdParties = Paginated<ThirdParty>;

@@ -1,6 +1,5 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { RowDataPacket } from "mysql2";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
 import { bearer, resetDb, userWithToken } from "./helpers.js";
@@ -57,13 +56,11 @@ async function setup() {
 
 describe("Rotación y ABC de inventario", () => {
   let admin: Awaited<ReturnType<typeof userWithToken>>;
-  let contador: Awaited<ReturnType<typeof userWithToken>>;
   let consulta: Awaited<ReturnType<typeof userWithToken>>;
   let operador: Awaited<ReturnType<typeof userWithToken>>;
   let a: Product;
   let b: Product;
   let c: Product;
-  let d: Product;
   let e: Product;
   let f: Product;
 
@@ -71,13 +68,11 @@ describe("Rotación y ABC de inventario", () => {
     await resetDb();
     const s = await setup();
     admin = s.admin;
-    contador = s.contador;
     consulta = s.consulta;
     operador = s.operador;
     a = s.a;
     b = s.b;
     c = s.c;
-    d = s.d;
     e = s.e;
     f = s.f;
   });

@@ -1,6 +1,5 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { RowDataPacket } from "mysql2";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";
 import { bearer, resetDb, userWithToken } from "./helpers.js";

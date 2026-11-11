@@ -976,12 +976,6 @@ export async function getQuoteFunnel(query: QuoteFunnelQuery) {
     };
   });
 
-  const alcanzo = (estado: QuoteState, etapa: "enviado" | "aprobado" | "entregado") => {
-    const idx = ["borrador", "enviado", "aprobado", "entregado"].indexOf(estado);
-    const target = { enviado: 1, aprobado: 2, entregado: 3 }[etapa];
-    return idx >= target;
-  };
-
   const creadas = detalle;
   // Rechazadas y vencidas también pasaron por envío. Se consideran enviadas si
   // su estado actual no es borrador o si tienen historial de una etapa posterior.

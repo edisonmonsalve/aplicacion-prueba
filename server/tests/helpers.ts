@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import type { OkPacket, ResultSetHeader, RowDataPacket } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { pool } from "../src/config/Db.js";

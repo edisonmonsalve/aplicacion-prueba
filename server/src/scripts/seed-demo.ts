@@ -6,7 +6,50 @@ const PASSWORD = process.env.SEED_PASSWORD ?? "Demo1234!";
 
 let token = "";
 
-async function api(path: string, init: RequestInit = {}) {
+interface LoginResponse {
+  token: string;
+  user: { email: string; rol: string };
+}
+
+interface IdResponse {
+  id: number;
+}
+
+interface Page<T> {
+  data?: T[];
+  total?: number;
+}
+
+interface Category {
+  id: number;
+  nombre: string;
+}
+
+interface ProductLite {
+  id: number;
+  sku: string;
+}
+
+interface FinanceCategory {
+  id: number;
+  nombre: string;
+  tipo: string;
+}
+
+interface BudgetLite {
+  id: number;
+  nombre: string;
+  estado: string;
+  fecha_inicio: string;
+}
+
+interface AccountLite {
+  id: number;
+  nombre: string;
+  tipo: string;
+}
+
+async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
@@ -16,23 +59,28 @@ async function api(path: string, init: RequestInit = {}) {
     },
   });
   const text = await res.text();
-  let data: any = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
+  let data: unknown;
+  if (!text) {
+    data = null;
+  } else {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
   }
   if (!res.ok) {
     console.error(`  ✗ ${init.method ?? "GET"} ${path} -> ${res.status}`, data);
     throw new Error(`${path} failed (${res.status})`);
   }
-  return data;
+  return data as T;
 }
 
-const get = (p: string) => api(p);
-const post = (p: string, body: any) => api(p, { method: "POST", body: JSON.stringify(body) });
-const put = (p: string, body: any) => api(p, { method: "PUT", body: JSON.stringify(body) });
-const patch = (p: string, body: any) => api(p, { method: "PATCH", body: JSON.stringify(body) });
+const get = <T = unknown>(p: string) => api<T>(p);
+const post = <T = unknown>(p: string, body: unknown) =>
+  api<T>(p, { method: "POST", body: JSON.stringify(body) });
+const put = <T = unknown>(p: string, body: unknown) =>
+  api<T>(p, { method: "PUT", body: JSON.stringify(body) });
 
 function log(msg: string) {
   console.log(msg);
@@ -42,7 +90,7 @@ async function main() {
   log("=== Iniciando seed demo (obra civil y sistemas) ===");
 
   // 1. Login
-  const login = await post("/auth/login", { email: EMAIL, password: PASSWORD });
+  const login = await post<LoginResponse>("/auth/login", { email: EMAIL, password: PASSWORD });
   token = login.token;
   log(`✓ Login como ${login.user.email} (${login.user.rol})`);
 
@@ -55,14 +103,14 @@ async function main() {
     "Software y licencias",
   ];
   const catMap: Record<string, number> = {};
-  const existingCats = await get("/categories");
+  const existingCats = await get<Category[]>("/categories");
   for (const nombre of categorias) {
-    const found = (existingCats ?? []).find((c: any) => c.nombre === nombre);
+    const found = (existingCats ?? []).find((c) => c.nombre === nombre);
     if (found) {
       catMap[nombre] = found.id;
       log(`  · categoría existente: ${nombre}`);
     } else {
-      const c = await post("/categories", { nombre });
+      const c = await post<IdResponse>("/categories", { nombre });
       catMap[nombre] = c.id;
       log(`  + categoría: ${nombre}`);
     }
@@ -109,15 +157,15 @@ async function main() {
   ];
 
   const productMap: Record<string, number> = {};
-  const prodRes = await get("/products?page=1&pageSize=100");
+  const prodRes = await get<Page<ProductLite>>("/products?page=1&pageSize=100");
   const existingProducts = prodRes.data ?? [];
   for (const p of productos) {
-    const found = existingProducts.find((x: any) => x.sku === p.sku);
+    const found = existingProducts.find((x) => x.sku === p.sku);
     if (found) {
       productMap[p.sku] = found.id;
       log(`  · producto existente: ${p.sku}`);
     } else {
-      const c = await post("/products", {
+      const c = await post<IdResponse>("/products", {
         sku: p.sku,
         nombre: p.nombre,
         category_id: catMap[p.categoria],
@@ -146,11 +194,11 @@ async function main() {
   }
 
   // 5. Presupuestos
-  const financeCats = await get("/finance/categories");
+  const financeCats = await get<FinanceCategory[]>("/finance/categories");
   // Líneas presupuestables: gastos y la compra de inventario (activo, pero
   // planificable porque representa salida de caja).
   const gastoCats = (financeCats ?? []).filter(
-    (c: any) => c.tipo === "gasto" || c.nombre === "Inventario"
+    (c) => c.tipo === "gasto" || c.nombre === "Inventario"
   );
   const now = new Date();
   const y = now.getFullYear();
@@ -163,16 +211,18 @@ async function main() {
 
   // Presupuesto cerrado del mes anterior
   const closedName = `Presupuesto ${prevStart.toLocaleString("es-CO", { month: "long" })} (cerrado)`;
-  let closedBudget: any = (await get("/finance/budgets?page=1&pageSize=100")).data?.find((b: any) => b.nombre === closedName);
+  let closedBudget: BudgetLite | undefined = (
+    await get<Page<BudgetLite>>("/finance/budgets?page=1&pageSize=100")
+  ).data?.find((b) => b.nombre === closedName);
   if (!closedBudget) {
-    closedBudget = await post("/finance/budgets", {
+    closedBudget = await post<BudgetLite>("/finance/budgets", {
       nombre: closedName,
       tipo_periodo: "mes",
       fecha_inicio: fmt(prevStart),
       fecha_fin: fmt(prevEnd),
       ingreso_meta: 18000000,
       alerta_pct: 80,
-      lineas: gastoCats.map((c: any) => ({
+      lineas: gastoCats.map((c) => ({
         finance_category_id: c.id,
         monto_planeado: c.nombre.includes("Nómina")
           ? 4500000
@@ -190,8 +240,8 @@ async function main() {
       await post(`/finance/budgets/${closedBudget.id}/activate`, {});
       await post(`/finance/budgets/${closedBudget.id}/close`, {});
       log("  OK presupuesto anterior cerrado");
-    } catch (e: any) {
-      log(`  · no se pudo activar/cerrar: ${e.message}`);
+    } catch (e) {
+      log(`  · no se pudo activar/cerrar: ${e instanceof Error ? e.message : String(e)}`);
     }
   } else {
     log(`  · presupuesto cerrado existente: id ${closedBudget.id}`);
@@ -199,21 +249,21 @@ async function main() {
 
   // Presupuesto activo del mes actual
   const activeName = `Presupuesto ${firstDayCurrent.toLocaleString("es-CO", { month: "long" })} ${y}`;
-  const budgetsList = await get("/finance/budgets?page=1&pageSize=100");
-  let activeBudget: any = (budgetsList.data ?? []).find(
-    (b: any) => b.estado === "activo" && b.fecha_inicio.startsWith(fmt(firstDayCurrent))
+  const budgetsList = await get<Page<BudgetLite>>("/finance/budgets?page=1&pageSize=100");
+  let activeBudget: BudgetLite | undefined = (budgetsList.data ?? []).find(
+    (b) => b.estado === "activo" && b.fecha_inicio.startsWith(fmt(firstDayCurrent))
   );
   if (!activeBudget) {
     // intentar crear
     try {
-      activeBudget = await post("/finance/budgets", {
+      activeBudget = await post<BudgetLite>("/finance/budgets", {
         nombre: activeName,
         tipo_periodo: "mes",
         fecha_inicio: fmt(firstDayCurrent),
         fecha_fin: fmt(lastDayCurrent),
         ingreso_meta: 25000000,
         alerta_pct: 80,
-        lineas: gastoCats.map((c: any) => ({
+        lineas: gastoCats.map((c) => ({
           finance_category_id: c.id,
           monto_planeado: c.nombre.includes("Nómina")
             ? 5000000
@@ -229,11 +279,11 @@ async function main() {
       log(`  + presupuesto activo creado: id ${activeBudget.id}`);
       await post(`/finance/budgets/${activeBudget.id}/activate`, {});
       log("  ✓ presupuesto actual activado");
-    } catch (e: any) {
-      log(`  · no se pudo crear/activar presupuesto actual: ${e.message}`);
+    } catch (e) {
+      log(`  · no se pudo crear/activar presupuesto actual: ${e instanceof Error ? e.message : String(e)}`);
       // reusar cualquiera activo
-      const bl = await get("/finance/budgets?page=1&pageSize=100");
-      activeBudget = (bl.data ?? []).find((b: any) => b.estado === "activo");
+      const bl = await get<Page<BudgetLite>>("/finance/budgets?page=1&pageSize=100");
+      activeBudget = (bl.data ?? []).find((b) => b.estado === "activo");
       if (activeBudget) log(`  · usando presupuesto activo existente id ${activeBudget.id}`);
     }
   } else {
@@ -241,10 +291,10 @@ async function main() {
   }
 
   // 6. Movimientos de stock (entradas primero)
-  const movRes = await get("/movements?page=1&pageSize=1");
+  const movRes = await get<Page<unknown>>("/movements?page=1&pageSize=1");
   if ((movRes.total ?? 0) === 0) {
   // Entradas (compras)
-  const entradas = [
+  const entradas: Array<[string, number]> = [
     ["CEM-001", 100],
     ["ARE-001", 20],
     ["GRA-001", 15],
@@ -277,7 +327,7 @@ async function main() {
   ];
   for (const [sku, cant] of entradas) {
     await post("/movements", {
-      product_id: productMap[sku as string],
+      product_id: productMap[sku],
       tipo: "entrada",
       cantidad: cant,
       motivo: "Compra inicial de inventario",
@@ -286,7 +336,7 @@ async function main() {
   log(`  + ${entradas.length} entradas de stock registradas`);
 
   // Salidas (entregas/ventas)
-  const salidas = [
+  const salidas: Array<[string, number]> = [
     ["CEM-001", 30],
     ["LAD-001", 1200],
     ["VAR-001", 60],
@@ -299,7 +349,7 @@ async function main() {
   ];
   for (const [sku, cant] of salidas) {
     await post("/movements", {
-      product_id: productMap[sku as string],
+      product_id: productMap[sku],
       tipo: "salida",
       cantidad: cant,
       motivo: "Entrega a obra / cliente",
@@ -309,12 +359,12 @@ async function main() {
   }  // end if movements
 
   // 7. Transacciones
-  const txRes = await get("/finance/transactions?page=1&pageSize=1");
+  const txRes = await get<Page<unknown>>("/finance/transactions?page=1&pageSize=1");
   if ((txRes.total ?? 0) === 0) {
   // Cuentas de caja y banco con capital inicial. La caja cubre gastos menores
   // en efectivo; el banco financia la compra de inventario y las transferencias.
-  const accounts = await get("/finance/accounts");
-  const caja = accounts.find((a: any) => a.tipo === "caja");
+  const accounts = await get<AccountLite[]>("/finance/accounts");
+  const caja = accounts.find((a) => a.tipo === "caja");
   if (caja) {
     await put(`/finance/accounts/${caja.id}`, {
       nombre: caja.nombre,
@@ -323,15 +373,15 @@ async function main() {
       activo: true,
     });
   }
-  let banco = accounts.find((a: any) => a.tipo === "banco");
+  let banco = accounts.find((a) => a.tipo === "banco");
   if (!banco) {
-    const created = await post("/finance/accounts", {
+    const created = await post<IdResponse>("/finance/accounts", {
       nombre: "Banco principal",
       tipo: "banco",
       saldo_inicial: 25000000,
       activo: true,
     });
-    banco = { id: created.id };
+    banco = { id: created.id, nombre: "Banco principal", tipo: "banco" };
     log("  + cuenta: Banco principal (saldo inicial 25.000.000)");
   } else {
     await put(`/finance/accounts/${banco.id}`, {
@@ -345,7 +395,9 @@ async function main() {
   const cajaId = caja?.id as number;
   const bancoId = banco.id as number;
 
-  const catByNombre = Object.fromEntries((financeCats ?? []).map((c: any) => [c.nombre, c.id]));
+  const catByNombre: Record<string, number> = Object.fromEntries(
+    (financeCats ?? []).map((c) => [c.nombre, c.id])
+  );
   // `cuenta` indica de dónde sale o dónde entra el dinero.
   const txs = [
     { tipo: "ingreso", monto: 8500000, categoria: "Ventas", cuenta: "banco", descripcion: "Venta de materiales a constructora" },
@@ -379,7 +431,7 @@ async function main() {
   }  // end if transactions
 
   // 8. Cotizaciones
-  const quoteRes = await get("/quotes?page=1&pageSize=1");
+  const quoteRes = await get<Page<unknown>>("/quotes?page=1&pageSize=1");
   if ((quoteRes.total ?? 0) === 0) {
   const clientes = [
     { nombre: "Constructora Andina S.A.S.", documento: "900123456-7", email: "compras@andina.com" },
@@ -420,7 +472,7 @@ async function main() {
   const quoteIds: number[] = [];
   for (let i = 0; i < clientes.length; i++) {
     const c = clientes[i];
-    const q = await post("/quotes", {
+    const q = await post<IdResponse>("/quotes", {
       customer_nombre: c.nombre,
       customer_documento: c.documento,
       customer_email: c.email,

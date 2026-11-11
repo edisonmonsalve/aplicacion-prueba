@@ -4,6 +4,7 @@ import { pool } from "../../config/Db.js";
 import { addDays } from "../../utils/dates.js";
 import { HttpError } from "../../utils/http-error.js";
 import { createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
+import type { AuthUser } from "../../types/express.js";
 import { registerMovement } from "../movements/movements.service.js";
 import { formatQuoteNumber } from "../quotes/quotes.format.js";
 import {
@@ -551,6 +552,9 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     }
 
     const costByItem = new Map<number, number>();
+    // Los movimientos internos de la factura se registran con rol admin para que
+    // el costo histórico quede guardado aunque quien confirme sea contador u operador.
+    const systemActor: AuthUser = { id: actor.id, rol: "admin" };
 
     if (isVenta) {
       if (!quoteWasDelivered) {
@@ -584,7 +588,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
               quoteId: inv.quote_id ?? undefined,
               skipFinance: true,
             },
-            { id: actor.id, rol: "admin" } as any,
+            systemActor,
             conn
           );
           costByItem.set(it.id, Number(movement.costo_unitario ?? 0));
@@ -640,7 +644,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
             invoiceId: id,
             skipFinance: true,
           },
-          { id: actor.id, rol: "admin" } as any,
+          systemActor,
           conn
         );
       }
@@ -848,12 +852,8 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
       );
     }
 
-    const [items] = await conn.query<RowDataPacket[]>(
-      "SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id",
-      [id]
-    );
-
     // 1. Revertir el stock que movió esta factura (no el que movió la cotización).
+    const systemActor: AuthUser = { id: actor.id, rol: "admin" };
     const [movements] = await conn.query<RowDataPacket[]>(
       "SELECT * FROM stock_movements WHERE invoice_id = ? ORDER BY id",
       [id]
@@ -871,7 +871,7 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
           invoiceId: id,
           skipFinance: true,
         },
-        { id: actor.id, rol: "admin" } as any,
+        systemActor,
         conn
       );
     }

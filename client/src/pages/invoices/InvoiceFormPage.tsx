@@ -163,7 +163,7 @@ export default function InvoiceFormPage() {
   const search = async (q: string) => {
     try {
       const r = await getProducts({ q, page: 1, pageSize: 20 });
-      setProducts((prev) => ({ ...prev, ...Object.fromEntries(r.data.map((p: any) => [p.id, p])) }));
+      setProducts((prev) => ({ ...prev, ...Object.fromEntries(r.data.map((p) => [p.id, p])) }));
     } catch {
       message.error("No se pudo buscar productos");
     }

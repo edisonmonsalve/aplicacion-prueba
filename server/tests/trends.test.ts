@@ -36,7 +36,6 @@ async function setup() {
 }
 
 describe("Tendencias mensuales y comparación de periodos", () => {
-  let admin: Awaited<ReturnType<typeof userWithToken>>;
   let contador: Awaited<ReturnType<typeof userWithToken>>;
   let consulta: Awaited<ReturnType<typeof userWithToken>>;
   let operador: Awaited<ReturnType<typeof userWithToken>>;
@@ -50,7 +49,6 @@ describe("Tendencias mensuales y comparación de periodos", () => {
   beforeEach(async () => {
     await resetDb();
     const s = await setup();
-    admin = s.admin;
     contador = s.contador;
     consulta = s.consulta;
     operador = s.operador;
