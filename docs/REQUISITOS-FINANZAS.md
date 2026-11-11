@@ -58,6 +58,7 @@
 - RF-26: Cerrar un periodo con una foto de sus totales (resumen, facturas, cartera, retenciones y transacciones) y bloquear nuevos asientos dentro del rango. Consultar los cierres y su detalle histórico.
 - RF-27: Reabrir un cierre vigente indicando el motivo. La reapertura no borra el cierre: lo marca como reabierto con usuario y fecha, y vuelve a permitir movimientos.
 - RF-28: Consultar el estado de resultados del periodo con ingresos, costo de ventas, margen bruto, gastos operativos y utilidad, desglosados por categoría y comparados contra el periodo anterior de igual duración, con variación porcentual por línea.
+- RF-29: Consultar el flujo de caja real por cuenta y por mes, con saldo inicial del rango, entradas, salidas, neto y saldo final, y filtro por cuenta.
 
 ## Reglas de negocio
 
@@ -95,6 +96,7 @@
 - RN-27: Un cierre vigente (`cerrado`) bloquea cualquier asiento con fecha dentro de su rango, además de los presupuestos cerrados. No se permiten dos cierres vigentes superpuestos.
 - RN-28: La reapertura exige motivo y queda auditada; el cierre pasa a `reabierto` y no se elimina. Los totales del snapshot son inmutables y reflejan el momento del cierre.
 - RN-29: El estado de resultados usa solo asientos con `afecta_resultado = 1` (devengo). El costo de ventas se muestra separado de los gastos operativos para calcular el margen bruto; la utilidad es margen bruto − gastos. El comparativo usa el periodo inmediatamente anterior de igual número de días.
+- RN-30: El flujo de caja usa solo asientos con `afecta_caja = 1` (con override). Ingresos y pasivos con impacto de caja suman; gastos y activos restan, igual que el saldo de cuentas. El saldo inicial del rango incluye los movimientos anteriores a la fecha inicial.
 
 ## Supuestos a confirmar
 

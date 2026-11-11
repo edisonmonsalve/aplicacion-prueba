@@ -206,3 +206,132 @@ export async function getPnl(query: PnlQuery) {
     variaciones,
   };
 }
+
+interface CashFlowQuery {
+  desde?: string;
+  hasta?: string;
+  account_id?: number;
+}
+
+/** Lista de meses AAAA-MM entre dos fechas, incluidos los extremos. */
+function mesesEntre(desde: string, hasta: string) {
+  const [anioIni, mesIni] = desde.slice(0, 7).split("-").map(Number);
+  const [anioFin, mesFin] = hasta.slice(0, 7).split("-").map(Number);
+  const meses: string[] = [];
+  let anio = anioIni;
+  let mes = mesIni;
+  while (anio < anioFin || (anio === anioFin && mes <= mesFin)) {
+    meses.push(`${anio}-${String(mes).padStart(2, "0")}`);
+    mes += 1;
+    if (mes > 12) {
+      mes = 1;
+      anio += 1;
+    }
+  }
+  return meses;
+}
+
+/**
+ * Flujo de caja real por cuenta y por mes.
+ *
+ * Solo cuenta asientos que mueven caja (override del asiento o categoría). Un
+ * pasivo con impacto de caja (p. ej. retenciones que se descuentan del pago)
+ * entra como menor salida, igual que en el saldo de las cuentas. Las compras de
+ * inventario son salidas; el costo de ventas y el IVA informativos no aparecen.
+ */
+export async function getCashFlow(query: CashFlowQuery) {
+  const hasta = query.hasta ?? today();
+  const desde = query.desde ?? `${hasta.slice(0, 7)}-01`;
+  if (desde > hasta) {
+    throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
+  }
+
+  // Misma regla que el saldo de cuentas: ingreso/pasivo suman, gasto/activo restan.
+  const afectaCaja = "COALESCE(t.afecta_caja, fc.afecta_caja) = 1";
+  const filtroCuenta = query.account_id ? " AND a.id = ?" : "";
+  const accountParams = query.account_id ? [query.account_id] : [];
+
+  const [cuentaRows] = await pool.query<RowDataPacket[]>(
+    `SELECT a.id, a.nombre, a.tipo, a.activo, a.saldo_inicial,
+            COALESCE(SUM(CASE WHEN t.fecha < ? AND ${afectaCaja}
+              THEN CASE WHEN t.tipo IN ('ingreso', 'pasivo') THEN t.monto
+                        WHEN t.tipo IN ('gasto', 'activo') THEN -t.monto
+                        ELSE 0 END
+              ELSE 0 END), 0) AS previo,
+            COALESCE(SUM(CASE WHEN t.fecha BETWEEN ? AND ? AND ${afectaCaja}
+                               AND t.tipo IN ('ingreso', 'pasivo')
+                              THEN t.monto ELSE 0 END), 0) AS entradas,
+            COALESCE(SUM(CASE WHEN t.fecha BETWEEN ? AND ? AND ${afectaCaja}
+                               AND t.tipo IN ('gasto', 'activo')
+                              THEN t.monto ELSE 0 END), 0) AS salidas
+     FROM finance_accounts a
+     LEFT JOIN transactions t
+       ON t.account_id = a.id
+      AND ${VALID_TRANSACTION}
+     LEFT JOIN finance_categories fc ON fc.id = t.finance_category_id
+     WHERE 1 = 1${filtroCuenta}
+     GROUP BY a.id, a.nombre, a.tipo, a.activo, a.saldo_inicial
+     ORDER BY a.nombre`,
+    [desde, desde, hasta, desde, hasta, ...accountParams]
+  );
+
+  const porCuenta = cuentaRows.map((r) => {
+    const saldoInicial = roundMoney(Number(r.saldo_inicial) + Number(r.previo));
+    const entradas = roundMoney(Number(r.entradas));
+    const salidas = roundMoney(Number(r.salidas));
+    return {
+      id: Number(r.id),
+      nombre: String(r.nombre),
+      tipo: String(r.tipo),
+      activo: Number(r.activo),
+      saldo_inicial: saldoInicial,
+      entradas,
+      salidas,
+      neto: roundMoney(entradas - salidas),
+      saldo_final: roundMoney(saldoInicial + entradas - salidas),
+    };
+  });
+
+  const totales = porCuenta.reduce(
+    (acc, c) => ({
+      saldo_inicial: roundMoney(acc.saldo_inicial + c.saldo_inicial),
+      entradas: roundMoney(acc.entradas + c.entradas),
+      salidas: roundMoney(acc.salidas + c.salidas),
+      neto: roundMoney(acc.neto + c.neto),
+      saldo_final: roundMoney(acc.saldo_final + c.saldo_final),
+    }),
+    { saldo_inicial: 0, entradas: 0, salidas: 0, neto: 0, saldo_final: 0 }
+  );
+
+  const filtroMesCuenta = query.account_id ? " AND t.account_id = ?" : "";
+  const [mesRows] = await pool.query<RowDataPacket[]>(
+    `SELECT DATE_FORMAT(t.fecha, '%Y-%m') AS mes,
+            COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('ingreso', 'pasivo')
+                              THEN t.monto ELSE 0 END), 0) AS entradas,
+            COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('gasto', 'activo')
+                              THEN t.monto ELSE 0 END), 0) AS salidas
+     FROM transactions t
+     JOIN finance_categories fc ON fc.id = t.finance_category_id
+     WHERE t.fecha BETWEEN ? AND ?
+       AND ${VALID_TRANSACTION}${filtroMesCuenta}
+     GROUP BY mes
+     ORDER BY mes`,
+    [desde, hasta, ...accountParams]
+  );
+
+  const mesMap = new Map(mesRows.map((r) => [String(r.mes), r]));
+  const porMes = mesesEntre(desde, hasta).map((mes) => {
+    const row = mesMap.get(mes);
+    const entradas = roundMoney(Number(row?.entradas ?? 0));
+    const salidas = roundMoney(Number(row?.salidas ?? 0));
+    return { mes, entradas, salidas, neto: roundMoney(entradas - salidas) };
+  });
+
+  return {
+    rango: { desde, hasta },
+    filtro_cuenta: query.account_id ?? null,
+    totales,
+    por_cuenta: porCuenta,
+    por_mes: porMes,
+  };
+}

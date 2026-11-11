@@ -25,6 +25,7 @@ import BudgetDetailPage from "@/pages/finance/BudgetDetailPage";
 import TransactionsPage from "@/pages/finance/TransactionsPage";
 import PeriodClosuresPage from "@/pages/finance/PeriodClosuresPage";
 import ProfitLossPage from "@/pages/finance/ProfitLossPage";
+import CashFlowPage from "@/pages/finance/CashFlowPage";
 import ReceivablesPage from "@/pages/invoices/ReceivablesPage";
 import RequireOperate from "./components/RequireOperate";
 
@@ -107,6 +108,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <ProfitLossPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/flujo-caja"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <CashFlowPage />
                 </ProtectedRoute>
               }
             />

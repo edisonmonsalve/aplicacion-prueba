@@ -467,6 +467,42 @@ export interface PnlReport {
   >;
 }
 
+// ---------- Flujo de caja ----------
+
+export interface CashFlowAccountRow {
+  id: number;
+  nombre: string;
+  tipo: string;
+  activo: number;
+  saldo_inicial: number;
+  entradas: number;
+  salidas: number;
+  neto: number;
+  saldo_final: number;
+}
+
+export interface CashFlowMonth {
+  /** AAAA-MM */
+  mes: string;
+  entradas: number;
+  salidas: number;
+  neto: number;
+}
+
+export interface CashFlowReport {
+  rango: { desde: string; hasta: string };
+  filtro_cuenta: number | null;
+  totales: {
+    saldo_inicial: number;
+    entradas: number;
+    salidas: number;
+    neto: number;
+    saldo_final: number;
+  };
+  por_cuenta: CashFlowAccountRow[];
+  por_mes: CashFlowMonth[];
+}
+
 export interface StockFailure {
   sku: string;
   nombre: string;

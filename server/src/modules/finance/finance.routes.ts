@@ -20,6 +20,7 @@ import {
 import {
   accountSchema,
   budgetSchema,
+  cashFlowQuerySchema,
   idSchema,
   listBudgetsQuerySchema,
   listTransactionsQuerySchema,
@@ -27,7 +28,7 @@ import {
   transactionSchema,
 } from "./finance.schema.js";
 import { getSuggestions } from "./suggestions.service.js";
-import { getPnl } from "./reports.service.js";
+import { getCashFlow, getPnl } from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
 
 export const financeRouter = Router();
@@ -116,4 +117,8 @@ financeRouter.get("/summary", async (req, res) => {
 
 financeRouter.get("/pnl", async (req, res) => {
   res.json(await getPnl(summaryQuerySchema.parse(req.query)));
+});
+
+financeRouter.get("/cash-flow", async (req, res) => {
+  res.json(await getCashFlow(cashFlowQuerySchema.parse(req.query)));
 });
