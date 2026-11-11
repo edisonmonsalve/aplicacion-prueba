@@ -11,11 +11,13 @@ import {
   Tag,
   Typography,
 } from "antd";
+import { PrinterOutlined } from "@ant-design/icons";
 import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { cancelInvoice, confirmInvoice, getInvoice } from "@/services/invoicesService";
-import type { InvoiceDetail, InvoiceItem, InvoiceTransaction } from "@/types";
+import { getFinanceAccounts } from "@/services/financeService";
+import type { FinanceAccount, InvoiceDetail, InvoiceItem, InvoiceTransaction } from "@/types";
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -25,8 +27,9 @@ export default function InvoiceDetailPage() {
   const invoiceId = Number(id);
   const navigate = useNavigate();
   const { canOperate } = useAuth();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
+  const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [busy, setBusy] = useState(false);
 
   useDocumentTitle(invoice?.numero ?? "Factura");
@@ -44,6 +47,15 @@ export default function InvoiceDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // F6: saldo de la cuenta para mostrar el impacto en caja antes de confirmar.
+  useEffect(() => {
+    getFinanceAccounts()
+      .then(setAccounts)
+      .catch(() => {
+        // Sin cuentas el detalle sigue funcionando; solo no se muestra el saldo.
+      });
+  }, []);
 
   const run = async (fn: (id: number) => Promise<unknown>, okMsg: string) => {
     setBusy(true);
@@ -66,6 +78,59 @@ export default function InvoiceDetailPage() {
   const isDraft = invoice.estado === "borrador";
   const isConfirmed = invoice.estado === "confirmada";
 
+  // F6: cuenta que usará el asiento y saldo resultante tras confirmar.
+  const account = invoice.account_id
+    ? accounts.find((a) => a.id === invoice.account_id)
+    : accounts.find((a) => a.activo);
+  const signedImpact =
+    invoice.tipo === "venta" ? Number(invoice.total_neto) : -Number(invoice.total_neto);
+  const saldoResultante = account
+    ? Number(account.saldo_actual) + signedImpact
+    : null;
+
+  const openConfirm = () => {
+    modal.confirm({
+      title: "¿Confirmar esta factura?",
+      width: 480,
+      content: (
+        <Space direction="vertical" size={4} style={{ marginTop: 8 }}>
+          <span>
+            {invoice.tipo === "venta"
+              ? "Se validará stock, se descontará y se generará el ingreso."
+              : "Se sumará stock, se actualizará el costo del producto y se generará el gasto."}
+          </span>
+          {account ? (
+            <>
+              <span>
+                Cuenta: <strong>{account.nombre}</strong> ({account.tipo})
+              </span>
+              <span>Saldo actual: {money(account.saldo_actual)}</span>
+              <span>
+                Impacto en caja: {signedImpact >= 0 ? "+" : "−"}
+                {money(Math.abs(signedImpact))}
+              </span>
+              <span>
+                Saldo resultante: <strong>{money(saldoResultante!)}</strong>
+              </span>
+              {saldoResultante! < 0 && (
+                <Typography.Text type="danger">
+                  La cuenta quedaría con saldo negativo.
+                </Typography.Text>
+              )}
+            </>
+          ) : (
+            <Typography.Text type="warning">
+              La factura no tiene cuenta asignada y no hay cuentas activas para usar por defecto.
+            </Typography.Text>
+          )}
+        </Space>
+      ),
+      okText: "Sí, confirmar",
+      cancelText: "No",
+      onOk: () => run(confirmInvoice, "Factura confirmada"),
+    });
+  };
+
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
       <PageBreadcrumb
@@ -84,23 +149,17 @@ export default function InvoiceDetailPage() {
 
       <Space wrap>
         <Button onClick={() => navigate("/facturas")}>Volver</Button>
+        <Button
+          icon={<PrinterOutlined />}
+          onClick={() => navigate(`/facturas/${invoiceId}/imprimir`)}
+        >
+          Imprimir
+        </Button>
         {canOperate && isDraft && (
           <>
-            <Popconfirm
-              title="¿Confirmar esta factura?"
-              description={
-                invoice.tipo === "venta"
-                  ? "Se validará stock, se descontará y se generará el ingreso."
-                  : "Se sumará stock, se actualizará el costo del producto y se generará el gasto."
-              }
-              okText="Sí, confirmar"
-              cancelText="No"
-              onConfirm={() => run(confirmInvoice, "Factura confirmada")}
-            >
-              <Button type="primary" disabled={busy}>
-                Confirmar
-              </Button>
-            </Popconfirm>
+            <Button type="primary" disabled={busy} onClick={openConfirm}>
+              Confirmar
+            </Button>
             <Button onClick={() => navigate(`/facturas/${invoiceId}/editar`)} disabled={busy}>
               Editar
             </Button>
@@ -121,6 +180,23 @@ export default function InvoiceDetailPage() {
           </Popconfirm>
         )}
       </Space>
+
+      {isDraft && (
+        <Alert
+          type={saldoResultante !== null && saldoResultante < 0 ? "warning" : "info"}
+          showIcon
+          message={
+            account
+              ? `Impacto en caja: ${signedImpact >= 0 ? "+" : "−"}${money(Math.abs(signedImpact))} · Saldo resultante: ${money(saldoResultante!)}`
+              : "Esta factura no tiene cuenta asignada ni hay cuentas activas por defecto"
+          }
+          description={
+            account
+              ? `Cuenta ${account.nombre} (${account.tipo}) · Saldo actual ${money(account.saldo_actual)}. Al confirmar se actualiza el stock y se registran los asientos financieros.`
+              : "Asigna una cuenta desde Editar para poder ver el saldo y el impacto antes de confirmar."
+          }
+        />
+      )}
 
       {invoice.estado === "anulada" && (
         <Alert type="warning" showIcon message="Esta factura está anulada. Se revirtieron el stock y todos sus asientos financieros." />

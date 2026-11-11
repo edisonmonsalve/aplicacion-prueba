@@ -516,3 +516,17 @@ export type InvoiceSortKey =
   | "fecha"
   | "total"
   | "creador";
+
+export interface InvoiceSummaryRow {
+  documentos: number;
+  total: number;
+}
+
+export interface InvoiceSummary {
+  por_tipo: (InvoiceSummaryRow & { tipo: InvoiceTipo })[];
+  por_estado: (InvoiceSummaryRow & { estado: InvoiceEstado })[];
+}
+
+export interface PaginatedInvoices extends Paginated<Invoice> {
+  resumen: InvoiceSummary;
+}

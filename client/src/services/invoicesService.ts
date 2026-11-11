@@ -1,8 +1,8 @@
 import { api } from "./api";
-import type { Invoice, InvoiceDetail, InvoiceInput, InvoicesQuery, Paginated } from "@/types";
+import type { InvoiceDetail, InvoiceInput, InvoicesQuery, PaginatedInvoices } from "@/types";
 
 export const listInvoices = async (q: InvoicesQuery) =>
-  (await api.get<Paginated<Invoice>>("/invoices", { params: q })).data;
+  (await api.get<PaginatedInvoices>("/invoices", { params: q })).data;
 
 export const getInvoice = async (id: number) => (await api.get<InvoiceDetail>(`/invoices/${id}`)).data;
 

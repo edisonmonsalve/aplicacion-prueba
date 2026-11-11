@@ -175,7 +175,39 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
      ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
     [...params, query.pageSize, (query.page - 1) * query.pageSize]
   );
-  return { data, total, page: query.page, pageSize: query.pageSize };
+
+  // Totales del filtro completo (no solo la página) para el resumen y el CSV.
+  const [porTipo] = await pool.query<RowDataPacket[]>(
+    `SELECT i.tipo, COUNT(*) AS documentos, COALESCE(SUM(i.total), 0) AS total
+     FROM invoices i ${clause}
+     GROUP BY i.tipo`,
+    params
+  );
+  const [porEstado] = await pool.query<RowDataPacket[]>(
+    `SELECT i.estado, COUNT(*) AS documentos, COALESCE(SUM(i.total), 0) AS total
+     FROM invoices i ${clause}
+     GROUP BY i.estado`,
+    params
+  );
+
+  return {
+    data,
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    resumen: {
+      por_tipo: porTipo.map((r) => ({
+        tipo: r.tipo,
+        documentos: Number(r.documentos),
+        total: Number(r.total),
+      })),
+      por_estado: porEstado.map((r) => ({
+        estado: r.estado,
+        documentos: Number(r.documentos),
+        total: Number(r.total),
+      })),
+    },
+  };
 }
 
 export async function getInvoice(id: number) {

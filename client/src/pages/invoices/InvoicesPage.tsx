@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { Button, DatePicker, Empty, Input, Select, Table, Tooltip, Typography, message } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { Button, DatePicker, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listInvoices } from "@/services/invoicesService";
-import type { Invoice, InvoiceEstado, InvoiceSortKey, InvoiceTipo } from "@/types";
+import type { Invoice, InvoiceEstado, InvoiceSortKey, InvoiceSummary, InvoiceTipo } from "@/types";
 import { ESTADO_OPTIONS, InvoiceEstadoTag, InvoiceTipoTag, TIPO_OPTIONS, fmtDate, money } from "./InvoiceUtils";
 import TableSkeleton from "@/components/TableSkeleton";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/context/AuthContext";
+import { downloadCsv, fetchAllPages } from "@/utils/csv";
 
 const FMT = "YYYY-MM-DD";
 
@@ -32,6 +33,19 @@ const SORT_BY_FIELD: Record<string, InvoiceSortKey> = {
   creador: "creador",
 };
 
+const TIPO_LABEL: Record<InvoiceTipo, string> = { venta: "Ventas", compra: "Compras" };
+const TIPO_COLOR: Record<InvoiceTipo, string> = { venta: "blue", compra: "orange" };
+const ESTADO_LABEL: Record<InvoiceEstado, string> = {
+  borrador: "Borradores",
+  confirmada: "Confirmadas",
+  anulada: "Anuladas",
+};
+const ESTADO_COLOR: Record<InvoiceEstado, string> = {
+  borrador: "default",
+  confirmada: "green",
+  anulada: "red",
+};
+
 export default function InvoicesPage() {
   const navigate = useNavigate();
   const [sp, setSp] = useSearchParams();
@@ -53,7 +67,9 @@ export default function InvoicesPage() {
 
   const [rows, setRows] = useState<Invoice[]>([]);
   const [total, setTotal] = useState(0);
+  const [resumen, setResumen] = useState<InvoiceSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [text, setText] = useState(q);
 
   useDocumentTitle("Facturas");
@@ -69,19 +85,23 @@ export default function InvoicesPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    // El backend lista por tipo/estado/fecha; "q" (contraparte) lo filtramos client-side si el API no lo soporta
-    listInvoices({ tipo, estado, desde, hasta, sort, order: sort ? order : undefined, page, pageSize })
+    // F1: la búsqueda viaja al servidor, así el total y la paginación cubren todo el historial.
+    listInvoices({
+      q: q || undefined,
+      tipo,
+      estado,
+      desde,
+      hasta,
+      sort,
+      order: sort ? order : undefined,
+      page,
+      pageSize,
+    })
       .then((r) => {
         if (cancelled) return;
-        const filtered = q
-          ? r.data.filter(
-              (x) =>
-                x.numero.toLowerCase().includes(q.toLowerCase()) ||
-                x.contraparte.toLowerCase().includes(q.toLowerCase())
-            )
-          : r.data;
-        setRows(filtered);
-        setTotal(q ? filtered.length : r.total);
+        setRows(r.data);
+        setTotal(r.total);
+        setResumen(r.resumen);
       })
       .catch(() => message.error("No se pudieron cargar las facturas"))
       .finally(() => {
@@ -109,6 +129,52 @@ export default function InvoicesPage() {
   const sortOrderFor = (key: InvoiceSortKey): "ascend" | "descend" | null =>
     sort === key ? (order === "desc" ? "descend" : "ascend") : null;
 
+  // F5: exporta todas las páginas del filtro actual, no solo la visible.
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchAllPages<Invoice>((p) =>
+        listInvoices({
+          q: q || undefined,
+          tipo,
+          estado,
+          desde,
+          hasta,
+          sort,
+          order: sort ? order : undefined,
+          page: p,
+          pageSize: 100,
+        })
+      );
+      downloadCsv(
+        `facturas-${dayjs().format("YYYY-MM-DD")}.csv`,
+        [
+          { header: "Número", value: (r) => r.numero },
+          { header: "Tipo", value: (r) => TIPO_LABEL[r.tipo] },
+          { header: "Contraparte", value: (r) => r.contraparte },
+          { header: "Estado", value: (r) => ESTADO_LABEL[r.estado] },
+          { header: "Fecha", value: (r) => r.fecha },
+          { header: "Subtotal", value: (r) => r.subtotal },
+          { header: "Descuento", value: (r) => r.descuento_total },
+          { header: "IVA", value: (r) => r.impuesto_total },
+          {
+            header: "Retenciones",
+            value: (r) => r.retencion_fuente + r.retencion_iva + r.retencion_ica,
+          },
+          { header: "Total", value: (r) => r.total },
+          { header: "Total neto", value: (r) => r.total_neto },
+          { header: "Creado por", value: (r) => r.creador },
+        ],
+        all
+      );
+      message.success(`${all.length} factura(s) exportadas`);
+    } catch {
+      message.error("No se pudieron exportar las facturas");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const hasFilters = !!(q || tipo || estado || desde || hasta);
   const firstLoad = loading && rows.length === 0;
 
@@ -125,11 +191,18 @@ export default function InvoicesPage() {
             Registra compras y ventas, confirma para actualizar stock y finanzas.
           </Typography.Text>
         </div>
-        {canOperate && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/facturas/nuevo")}>
-            Nueva
-          </Button>
-        )}
+        <Space>
+          <Tooltip title="Exporta todas las facturas que cumplen los filtros, no solo la página visible.">
+            <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
+              Exportar CSV
+            </Button>
+          </Tooltip>
+          {canOperate && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/facturas/nuevo")}>
+              Nueva
+            </Button>
+          )}
+        </Space>
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
@@ -192,6 +265,22 @@ export default function InvoicesPage() {
           </Button>
         )}
       </div>
+
+      {resumen && (resumen.por_tipo.length > 0 || resumen.por_estado.length > 0) && (
+        <Space size={[8, 8]} wrap style={{ marginBottom: 16 }}>
+          <Typography.Text type="secondary">Totales del filtro:</Typography.Text>
+          {resumen.por_tipo.map((r) => (
+            <Tag key={`tipo-${r.tipo}`} color={TIPO_COLOR[r.tipo]}>
+              {TIPO_LABEL[r.tipo]}: {r.documentos} · {money(r.total)}
+            </Tag>
+          ))}
+          {resumen.por_estado.map((r) => (
+            <Tag key={`estado-${r.estado}`} color={ESTADO_COLOR[r.estado]}>
+              {ESTADO_LABEL[r.estado]}: {r.documentos} · {money(r.total)}
+            </Tag>
+          ))}
+        </Space>
+      )}
 
       {firstLoad ? (
         <TableSkeleton />

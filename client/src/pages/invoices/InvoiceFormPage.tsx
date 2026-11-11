@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
+  App,
   Button,
   Card,
   DatePicker,
@@ -10,7 +12,6 @@ import {
   Space,
   Tooltip,
   Typography,
-  message,
   theme,
 } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
@@ -87,11 +88,13 @@ export default function InvoiceFormPage() {
   const { id } = useParams();
   const editId = id ? Number(id) : null;
   const navigate = useNavigate();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const loadedQuoteRef = useRef<number | null>(null);
   const lineas = Form.useWatch("items", form) ?? [];
   const tipo = Form.useWatch("tipo", form);
@@ -347,6 +350,33 @@ export default function InvoiceFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
+  // F3: avisa antes de cerrar o recargar la pestaña si hay cambios sin guardar.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!dirty || saving) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty, saving]);
+
+  const cancel = () => {
+    const to = editId ? `/facturas/${editId}` : "/facturas";
+    if (!dirty) {
+      navigate(to);
+      return;
+    }
+    modal.confirm({
+      title: "¿Descartar los cambios?",
+      content: "Si sales ahora, los datos que no hayas guardado se perderán.",
+      okText: "Descartar cambios",
+      cancelText: "Seguir editando",
+      okButtonProps: { danger: true },
+      onOk: () => navigate(to),
+    });
+  };
+
   const onProductChange = (name: number, pid: number) => {
     const p = products[pid];
     if (!p) return;
@@ -381,6 +411,7 @@ export default function InvoiceFormPage() {
     setSaving(true);
     try {
       const r = editId ? await updateInvoice(editId, payload) : await createInvoice(payload);
+      setDirty(false);
       message.success(editId ? "Factura actualizada" : "Borrador creado");
       navigate(`/facturas/${r.id ?? editId}`);
     } catch (e) {
@@ -399,9 +430,19 @@ export default function InvoiceFormPage() {
         form={form}
         layout="vertical"
         onFinish={onFinish}
+        onValuesChange={() => setDirty(true)}
         initialValues={{ tipo: initialTipo, fecha: dayjs(), items: [{}] }}
       >
-        <Space wrap align="start">
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Guardar deja la factura en borrador"
+          description="Guardar un borrador no mueve stock ni finanzas. Desde el detalle podrás revisarla y usar Confirmar para actualizar el stock y registrar los asientos financieros."
+        />
+
+        <Card size="small" title="Datos generales" style={{ marginBottom: 16 }}>
+          <Space wrap align="start">
           <Form.Item
             name="tipo"
             label="Tipo"
@@ -422,20 +463,6 @@ export default function InvoiceFormPage() {
           </Form.Item>
           <Form.Item name="documento" label="Documento">
             <Input style={{ width: 180 }} />
-          </Form.Item>
-          <Form.Item
-            name="account_id"
-            label="Cuenta"
-            tooltip="Caja = efectivo; banco = transferencia. Define de dónde sale o dónde entra el dinero al confirmar la factura."
-          >
-            <Select
-              placeholder="Cuenta por defecto"
-              style={{ width: 220 }}
-              options={accounts.map((a) => ({
-                value: a.id,
-                label: `${a.nombre} (${a.tipo})`,
-              }))}
-            />
           </Form.Item>
           <Form.Item
             name="orden_compra"
@@ -471,12 +498,32 @@ export default function InvoiceFormPage() {
         <Form.Item name="notas" label="Notas">
           <Input.TextArea rows={2} maxLength={2000} showCount />
         </Form.Item>
+        </Card>
 
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-          {tipo === "compra"
-            ? "Registra los productos comprados. El precio unitario es el costo neto de compra (sin IVA); al confirmar suma stock y registra el activo Inventario en la cuenta elegida."
-            : "Registra los productos vendidos. Al confirmar se descuenta stock (si la cotización no lo entregó antes) y se reconoce el ingreso neto + IVA en la cuenta elegida."}
-        </Typography.Paragraph>
+        <Card size="small" title="Cuenta" style={{ marginBottom: 16 }}>
+          <Form.Item
+            name="account_id"
+            label="Cuenta de caja o banco"
+            tooltip="Caja = efectivo; banco = transferencia. Define de dónde sale o dónde entra el dinero al confirmar la factura."
+            extra="Al confirmar verás el saldo actual y el impacto en esta cuenta."
+          >
+            <Select
+              placeholder="Cuenta por defecto"
+              style={{ width: 260 }}
+              options={accounts.map((a) => ({
+                value: a.id,
+                label: `${a.nombre} (${a.tipo}) · saldo ${money(a.saldo_actual)}`,
+              }))}
+            />
+          </Form.Item>
+        </Card>
+
+        <Card size="small" title="Líneas" style={{ marginBottom: 16 }}>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+            {tipo === "compra"
+              ? "Registra los productos comprados. El precio unitario es el costo neto de compra (sin IVA); al confirmar suma stock y registra el activo Inventario en la cuenta elegida."
+              : "Registra los productos vendidos. Al confirmar se descuenta stock (si la cotización no lo entregó antes) y se reconoce el ingreso neto + IVA en la cuenta elegida."}
+          </Typography.Paragraph>
 
         <Form.List
           name="items"
@@ -570,7 +617,9 @@ export default function InvoiceFormPage() {
             </>
           )}
         </Form.List>
+        </Card>
 
+        <Card size="small" title="Retenciones y totales" style={{ marginBottom: 16 }}>
         <Space wrap align="start">
           <Form.Item
             name="retencion_fuente"
@@ -640,12 +689,15 @@ export default function InvoiceFormPage() {
           }}
         >
           <Space>
-            <Button type="primary" htmlType="submit" loading={saving}>
-              Guardar
-            </Button>
-            <Button onClick={() => navigate(editId ? `/facturas/${editId}` : "/facturas")}>Cancelar</Button>
+            <Tooltip title="Guarda la factura como borrador. Todavía no mueve stock ni finanzas.">
+              <Button type="primary" htmlType="submit" loading={saving}>
+                {editId ? "Guardar cambios" : "Guardar borrador"}
+              </Button>
+            </Tooltip>
+            <Button onClick={cancel}>Cancelar</Button>
           </Space>
         </div>
+        </Card>
       </Form>
     </Card>
   );
