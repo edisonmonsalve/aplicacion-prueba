@@ -122,6 +122,7 @@ Los huecos principales eran:
 | A4 | Tendencias mensuales y comparación de periodos | Hecho |
 | R4 | Exportación de reportes a CSV y PDF con los filtros activos | Hecho |
 | R5 | Conciliación bancaria con extracto, sugerencias de cruce y cierre auditado | Hecho |
+| R6 | Alertas de cartera priorizadas y seguimiento de cobro auditado | Hecho |
 
 ### Fase 3 — Gobierno del dato
 
@@ -169,6 +170,17 @@ Los huecos principales eran:
 - **RN-30**: La conciliación es un control de consistencia: no crea, modifica ni
   anula asientos contables. Cualquier diferencia debe resolverse con un
   movimiento financiero independiente y auditado.
+- **RN-31**: Las alertas de cartera se calculan desde la misma cartera derivada
+  del aging: no duplican saldos ni crean asientos. Una factura abierta genera una
+  sola alerta según su mora: crítica (>90 días), alta (31-90), media (1-30 y sin
+  fecha de vencimiento) o baja (vence en los próximos 7 días).
+- **RN-32**: El seguimiento de una alerta guarda estado (`pendiente`, `recordado`,
+  `promesa`, `escalado` o `resuelto`), nota y próximo contacto. Es único por
+  factura, nunca se borra y cada cambio queda en `audit_log` con la entidad
+  `receivable_followup`; una promesa exige fecha de próximo contacto.
+- **RN-33**: Las alertas resueltas se ocultan por defecto, pero se pueden incluir
+  con `incluir_resueltos=true`. El seguimiento no modifica la factura, los pagos
+  ni la contabilidad, y solo se permite mientras la factura tenga saldo.
 
 ## 6. Criterios de aceptación transversales
 
@@ -201,7 +213,8 @@ Los huecos principales eran:
 | 2026-11-11 | G3 (índices e invariantes) | — | Migración `V021` con índices compuestos para facturas, ítems, pagos, productos y cierres; pruebas de invariantes de totales, retenciones, asientos vigentes, anulaciones, cartera, pagos, asignaciones y ecuación del balance |
 | 2026-11-11 | C6 (notas crédito/débito) | — | Migración `V022`; tablas `invoice_adjustments` y `invoice_adjustment_items`; asientos con signo negativo para notas crédito; cartera, P&L, balance, aging y presupuestos netean automáticamente; UI en el detalle de factura con creación y anulación auditada |
 | 2026-11-12 | R4 (exportación) | — | Utilidad común `reportExport` con documentos por secciones; CSV sin formato numérico (Excel) y PDF mediante vista imprimible del navegador; botón **Exportar** en resultados, flujo de caja, balance, cartera, tendencias, rentabilidad, rotación y embudo, respetando filtros y exportando todas las páginas de la cartera |
-| 2026-11-12 | R5 (conciliación bancaria) | — | Migración `V023`; tablas `bank_reconciliations` y `bank_statement_lines`; líneas con signo, sugerencias por importe y tolerancia de fechas, cruce/desconciliación, líneas ignoradas con nota, cierre con snapshot y reapertura auditada; página Conciliación con saldos, avance y partidas conciliatorias |
+| 2026-11-12 | R5 (conciliación bancaria) | - | Migración `V023`; tablas `bank_reconciliations` y `bank_statement_lines`; líneas con signo, sugerencias por importe y tolerancia de fechas, cruce/desconciliación, líneas ignoradas con nota, cierre con snapshot y reapertura auditada; página Conciliación con saldos, avance y partidas conciliatorias |
+| 2026-11-12 | R6 (alertas de cartera) | - | Migración `V024`; tabla `receivable_followups`; alertas calculadas desde la cartera (mora crítica/alta/media, vencimiento próximo y sin fecha), resumen por severidad, clientes críticos y seguimiento auditado; panel en Cartera con filtros y modal de gestión |
 
 ## 8. Exportación de reportes (R4)
 
@@ -261,3 +274,36 @@ Los huecos principales eran:
 - **UI**: página **Conciliación** en Finanzas con listado, avance por líneas,
   detalle con saldos y partidas conciliatorias, alta/edición de líneas y modales
   de cruce, ignorar, cerrar y reabrir.
+
+## 10. Alertas de cartera (R6)
+
+- **Origen**: se calculan al vuelo sobre `CARTERA_DERIVED`, la misma consulta que
+  alimenta la cartera y el aging. Por eso el saldo vencido de las alertas coincide
+  con el del aging y no se duplica información.
+- **Reglas por factura abierta**:
+  - `mora_90` (crítica): más de 90 días vencida.
+  - `mora_31_90` (alta): entre 31 y 90 días vencida.
+  - `mora_1_30` (media): entre 1 y 30 días vencida.
+  - `por_vencer_7d` (baja): vence hoy o en los próximos 7 días.
+  - `sin_vencimiento` (media): factura a crédito sin fecha de vencimiento.
+  - Las facturas que vencen en más de 7 días no generan alerta.
+- **Salida**: cada alerta incluye severidad, regla, cliente, factura, vencimiento,
+  días de mora, saldo, título, detalle, acción sugerida y el seguimiento si
+  existe. El reporte añade un resumen por severidad, saldo vencido, saldo por
+  vencer, clientes afectados, alertas sin gestionar, contactos vencidos y
+  promesas, más un top de clientes críticos.
+- **Seguimiento**: tabla `receivable_followups` con un registro por factura.
+  Estados: `pendiente`, `recordado`, `promesa`, `escalado` y `resuelto`; guarda
+  nota, próximo contacto, usuario y fechas. Es append-only en la práctica: se
+  actualiza, nunca se borra, y cada cambio queda en `audit_log` como
+  `receivable_followup` con el id de la factura.
+- **Filtros**: `tipo` (venta/compra), `severidad`, `q` y `incluir_resueltos`.
+  El resumen no se reduce al filtrar por severidad para no perder la magnitud del
+  problema; las alertas resueltas se ocultan salvo que se pidan expresamente.
+- **API**: `GET /api/invoices/cartera/alertas` y
+  `PUT /api/invoices/cartera/alertas/:id/seguimiento` (id de factura).
+- **UI**: panel **Alertas de cobro/pago** en la página Cartera, antes del aging,
+  con etiquetas de severidad, filtros, resumen, tabla priorizada y modal de
+  gestión. Solo admin y contador pueden guardar seguimiento.
+- **Alcance**: el seguimiento es gestión comercial, no contable. No crea pagos,
+  no cambia saldos y no modifica asientos.

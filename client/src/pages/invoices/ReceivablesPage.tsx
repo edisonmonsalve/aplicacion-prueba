@@ -40,6 +40,7 @@ import type {
   ReceivablesSummary,
 } from "@/types";
 import { InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
+import CarteraAlerts from "./CarteraAlerts";
 
 const FMT = "YYYY-MM-DD";
 const DEFAULT_PAGE_SIZE = 20;
@@ -342,6 +343,8 @@ export default function ReceivablesPage() {
           </Card>
         </Col>
       </Row>
+
+      <CarteraAlerts tipo={tipo ?? "venta"} />
 
       {aging && (
         <>

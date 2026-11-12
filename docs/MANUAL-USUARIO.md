@@ -137,6 +137,18 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - La conciliación **no modifica la contabilidad**: si detectas un cargo no registrado, regístralo como gasto o ingreso en Transacciones y vuelve a conciliar.
 - Una línea conciliada no se puede editar ni eliminar; primero usa **Desconciliar**.
 
+### 9.6 Alertas de cartera
+- En **Cartera**, el panel **Alertas de cobro** (o de pago, si filtras compras) prioriza las facturas abiertas por severidad:
+  - **Crítica**: más de 90 días de mora.
+  - **Alta**: entre 31 y 90 días de mora.
+  - **Media**: entre 1 y 30 días de mora, o factura a crédito sin fecha de vencimiento.
+  - **Baja**: vence hoy o en los próximos 7 días.
+- Cada alerta muestra la acción sugerida. Usa **Gestionar** para registrar el estado del cobro: sin gestionar, recordado, promesa de pago, escalado o resuelto, con nota y próximo contacto.
+- Una **promesa de pago** exige fecha de próximo contacto. Si la fecha ya pasó, la alerta se marca como **contacto vencido**.
+- Las alertas **resueltas** se ocultan por defecto; activa **Incluir resueltas** para verlas. El resumen superior mantiene los totales aunque filtres por severidad.
+- El seguimiento no registra pagos ni cambia la factura: es solo gestión comercial y queda en **Auditoría** como *Seguimiento cartera*.
+- Para registrar el dinero, abre la factura y usa **Registrar cobro** o **Registrar pago**; la alerta desaparecerá cuando el saldo llegue a cero.
+
 ## 10. Perfil
 
 - Datos del usuario, cambio de contraseña y ajuste de tema (claro/oscuro).
@@ -160,6 +172,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - **Extracto bancario**: listado de movimientos que informa el banco; en el sistema se carga como líneas con signo.
 - **Partida conciliatoria**: diferencia temporal entre el extracto y el sistema, como un cheque no cobrado o una comisión bancaria aún no registrada.
 - **Conciliación bancaria**: control que cruza el extracto contra los asientos de caja de una cuenta y periodo, sin modificar la contabilidad.
+- **Alerta de cartera**: aviso priorizado por mora o vencimiento próximo sobre una factura abierta; el seguimiento registra la gestión de cobro sin tocar la contabilidad.
 
 ---
 Generado como parte de las mejoras de UI/UX y datos de prueba del proyecto.

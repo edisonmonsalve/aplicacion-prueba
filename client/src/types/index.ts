@@ -941,7 +941,8 @@ export type AuditEntity =
   | "payment"
   | "period_closure"
   | "invoice_adjustment"
-  | "bank_reconciliation";
+  | "bank_reconciliation"
+  | "receivable_followup";
 
 export interface AuditEntry {
   id: number;
@@ -1280,6 +1281,89 @@ export interface CarteraAging {
     vencido: number;
     max_dias: number;
   }[];
+}
+
+// ---------- Alertas de cartera ----------
+
+export type CarteraAlertSeveridad = "critica" | "alta" | "media" | "baja";
+
+export type CarteraAlertRegla =
+  | "mora_90"
+  | "mora_31_90"
+  | "mora_1_30"
+  | "por_vencer_7d"
+  | "sin_vencimiento";
+
+export type CarteraFollowupEstado =
+  | "pendiente"
+  | "recordado"
+  | "promesa"
+  | "escalado"
+  | "resuelto";
+
+export interface CarteraFollowup {
+  estado: CarteraFollowupEstado;
+  nota: string | null;
+  proximo_contacto: string | null;
+  actualizado_at: string | null;
+  usuario: string | null;
+  vencido: boolean;
+}
+
+export interface CarteraAlert {
+  id: string;
+  regla: CarteraAlertRegla;
+  severidad: CarteraAlertSeveridad;
+  tipo: InvoiceTipo;
+  invoice_id: number;
+  numero: string;
+  contraparte: string;
+  party_id: number | null;
+  fecha: string;
+  fecha_vencimiento: string | null;
+  dias_vencido: number;
+  saldo_pendiente: number;
+  titulo: string;
+  detalle: string;
+  accion: string;
+  seguimiento: CarteraFollowup | null;
+}
+
+export interface CarteraAlertReport {
+  as_of: string;
+  filtros: {
+    tipo: InvoiceTipo;
+    severidad: CarteraAlertSeveridad | null;
+    incluir_resueltos: boolean;
+    q: string | null;
+  };
+  resumen: {
+    total: number;
+    por_severidad: Record<CarteraAlertSeveridad, number>;
+    monto_vencido: number;
+    monto_por_vencer_7d: number;
+    clientes_afectados: number;
+    sin_gestion: number;
+    gestion_vencida: number;
+    promesas: number;
+  };
+  clientes: {
+    contraparte: string;
+    party_id: number | null;
+    facturas: number;
+    saldo: number;
+    vencido: number;
+    max_dias: number;
+    severidad: CarteraAlertSeveridad;
+    sin_gestion: number;
+  }[];
+  alertas: CarteraAlert[];
+}
+
+export interface CarteraFollowupInput {
+  estado: CarteraFollowupEstado;
+  nota?: string | null;
+  proximo_contacto?: string | null;
 }
 
 export interface InvoiceItemInput {

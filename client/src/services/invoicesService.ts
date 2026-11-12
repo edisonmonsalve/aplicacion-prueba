@@ -1,6 +1,10 @@
 import { api } from "./api";
 import type {
   CarteraAging,
+  CarteraAlertReport,
+  CarteraAlertSeveridad,
+  CarteraFollowup,
+  CarteraFollowupInput,
   InvoiceAdjustment,
   InvoiceDetail,
   InvoiceInput,
@@ -38,6 +42,22 @@ export const listReceivables = async (q: ReceivablesQuery) =>
 
 export const getCarteraAging = async (params?: { desde?: string; hasta?: string }) =>
   (await api.get<CarteraAging>("/invoices/cartera/aging", { params })).data;
+
+export const getCarteraAlertas = async (params?: {
+  tipo?: "venta" | "compra";
+  severidad?: CarteraAlertSeveridad;
+  incluir_resueltos?: boolean;
+  q?: string;
+}) =>
+  (await api.get<CarteraAlertReport>("/invoices/cartera/alertas", { params })).data;
+
+export const saveCarteraFollowup = async (invoiceId: number, input: CarteraFollowupInput) =>
+  (
+    await api.put<CarteraFollowup & { invoice_id: number }>(
+      `/invoices/cartera/alertas/${invoiceId}/seguimiento`,
+      input
+    )
+  ).data;
 
 export const listInvoicePayments = async (id: number) =>
   (await api.get<InvoicePayment[]>(`/invoices/${id}/payments`)).data;

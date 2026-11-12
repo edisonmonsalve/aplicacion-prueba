@@ -40,6 +40,34 @@ export const agingQuerySchema = z.object({
   hasta: z.string().optional(),
 });
 
+/** Los parámetros de consulta llegan como texto; evita que "false" sea true. */
+const boolish = z.preprocess((value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value === "true" || value === "1";
+  return value;
+}, z.boolean());
+
+export const carteraAlertQuerySchema = z.object({
+  tipo: z.enum(["venta", "compra"]).default("venta"),
+  severidad: z.enum(["critica", "alta", "media", "baja"]).optional(),
+  incluir_resueltos: boolish.default(false),
+  q: z.string().trim().max(120).optional(),
+});
+
+export const followupSchema = z
+  .object({
+    estado: z.enum(["pendiente", "recordado", "promesa", "escalado", "resuelto"]),
+    nota: z.string().trim().max(500).optional().nullable(),
+    proximo_contacto: isoDate.optional().nullable(),
+  })
+  .refine((v) => v.estado !== "promesa" || !!v.proximo_contacto, {
+    message: "Una promesa de pago requiere la fecha del próximo contacto",
+    path: ["proximo_contacto"],
+  });
+
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type ReceivableQuery = z.infer<typeof receivableQuerySchema>;
 export type AgingQuery = z.infer<typeof agingQuerySchema>;
+export type CarteraAlertQuery = z.infer<typeof carteraAlertQuerySchema>;
+export type FollowupInput = z.infer<typeof followupSchema>;

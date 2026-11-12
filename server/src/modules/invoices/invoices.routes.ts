@@ -18,6 +18,8 @@ import {
 import {
   createPaymentSchema,
   agingQuerySchema,
+  carteraAlertQuerySchema,
+  followupSchema,
   paymentParamsSchema,
   receivableQuerySchema,
 } from "./invoice-payments.schema.js";
@@ -28,6 +30,10 @@ import {
   listInvoicePayments,
   listReceivables,
 } from "./invoice-payments.service.js";
+import {
+  carteraAlertas,
+  saveCarteraFollowup,
+} from "./invoice-alerts.service.js";
 import {
   adjustmentParamsSchema,
   createAdjustmentSchema,
@@ -52,6 +58,21 @@ invoicesRouter.get("/cartera", requireRole("admin", "contador", "consulta"), asy
 invoicesRouter.get("/cartera/aging", requireRole("admin", "contador", "consulta"), async (req, res, next) => {
   try {
     res.json(await carteraAging(agingQuerySchema.parse(req.query)));
+  } catch (err) { next(err); }
+});
+
+// Alertas de cartera y seguimiento de cobro.
+invoicesRouter.get("/cartera/alertas", requireRole("admin", "contador", "consulta"), async (req, res, next) => {
+  try {
+    res.json(await carteraAlertas(carteraAlertQuerySchema.parse(req.query)));
+  } catch (err) { next(err); }
+});
+
+invoicesRouter.put("/cartera/alertas/:id/seguimiento", requireRole("admin", "contador"), async (req, res, next) => {
+  try {
+    const id = idSchema.parse(req.params).id;
+    const input = followupSchema.parse(req.body);
+    res.json(await saveCarteraFollowup(id, input, req.user!));
   } catch (err) { next(err); }
 });
 

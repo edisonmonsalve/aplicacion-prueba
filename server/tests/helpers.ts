@@ -12,6 +12,8 @@ export async function resetDb() {
   // Las líneas del extracto y las conciliaciones referencian cuentas y asientos.
   await pool.query("DELETE FROM bank_statement_lines");
   await pool.query("DELETE FROM bank_reconciliations");
+  // El seguimiento de cartera referencia facturas: se borra antes que ellas.
+  await pool.query("DELETE FROM receivable_followups");
   // La auto-referencia de anulaciones impide borrar en bloque sin soltarla primero
   await pool.query("UPDATE transactions SET anulada_de = NULL");
   await pool.query("DELETE FROM transaction_allocations");

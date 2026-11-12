@@ -62,3 +62,30 @@
 - Migración `V023` crea ambas tablas con índices por cuenta, periodo, estado y
   transacción, y restricciones para impedir líneas en cero y líneas conciliadas
   sin asiento.
+
+## Alertas de cartera
+
+- **RF-ALR-1**: La cartera ofrece alertas priorizadas por factura abierta:
+  mora crítica (>90 días), alta (31-90), media (1-30), vencimiento próximo
+  (hoy o en 7 días) y factura sin fecha de vencimiento (media).
+- **RF-ALR-2**: Cada alerta indica severidad, regla, cliente, factura,
+  vencimiento, días de mora, saldo, acción sugerida y seguimiento. El reporte
+  incluye resumen por severidad, montos vencido y por vencer, clientes afectados,
+  alertas sin gestionar, contactos vencidos y promesas.
+- **RF-ALR-3**: El seguimiento de una alerta admite los estados `pendiente`,
+  `recordado`, `promesa`, `escalado` y `resuelto`, con nota y fecha de próximo
+  contacto. Una promesa exige fecha. Es único por factura y se actualiza sin
+  duplicarse.
+- **RF-ALR-4**: Cada alta o cambio de seguimiento queda en `audit_log` con la
+  entidad `receivable_followup` y el id de la factura. El historial no se borra.
+- **RF-ALR-5**: Se puede filtrar por tipo (venta/compra), severidad, texto y
+  `incluir_resueltos`. Las alertas resueltas se ocultan por defecto. El resumen
+  conserva los totales globales al filtrar por severidad.
+- **RN-31**: Las alertas se calculan desde la misma cartera derivada del aging;
+  no duplican saldos ni crean asientos.
+- **RN-32**: El seguimiento es gestión de cobro: no modifica facturas, pagos ni
+  contabilidad, y solo se permite sobre facturas confirmadas a crédito con saldo.
+- **RN-33**: Solo admin y contador pueden guardar seguimiento; consulta puede
+  verlo. El endpoint de lectura exige rol financiero.
+- Migración `V024` crea `receivable_followups` con unicidad por factura, índice
+  por estado y próximo contacto, y la restricción de promesa con fecha.
