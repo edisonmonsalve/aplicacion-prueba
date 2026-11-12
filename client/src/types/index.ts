@@ -377,6 +377,30 @@ export interface FinanceSummary {
   }[];
 }
 
+export type PeriodClosureTipo = "periodo" | "ejercicio";
+
+export interface FiscalYearResult {
+  ingresos: number;
+  costo_ventas: number;
+  margen_bruto: number;
+  gastos: number;
+  utilidad: number;
+  utilidad_pct: number;
+}
+
+export interface FiscalYearBalance {
+  activo: number;
+  pasivo: number;
+  patrimonio: number;
+  caja_bancos: number;
+  inventario: number;
+  cartera_por_cobrar: number;
+  cartera_por_pagar: number;
+  iva_por_pagar: number;
+  iva_a_favor: number;
+  cuadra: boolean;
+}
+
 export interface PeriodClosureSnapshot {
   generado_at: string;
   desde: string;
@@ -398,6 +422,17 @@ export interface PeriodClosureSnapshot {
     ventas: number;
     compras: number;
   };
+  /** Solo en cierres de ejercicio. */
+  tipo?: PeriodClosureTipo;
+  anio?: number;
+  resultado?: FiscalYearResult;
+  balance?: FiscalYearBalance;
+  meses_cerrados?: {
+    id: number;
+    nombre: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+  }[];
 }
 
 export type PeriodClosureEstado = "cerrado" | "reabierto";
@@ -405,6 +440,8 @@ export type PeriodClosureEstado = "cerrado" | "reabierto";
 export interface PeriodClosure {
   id: number;
   nombre: string;
+  tipo: PeriodClosureTipo;
+  anio: number | null;
   fecha_inicio: string;
   fecha_fin: string;
   estado: PeriodClosureEstado;
@@ -420,6 +457,15 @@ export interface PeriodClosureInput {
   nombre: string;
   fecha_inicio: string;
   fecha_fin: string;
+}
+
+export interface FiscalYearPreview {
+  anio: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  existe_cierre_vigente: boolean;
+  cierre_vigente_id: number | null;
+  snapshot: PeriodClosureSnapshot;
 }
 
 // ---------- Conciliación bancaria ----------

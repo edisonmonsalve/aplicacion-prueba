@@ -4,6 +4,7 @@ import { HttpError } from "../../utils/http-error.js";
 import { withTransaction } from "../../utils/transaction.js";
 import { auditFinance, roundMoney, VALID_TRANSACTION } from "../finance/finance.shared.js";
 import { getSummary } from "../finance/transactions.service.js";
+import { getBalance } from "../finance/reports.service.js";
 import type {
   CreateClosureInput,
   ReopenClosureInput,
@@ -93,6 +94,8 @@ async function buildSnapshot(desde: string, hasta: string) {
 export interface ClosureRow {
   id: number;
   nombre: string;
+  tipo: "periodo" | "ejercicio";
+  anio: number | null;
   fecha_inicio: string;
   fecha_fin: string;
   estado: "cerrado" | "reabierto";
@@ -106,7 +109,7 @@ export interface ClosureRow {
 
 export async function listClosures(): Promise<ClosureRow[]> {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT pc.id, pc.nombre, pc.fecha_inicio, pc.fecha_fin, pc.estado,
+    `SELECT pc.id, pc.nombre, pc.tipo, pc.anio, pc.fecha_inicio, pc.fecha_fin, pc.estado,
             pc.snapshot, pc.cerrado_at, pc.reabierto_at, pc.motivo_reapertura,
             uc.nombre AS cerrado_por, ur.nombre AS reabierto_por
      FROM period_closures pc
@@ -148,17 +151,167 @@ export async function createClosure(input: CreateClosureInput, actor: { id: numb
   return withTransaction(async (conn) => {
     const [res] = await conn.query<ResultSetHeader>(
       `INSERT INTO period_closures
-         (nombre, fecha_inicio, fecha_fin, estado, snapshot, cerrado_by)
-       VALUES (?, ?, ?, 'cerrado', ?, ?)`,
+         (nombre, tipo, anio, fecha_inicio, fecha_fin, estado, snapshot, cerrado_by)
+       VALUES (?, 'periodo', NULL, ?, ?, 'cerrado', ?, ?)`,
       [input.nombre, input.fecha_inicio, input.fecha_fin, JSON.stringify(snapshot), actor.id]
     );
     await auditFinance(conn, actor.id, "period_closure", res.insertId, "cerrar", null, {
       nombre: input.nombre,
+      tipo: "periodo",
       fecha_inicio: input.fecha_inicio,
       fecha_fin: input.fecha_fin,
       snapshot,
     });
-    return { id: res.insertId, estado: "cerrado", snapshot };
+    return { id: res.insertId, estado: "cerrado", tipo: "periodo", snapshot };
+  });
+}
+
+/** Fecha final del ejercicio y validación de años razonables. */
+function fiscalRange(anio: number) {
+  const actual = new Date().getFullYear();
+  if (anio > actual) {
+    throw new HttpError(400, "No se puede cerrar un ejercicio futuro");
+  }
+  return { desde: `${anio}-01-01`, hasta: `${anio}-12-31` };
+}
+
+async function activeFiscalClosure(anio: number) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT id, nombre
+     FROM period_closures
+     WHERE tipo = 'ejercicio' AND anio = ? AND estado = 'cerrado'
+     LIMIT 1`,
+    [anio]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Foto del ejercicio: reutiliza el snapshot del periodo y añade el resultado
+ * contable y el balance a 31 de diciembre. No crea asientos de cierre.
+ */
+async function buildFiscalSnapshot(anio: number) {
+  const { desde, hasta } = fiscalRange(anio);
+  const [base, balance, meses] = await Promise.all([
+    buildSnapshot(desde, hasta),
+    getBalance({ hasta }),
+    pool.query<RowDataPacket[]>(
+      `SELECT id, nombre, fecha_inicio, fecha_fin
+       FROM period_closures
+       WHERE tipo = 'periodo' AND estado = 'cerrado'
+         AND fecha_inicio >= ? AND fecha_fin <= ?
+       ORDER BY fecha_inicio`,
+      [desde, hasta]
+    ),
+  ]);
+
+  const resumen = base.resumen;
+  return {
+    ...base,
+    tipo: "ejercicio",
+    anio,
+    resultado: {
+      ingresos: resumen.ingresos_totales,
+      costo_ventas: resumen.costo_ventas,
+      margen_bruto: resumen.margen_bruto,
+      gastos: resumen.gastos_totales,
+      utilidad: resumen.utilidad,
+      utilidad_pct:
+        resumen.ingresos_totales > 0
+          ? roundMoney((resumen.utilidad / resumen.ingresos_totales) * 100)
+          : 0,
+    },
+    balance: {
+      activo: balance.activo.total,
+      pasivo: balance.pasivo.total,
+      patrimonio: balance.patrimonio,
+      caja_bancos: balance.activo.caja_bancos,
+      inventario: balance.activo.inventario,
+      cartera_por_cobrar: balance.activo.cartera_por_cobrar,
+      cartera_por_pagar: balance.pasivo.cartera_por_pagar,
+      iva_por_pagar: balance.pasivo.iva_por_pagar,
+      iva_a_favor: balance.activo.iva_a_favor,
+      cuadra: balance.ecuacion.cuadra,
+    },
+    meses_cerrados: meses[0].map((m) => ({
+      id: Number(m.id),
+      nombre: String(m.nombre),
+      fecha_inicio: m.fecha_inicio,
+      fecha_fin: m.fecha_fin,
+    })),
+  };
+}
+
+/** Vista previa del cierre anual sin persistirlo. */
+export async function previewFiscalYear(anio: number) {
+  const { desde, hasta } = fiscalRange(anio);
+  const [vigente, snapshot] = await Promise.all([
+    activeFiscalClosure(anio),
+    buildFiscalSnapshot(anio),
+  ]);
+  return {
+    anio,
+    fecha_inicio: desde,
+    fecha_fin: hasta,
+    existe_cierre_vigente: !!vigente,
+    cierre_vigente_id: vigente ? Number(vigente.id) : null,
+    snapshot,
+  };
+}
+
+/**
+ * Cierra un ejercicio completo (1 de enero a 31 de diciembre).
+ *
+ * Puede convivir con cierres mensuales ya existentes: el cierre anual es el
+ * candado del año. Reabrir el anual no reabre los meses; cada cierre conserva su
+ * propio estado y su historial.
+ */
+export async function createFiscalClosure(anio: number, actor: { id: number }) {
+  const { desde, hasta } = fiscalRange(anio);
+  const vigente = await activeFiscalClosure(anio);
+  if (vigente) {
+    throw new HttpError(
+      409,
+      `El ejercicio ${anio} ya está cerrado por "${vigente.nombre}". Reábrelo antes de volver a cerrarlo.`
+    );
+  }
+
+  const snapshot = await buildFiscalSnapshot(anio);
+  const nombre = `Cierre ejercicio ${anio}`;
+
+  return withTransaction(async (conn) => {
+    const [again] = await conn.query<RowDataPacket[]>(
+      `SELECT id FROM period_closures
+       WHERE tipo = 'ejercicio' AND anio = ? AND estado = 'cerrado'
+       FOR UPDATE`,
+      [anio]
+    );
+    if (again[0]) {
+      throw new HttpError(409, `El ejercicio ${anio} ya está cerrado`);
+    }
+
+    const [res] = await conn.query<ResultSetHeader>(
+      `INSERT INTO period_closures
+         (nombre, tipo, anio, fecha_inicio, fecha_fin, estado, snapshot, cerrado_by)
+       VALUES (?, 'ejercicio', ?, ?, ?, 'cerrado', ?, ?)`,
+      [nombre, anio, desde, hasta, JSON.stringify(snapshot), actor.id]
+    );
+    await auditFinance(
+      conn,
+      actor.id,
+      "period_closure",
+      res.insertId,
+      "cerrar_ejercicio",
+      null,
+      { nombre, tipo: "ejercicio", anio, fecha_inicio: desde, fecha_fin: hasta, snapshot }
+    );
+    return {
+      id: res.insertId,
+      estado: "cerrado",
+      tipo: "ejercicio",
+      anio,
+      snapshot,
+    };
   });
 }
 
@@ -190,8 +343,8 @@ export async function reopenClosure(
       "period_closure",
       id,
       "reabrir",
-      { estado: "cerrado" },
-      { estado: "reabierto", motivo: input.motivo }
+      { estado: "cerrado", tipo: closure.tipo, anio: closure.anio },
+      { estado: "reabierto", tipo: closure.tipo, anio: closure.anio, motivo: input.motivo }
     );
 
     return { id, estado: "reabierto" };

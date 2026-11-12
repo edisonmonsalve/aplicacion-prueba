@@ -149,6 +149,17 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - El seguimiento no registra pagos ni cambia la factura: es solo gestión comercial y queda en **Auditoría** como *Seguimiento cartera*.
 - Para registrar el dinero, abre la factura y usa **Registrar cobro** o **Registrar pago**; la alerta desaparecerá cuando el saldo llegue a cero.
 
+### 9.7 Cierre de ejercicio
+- En **Cierres**, la pestaña **Cierres de ejercicio** cierra el año completo (1 de enero a 31 de diciembre). No se pueden elegir años futuros ni anteriores a 2000.
+- Pulsa **Cerrar ejercicio**, elige el año y revisa la vista previa: ingresos, utilidad, patrimonio, activo, pasivo, caja y meses cerrados. La vista previa no guarda nada.
+- El cierre **no genera asientos** de cierre ni de apertura: congela en una foto el resultado del año y el balance al 31 de diciembre. El patrimonio se sigue calculando como activo menos pasivo.
+- Mientras el año esté cerrado no se pueden registrar transacciones con fecha dentro de él. Los demás años siguen abiertos.
+- Si el año ya tiene un cierre vigente, el botón se deshabilita. Usa **Reabrir** con un motivo, ajusta lo necesario y vuelve a cerrar.
+- Reabrir **no borra** el cierre anterior: queda en el historial como reabierto, con usuario, fecha y motivo. Al volver a cerrar se crea un registro nuevo.
+- El cierre anual puede convivir con los cierres mensuales. **Reabrir el ejercicio no reabre los meses**: cada cierre mensual conserva su estado y sus bloqueos.
+- El detalle anual muestra el resultado (ingresos, costo de ventas, margen, gastos y utilidad), el balance completo, la ecuación de cuadre, la cartera, las facturas y los meses incluidos.
+- El cierre y la reapertura quedan en **Auditoría** como *Cierre* con las acciones *Cerrar ejercicio* y *Reabrir*.
+
 ## 10. Perfil
 
 - Datos del usuario, cambio de contraseña y ajuste de tema (claro/oscuro).
@@ -173,6 +184,8 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - **Partida conciliatoria**: diferencia temporal entre el extracto y el sistema, como un cheque no cobrado o una comisión bancaria aún no registrada.
 - **Conciliación bancaria**: control que cruza el extracto contra los asientos de caja de una cuenta y periodo, sin modificar la contabilidad.
 - **Alerta de cartera**: aviso priorizado por mora o vencimiento próximo sobre una factura abierta; el seguimiento registra la gestión de cobro sin tocar la contabilidad.
+- **Cierre de ejercicio**: foto inmutable del resultado y del balance del año (1 de enero a 31 de diciembre); bloquea transacciones del año y no genera asientos.
+- **Recierre**: volver a cerrar un ejercicio que fue reabierto. Crea un registro nuevo y conserva el anterior como reabierto.
 
 ---
 Generado como parte de las mejoras de UI/UX y datos de prueba del proyecto.

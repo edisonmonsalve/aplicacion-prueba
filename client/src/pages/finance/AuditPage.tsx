@@ -45,6 +45,7 @@ const ACCION_META: Record<string, { label: string; color: string }> = {
   eliminar: { label: "Eliminar", color: "red" },
   activar: { label: "Activar", color: "cyan" },
   cerrar: { label: "Cerrar", color: "purple" },
+  cerrar_ejercicio: { label: "Cerrar ejercicio", color: "purple" },
   anular: { label: "Anular", color: "volcano" },
   reabrir: { label: "Reabrir", color: "orange" },
   conciliar: { label: "Conciliar", color: "green" },

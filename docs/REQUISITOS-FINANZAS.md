@@ -89,3 +89,36 @@
   verlo. El endpoint de lectura exige rol financiero.
 - Migración `V024` crea `receivable_followups` con unicidad por factura, índice
   por estado y próximo contacto, y la restricción de promesa con fecha.
+
+## Cierre de ejercicio
+
+- **RF-EJE-1**: Se puede cerrar un ejercicio completo, del 1 de enero al 31 de
+  diciembre. Se admiten años entre 2000 y el año actual; un año futuro se rechaza.
+- **RF-EJE-2**: Antes de cerrar, la vista previa muestra ingresos, costo de
+  ventas, margen bruto, gastos, utilidad y utilidad porcentual del año, además del
+  balance al 31 de diciembre y los meses cerrados incluidos. La vista previa no
+  guarda nada.
+- **RF-EJE-3**: El cierre guarda un snapshot inmutable con el resultado del
+  ejercicio y el balance (activo, pasivo, patrimonio, caja, inventario, cartera e
+  IVA). No genera asientos de cierre ni de apertura.
+- **RF-EJE-4**: Mientras el ejercicio esté cerrado, no se pueden registrar
+  transacciones con fecha dentro del año. Otros años siguen abiertos.
+- **RF-EJE-5**: Un año no admite dos cierres vigentes. Tras reabrir el cierre con
+  un motivo, el año puede volver a cerrarse; se conserva el historial y el cierre
+  anterior queda como reabierto con usuario, fecha y motivo.
+- **RF-EJE-6**: El cierre anual puede convivir con cierres mensuales. Los meses
+  mantienen su estado: reabrir el ejercicio no reabre los meses ni sus bloqueos.
+- **RF-EJE-7**: El cierre y la reapertura quedan en `audit_log` con la entidad
+  `period_closure` y las acciones `cerrar_ejercicio` y `reabrir`, incluyendo el
+  tipo y el año.
+- **RF-EJE-8**: Solo admin y contador pueden cerrar o reabrir; consulta puede ver
+  el listado y la vista previa; operador no accede a cierres.
+- **RN-34**: El cierre de ejercicio se guarda en `period_closures` con
+  `tipo = 'ejercicio'` y `anio`, reutilizando el bloqueo y la reapertura de los
+  cierres de periodo.
+- **RN-35**: El resultado y el balance se congelan en el snapshot; el patrimonio
+  se sigue derivando de activo − pasivo y no se reescriben cuentas.
+- **RN-36**: Cada recierre crea una fila nueva; nunca se sobrescribe ni se borra
+  un cierre anterior.
+- Migración `V025` añade `tipo` y `anio` a `period_closures` con el índice
+  `(tipo, anio, estado)`. Los cierres existentes quedan como `periodo`.

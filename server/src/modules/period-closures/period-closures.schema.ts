@@ -20,7 +20,24 @@ export const reopenClosureSchema = z.object({
   motivo: z.string().trim().min(5, "Explica el motivo de la reapertura").max(500),
 });
 
+export const fiscalYearSchema = z.object({
+  anio: z.coerce
+    .number()
+    .int("El año debe ser entero")
+    .min(2000, "Año mínimo: 2000")
+    .max(2100, "Año máximo: 2100"),
+});
+
+export const fiscalYearQuerySchema = z.object({
+  anio: z.coerce
+    .number()
+    .int("El año debe ser entero")
+    .min(2000, "Año mínimo: 2000")
+    .max(2100, "Año máximo: 2100"),
+});
+
 export const idSchema = z.object({ id: z.coerce.number().int().positive() });
 
 export type CreateClosureInput = z.infer<typeof createClosureSchema>;
 export type ReopenClosureInput = z.infer<typeof reopenClosureSchema>;
+export type FiscalYearInput = z.infer<typeof fiscalYearSchema>;

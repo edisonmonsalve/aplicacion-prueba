@@ -123,6 +123,7 @@ Los huecos principales eran:
 | R4 | Exportación de reportes a CSV y PDF con los filtros activos | Hecho |
 | R5 | Conciliación bancaria con extracto, sugerencias de cruce y cierre auditado | Hecho |
 | R6 | Alertas de cartera priorizadas y seguimiento de cobro auditado | Hecho |
+| R7 | Cierre de ejercicio con resultado y balance congelados | Hecho |
 
 ### Fase 3 — Gobierno del dato
 
@@ -181,6 +182,17 @@ Los huecos principales eran:
 - **RN-33**: Las alertas resueltas se ocultan por defecto, pero se pueden incluir
   con `incluir_resueltos=true`. El seguimiento no modifica la factura, los pagos
   ni la contabilidad, y solo se permite mientras la factura tenga saldo.
+- **RN-34**: Un cierre de ejercicio cubre exactamente del 1 de enero al 31 de
+  diciembre. Se guarda en `period_closures` con `tipo = 'ejercicio'` y `anio`, y
+  comparte con los cierres de periodo el bloqueo de asientos, el snapshot y la
+  reapertura auditada. Solo se permiten años entre 2000 y el año actual.
+- **RN-35**: El cierre anual no genera asientos de cierre ni de apertura: congela
+  en el snapshot el resultado del ejercicio (ingresos, costo de ventas, margen
+  bruto, gastos y utilidad) y el balance al 31 de diciembre. El patrimonio del
+  balance se sigue derivando de activo − pasivo.
+- **RN-36**: Un año puede cerrarse, reabrirse y volver a cerrarse. Cada intento
+  es una fila nueva: la reapertura no borra el cierre anterior. El cierre anual
+  puede convivir con los cierres mensuales y reabrir el anual no reabre los meses.
 
 ## 6. Criterios de aceptación transversales
 
@@ -215,6 +227,7 @@ Los huecos principales eran:
 | 2026-11-12 | R4 (exportación) | — | Utilidad común `reportExport` con documentos por secciones; CSV sin formato numérico (Excel) y PDF mediante vista imprimible del navegador; botón **Exportar** en resultados, flujo de caja, balance, cartera, tendencias, rentabilidad, rotación y embudo, respetando filtros y exportando todas las páginas de la cartera |
 | 2026-11-12 | R5 (conciliación bancaria) | - | Migración `V023`; tablas `bank_reconciliations` y `bank_statement_lines`; líneas con signo, sugerencias por importe y tolerancia de fechas, cruce/desconciliación, líneas ignoradas con nota, cierre con snapshot y reapertura auditada; página Conciliación con saldos, avance y partidas conciliatorias |
 | 2026-11-12 | R6 (alertas de cartera) | - | Migración `V024`; tabla `receivable_followups`; alertas calculadas desde la cartera (mora crítica/alta/media, vencimiento próximo y sin fecha), resumen por severidad, clientes críticos y seguimiento auditado; panel en Cartera con filtros y modal de gestión |
+| 2026-11-12 | R7 (cierre de ejercicio) | - | Migración `V025`; `tipo` y `anio` en `period_closures`; vista previa sin persistir, cierre anual con resultado y balance congelados, bloqueo del año, duplicado controlado y recierre con historial; pestaña **Ejercicio** en Cierres con detalle anual |
 
 ## 8. Exportación de reportes (R4)
 
@@ -307,3 +320,40 @@ Los huecos principales eran:
   gestión. Solo admin y contador pueden guardar seguimiento.
 - **Alcance**: el seguimiento es gestión comercial, no contable. No crea pagos,
   no cambia saldos y no modifica asientos.
+
+## 11. Cierre de ejercicio (R7)
+
+- **Modelo**: reutiliza `period_closures`. La migración `V025` añade
+  `tipo ENUM('periodo', 'ejercicio')` y `anio SMALLINT UNSIGNED NULL`, más el
+  índice `(tipo, anio, estado)`. Los cierres anteriores quedan como `periodo`.
+- **Rango**: siempre del 1 de enero al 31 de diciembre del año elegido. Se admiten
+  años entre 2000 y el año actual; un año futuro se rechaza con 400.
+- **Vista previa**: `GET /api/period-closures/ejercicios/:anio/preview` calcula
+  resultado, balance, meses cerrados y si ya existe un cierre vigente, sin guardar
+  nada. La UI la muestra antes de confirmar y deshabilita el botón si el año ya
+  está cerrado.
+- **Snapshot**: parte del snapshot de periodo (resumen, facturas, cartera,
+  transacciones y retenciones) y añade:
+  - `resultado`: ingresos, costo de ventas, margen bruto, gastos, utilidad y
+    utilidad porcentual.
+  - `balance`: activo, pasivo, patrimonio derivado, caja y bancos, inventario,
+    cartera por cobrar/pagar, IVA por pagar/a favor y la marca `cuadra`.
+  - `meses_cerrados`: cierres mensuales vigentes contenidos en el año.
+- **Sin asientos**: el cierre anual no crea asientos de cierre ni de apertura. El
+  resultado se congela en el snapshot y el patrimonio se sigue derivando en el
+  balance; no se reescriben cuentas ni se ponen saldos a cero.
+- **Bloqueo**: al quedar vigente, `assertPeriodOpen` impide registrar
+  transacciones con fecha dentro del año, igual que un cierre mensual.
+- **Convivencia**: puede existir junto a cierres mensuales. Los meses conservan
+  su propio estado: reabrir el ejercicio no reabre los meses y estos siguen
+  bloqueando sus fechas.
+- **Duplicados e historial**: un mismo año no admite dos cierres vigentes (409).
+  Tras reabrir, se puede volver a cerrar; se inserta una fila nueva y se conserva
+  la anterior como `reabierto`, con motivo, usuario y fecha.
+- **Auditoría**: el cierre registra `cerrar_ejercicio` y la reapertura `reabrir`
+  en `audit_log` con entidad `period_closure`, incluyendo `tipo` y `anio`.
+- **API**: `GET /api/period-closures/ejercicios/:anio/preview` (admin, contador,
+  consulta) y `POST /api/period-closures/ejercicios` (admin, contador).
+- **UI**: pestaña **Cierres de ejercicio** en la página Cierres, con aviso de que
+  no se generan asientos, tabla de años, resultado, patrimonio, meses cerrados,
+  estado del balance y detalle ampliado del snapshot anual.
