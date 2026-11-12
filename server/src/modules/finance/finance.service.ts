@@ -132,6 +132,17 @@ export async function deleteAccount(id: number, actor: AuthUser) {
       );
     }
 
+    const [[{ conciliaciones }]] = await conn.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS conciliaciones FROM bank_reconciliations WHERE account_id = ?",
+      [id]
+    );
+    if (Number(conciliaciones) > 0) {
+      throw new HttpError(
+        409,
+        "La cuenta tiene conciliaciones bancarias; desactívala en lugar de eliminarla"
+      );
+    }
+
     await conn.query("DELETE FROM finance_accounts WHERE id = ?", [id]);
     await auditFinance(conn, actor.id, "account", id, "eliminar", account, null);
     return { id };

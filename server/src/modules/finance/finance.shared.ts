@@ -46,7 +46,8 @@ export async function auditFinance(
     | "account"
     | "payment"
     | "period_closure"
-    | "invoice_adjustment",
+    | "invoice_adjustment"
+    | "bank_reconciliation",
   entidadId: number,
   accion: string,
   antes: unknown,

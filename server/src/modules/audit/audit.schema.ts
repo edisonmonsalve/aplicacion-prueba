@@ -9,7 +9,15 @@ export const auditQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   entidad: z
-    .enum(["budget", "transaction", "account", "payment", "period_closure"])
+    .enum([
+      "budget",
+      "transaction",
+      "account",
+      "payment",
+      "period_closure",
+      "invoice_adjustment",
+      "bank_reconciliation",
+    ])
     .optional(),
   entidad_id: z.coerce.number().int().positive().optional(),
   accion: z.string().trim().max(30).optional(),

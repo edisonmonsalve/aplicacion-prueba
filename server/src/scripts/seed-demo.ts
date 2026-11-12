@@ -857,7 +857,50 @@ async function main() {
   }
   log(`  + ${gastos.length * 3} gastos operativos registrados`);
 
-  // 13. Factura en borrador para probar edición y confirmación manual.
+  // 13. Conciliación bancaria demo en curso.
+  // Cruza dos transferencias reales del periodo y deja una comisión bancaria
+  // pendiente para probar las sugerencias y el cierre.
+  const lineaRecaudo = Math.round(ventaAndina.total_neto * 0.6 * 100) / 100;
+  const lineaPago = -Math.round(compraTecnologia.total_neto * 0.5 * 100) / 100;
+  const comisionBanco = -35000;
+  const saldoExtractoInicial = 90000000;
+  const saldoExtractoFinal =
+    Math.round((saldoExtractoInicial + lineaRecaudo + lineaPago + comisionBanco) * 100) / 100;
+  const conciliacion = await post<IdResponse & { estado: string }>(
+    "/finance/reconciliations",
+    {
+      account_id: bancoId,
+      nombre: "Banco principal · conciliación en curso",
+      fecha_inicio: daysAgo(80),
+      fecha_fin: daysAgo(0),
+      saldo_extracto_inicial: saldoExtractoInicial,
+      saldo_extracto_final: saldoExtractoFinal,
+      lineas: [
+        {
+          fecha: daysAgo(55),
+          descripcion: "Recaudo de cartera · Constructora Andina",
+          referencia: "REC-001",
+          monto: lineaRecaudo,
+        },
+        {
+          fecha: daysAgo(20),
+          descripcion: "Pago a proveedor de tecnología",
+          referencia: "TRF-COMP-002",
+          monto: lineaPago,
+        },
+        {
+          fecha: daysAgo(6),
+          descripcion: "Comisión bancaria",
+          referencia: "COM-BANCO-01",
+          monto: comisionBanco,
+          nota: "Pendiente de registrar como gasto",
+        },
+      ],
+    }
+  );
+  log(`  + conciliación bancaria #${conciliacion.id} con 3 líneas del extracto`);
+
+  // 14. Factura en borrador para probar edición y confirmación manual.
   const borrador = await post<IdResponse & { numero: string }>("/invoices", {
     tipo: "venta",
     fecha: daysAgo(1),
@@ -878,7 +921,7 @@ async function main() {
   });
   log(`  + factura borrador ${borrador.numero}`);
 
-  // 14. Cotizaciones del embudo comercial (pipeline vigente).
+  // 15. Cotizaciones del embudo comercial (pipeline vigente).
   const quoteRes = await get<Page<unknown>>("/quotes?page=1&pageSize=1");
   if ((quoteRes.total ?? 0) === 0) {
   const clientes = [

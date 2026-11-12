@@ -215,6 +215,23 @@ export async function reverseTransaction(id: number, actor: AuthUser) {
       throw new HttpError(409, "Las transacciones automáticas no se pueden anular manualmente");
     }
 
+    // Una transacción conciliada no puede desaparecer: la línea del extracto
+    // quedaría apuntando a un asiento anulado. Primero se desconcilla.
+    const [reconciled] = await conn.query<RowDataPacket[]>(
+      `SELECT l.id, r.nombre
+       FROM bank_statement_lines l
+       JOIN bank_reconciliations r ON r.id = l.reconciliation_id
+       WHERE l.transaction_id = ? AND l.estado = 'conciliada'
+       LIMIT 1`,
+      [id]
+    );
+    if (reconciled[0]) {
+      throw new HttpError(
+        409,
+        `La transacción está conciliada en "${reconciled[0].nombre}". Desconcíliala antes de anularla.`
+      );
+    }
+
     await assertPeriodOpen(conn, original.fecha);
 
     // RN-02: no se edita ni se borra; se anula con la contrapartida del mismo importe.

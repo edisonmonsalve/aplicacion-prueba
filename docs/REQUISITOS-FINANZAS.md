@@ -29,3 +29,36 @@
   no solo la página visible, junto con el aging y los principales deudores.
 - **RN-25**: La exportación es de solo lectura: no modifica datos ni estados, y
   no incluye información de terceros ajena a los filtros solicitados.
+
+## Conciliación bancaria
+
+- Tablas `bank_reconciliations` (cabecera) y `bank_statement_lines` (extracto).
+- `bank_reconciliations`: `account_id`, `nombre`, `fecha_inicio`, `fecha_fin`,
+  `saldo_extracto_inicial`, `saldo_extracto_final`, `estado` (abierta | cerrada),
+  `snapshot`, datos de cierre y de reapertura (`motivo_reapertura`).
+- `bank_statement_lines`: `fecha`, `descripcion`, `referencia`, `monto` con
+  signo (positivo entrada, negativo salida), `estado` (pendiente | conciliada |
+  ignorada), `transaction_id`, `nota` y datos de conciliación.
+- **RF-CON-1**: Se puede crear una conciliación por cuenta y periodo, con saldos
+  inicial y final del extracto. No se permiten dos conciliaciones abiertas
+  superpuestas de la misma cuenta.
+- **RF-CON-2**: Las líneas del extracto se agregan, editan y eliminan mientras la
+  conciliación esté abierta y la línea no esté conciliada.
+- **RF-CON-3**: El sistema sugiere cruces por cuenta, importe firmado exacto y
+  tolerancia de fechas configurable. El cruce manual valida cuenta, importe,
+  vigencia y que el asiento afecte caja; un asiento no se cruza dos veces.
+- **RF-CON-4**: Una línea se puede ignorar con una nota obligatoria. Conciliar,
+  desconciliar e ignorar quedan en `audit_log` con la entidad
+  `bank_reconciliation`.
+- **RF-CON-5**: El detalle muestra saldo del sistema, saldo del extracto,
+  diferencia, avance, líneas pendientes y partidas conciliatorias (extracto sin
+  sistema y sistema sin extracto).
+- **RF-CON-6**: El cierre exige que todas las líneas estén resueltas y que el
+  saldo final del extracto sea igual al inicial más sus líneas. Guarda un
+  `snapshot` de los totales. La reapertura exige motivo y conserva el historial.
+- **RN-30**: La conciliación no crea, modifica ni anula asientos contables; solo
+  cruza información y deja evidencia. Las diferencias se resuelven con
+  transacciones independientes.
+- Migración `V023` crea ambas tablas con índices por cuenta, periodo, estado y
+  transacción, y restricciones para impedir líneas en cero y líneas conciliadas
+  sin asiento.

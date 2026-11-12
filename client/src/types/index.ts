@@ -422,6 +422,180 @@ export interface PeriodClosureInput {
   fecha_fin: string;
 }
 
+// ---------- Conciliación bancaria ----------
+
+export type ReconciliationEstado = "abierta" | "cerrada";
+export type StatementLineEstado = "pendiente" | "conciliada" | "ignorada";
+
+export interface BankReconciliationListItem {
+  id: number;
+  account_id: number;
+  cuenta: string;
+  cuenta_tipo: string;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  saldo_extracto_inicial: number;
+  saldo_extracto_final: number;
+  estado: ReconciliationEstado;
+  total_lineas: number;
+  conciliadas: number;
+  ignoradas: number;
+  pendientes: number;
+  /** Porcentaje de líneas resueltas (conciliadas o ignoradas). */
+  pct_conciliado: number;
+  cerrada_at: string | null;
+  reabierta_at: string | null;
+  motivo_reapertura: string | null;
+  cerrada_por: string | null;
+  reabierta_por: string | null;
+  creador: string;
+  created_at: string | null;
+}
+
+export interface BankStatementLine {
+  id: number;
+  reconciliation_id: number;
+  fecha: string;
+  descripcion: string;
+  referencia: string | null;
+  /** Positivo = entrada, negativo = salida. */
+  monto: number;
+  estado: StatementLineEstado;
+  transaction_id: number | null;
+  nota: string | null;
+  conciliada_at: string | null;
+  conciliada_por: string | null;
+  created_at: string | null;
+  tx_fecha: string | null;
+  tx_tipo: FinanceCategoryTipo | null;
+  tx_monto: number | null;
+  tx_monto_firmado: number | null;
+  tx_descripcion: string | null;
+  tx_categoria: string | null;
+  tx_invoice_id: number | null;
+  tx_factura: string | null;
+}
+
+export interface ReconciliationMovement {
+  id: number;
+  fecha: string;
+  tipo: FinanceCategoryTipo;
+  monto: number;
+  /** Importe con signo bancario: entradas suman y salidas restan. */
+  monto_firmado: number;
+  categoria: string;
+  descripcion: string | null;
+  invoice_id: number | null;
+  factura: string | null;
+  /** Línea del extracto de esta conciliación que lo tiene cruzado. */
+  line_id: number | null;
+  /** Ya está conciliado en otra conciliación. */
+  otra_conciliacion: boolean;
+}
+
+export interface ReconciliationSummary {
+  saldo_inicial_sistema: number;
+  saldo_sistema: number;
+  saldo_extracto_inicial: number;
+  saldo_extracto_final: number;
+  saldo_extracto_calculado: number;
+  diferencia: number;
+  diferencia_explicada: number;
+  diferencia_no_explicada: number;
+  monto_pendiente: number;
+  monto_ignorado: number;
+  monto_sistema_sin_conciliar: number;
+  movimientos_sistema: number;
+  movimientos_sin_conciliar: number;
+  lineas_total: number;
+  lineas_conciliadas: number;
+  lineas_ignoradas: number;
+  lineas_pendientes: number;
+  pct_conciliado: number;
+  extracto_cuadra: boolean;
+  lineas_resueltas: boolean;
+  puede_cerrar: boolean;
+}
+
+export interface ReconciliationSnapshot {
+  generado_at: string;
+  resumen: ReconciliationSummary;
+  lineas: number;
+}
+
+export interface BankReconciliation {
+  id: number;
+  account_id: number;
+  cuenta: string;
+  cuenta_tipo: string;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  saldo_extracto_inicial: number;
+  saldo_extracto_final: number;
+  estado: ReconciliationEstado;
+  snapshot: ReconciliationSnapshot | null;
+  cerrada_at: string | null;
+  reabierta_at: string | null;
+  motivo_reapertura: string | null;
+  cerrada_por: string | null;
+  reabierta_por: string | null;
+  creador: string;
+  created_at: string | null;
+  lineas: BankStatementLine[];
+  movimientos: ReconciliationMovement[];
+  resumen: ReconciliationSummary;
+}
+
+export interface StatementLineInput {
+  fecha: string;
+  descripcion: string;
+  referencia?: string;
+  monto: number;
+  nota?: string;
+}
+
+export interface ReconciliationInput {
+  account_id: number;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  saldo_extracto_inicial: number;
+  saldo_extracto_final: number;
+  lineas?: StatementLineInput[];
+}
+
+export interface ReconciliationUpdateInput {
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  saldo_extracto_inicial: number;
+  saldo_extracto_final: number;
+}
+
+export interface ReconciliationCandidate {
+  transaction_id: number;
+  fecha: string;
+  tipo: FinanceCategoryTipo;
+  monto: number;
+  monto_firmado: number;
+  categoria: string;
+  descripcion: string | null;
+  invoice_id: number | null;
+  factura: string | null;
+  diferencia_dias: number;
+}
+
+export interface ReconciliationSuggestion {
+  linea_id: number;
+  fecha: string;
+  descripcion: string;
+  monto: number;
+  candidatos: ReconciliationCandidate[];
+}
+
+
 // ---------- Estado de resultados (P&L) ----------
 
 export interface PnlLine {
@@ -766,7 +940,8 @@ export type AuditEntity =
   | "account"
   | "payment"
   | "period_closure"
-  | "invoice_adjustment";
+  | "invoice_adjustment"
+  | "bank_reconciliation";
 
 export interface AuditEntry {
   id: number;

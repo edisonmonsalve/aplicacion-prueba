@@ -43,6 +43,31 @@ import {
 } from "./reports.service.js";
 import { createTransaction, getSummary, listTransactions, reverseTransaction } from "./transactions.service.js";
 import { getDataHealth } from "./data-health.service.js";
+import {
+  addStatementLine,
+  closeReconciliation,
+  createReconciliation,
+  deleteStatementLine,
+  getReconciliation,
+  ignoreStatementLine,
+  listReconciliations,
+  listSuggestions,
+  matchStatementLine,
+  reopenReconciliation,
+  unmatchStatementLine,
+  updateReconciliation,
+  updateStatementLine,
+} from "./reconciliations.service.js";
+import {
+  createReconciliationSchema,
+  ignoreLineSchema,
+  listReconciliationsQuerySchema,
+  listSuggestionsQuerySchema,
+  matchLineSchema,
+  reopenReconciliationSchema,
+  statementLineSchema,
+  updateReconciliationSchema,
+} from "./reconciliations.schema.js";
 
 export const financeRouter = Router();
 
@@ -118,6 +143,82 @@ financeRouter.post("/transactions", canWrite, async (req, res) => {
 
 financeRouter.post("/transactions/:id/reverse", canWrite, async (req, res) => {
   res.json(await reverseTransaction(idSchema.parse(req.params.id), req.user!));
+});
+
+financeRouter.get("/reconciliations", async (req, res) => {
+  res.json(await listReconciliations(listReconciliationsQuerySchema.parse(req.query)));
+});
+
+financeRouter.post("/reconciliations", canWrite, async (req, res) => {
+  res
+    .status(201)
+    .json(await createReconciliation(createReconciliationSchema.parse(req.body), req.user!));
+});
+
+financeRouter.get("/reconciliations/:id", async (req, res) => {
+  res.json(await getReconciliation(idSchema.parse(req.params.id)));
+});
+
+financeRouter.put("/reconciliations/:id", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  res.json(await updateReconciliation(id, updateReconciliationSchema.parse(req.body), req.user!));
+});
+
+financeRouter.get("/reconciliations/:id/suggestions", async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const { dias } = listSuggestionsQuerySchema.parse(req.query);
+  res.json(await listSuggestions(id, dias));
+});
+
+financeRouter.post("/reconciliations/:id/lines", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  res
+    .status(201)
+    .json(await addStatementLine(id, statementLineSchema.parse(req.body), req.user!));
+});
+
+financeRouter.put("/reconciliations/:id/lines/:lineId", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const lineId = idSchema.parse(req.params.lineId);
+  res.json(
+    await updateStatementLine(id, lineId, statementLineSchema.parse(req.body), req.user!)
+  );
+});
+
+financeRouter.delete("/reconciliations/:id/lines/:lineId", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const lineId = idSchema.parse(req.params.lineId);
+  res.json(await deleteStatementLine(id, lineId, req.user!));
+});
+
+financeRouter.post("/reconciliations/:id/lines/:lineId/match", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const lineId = idSchema.parse(req.params.lineId);
+  const { transaction_id } = matchLineSchema.parse(req.body);
+  res.json(await matchStatementLine(id, lineId, transaction_id, req.user!));
+});
+
+financeRouter.post("/reconciliations/:id/lines/:lineId/unmatch", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const lineId = idSchema.parse(req.params.lineId);
+  res.json(await unmatchStatementLine(id, lineId, req.user!));
+});
+
+financeRouter.post("/reconciliations/:id/lines/:lineId/ignore", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const lineId = idSchema.parse(req.params.lineId);
+  const { nota } = ignoreLineSchema.parse(req.body);
+  res.json(await ignoreStatementLine(id, lineId, nota, req.user!));
+});
+
+financeRouter.post("/reconciliations/:id/close", canWrite, async (req, res) => {
+  res.json(await closeReconciliation(idSchema.parse(req.params.id), req.user!));
+});
+
+financeRouter.post("/reconciliations/:id/reopen", canWrite, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const { motivo } = reopenReconciliationSchema.parse(req.body);
+  res.json(await reopenReconciliation(id, motivo, req.user!));
 });
 
 financeRouter.get("/suggestions", async (_req, res) => {

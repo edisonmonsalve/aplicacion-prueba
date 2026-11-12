@@ -67,6 +67,10 @@ export function getRouteBreadcrumb(pathname: string): BreadcrumbEntry[] | null {
       items.push({ label: "Cierres", to: "/finanzas/cierres" });
       return finish();
     }
+    if (sub === "conciliaciones") {
+      items.push({ label: "Conciliación bancaria", to: "/finanzas/conciliaciones" });
+      return finish();
+    }
     if (sub === "resultados") {
       items.push({ label: "Resultados", to: "/finanzas/resultados" });
       return finish();

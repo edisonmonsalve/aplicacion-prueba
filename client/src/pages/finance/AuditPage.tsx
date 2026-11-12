@@ -30,6 +30,7 @@ const ENTIDAD_META: Record<AuditEntity, { label: string; color: string }> = {
   payment: { label: "Pago", color: "gold" },
   period_closure: { label: "Cierre", color: "purple" },
   invoice_adjustment: { label: "Nota", color: "cyan" },
+  bank_reconciliation: { label: "Conciliación", color: "magenta" },
 };
 
 const ENTIDAD_OPTIONS = (Object.keys(ENTIDAD_META) as AuditEntity[]).map((value) => ({
@@ -45,6 +46,11 @@ const ACCION_META: Record<string, { label: string; color: string }> = {
   cerrar: { label: "Cerrar", color: "purple" },
   anular: { label: "Anular", color: "volcano" },
   reabrir: { label: "Reabrir", color: "orange" },
+  conciliar: { label: "Conciliar", color: "green" },
+  desconciliar: { label: "Desconciliar", color: "gold" },
+  ignorar: { label: "Ignorar", color: "default" },
+  linea_agregar: { label: "Agregar línea", color: "cyan" },
+  linea_eliminar: { label: "Eliminar línea", color: "red" },
 };
 
 const ACCION_OPTIONS = Object.keys(ACCION_META).map((value) => ({

@@ -121,6 +121,7 @@ Los huecos principales eran:
 | A3 | Embudo de cotizaciones y tiempo de cierre | Hecho |
 | A4 | Tendencias mensuales y comparación de periodos | Hecho |
 | R4 | Exportación de reportes a CSV y PDF con los filtros activos | Hecho |
+| R5 | Conciliación bancaria con extracto, sugerencias de cruce y cierre auditado | Hecho |
 
 ### Fase 3 — Gobierno del dato
 
@@ -151,6 +152,23 @@ Los huecos principales eran:
   El CSV conserva los valores numéricos sin formato para poder sumarlos en Excel;
   el PDF es una vista imprimible que incluye metadatos, secciones y notas del
   reporte, y se guarda como PDF desde el diálogo de impresión del navegador.
+- **RN-26**: En la conciliación bancaria cada línea del extracto tiene signo:
+  positivo para entradas y negativo para salidas. El asiento del sistema se
+  compara con el mismo criterio (ingreso/pasivo suma, gasto/activo resta).
+- **RN-27**: Solo se cruzan líneas y asientos de la misma cuenta con el mismo
+  importe firmado y un asiento vigente que afecte caja. Las sugerencias usan una
+  tolerancia de fechas configurable; el cruce manual exige que el importe
+  coincida exactamente.
+- **RN-28**: Una conciliación se cierra cuando todas sus líneas están conciliadas
+  o ignoradas con nota y el saldo final del extracto coincide con el inicial más
+  sus líneas. Las partidas conciliatorias pendientes del sistema no impiden el
+  cierre: se muestran como diferencia explicada.
+- **RN-29**: Reabrir una conciliación no la borra: guarda el motivo, el usuario y
+  la fecha, y deja el hecho en `audit_log`. Una conciliación cerrada no admite
+  cambios en sus líneas.
+- **RN-30**: La conciliación es un control de consistencia: no crea, modifica ni
+  anula asientos contables. Cualquier diferencia debe resolverse con un
+  movimiento financiero independiente y auditado.
 
 ## 6. Criterios de aceptación transversales
 
@@ -183,6 +201,7 @@ Los huecos principales eran:
 | 2026-11-11 | G3 (índices e invariantes) | — | Migración `V021` con índices compuestos para facturas, ítems, pagos, productos y cierres; pruebas de invariantes de totales, retenciones, asientos vigentes, anulaciones, cartera, pagos, asignaciones y ecuación del balance |
 | 2026-11-11 | C6 (notas crédito/débito) | — | Migración `V022`; tablas `invoice_adjustments` y `invoice_adjustment_items`; asientos con signo negativo para notas crédito; cartera, P&L, balance, aging y presupuestos netean automáticamente; UI en el detalle de factura con creación y anulación auditada |
 | 2026-11-12 | R4 (exportación) | — | Utilidad común `reportExport` con documentos por secciones; CSV sin formato numérico (Excel) y PDF mediante vista imprimible del navegador; botón **Exportar** en resultados, flujo de caja, balance, cartera, tendencias, rentabilidad, rotación y embudo, respetando filtros y exportando todas las páginas de la cartera |
+| 2026-11-12 | R5 (conciliación bancaria) | — | Migración `V023`; tablas `bank_reconciliations` y `bank_statement_lines`; líneas con signo, sugerencias por importe y tolerancia de fechas, cruce/desconciliación, líneas ignoradas con nota, cierre con snapshot y reapertura auditada; página Conciliación con saldos, avance y partidas conciliatorias |
 
 ## 8. Exportación de reportes (R4)
 
@@ -204,3 +223,41 @@ Los huecos principales eran:
   error y no se pierde el gesto original.
 - **Componentes**: `client/src/utils/reportExport.ts` (documento, CSV y HTML
   imprimible) y `client/src/components/ReportExport.tsx` (botón común).
+
+## 9. Conciliación bancaria (R5)
+
+- **Tablas**: `bank_reconciliations` guarda la cabecera (cuenta, periodo, saldos
+  inicial y final del extracto, estado, cierre y reapertura) y
+  `bank_statement_lines` las líneas informadas por el banco. Una línea tiene
+  fecha, descripción, referencia, importe con signo, estado
+  (`pendiente`/`conciliada`/`ignorada`), nota y el asiento del sistema al que se
+  cruzó.
+- **Saldos**: el sistema calcula el saldo de la cuenta a la fecha de inicio con
+  su saldo inicial y todos los asientos vigentes que afectan caja; luego suma los
+  movimientos del periodo. El extracto se calcula con su saldo inicial más las
+  líneas. La diferencia principal es `saldo_extracto_final - saldo_sistema`.
+- **Partidas conciliatorias**: se separan las líneas del extracto pendientes o
+  ignoradas (banco sin registrar en el sistema) de los movimientos del sistema
+  que no aparecen en el extracto. La diferencia no explicada debería ser cero si
+  los saldos iniciales coinciden.
+- **Sugerencias**: para cada línea pendiente se buscan asientos vigentes de la
+  misma cuenta, que afectan caja y tienen el mismo importe firmado, dentro de una
+  tolerancia de fechas de ±3, ±7, ±15 o ±30 días. El cruce manual exige importe
+  exacto y cuenta correcta.
+- **Cierre**: exige que todas las líneas estén conciliadas o ignoradas con nota y
+  que el saldo final del extracto cuadre con el inicial más sus líneas. Guarda un
+  `snapshot` JSON con los totales y las partidas del momento.
+- **Reapertura**: no borra el cierre; deja el motivo, el usuario y la fecha, y
+  registra el hecho en `audit_log` con la entidad `bank_reconciliation`.
+- **Alcance contable**: la conciliación no crea ni modifica asientos. Si el
+  banco muestra una comisión o un cargo no registrado, se ignora con una nota o
+  se registra aparte como gasto; la conciliación solo deja evidencia.
+- **API**: `GET/POST /api/finance/reconciliations`,
+  `GET/PUT /api/finance/reconciliations/:id`,
+  `GET /api/finance/reconciliations/:id/suggestions`,
+  `POST /api/finance/reconciliations/:id/lines`,
+  `PUT/DELETE /api/finance/reconciliations/:id/lines/:lineId`,
+  `POST /lines/:lineId/match`, `/unmatch`, `/ignore`, `/close` y `/reopen`.
+- **UI**: página **Conciliación** en Finanzas con listado, avance por líneas,
+  detalle con saldos y partidas conciliatorias, alta/edición de líneas y modales
+  de cruce, ignorar, cerrar y reabrir.

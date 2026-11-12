@@ -127,6 +127,16 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - En **Cartera** se descargan todas las facturas del filtro, no solo la página visible, junto con el aging y los principales deudores.
 - Si el navegador bloquea la ventana del PDF, permite las ventanas emergentes para este sitio y vuelve a intentarlo.
 
+### 9.5 Conciliación bancaria
+- **Nueva conciliación**: elige la cuenta (banco o caja), el periodo y los saldos inicial y final que informa el extracto.
+- **Líneas del extracto**: agrega cada movimiento con su fecha, descripción, referencia e importe. Usa **monto positivo** para entradas y **negativo** para salidas.
+- **Conciliar**: el sistema propone asientos de la misma cuenta y del mismo importe dentro de una tolerancia de fechas (±3, ±7, ±15 o ±30 días). Si no aparece la sugerencia esperada, amplía la tolerancia o revisa el importe; también puedes ignorar la línea con una nota.
+- **Partidas conciliatorias**: el detalle separa las líneas del banco que aún no están en el sistema de los movimientos del sistema que el banco todavía no ha procesado. La **diferencia no explicada** debería ser cero cuando los saldos iniciales coinciden.
+- **Cerrar**: solo se permite cuando todas las líneas están conciliadas o ignoradas y el saldo final del extracto cuadra con el inicial más sus líneas. El cierre congela una foto de los totales.
+- **Reabrir**: deja el motivo, el usuario y la fecha en la auditoría; la conciliación no se borra.
+- La conciliación **no modifica la contabilidad**: si detectas un cargo no registrado, regístralo como gasto o ingreso en Transacciones y vuelve a conciliar.
+- Una línea conciliada no se puede editar ni eliminar; primero usa **Desconciliar**.
+
 ## 10. Perfil
 
 - Datos del usuario, cambio de contraseña y ajuste de tema (claro/oscuro).
@@ -147,6 +157,9 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - **IVA descontable**: activo generado por el IVA de las compras; no es dinero disponible.
 - **Costo histórico**: costo del producto al momento de la salida; base del costo de ventas.
 - **Asiento de cabecera**: fila financiera agrupada por factura (neto, IVA o costo de ventas).
+- **Extracto bancario**: listado de movimientos que informa el banco; en el sistema se carga como líneas con signo.
+- **Partida conciliatoria**: diferencia temporal entre el extracto y el sistema, como un cheque no cobrado o una comisión bancaria aún no registrada.
+- **Conciliación bancaria**: control que cruza el extracto contra los asientos de caja de una cuenta y periodo, sin modificar la contabilidad.
 
 ---
 Generado como parte de las mejoras de UI/UX y datos de prueba del proyecto.

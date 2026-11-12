@@ -24,6 +24,7 @@ import BudgetsPage from "@/pages/finance/BudgetsPage";
 import BudgetDetailPage from "@/pages/finance/BudgetDetailPage";
 import TransactionsPage from "@/pages/finance/TransactionsPage";
 import PeriodClosuresPage from "@/pages/finance/PeriodClosuresPage";
+import ReconciliationsPage from "@/pages/finance/ReconciliationsPage";
 import ProfitLossPage from "@/pages/finance/ProfitLossPage";
 import CashFlowPage from "@/pages/finance/CashFlowPage";
 import BalancePage from "@/pages/finance/BalancePage";
@@ -107,6 +108,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "contador", "consulta"]}>
                   <PeriodClosuresPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finanzas/conciliaciones"
+              element={
+                <ProtectedRoute roles={["admin", "contador", "consulta"]}>
+                  <ReconciliationsPage />
                 </ProtectedRoute>
               }
             />
