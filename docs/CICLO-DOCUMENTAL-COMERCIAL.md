@@ -210,7 +210,11 @@ Cuenta por pagar        11.900.000   (pasivo)
 
 - **Proveedor (vendedor):** la retención que le practican es un **activo** (saldo a favor) y reduce el dinero recibido, no el ingreso.
 - **Comprador:** la retención que practica es un **pasivo** (debe declararla/pagarla) y no es un gasto.
-- En la implementación actual las retenciones son **campos informativos** en la factura (`retencion_fuente`, `retencion_iva`, `retencion_ica`): reducen el `total_neto` a pagar, pero no generan asientos contables.
+- **Implementación actual:** al confirmar la factura se generan asientos de retenciones:
+  - Venta: `Retenciones a favor` (activo). Fuente e ICA reducen el efectivo recibido; la retención de IVA no mueve caja.
+  - Compra: `Retenciones por pagar` (pasivo). Fuente e ICA reducen el efectivo pagado; la retención de IVA no mueve caja.
+  - A crédito los asientos se reconocen igual, pero con `afecta_caja = 0`: la caja se mueve al registrar el cobro o el pago.
+- **Regla de caja:** el movimiento al confirmar es `base (subtotal − descuento) ± retenciones de fuente/ICA`. El IVA nunca entra en ese cálculo: en venta es `IVA por pagar` (pasivo) y en compra `IVA descontable` (activo).
 
 > **Nota técnica:** el modelo financiero ya soporta las naturalezas `ingreso`, `gasto`, `activo` y `pasivo`. Ver sección 14 para el detalle implementado.
 

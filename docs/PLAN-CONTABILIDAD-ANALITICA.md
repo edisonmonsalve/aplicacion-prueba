@@ -201,6 +201,16 @@ Los huecos principales eran:
 - **RN-38**: El cliente carga cada página bajo demanda. El bundle inicial solo
   incluye autenticación, layout y enrutador; los módulos de finanzas, gráficos e
   impresión se descargan al entrar a su ruta.
+- **RN-39**: El aviso de confirmación de factura muestra el movimiento real de
+  caja: `base (subtotal − descuento) − retenciones de fuente/ICA` en venta y
+  `−base + retenciones de fuente/ICA` en compra. El IVA (`IVA por pagar` en venta,
+  `IVA descontable` en compra) y la retención de IVA nunca forman parte del
+  movimiento. A crédito el movimiento es cero y el saldo queda en cartera por el
+  total neto de retenciones.
+- **RN-40**: La proyección de caja vive en `invoiceCashProjection`
+  (`invoices.shared.ts`) y se expone en el detalle como `impacto_caja`; la UI no
+  recompone la fórmula. Una prueba compara la proyección contra la suma de los
+  asientos con `afecta_caja = 1` para evitar que vuelvan a divergir.
 
 ## 6. Criterios de aceptación transversales
 
@@ -237,6 +247,7 @@ Los huecos principales eran:
 | 2026-11-12 | R6 (alertas de cartera) | - | Migración `V024`; tabla `receivable_followups`; alertas calculadas desde la cartera (mora crítica/alta/media, vencimiento próximo y sin fecha), resumen por severidad, clientes críticos y seguimiento auditado; panel en Cartera con filtros y modal de gestión |
 | 2026-11-12 | R7 (cierre de ejercicio) | - | Migración `V025`; `tipo` y `anio` en `period_closures`; vista previa sin persistir, cierre anual con resultado y balance congelados, bloqueo del año, duplicado controlado y recierre con historial; pestaña **Ejercicio** en Cierres con detalle anual |
 | 2026-11-12 | R8 (rendimiento) | - | Migración `V026` con índices para cartera, DSO, dashboard, auditoría y embudo; filtros de fecha sin `DATE()`; listados con consultas en paralelo; páginas del cliente cargadas con `React.lazy` y `Suspense`; prueba de regresión de índices |
+| 2026-11-12 | Claridad de caja e IVA | - | `invoiceCashProjection` y `impacto_caja` en el detalle; aviso de confirmación con base, IVA, retenciones y movimiento neto separados; a crédito sin movimiento y cartera por el neto; pruebas de coherencia con los asientos y documentación de IVA por pagar/descontable |
 
 ## 8. Exportación de reportes (R4)
 

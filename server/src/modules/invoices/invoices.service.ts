@@ -17,6 +17,7 @@ import {
   calcLine,
   calcTotals,
   insertAllocations,
+  invoiceCashProjection,
   netUnitCost,
   rowToLine,
   totalsFromRows,
@@ -225,6 +226,7 @@ export async function getInvoice(id: number) {
   return {
     ...rows[0],
     ...balance,
+    impacto_caja: invoiceCashProjection(rows[0] as never),
     quote_numero: quoteNumero,
     items,
     transacciones,
@@ -457,6 +459,8 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     }
 
     const totals = totalsFromRows(items);
+    // Cualquier cambio en estas reglas debe reflejarse en `invoiceCashProjection`
+    // (invoices.shared.ts), que alimenta el aviso previo al usuario.
     const baseTotal = roundMoney(totals.subtotal - totals.descuento_total);
     const ivaTotal = totals.impuesto_total;
     // Cuenta elegida en la factura (caja o banco). Si no se indicó, los

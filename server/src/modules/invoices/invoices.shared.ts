@@ -84,6 +84,74 @@ export function netUnitCost(item: {
   );
 }
 
+export type InvoiceCashProjection = {
+  /** La factura mueve caja al confirmarse (solo contado). */
+  mueve_caja: boolean;
+  /** Base contable: subtotal menos descuento, sin IVA. */
+  base: number;
+  /** IVA total. Se registra aparte y nunca forma parte del capital de caja. */
+  iva: number;
+  /** Retenciones de fuente + ICA: reducen el efectivo recibido o pagado. */
+  retenciones_caja: number;
+  /** Retención de IVA: informativa, no mueve caja. */
+  retencion_iva: number;
+  /** Movimiento neto de caja al confirmar (0 si es a crédito). */
+  movimiento_caja: number;
+  /** Saldo que queda en cartera si es a crédito (total neto de retenciones). */
+  cartera: number;
+};
+
+/**
+ * Proyección del movimiento de caja al confirmar una factura.
+ *
+ * Replica exactamente la regla de `confirmInvoice` y de los asientos:
+ * - Venta: entra la base (`ventas`) y salen las retenciones de fuente/ICA.
+ * - Compra: sale la base (`inventario`) y las retenciones de fuente/ICA
+ *   reducen lo pagado.
+ * - El IVA (por pagar o descontable) y la retención de IVA no mueven caja.
+ * - A crédito no hay movimiento: el saldo queda en cartera por el total neto.
+ *
+ * Se expone en el detalle de factura para que la UI no recomponga la fórmula
+ * con el total (que incluye IVA) y termine mostrando un impacto confundible.
+ */
+export function invoiceCashProjection(inv: {
+  tipo: string;
+  condicion_pago: string;
+  subtotal: number | string;
+  descuento_total: number | string;
+  impuesto_total: number | string;
+  total: number | string;
+  retencion_fuente?: number | string | null;
+  retencion_iva?: number | string | null;
+  retencion_ica?: number | string | null;
+  total_neto?: number | string | null;
+}): InvoiceCashProjection {
+  const base = roundMoney(Number(inv.subtotal) - Number(inv.descuento_total));
+  const iva = roundMoney(Number(inv.impuesto_total));
+  const retencionesCaja = roundMoney(
+    Number(inv.retencion_fuente ?? 0) + Number(inv.retencion_ica ?? 0)
+  );
+  const retencionIva = roundMoney(Number(inv.retencion_iva ?? 0));
+  const esCredito = inv.condicion_pago === "credito";
+  const signo = inv.tipo === "venta" ? 1 : -1;
+  const movimientoCaja = esCredito
+    ? 0
+    : roundMoney(signo * (base - retencionesCaja));
+  const totalNeto = roundMoney(
+    Number(inv.total_neto ?? Number(inv.total) - retencionesCaja - retencionIva)
+  );
+
+  return {
+    mueve_caja: !esCredito,
+    base,
+    iva,
+    retenciones_caja: retencionesCaja,
+    retencion_iva: retencionIva,
+    movimiento_caja: movimientoCaja,
+    cartera: esCredito ? totalNeto : 0,
+  };
+}
+
 /**
  * Inserta la distribución analítica de un asiento y ajusta la última línea por
  * redondeo. Admite montos negativos para las notas crédito.

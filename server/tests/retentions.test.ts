@@ -125,6 +125,26 @@ describe("Retenciones contables", () => {
       .set(bearer(contador.token));
     expect(Number(detail.body.total)).toBe(119);
     expect(Number(detail.body.total_neto)).toBe(106);
+    // El detalle expone el impacto real de caja: base menos retenciones de
+    // fuente/ICA. El IVA y su retención no forman parte del movimiento.
+    expect(detail.body.impacto_caja).toMatchObject({
+      mueve_caja: true,
+      base: 100,
+      iva: 19,
+      retenciones_caja: 12,
+      retencion_iva: 1,
+      movimiento_caja: 88,
+      cartera: 0,
+    });
+    // La proyección debe coincidir con la suma real de los asientos que mueven caja.
+    const [cajaReal] = await pool.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(CASE WHEN t.tipo IN ('ingreso', 'pasivo') THEN t.monto ELSE -t.monto END), 0) AS neto
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.invoice_id = ? AND COALESCE(t.afecta_caja, fc.afecta_caja) = 1`,
+      [id]
+    );
+    expect(Number(cajaReal[0].neto)).toBe(detail.body.impacto_caja.movimiento_caja);
   });
 
   it("una venta a crédito mantiene las retenciones sin caja y cobra el neto", async () => {
@@ -144,6 +164,15 @@ describe("Retenciones contables", () => {
     expect(retenciones.length).toBeGreaterThan(0);
     expect(retenciones.every((r) => Number(r.afecta_caja) === 0)).toBe(true);
     expect(await saldoCaja(admin.token)).toBe(0);
+
+    const detalleCredito = await request(app)
+      .get(`/api/invoices/${id}`)
+      .set(bearer(admin.token));
+    expect(detalleCredito.body.impacto_caja).toMatchObject({
+      mueve_caja: false,
+      movimiento_caja: 0,
+      cartera: 106,
+    });
 
     const cartera = await request(app)
       .get("/api/invoices/cartera?tipo=venta")
@@ -191,6 +220,27 @@ describe("Retenciones contables", () => {
     // Inventario 100 sale de caja; las retenciones de fuente/ICA (12) se quedan
     // como pasivo y reducen el pago.
     expect(await saldoCaja(admin.token)).toBe(-88);
+
+    const detalleCompra = await request(app)
+      .get(`/api/invoices/${created.body.id}`)
+      .set(bearer(admin.token));
+    expect(detalleCompra.body.impacto_caja).toMatchObject({
+      mueve_caja: true,
+      base: 100,
+      iva: 19,
+      retenciones_caja: 12,
+      retencion_iva: 1,
+      movimiento_caja: -88,
+      cartera: 0,
+    });
+    const [cajaReal] = await pool.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(CASE WHEN t.tipo IN ('ingreso', 'pasivo') THEN t.monto ELSE -t.monto END), 0) AS neto
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.invoice_id = ? AND COALESCE(t.afecta_caja, fc.afecta_caja) = 1`,
+      [created.body.id]
+    );
+    expect(Number(cajaReal[0].neto)).toBe(detalleCompra.body.impacto_caja.movimiento_caja);
   });
 
   it("rechaza retenciones mayores que el total de la factura", async () => {

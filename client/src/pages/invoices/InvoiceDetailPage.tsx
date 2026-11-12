@@ -148,64 +148,100 @@ export default function InvoiceDetailPage() {
   const isConfirmed = invoice.estado === "confirmada";
   const esCredito = invoice.condicion_pago === "credito";
 
-  // F6: cuenta que usará el asiento y saldo resultante tras confirmar.
+  // F6: cuenta y movimiento real de caja. El IVA no se suma al saldo: se
+  // registra como IVA por pagar/descontable y no forma parte del capital.
   const account = invoice.account_id
     ? accounts.find((a) => a.id === invoice.account_id)
     : accounts.find((a) => a.activo);
-  const signedImpact = esCredito
-    ? 0
-    : invoice.tipo === "venta"
-      ? Number(invoice.total_neto)
-      : -Number(invoice.total_neto);
-  const saldoResultante = account
-    ? Number(account.saldo_actual) + signedImpact
-    : null;
+  const impacto = invoice.impacto_caja;
+  const signedImpact = impacto.movimiento_caja;
+  const saldoResultante =
+    account && !esCredito ? Number(account.saldo_actual) + signedImpact : null;
+  const ivaLabel = invoice.tipo === "venta" ? "IVA por pagar" : "IVA descontable";
   const impactoTexto = esCredito
-    ? `Queda en cartera ${invoice.tipo === "venta" ? "por cobrar" : "por pagar"}: ${money(
-        invoice.total_neto
-      )}`
-    : `Impacto en caja: ${signedImpact >= 0 ? "+" : "−"}${money(Math.abs(signedImpact))}`;
+    ? `Sin movimiento de caja · cartera ${
+        invoice.tipo === "venta" ? "por cobrar" : "por pagar"
+      }: ${money(impacto.cartera)}`
+    : `Movimiento neto de caja: ${signedImpact >= 0 ? "+" : "−"}${money(
+        Math.abs(signedImpact)
+      )}`;
 
   const openConfirm = () => {
     modal.confirm({
       title: "¿Confirmar esta factura?",
       width: 480,
       content: (
-        <Space direction="vertical" size={4} style={{ marginTop: 8 }}>
+        <Space direction="vertical" size={6} style={{ marginTop: 8, width: "100%" }}>
           <span>
             {invoice.tipo === "venta"
-              ? "Se validará stock, se descontará y se generará el ingreso."
-              : "Se sumará stock, se actualizará el costo del producto y se generará el gasto."}
+              ? "Se validará el stock, se descontará y se registrará la venta."
+              : "Se sumará el stock y se registrará la compra como inventario."}
           </span>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: "2px 16px",
+            }}
+          >
+            <span>
+              {invoice.tipo === "venta" ? "Base de venta" : "Base de compra (inventario)"}
+            </span>
+            <span>{money(impacto.base)}</span>
+            <span>{ivaLabel}</span>
+            <span>{money(impacto.iva)}</span>
+            {impacto.retenciones_caja > 0 && (
+              <>
+                <span>Retenciones fuente + ICA</span>
+                <span>{money(impacto.retenciones_caja)}</span>
+              </>
+            )}
+            {impacto.retencion_iva > 0 && (
+              <>
+                <span>Retención de IVA</span>
+                <span>{money(impacto.retencion_iva)}</span>
+              </>
+            )}
+          </div>
+          <Typography.Text type="secondary">
+            El IVA ($ {money(impacto.iva)}) no mueve caja al confirmar: se registra como{" "}
+            {ivaLabel.toLowerCase()}.
+            {impacto.retencion_iva > 0 &&
+              " La retención de IVA tampoco mueve caja."}
+            {impacto.retenciones_caja > 0 &&
+              ` Solo las retenciones de fuente e ICA ajustan el efectivo ${
+                invoice.tipo === "venta" ? "recibido" : "pagado"
+              }.`}
+          </Typography.Text>
           {account ? (
-            <>
+            esCredito ? (
               <span>
-                Cuenta: <strong>{account.nombre}</strong> ({account.tipo})
+                A crédito no mueve caja al confirmar. Queda en cartera{" "}
+                {invoice.tipo === "venta" ? "por cobrar" : "por pagar"}:{" "}
+                <strong>{money(impacto.cartera)}</strong> (total neto de retenciones). La
+                caja se moverá al {invoice.tipo === "venta" ? "cobrar" : "pagar"} por el
+                monto efectivamente recibido o pagado.
               </span>
-              <span>Saldo actual: {money(account.saldo_actual)}</span>
-              {esCredito ? (
+            ) : (
+              <>
                 <span>
-                  A crédito no mueve caja al confirmar. Queda en cartera{" "}
-                  {invoice.tipo === "venta" ? "por cobrar" : "por pagar"}:{" "}
-                  <strong>{money(invoice.total_neto)}</strong>
+                  Cuenta: <strong>{account.nombre}</strong> ({account.tipo})
                 </span>
-              ) : (
-                <>
-                  <span>
-                    Impacto en caja: {signedImpact >= 0 ? "+" : "−"}
-                    {money(Math.abs(signedImpact))}
-                  </span>
-                  <span>
-                    Saldo resultante: <strong>{money(saldoResultante!)}</strong>
-                  </span>
-                  {saldoResultante! < 0 && (
-                    <Typography.Text type="danger">
-                      La cuenta quedaría con saldo negativo.
-                    </Typography.Text>
-                  )}
-                </>
-              )}
-            </>
+                <span>Saldo actual: {money(account.saldo_actual)}</span>
+                <span>
+                  Movimiento neto de caja: <strong>{signedImpact >= 0 ? "+" : "−"}
+                  {money(Math.abs(signedImpact))}</strong>
+                </span>
+                <span>
+                  Saldo resultante: <strong>{money(saldoResultante!)}</strong>
+                </span>
+                {saldoResultante! < 0 && (
+                  <Typography.Text type="danger">
+                    La cuenta quedaría con saldo negativo.
+                  </Typography.Text>
+                )}
+              </>
+            )
           ) : (
             <Typography.Text type="warning">
               La factura no tiene cuenta asignada y no hay cuentas activas para usar por defecto.
@@ -230,8 +266,8 @@ export default function InvoiceDetailPage() {
         title={`Factura ${invoice.numero}`}
         description={
           invoice.tipo === "venta"
-            ? "Al confirmar se descuenta stock y se registra el ingreso en finanzas."
-            : "Al confirmar se suma stock, se actualiza el costo del producto y se registra el gasto."
+            ? "Al confirmar se descuenta stock y se registra la venta; el IVA va a IVA por pagar y no mueve caja."
+            : "Al confirmar se suma stock y se registra la compra como inventario; el IVA va a IVA descontable y no mueve caja."
         }
         style={{ marginBottom: 0 }}
         extra={
@@ -289,9 +325,13 @@ export default function InvoiceDetailPage() {
           }
           description={
             esCredito
-              ? "Condición a crédito: al confirmar se reconoce el ingreso/activo y el IVA, pero la caja se mueve cuando se registre el cobro o pago."
+              ? `Condición a crédito: se reconoce ${
+                  invoice.tipo === "venta" ? "la venta por la base" : "el inventario por la base"
+                } y el ${ivaLabel.toLowerCase()}, pero no hay movimiento de caja. La caja se mueve al ${
+                  invoice.tipo === "venta" ? "cobrar" : "pagar"
+                }.`
               : account
-                ? `Cuenta ${account.nombre} (${account.tipo}) · Saldo actual ${money(account.saldo_actual)}. Al confirmar se actualiza el stock y se registran los asientos financieros.`
+                ? `Cuenta ${account.nombre} (${account.tipo}) · Saldo actual ${money(account.saldo_actual)}. La base y las retenciones de fuente/ICA definen el movimiento de caja; el ${ivaLabel.toLowerCase()} (${money(impacto.iva)}) se registra por separado y no mueve caja.`
                 : "Asigna una cuenta desde Editar para poder ver el saldo y el impacto antes de confirmar."
           }
         />

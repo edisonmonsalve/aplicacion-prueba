@@ -176,8 +176,9 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - **Ejecución**: porcentaje del monto planeado ya gastado.
 - **Periodo cerrado**: no admite nuevas transacciones ni movimientos con costo.
 - **Contrapartida**: transacción inversa que anula otra.
-- **IVA por pagar**: pasivo generado por el IVA de las ventas; no es dinero disponible.
-- **IVA descontable**: activo generado por el IVA de las compras; no es dinero disponible.
+- **IVA por pagar**: pasivo generado por el IVA de las ventas; no es dinero disponible y no mueve caja al confirmar la factura.
+- **IVA descontable**: activo generado por el IVA de las compras; no es dinero disponible y no mueve caja al confirmar la factura.
+- **Movimiento de caja de una factura (contado)**: base (subtotal − descuento) menos retenciones de fuente e ICA. En venta suma; en compra resta. La retención de IVA y el IVA no forman parte del movimiento. A crédito el movimiento es cero hasta registrar el cobro o el pago.
 - **Costo histórico**: costo del producto al momento de la salida; base del costo de ventas.
 - **Asiento de cabecera**: fila financiera agrupada por factura (neto, IVA o costo de ventas).
 - **Extracto bancario**: listado de movimientos que informa el banco; en el sistema se carga como líneas con signo.

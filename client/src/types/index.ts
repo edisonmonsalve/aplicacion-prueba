@@ -1172,12 +1172,24 @@ export interface InvoiceItem {
   costo_anterior?: number | null;
 }
 
+export interface InvoiceCashProjection {
+  mueve_caja: boolean;
+  base: number;
+  iva: number;
+  retenciones_caja: number;
+  retencion_iva: number;
+  movimiento_caja: number;
+  cartera: number;
+}
+
 export interface InvoiceDetail extends Invoice {
   documento: string | null;
   email: string | null;
   notas: string | null;
   quote_numero: string | null;
   created_by: number;
+  /** Proyección del movimiento de caja al confirmar (IVA excluido). */
+  impacto_caja: InvoiceCashProjection;
   /** Total de pagos/cobros válidos aplicados a la factura. */
   pagado: number;
   /** Saldo de cartera pendiente (0 si es de contado o está anulada). */
