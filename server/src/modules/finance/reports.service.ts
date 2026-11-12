@@ -267,12 +267,13 @@ export async function getCashFlow(query: CashFlowQuery) {
      FROM finance_accounts a
      LEFT JOIN transactions t
        ON t.account_id = a.id
+      AND t.fecha <= ?
       AND ${VALID_TRANSACTION}
      LEFT JOIN finance_categories fc ON fc.id = t.finance_category_id
      WHERE 1 = 1${filtroCuenta}
      GROUP BY a.id, a.nombre, a.tipo, a.activo, a.saldo_inicial
      ORDER BY a.nombre`,
-    [desde, desde, hasta, desde, hasta, ...accountParams]
+    [desde, desde, hasta, desde, hasta, hasta, ...accountParams]
   );
 
   const porCuenta = cuentaRows.map((r) => {
@@ -957,7 +958,7 @@ export async function getQuoteFunnel(query: QuoteFunnelQuery) {
                  THEN 'vencido' ELSE q.estado END AS estado
      FROM quotes q
      LEFT JOIN quote_status_history h ON h.quote_id = q.id
-     WHERE DATE(q.created_at) BETWEEN ? AND ?
+     WHERE q.created_at >= ? AND q.created_at < DATE_ADD(?, INTERVAL 1 DAY)
      GROUP BY q.id, q.customer_nombre, q.total, q.created_at, q.estado,
               q.fecha_validez
      ORDER BY q.created_at DESC, q.id DESC`,
@@ -1160,43 +1161,46 @@ export async function getTrends(query: TrendsQuery) {
   }
 
   const afectaCaja = "COALESCE(t.afecta_caja, fc.afecta_caja) = 1";
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT DATE_FORMAT(t.fecha, '%Y-%m') AS mes,
-            COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_resultado = 1
-                              THEN t.monto ELSE 0 END), 0) AS ingresos,
-            COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
-                               AND fc.codigo = 'costo_ventas'
-                              THEN t.monto ELSE 0 END), 0) AS costo_ventas,
-            COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
-                               AND (fc.codigo IS NULL OR fc.codigo <> 'costo_ventas')
-                              THEN t.monto ELSE 0 END), 0) AS gastos,
-            COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('ingreso', 'pasivo')
-                              THEN t.monto ELSE 0 END), 0) AS entradas,
-            COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('gasto', 'activo')
-                              THEN t.monto ELSE 0 END), 0) AS salidas
-     FROM transactions t
-     JOIN finance_categories fc ON fc.id = t.finance_category_id
-     WHERE t.fecha BETWEEN ? AND ? AND ${VALID_TRANSACTION}
-     GROUP BY mes
-     ORDER BY mes`,
-    [desde, hasta]
-  );
-
-  // Saldo de caja al iniciar el rango: saldos iniciales de las cuentas más los
-  // movimientos de caja anteriores a `desde`.
-  const [cajaRows] = await pool.query<RowDataPacket[]>(
-    `SELECT
-       (SELECT COALESCE(SUM(saldo_inicial), 0) FROM finance_accounts) +
-       COALESCE(SUM(CASE WHEN ${afectaCaja} THEN
-           CASE WHEN t.tipo IN ('ingreso', 'pasivo') THEN t.monto
-                WHEN t.tipo IN ('gasto', 'activo') THEN -t.monto
-                ELSE 0 END
-           ELSE 0 END), 0) AS saldo_inicial
-     FROM transactions t
-     JOIN finance_categories fc ON fc.id = t.finance_category_id
-     WHERE t.fecha < ? AND ${VALID_TRANSACTION}`,
-    [desde]
-  );
+  const [rowsResult, cajaResult] = await Promise.all([
+    pool.query<RowDataPacket[]>(
+      `SELECT DATE_FORMAT(t.fecha, '%Y-%m') AS mes,
+              COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' AND fc.afecta_resultado = 1
+                                THEN t.monto ELSE 0 END), 0) AS ingresos,
+              COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
+                                 AND fc.codigo = 'costo_ventas'
+                                THEN t.monto ELSE 0 END), 0) AS costo_ventas,
+              COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
+                                 AND (fc.codigo IS NULL OR fc.codigo <> 'costo_ventas')
+                                THEN t.monto ELSE 0 END), 0) AS gastos,
+              COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('ingreso', 'pasivo')
+                                THEN t.monto ELSE 0 END), 0) AS entradas,
+              COALESCE(SUM(CASE WHEN ${afectaCaja} AND t.tipo IN ('gasto', 'activo')
+                                THEN t.monto ELSE 0 END), 0) AS salidas
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.fecha BETWEEN ? AND ? AND ${VALID_TRANSACTION}
+       GROUP BY mes
+       ORDER BY mes`,
+      [desde, hasta]
+    ),
+    // Saldo de caja al iniciar el rango: saldos iniciales de las cuentas más los
+    // movimientos de caja anteriores a `desde`.
+    pool.query<RowDataPacket[]>(
+      `SELECT
+         (SELECT COALESCE(SUM(saldo_inicial), 0) FROM finance_accounts) +
+         COALESCE(SUM(CASE WHEN ${afectaCaja} THEN
+             CASE WHEN t.tipo IN ('ingreso', 'pasivo') THEN t.monto
+                  WHEN t.tipo IN ('gasto', 'activo') THEN -t.monto
+                  ELSE 0 END
+             ELSE 0 END), 0) AS saldo_inicial
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.fecha < ? AND ${VALID_TRANSACTION}`,
+      [desde]
+    ),
+  ]);
+  const [rows] = rowsResult;
+  const [cajaRows] = cajaResult;
 
   const byMonth = new Map(rows.map((r) => [String(r.mes), r]));
   let saldoCaja = roundMoney(Number(cajaRows[0]?.saldo_inicial ?? 0));

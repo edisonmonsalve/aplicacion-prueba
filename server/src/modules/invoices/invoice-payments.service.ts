@@ -156,25 +156,31 @@ export async function listReceivables(query: ReceivableQuery) {
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const [[{ total }]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS total FROM (${inner}) c ${clause}`,
-    params
-  );
-  const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT c.* FROM (${inner}) c
-     ${clause}
-     ORDER BY c.fecha_vencimiento, c.id DESC
-     LIMIT ? OFFSET ?`,
-    [...params, query.pageSize, (query.page - 1) * query.pageSize]
-  );
-  const [[resumen]] = await pool.query<RowDataPacket[]>(
-    `SELECT
-       COALESCE(SUM(CASE WHEN c.tipo = 'venta' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_cobrar,
-       COALESCE(SUM(CASE WHEN c.tipo = 'compra' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_pagar,
-       COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido
-     FROM (${inner}) c ${clause}`,
-    params
-  );
+  // Conteo, página y resumen son independientes: una sola ida y vuelta lógica.
+  const [countResult, dataResult, resumenResult] = await Promise.all([
+    pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM (${inner}) c ${clause}`,
+      params
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT c.* FROM (${inner}) c
+       ${clause}
+       ORDER BY c.fecha_vencimiento, c.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, query.pageSize, (query.page - 1) * query.pageSize]
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT
+         COALESCE(SUM(CASE WHEN c.tipo = 'venta' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_cobrar,
+         COALESCE(SUM(CASE WHEN c.tipo = 'compra' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_pagar,
+         COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido
+       FROM (${inner}) c ${clause}`,
+      params
+    ),
+  ]);
+  const [[{ total }]] = countResult;
+  const [data] = dataResult;
+  const [[resumen]] = resumenResult;
 
   return {
     data,
@@ -216,62 +222,67 @@ export async function carteraAging(query: AgingQuery) {
     (Date.parse(`${hasta}T12:00:00`) - Date.parse(`${desde}T12:00:00`)) / 86_400_000
   ) + 1;
 
-  const [agingRows] = await pool.query<RowDataPacket[]>(
-    `SELECT c.tipo,
-            COALESCE(SUM(CASE WHEN c.dias_vencido <= 0 THEN c.saldo_pendiente ELSE 0 END), 0) AS corriente,
-            COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 1 AND 30 THEN c.saldo_pendiente ELSE 0 END), 0) AS d1_30,
-            COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 31 AND 60 THEN c.saldo_pendiente ELSE 0 END), 0) AS d31_60,
-            COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 61 AND 90 THEN c.saldo_pendiente ELSE 0 END), 0) AS d61_90,
-            COALESCE(SUM(CASE WHEN c.dias_vencido > 90 THEN c.saldo_pendiente ELSE 0 END), 0) AS d90_mas,
-            COALESCE(SUM(c.saldo_pendiente), 0) AS total
-     FROM (${CARTERA_DERIVED}) c
-     WHERE c.saldo_pendiente > 0
-     GROUP BY c.tipo`,
-    []
-  );
+  // Los cuatro bloques del aging son independientes: se consultan en paralelo.
+  const [agingResult, totalesResult, ventasResult, topDeudoresResult] = await Promise.all([
+    pool.query<RowDataPacket[]>(
+      `SELECT c.tipo,
+              COALESCE(SUM(CASE WHEN c.dias_vencido <= 0 THEN c.saldo_pendiente ELSE 0 END), 0) AS corriente,
+              COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 1 AND 30 THEN c.saldo_pendiente ELSE 0 END), 0) AS d1_30,
+              COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 31 AND 60 THEN c.saldo_pendiente ELSE 0 END), 0) AS d31_60,
+              COALESCE(SUM(CASE WHEN c.dias_vencido BETWEEN 61 AND 90 THEN c.saldo_pendiente ELSE 0 END), 0) AS d61_90,
+              COALESCE(SUM(CASE WHEN c.dias_vencido > 90 THEN c.saldo_pendiente ELSE 0 END), 0) AS d90_mas,
+              COALESCE(SUM(c.saldo_pendiente), 0) AS total
+       FROM (${CARTERA_DERIVED}) c
+       WHERE c.saldo_pendiente > 0
+       GROUP BY c.tipo`,
+      []
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT
+         COALESCE(SUM(CASE WHEN c.tipo = 'venta' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_cobrar,
+         COALESCE(SUM(CASE WHEN c.tipo = 'compra' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_pagar,
+         COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido,
+         COALESCE(SUM(CASE WHEN c.tipo = 'venta' AND c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido_cobrar,
+         COALESCE(SUM(CASE WHEN c.tipo = 'venta' AND c.dias_vencido BETWEEN -7 AND 0
+                           THEN c.saldo_pendiente ELSE 0 END), 0) AS por_vencer_7d,
+         COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN 1 ELSE 0 END), 0) AS facturas_vencidas
+       FROM (${CARTERA_DERIVED}) c
+       WHERE c.saldo_pendiente > 0`,
+      []
+    ),
+    // DSO simple: cuántos días de ventas a crédito representa la cartera actual.
+    pool.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(i.total_neto), 0) AS total, COUNT(*) AS facturas
+       FROM invoices i
+       WHERE i.tipo = 'venta' AND i.estado = 'confirmada'
+         AND i.condicion_pago = 'credito'
+         AND i.fecha BETWEEN ? AND ?`,
+      [desde, hasta]
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT c.contraparte, c.party_id,
+              COALESCE(SUM(c.saldo_pendiente), 0) AS saldo,
+              COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido,
+              COALESCE(MAX(c.dias_vencido), 0) AS max_dias
+       FROM (${CARTERA_DERIVED}) c
+       WHERE c.tipo = 'venta' AND c.saldo_pendiente > 0
+       GROUP BY c.contraparte, c.party_id
+       ORDER BY vencido DESC, saldo DESC
+       LIMIT 5`,
+      []
+    ),
+  ]);
+
+  const [agingRows] = agingResult;
   const ventaRow = agingRows.find((r) => r.tipo === "venta");
   const compraRow = agingRows.find((r) => r.tipo === "compra");
-
-  const [[totales]] = await pool.query<RowDataPacket[]>(
-    `SELECT
-       COALESCE(SUM(CASE WHEN c.tipo = 'venta' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_cobrar,
-       COALESCE(SUM(CASE WHEN c.tipo = 'compra' THEN c.saldo_pendiente ELSE 0 END), 0) AS por_pagar,
-       COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido,
-       COALESCE(SUM(CASE WHEN c.tipo = 'venta' AND c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido_cobrar,
-       COALESCE(SUM(CASE WHEN c.tipo = 'venta' AND c.dias_vencido BETWEEN -7 AND 0
-                         THEN c.saldo_pendiente ELSE 0 END), 0) AS por_vencer_7d,
-       COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN 1 ELSE 0 END), 0) AS facturas_vencidas
-     FROM (${CARTERA_DERIVED}) c
-     WHERE c.saldo_pendiente > 0`,
-    []
-  );
-
-  // DSO simple: cuántos días de ventas a crédito representa la cartera actual.
-  const [[ventas]] = await pool.query<RowDataPacket[]>(
-    `SELECT COALESCE(SUM(i.total_neto), 0) AS total, COUNT(*) AS facturas
-     FROM invoices i
-     WHERE i.tipo = 'venta' AND i.estado = 'confirmada'
-       AND i.condicion_pago = 'credito'
-       AND i.fecha BETWEEN ? AND ?`,
-    [desde, hasta]
-  );
+  const [[totales]] = totalesResult;
+  const [[ventas]] = ventasResult;
+  const [topDeudores] = topDeudoresResult;
   const ventasCredito = roundMoney(Number(ventas.total));
   const porCobrar = roundMoney(Number(totales.por_cobrar));
   const dso =
     ventasCredito > 0 ? roundMoney((porCobrar / ventasCredito) * periodoDias) : null;
-
-  const [topDeudores] = await pool.query<RowDataPacket[]>(
-    `SELECT c.contraparte, c.party_id,
-            COALESCE(SUM(c.saldo_pendiente), 0) AS saldo,
-            COALESCE(SUM(CASE WHEN c.estado_cartera = 'vencida' THEN c.saldo_pendiente ELSE 0 END), 0) AS vencido,
-            COALESCE(MAX(c.dias_vencido), 0) AS max_dias
-     FROM (${CARTERA_DERIVED}) c
-     WHERE c.tipo = 'venta' AND c.saldo_pendiente > 0
-     GROUP BY c.contraparte, c.party_id
-     ORDER BY vencido DESC, saldo DESC
-     LIMIT 5`,
-    []
-  );
 
   return {
     as_of: today(),

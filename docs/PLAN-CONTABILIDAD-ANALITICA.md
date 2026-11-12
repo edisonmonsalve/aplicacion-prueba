@@ -124,6 +124,7 @@ Los huecos principales eran:
 | R5 | Conciliación bancaria con extracto, sugerencias de cruce y cierre auditado | Hecho |
 | R6 | Alertas de cartera priorizadas y seguimiento de cobro auditado | Hecho |
 | R7 | Cierre de ejercicio con resultado y balance congelados | Hecho |
+| R8 | Rendimiento de consultas, índices y carga inicial del cliente | Hecho |
 
 ### Fase 3 — Gobierno del dato
 
@@ -193,6 +194,13 @@ Los huecos principales eran:
 - **RN-36**: Un año puede cerrarse, reabrirse y volver a cerrarse. Cada intento
   es una fila nueva: la reapertura no borra el cierre anterior. El cierre anual
   puede convivir con los cierres mensuales y reabrir el anual no reabre los meses.
+- **RN-37**: Los filtros por fecha comparan la columna directamente
+  (`created_at >= ?` y `< DATE_ADD(?, INTERVAL 1 DAY)`), sin envolverla en
+  `DATE()`, para que MariaDB pueda usar el índice. Las consultas independientes de
+  un mismo listado se ejecutan en paralelo.
+- **RN-38**: El cliente carga cada página bajo demanda. El bundle inicial solo
+  incluye autenticación, layout y enrutador; los módulos de finanzas, gráficos e
+  impresión se descargan al entrar a su ruta.
 
 ## 6. Criterios de aceptación transversales
 
@@ -228,6 +236,7 @@ Los huecos principales eran:
 | 2026-11-12 | R5 (conciliación bancaria) | - | Migración `V023`; tablas `bank_reconciliations` y `bank_statement_lines`; líneas con signo, sugerencias por importe y tolerancia de fechas, cruce/desconciliación, líneas ignoradas con nota, cierre con snapshot y reapertura auditada; página Conciliación con saldos, avance y partidas conciliatorias |
 | 2026-11-12 | R6 (alertas de cartera) | - | Migración `V024`; tabla `receivable_followups`; alertas calculadas desde la cartera (mora crítica/alta/media, vencimiento próximo y sin fecha), resumen por severidad, clientes críticos y seguimiento auditado; panel en Cartera con filtros y modal de gestión |
 | 2026-11-12 | R7 (cierre de ejercicio) | - | Migración `V025`; `tipo` y `anio` en `period_closures`; vista previa sin persistir, cierre anual con resultado y balance congelados, bloqueo del año, duplicado controlado y recierre con historial; pestaña **Ejercicio** en Cierres con detalle anual |
+| 2026-11-12 | R8 (rendimiento) | - | Migración `V026` con índices para cartera, DSO, dashboard, auditoría y embudo; filtros de fecha sin `DATE()`; listados con consultas en paralelo; páginas del cliente cargadas con `React.lazy` y `Suspense`; prueba de regresión de índices |
 
 ## 8. Exportación de reportes (R4)
 
@@ -357,3 +366,33 @@ Los huecos principales eran:
 - **UI**: pestaña **Cierres de ejercicio** en la página Cierres, con aviso de que
   no se generan asientos, tabla de años, resultado, patrimonio, meses cerrados,
   estado del balance y detalle ampliado del snapshot anual.
+
+## 12. Rendimiento (R8)
+
+- **Diagnóstico**: se revisaron los planes de consulta de cartera, DSO, dashboard,
+  auditoría, embudo y listados. Los principales problemas eran índices cuyo
+  prefijo no coincidía con el filtro, filtros `DATE(columna)` que impedían usarlos
+  y consultas independientes ejecutadas una tras otra.
+- **Índices nuevos** (migración `V026`, idempotentes):
+  - `invoices (estado, condicion_pago, fecha_vencimiento)`: cartera y alertas.
+  - `invoices (tipo, estado, condicion_pago, fecha)`: DSO y ventas a crédito.
+  - `stock_movements (created_at, tipo)`: dashboard de stock.
+  - `audit_log (entidad, created_at)`: listado de auditoría por entidad y fecha.
+  - `quotes (created_at)`: listado y embudo de cotizaciones.
+- **Filtros de fecha**: donde había `DATE(columna) >= ?` / `<= ?` se reemplazó por
+  `columna >= ?` y `columna < DATE_ADD(?, INTERVAL 1 DAY)`. El resultado funcional
+  es el mismo (incluye el día final), pero el rango puede usar el índice.
+- **Consultas en paralelo**: los listados de transacciones, facturas, cartera,
+  aging, auditoría y tendencias lanzan sus consultas independientes con
+  `Promise.all`. En facturas se eliminó el `COUNT(*)` extra: el total se deriva del
+  resumen por tipo.
+- **Flujo de caja**: el `LEFT JOIN` de transacciones ahora se limita con
+  `t.fecha <= hasta`, así no procesa movimientos futuros o posteriores al rango.
+- **Cliente**: todas las páginas de `App.tsx` usan `React.lazy` + `Suspense`. El
+  bundle inicial pasó de un único archivo de ~2.204 kB a un núcleo de ~195 kB;
+  los módulos pesados (tablas, gráficos, impresión) se cargan por ruta. El build
+  dejó de advertir por chunks mayores a 500 kB.
+- **Prueba**: `server/tests/performance-indexes.test.ts` verifica que los índices
+  de `V026` existan con sus columnas en el orden correcto.
+- **Compatibilidad**: no cambia contratos de API ni resultados de negocio; las
+  pruebas funcionales existentes siguen cubriendo los mismos totales.

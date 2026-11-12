@@ -122,3 +122,24 @@
   un cierre anterior.
 - Migración `V025` añade `tipo` y `anio` a `period_closures` con el índice
   `(tipo, anio, estado)`. Los cierres existentes quedan como `periodo`.
+
+## Rendimiento
+
+- **RF-REN-1**: Los listados financieros, de facturas, cartera, movimientos,
+  auditoría y cotizaciones deben usar índices para sus filtros por fecha y estado;
+  la migración `V026` crea los índices faltantes de forma idempotente.
+- **RF-REN-2**: Los filtros por rango de fechas incluyen el día final sin envolver
+  la columna en `DATE()`, para permitir el uso del índice.
+- **RF-REN-3**: Las consultas independientes de un mismo listado se ejecutan en
+  paralelo; el conteo de facturas se deriva del resumen por tipo para evitar un
+  recorrido adicional.
+- **RF-REN-4**: El flujo de caja limita el join de transacciones a las fechas
+  hasta el final del rango consultado.
+- **RF-REN-5**: El cliente carga cada página bajo demanda. El bundle inicial no
+  incluye los módulos de finanzas, gráficos ni impresión.
+- **RF-REN-6**: Una prueba de regresión verifica la existencia y el orden de las
+  columnas de los índices de `V026`.
+- **RN-37**: Los cambios de rendimiento no alteran contratos de API, totales ni
+  reglas contables; las pruebas funcionales existentes deben seguir en verde.
+- **RN-38**: Los índices nuevos son de solo lectura para la lógica de negocio: no
+  introducen estados ni campos nuevos en las respuestas.

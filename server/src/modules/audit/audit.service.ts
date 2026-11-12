@@ -55,40 +55,45 @@ export async function listAudit(query: AuditQuery) {
     params.push(query.user_id);
   }
   if (query.desde) {
-    where.push("DATE(a.created_at) >= ?");
+    // Comparar la columna directamente permite usar idx_audit_created.
+    where.push("a.created_at >= ?");
     params.push(query.desde);
   }
   if (query.hasta) {
-    where.push("DATE(a.created_at) <= ?");
+    where.push("a.created_at < DATE_ADD(?, INTERVAL 1 DAY)");
     params.push(query.hasta);
   }
 
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const [[{ total }]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS total FROM audit_log a ${clause}`,
-    params
-  );
+  const [countResult, rowsResult, resumenResult] = await Promise.all([
+    pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM audit_log a ${clause}`,
+      params
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT a.id, a.user_id, u.nombre AS usuario, a.entidad, a.entidad_id,
+              a.accion, a.antes, a.despues, a.created_at
+       FROM audit_log a
+       LEFT JOIN users u ON u.id = a.user_id
+       ${clause}
+       ORDER BY a.created_at DESC, a.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, query.pageSize, (query.page - 1) * query.pageSize]
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT a.entidad, COUNT(*) AS total
+       FROM audit_log a
+       ${clause}
+       GROUP BY a.entidad
+       ORDER BY total DESC, a.entidad`,
+      params
+    ),
+  ]);
 
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT a.id, a.user_id, u.nombre AS usuario, a.entidad, a.entidad_id,
-            a.accion, a.antes, a.despues, a.created_at
-     FROM audit_log a
-     LEFT JOIN users u ON u.id = a.user_id
-     ${clause}
-     ORDER BY a.created_at DESC, a.id DESC
-     LIMIT ? OFFSET ?`,
-    [...params, query.pageSize, (query.page - 1) * query.pageSize]
-  );
-
-  const [resumen] = await pool.query<RowDataPacket[]>(
-    `SELECT a.entidad, COUNT(*) AS total
-     FROM audit_log a
-     ${clause}
-     GROUP BY a.entidad
-     ORDER BY total DESC, a.entidad`,
-    params
-  );
+  const [[{ total }]] = countResult;
+  const [rows] = rowsResult;
+  const [resumen] = resumenResult;
 
   return {
     data: rows.map((r) => ({

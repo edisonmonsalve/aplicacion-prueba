@@ -71,43 +71,50 @@ export async function listTransactions(query: TransactionListQuery) {
     ? `${sortAllowed} ${query.order === "desc" ? "DESC" : "ASC"}, t.fecha DESC, t.id DESC`
     : "t.fecha DESC, t.id DESC";
 
-  const [[{ total }]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS total FROM transactions t ${clause}`,
-    params
-  );
-
-  const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT t.id, t.tipo, t.monto, t.fecha, t.finance_category_id, fc.nombre AS categoria,
-            fc.codigo, fc.afecta_resultado,
-            COALESCE(t.afecta_caja, fc.afecta_caja) AS afecta_caja,
-            t.account_id, fa.nombre AS cuenta, t.product_id,
-            p.sku, p.nombre AS producto, t.quote_id, t.invoice_id,
-            t.stock_movement_id,
-            t.descripcion, t.anulada_de, t.created_by, u.nombre AS creador,
-            t.created_at,
-            EXISTS(SELECT 1 FROM transactions r WHERE r.anulada_de = t.id) AS anulada
-     FROM transactions t
-     JOIN finance_categories fc ON fc.id = t.finance_category_id
-     JOIN finance_accounts fa ON fa.id = t.account_id
-     JOIN users u ON u.id = t.created_by
-     LEFT JOIN products p ON p.id = t.product_id
-     ${clause}
-     ORDER BY ${orderBy}
-     LIMIT ? OFFSET ?`,
-    [...params, query.pageSize, (query.page - 1) * query.pageSize]
-  );
-
   // N6: resumen del filtro completo (no solo la página), sin anuladas ni anulaciones.
   const resumenClause = where.length
     ? `WHERE ${where.join(" AND ")} AND ${VALID_TRANSACTION}`
     : `WHERE ${VALID_TRANSACTION}`;
-  const [[totales]] = await pool.query<RowDataPacket[]>(
-    `SELECT
-       COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0) AS ingresos,
-       COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0) AS egresos
-     FROM transactions t ${resumenClause}`,
-    params
-  );
+
+  // Las tres consultas son independientes: se lanzan en paralelo para no sumar
+  // tres viajes secuenciales a la base.
+  const [countResult, dataResult, totalsResult] = await Promise.all([
+    pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM transactions t ${clause}`,
+      params
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT t.id, t.tipo, t.monto, t.fecha, t.finance_category_id, fc.nombre AS categoria,
+              fc.codigo, fc.afecta_resultado,
+              COALESCE(t.afecta_caja, fc.afecta_caja) AS afecta_caja,
+              t.account_id, fa.nombre AS cuenta, t.product_id,
+              p.sku, p.nombre AS producto, t.quote_id, t.invoice_id,
+              t.stock_movement_id,
+              t.descripcion, t.anulada_de, t.created_by, u.nombre AS creador,
+              t.created_at,
+              EXISTS(SELECT 1 FROM transactions r WHERE r.anulada_de = t.id) AS anulada
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       JOIN finance_accounts fa ON fa.id = t.account_id
+       JOIN users u ON u.id = t.created_by
+       LEFT JOIN products p ON p.id = t.product_id
+       ${clause}
+       ORDER BY ${orderBy}
+       LIMIT ? OFFSET ?`,
+      [...params, query.pageSize, (query.page - 1) * query.pageSize]
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT
+         COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0) AS ingresos,
+         COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0) AS egresos
+       FROM transactions t ${resumenClause}`,
+      params
+    ),
+  ]);
+
+  const [[{ total }]] = countResult;
+  const [data] = dataResult;
+  const [[totales]] = totalsResult;
   const ingresos = Number(totales.ingresos);
   const egresos = Number(totales.egresos);
 

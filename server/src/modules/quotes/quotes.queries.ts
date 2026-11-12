@@ -37,11 +37,11 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
     params.push(todayDate, query.estado);
   }
   if (query.desde) {
-    where.push("DATE(q.created_at) >= ?");
+    where.push("q.created_at >= ?");
     params.push(query.desde);
   }
   if (query.hasta) {
-    where.push("DATE(q.created_at) <= ?");
+    where.push("q.created_at < DATE_ADD(?, INTERVAL 1 DAY)");
     params.push(query.hasta);
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";

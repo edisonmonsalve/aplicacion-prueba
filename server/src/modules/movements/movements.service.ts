@@ -191,11 +191,12 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>, acto
     params.push(term, term, term, term);
   }
   if (query.desde) {
-    where.push("DATE(m.created_at) >= ?");
+    // Columna directa: permite usar idx_movements_created_tipo.
+    where.push("m.created_at >= ?");
     params.push(query.desde);
   }
   if (query.hasta) {
-    where.push("DATE(m.created_at) <= ?");
+    where.push("m.created_at < DATE_ADD(?, INTERVAL 1 DAY)");
     params.push(query.hasta);
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";

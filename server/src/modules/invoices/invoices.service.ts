@@ -123,36 +123,39 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
     ? `${sortAllowed} ${query.order === "desc" ? "DESC" : "ASC"}, i.id DESC`
     : "i.id DESC";
 
-  const [[{ total }]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS total FROM invoices i ${clause}`,
-    params
-  );
-  const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.documento,
-            i.orden_compra, i.estado, i.subtotal, i.descuento_total,
-            i.impuesto_total, i.total, i.total_neto, i.quote_id, i.party_id,
-            i.condicion_pago, i.dias_credito, i.fecha_vencimiento,
-            i.account_id, i.created_at,
-            u.nombre AS creador
-     FROM invoices i JOIN users u ON u.id = i.created_by
-     ${clause}
-     ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
-    [...params, query.pageSize, (query.page - 1) * query.pageSize]
-  );
+  // Tres consultas independientes en paralelo. El total se deriva de
+  // `por_tipo`, así evitamos un cuarto recorrido del mismo filtro.
+  const [dataResult, porTipoResult, porEstadoResult] = await Promise.all([
+    pool.query<RowDataPacket[]>(
+      `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.documento,
+              i.orden_compra, i.estado, i.subtotal, i.descuento_total,
+              i.impuesto_total, i.total, i.total_neto, i.quote_id, i.party_id,
+              i.condicion_pago, i.dias_credito, i.fecha_vencimiento,
+              i.account_id, i.created_at,
+              u.nombre AS creador
+       FROM invoices i JOIN users u ON u.id = i.created_by
+       ${clause}
+       ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+      [...params, query.pageSize, (query.page - 1) * query.pageSize]
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT i.tipo, COUNT(*) AS documentos, COALESCE(SUM(i.total), 0) AS total
+       FROM invoices i ${clause}
+       GROUP BY i.tipo`,
+      params
+    ),
+    pool.query<RowDataPacket[]>(
+      `SELECT i.estado, COUNT(*) AS documentos, COALESCE(SUM(i.total), 0) AS total
+       FROM invoices i ${clause}
+       GROUP BY i.estado`,
+      params
+    ),
+  ]);
 
-  // Totales del filtro completo (no solo la página) para el resumen y el CSV.
-  const [porTipo] = await pool.query<RowDataPacket[]>(
-    `SELECT i.tipo, COUNT(*) AS documentos, COALESCE(SUM(i.total), 0) AS total
-     FROM invoices i ${clause}
-     GROUP BY i.tipo`,
-    params
-  );
-  const [porEstado] = await pool.query<RowDataPacket[]>(
-    `SELECT i.estado, COUNT(*) AS documentos, COALESCE(SUM(i.total), 0) AS total
-     FROM invoices i ${clause}
-     GROUP BY i.estado`,
-    params
-  );
+  const [data] = dataResult;
+  const [porTipo] = porTipoResult;
+  const [porEstado] = porEstadoResult;
+  const total = porTipo.reduce((sum, r) => sum + Number(r.documentos), 0);
 
   return {
     data,
