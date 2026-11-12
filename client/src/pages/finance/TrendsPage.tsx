@@ -6,6 +6,7 @@ import {
   Col,
   DatePicker,
   Row,
+  Space,
   Statistic,
   Table,
   Tag,
@@ -30,8 +31,10 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { TrendMonth, TrendsReport } from "@/types";
+import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
 
 const FMT = "YYYY-MM-DD";
@@ -96,6 +99,91 @@ const Comparativo = ({
   </Card>
 );
 
+function buildReportDoc(r: TrendsReport): ReportDocument {
+  const ultimoSaldo = r.serie.at(-1)?.saldo_caja ?? 0;
+
+  return {
+    title: "Tendencias",
+    subtitle: `Periodo: ${fmtDate(r.rango.desde)} — ${fmtDate(r.rango.hasta)} · ${
+      r.rango.meses
+    } mes(es) · ${r.rango.dias} días`,
+    meta: [
+      { label: "Ingresos", value: money(r.totales.ingresos) },
+      { label: "Utilidad", value: money(r.totales.utilidad) },
+      { label: "Neto de caja", value: money(r.totales.neto_caja) },
+      { label: "Saldo de caja al cierre", value: money(ultimoSaldo) },
+    ],
+    sections: [
+      {
+        title: "Resultado y caja por mes",
+        columns: [
+          { header: "Mes" },
+          { header: "Ingresos", format: "money" },
+          { header: "Costo ventas", format: "money" },
+          { header: "Margen", format: "money" },
+          { header: "Margen %", format: "percent" },
+          { header: "Gastos", format: "money" },
+          { header: "Utilidad", format: "money" },
+          { header: "Entradas", format: "money" },
+          { header: "Salidas", format: "money" },
+          { header: "Neto caja", format: "money" },
+          { header: "Saldo caja", format: "money" },
+          { header: "Var. ingresos", format: "percent" },
+          { header: "Var. utilidad", format: "percent" },
+        ],
+        rows: r.serie.map((m) => [
+          MES_LABEL(m.mes),
+          m.ingresos,
+          m.costo_ventas,
+          m.margen,
+          m.margen_pct,
+          m.gastos,
+          m.utilidad,
+          m.entradas,
+          m.salidas,
+          m.neto_caja,
+          m.saldo_caja,
+          m.variacion_ingresos,
+          m.variacion_utilidad,
+        ]),
+      },
+      {
+        title: "Comparativos",
+        columns: [
+          { header: "Comparativo" },
+          { header: "Desde", format: "date" },
+          { header: "Hasta", format: "date" },
+          { header: "Ingresos", format: "money" },
+          { header: "Utilidad", format: "money" },
+          { header: "Var. ingresos", format: "percent" },
+          { header: "Var. utilidad", format: "percent" },
+        ],
+        rows: [
+          [
+            "Periodo anterior de igual duración",
+            r.comparacion.anterior.desde,
+            r.comparacion.anterior.hasta,
+            r.comparacion.anterior.totales.ingresos,
+            r.comparacion.anterior.totales.utilidad,
+            r.comparacion.variaciones.ingresos_vs_anterior,
+            r.comparacion.variaciones.utilidad_vs_anterior,
+          ],
+          [
+            "Mismo rango del año anterior",
+            r.comparacion.anio_anterior.desde,
+            r.comparacion.anio_anterior.hasta,
+            r.comparacion.anio_anterior.totales.ingresos,
+            r.comparacion.anio_anterior.totales.utilidad,
+            r.comparacion.variaciones.ingresos_vs_anio_anterior,
+            r.comparacion.variaciones.utilidad_vs_anio_anterior,
+          ],
+        ],
+        note: "Las variaciones mensuales se calculan contra el mes anterior; las de esta tabla, contra cada periodo de referencia.",
+      },
+    ],
+  };
+}
+
 export default function TrendsPage() {
   const { message } = App.useApp();
   const { get, update } = useUrlFilters();
@@ -151,18 +239,34 @@ export default function TrendsPage() {
     [report]
   );
 
+  const exportCsv = () => {
+    if (!report) return;
+    exportReportCsv(
+      `tendencias-${report.rango.desde}-a-${report.rango.hasta}.csv`,
+      buildReportDoc(report)
+    );
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    if (!report) return;
+    printReport(buildReportDoc(report), target);
+  };
+
   return (
     <>
       <PageHeader
         title="Tendencias"
         description="Evolución mensual del resultado (devengo) y de la caja real, con comparación contra el periodo anterior de igual duración y el mismo rango del año anterior."
         extra={
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            value={range}
-            onChange={changeRange}
-            allowClear={false}
-          />
+          <Space wrap>
+            <DatePicker.RangePicker
+              format="DD/MM/YYYY"
+              value={range}
+              onChange={changeRange}
+              allowClear={false}
+            />
+            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
+          </Space>
         }
       />
 

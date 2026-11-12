@@ -119,6 +119,14 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - La columna **Documento** enlaza a la factura o cotización de origen.
 - El saldo de caja solo cambia con ingresos y gastos; activo/pasivo (IVA) no lo afectan.
 
+### 9.4 Reportes y exportación
+- Reportes disponibles: resultados, flujo de caja, balance, cartera, tendencias, rentabilidad, rotación de inventario y embudo de cotizaciones.
+- Cada reporte respeta sus filtros (fechas, cuenta, agrupación, umbral de stock muerto) y el botón **Exportar** ofrece:
+  - **CSV**: todas las secciones del reporte, con números listos para sumar en Excel.
+  - **PDF**: vista imprimible; en el diálogo del navegador elige *Guardar como PDF*.
+- En **Cartera** se descargan todas las facturas del filtro, no solo la página visible, junto con el aging y los principales deudores.
+- Si el navegador bloquea la ventana del PDF, permite las ventanas emergentes para este sitio y vuelve a intentarlo.
+
 ## 10. Perfil
 
 - Datos del usuario, cambio de contraseña y ajuste de tema (claro/oscuro).

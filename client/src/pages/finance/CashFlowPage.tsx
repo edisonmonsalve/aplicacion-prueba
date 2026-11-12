@@ -7,6 +7,7 @@ import {
   DatePicker,
   Row,
   Select,
+  Space,
   Statistic,
   Table,
   Tag,
@@ -18,8 +19,10 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { CashFlowAccountRow, CashFlowMonth, CashFlowReport, FinanceAccount } from "@/types";
+import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
 
 const FMT = "YYYY-MM-DD";
@@ -55,6 +58,62 @@ const TipoCuenta = ({ tipo }: { tipo: string }) => (
     {tipo === "banco" ? "Banco" : tipo === "caja" ? "Caja" : tipo}
   </Tag>
 );
+
+const tipoLabel = (tipo: string) =>
+  tipo === "banco" ? "Banco" : tipo === "caja" ? "Caja" : tipo;
+
+function buildReportDoc(r: CashFlowReport, cuentas: FinanceAccount[]): ReportDocument {
+  const filtro = r.filtro_cuenta
+    ? cuentas.find((c) => c.id === r.filtro_cuenta)?.nombre ?? `Cuenta #${r.filtro_cuenta}`
+    : null;
+
+  return {
+    title: "Flujo de caja",
+    subtitle: `Periodo: ${fmtDate(r.rango.desde)} — ${fmtDate(r.rango.hasta)}${
+      filtro ? ` · Cuenta: ${filtro}` : " · Todas las cuentas"
+    }`,
+    meta: [
+      { label: "Saldo inicial", value: money(r.totales.saldo_inicial) },
+      { label: "Entradas", value: money(r.totales.entradas) },
+      { label: "Salidas", value: money(r.totales.salidas) },
+      { label: "Neto", value: money(r.totales.neto) },
+      { label: "Saldo final", value: money(r.totales.saldo_final) },
+    ],
+    sections: [
+      {
+        title: "Por cuenta",
+        columns: [
+          { header: "Cuenta" },
+          { header: "Tipo" },
+          { header: "Saldo inicial", format: "money" },
+          { header: "Entradas", format: "money" },
+          { header: "Salidas", format: "money" },
+          { header: "Neto", format: "money" },
+          { header: "Saldo final", format: "money" },
+        ],
+        rows: r.por_cuenta.map((c) => [
+          c.activo ? c.nombre : `${c.nombre} (inactiva)`,
+          tipoLabel(c.tipo),
+          c.saldo_inicial,
+          c.entradas,
+          c.salidas,
+          c.neto,
+          c.saldo_final,
+        ]),
+      },
+      {
+        title: "Por mes",
+        columns: [
+          { header: "Mes" },
+          { header: "Entradas", format: "money" },
+          { header: "Salidas", format: "money" },
+          { header: "Neto", format: "money" },
+        ],
+        rows: r.por_mes.map((m) => [mesLabel(m.mes), m.entradas, m.salidas, m.neto]),
+      },
+    ],
+  };
+}
 
 export default function CashFlowPage() {
   const { message } = App.useApp();
@@ -111,18 +170,34 @@ export default function CashFlowPage() {
   const sinMovimiento =
     report && report.totales.entradas === 0 && report.totales.salidas === 0;
 
+  const exportCsv = () => {
+    if (!report) return;
+    exportReportCsv(
+      `flujo-caja-${report.rango.desde}-a-${report.rango.hasta}.csv`,
+      buildReportDoc(report, accounts)
+    );
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    if (!report) return;
+    printReport(buildReportDoc(report, accounts), target);
+  };
+
   return (
     <>
       <PageHeader
         title="Flujo de caja"
         description="Entradas y salidas reales de dinero por cuenta y por mes. Solo incluye asientos que mueven caja; el costo de ventas y el IVA informativos no aparecen."
         extra={
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            value={range}
-            onChange={changeRange}
-            allowClear={false}
-          />
+          <Space wrap>
+            <DatePicker.RangePicker
+              format="DD/MM/YYYY"
+              value={range}
+              onChange={changeRange}
+              allowClear={false}
+            />
+            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
+          </Space>
         }
       />
 

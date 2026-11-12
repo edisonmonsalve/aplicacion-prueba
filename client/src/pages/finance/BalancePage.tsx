@@ -18,8 +18,10 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { BalanceCuenta, BalanceReport } from "@/types";
+import { exportReportCsv, printReport, type ReportCell, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
 
 const FMT = "YYYY-MM-DD";
@@ -31,6 +33,145 @@ interface BalanceRow {
   /** Detalle opcional bajo el concepto. */
   detalle?: string;
   total?: boolean;
+}
+
+const buildActivoRows = (report: BalanceReport): BalanceRow[] => [
+  {
+    key: "caja",
+    concepto: "Caja y bancos",
+    valor: report.activo.caja_bancos,
+    detalle: `${report.activo.cuentas.length} cuenta(s)`,
+  },
+  {
+    key: "inventario",
+    concepto: "Inventario",
+    valor: report.activo.inventario,
+    detalle: `${report.activo.inventario_detalle.productos} producto(s) con stock${
+      report.activo.inventario_detalle.sin_costo > 0
+        ? ` · ${report.activo.inventario_detalle.sin_costo} sin costo`
+        : ""
+    }`,
+  },
+  {
+    key: "cartera-cobrar",
+    concepto: "Cartera por cobrar",
+    valor: report.activo.cartera_por_cobrar,
+    detalle: `${report.activo.cartera_detalle.facturas} factura(s)`,
+  },
+  {
+    key: "iva-favor",
+    concepto: "IVA a favor",
+    valor: report.activo.iva_a_favor,
+  },
+  {
+    key: "ret-favor",
+    concepto: "Retenciones a favor",
+    valor: report.activo.retenciones_a_favor,
+  },
+  {
+    key: "total-activo",
+    concepto: "Total activo",
+    valor: report.activo.total,
+    total: true,
+  },
+];
+
+const buildPasivoRows = (report: BalanceReport): BalanceRow[] => [
+  {
+    key: "cartera-pagar",
+    concepto: "Cartera por pagar",
+    valor: report.pasivo.cartera_por_pagar,
+    detalle: `${report.pasivo.cartera_detalle.facturas} factura(s)`,
+  },
+  {
+    key: "iva-pagar",
+    concepto: "IVA por pagar",
+    valor: report.pasivo.iva_por_pagar,
+  },
+  {
+    key: "ret-pagar",
+    concepto: "Retenciones por pagar",
+    valor: report.pasivo.retenciones_por_pagar,
+  },
+  {
+    key: "total-pasivo",
+    concepto: "Total pasivo",
+    valor: report.pasivo.total,
+    total: true,
+  },
+  {
+    key: "patrimonio",
+    concepto: "Patrimonio",
+    valor: report.patrimonio,
+    detalle: "Capital + resultados acumulados",
+    total: true,
+  },
+  {
+    key: "total-pasivo-patrimonio",
+    concepto: "Pasivo + patrimonio",
+    valor: report.ecuacion.pasivo_mas_patrimonio,
+    total: true,
+  },
+];
+
+const tipoCuenta = (tipo: string) =>
+  tipo === "banco" ? "Banco" : tipo === "caja" ? "Caja" : tipo;
+
+function buildReportDoc(report: BalanceReport): ReportDocument {
+  const balanceRows = (rows: BalanceRow[]): ReportCell[][] =>
+    rows.map((r) => [r.concepto, r.detalle ?? "", r.valor]);
+
+  return {
+    title: "Balance simplificado",
+    subtitle: `Al ${fmtDate(report.as_of)}`,
+    meta: [
+      { label: "Activo", value: money(report.activo.total) },
+      { label: "Pasivo", value: money(report.pasivo.total) },
+      { label: "Patrimonio", value: money(report.patrimonio) },
+      {
+        label: "Ecuación",
+        value: report.ecuacion.cuadra ? "Cuadra" : "No cuadra",
+      },
+    ],
+    sections: [
+      {
+        title: "Activo",
+        columns: [
+          { header: "Concepto" },
+          { header: "Detalle" },
+          { header: "Valor", format: "money" },
+        ],
+        rows: balanceRows(buildActivoRows(report)),
+      },
+      {
+        title: "Pasivo y patrimonio",
+        columns: [
+          { header: "Concepto" },
+          { header: "Detalle" },
+          { header: "Valor", format: "money" },
+        ],
+        rows: balanceRows(buildPasivoRows(report)),
+      },
+      {
+        title: "Cuentas de caja y bancos",
+        columns: [
+          { header: "Cuenta" },
+          { header: "Tipo" },
+          { header: "Estado" },
+          { header: "Saldo", format: "money" },
+        ],
+        rows: report.activo.cuentas.map((c) => [
+          c.nombre,
+          tipoCuenta(c.tipo),
+          c.activo ? "Activa" : "Inactiva",
+          c.saldo,
+        ]),
+      },
+    ],
+    notes: [
+      "El inventario se valora con las existencias actuales y el costo registrado; la caja, la cartera y los impuestos se cortan a la fecha del reporte.",
+    ],
+  };
 }
 
 export default function BalancePage() {
@@ -62,88 +203,8 @@ export default function BalancePage() {
     };
   }, [asOf, message]);
 
-  const activoRows: BalanceRow[] = report
-    ? [
-        {
-          key: "caja",
-          concepto: "Caja y bancos",
-          valor: report.activo.caja_bancos,
-          detalle: `${report.activo.cuentas.length} cuenta(s)`,
-        },
-        {
-          key: "inventario",
-          concepto: "Inventario",
-          valor: report.activo.inventario,
-          detalle: `${report.activo.inventario_detalle.productos} producto(s) con stock${
-            report.activo.inventario_detalle.sin_costo > 0
-              ? ` · ${report.activo.inventario_detalle.sin_costo} sin costo`
-              : ""
-          }`,
-        },
-        {
-          key: "cartera-cobrar",
-          concepto: "Cartera por cobrar",
-          valor: report.activo.cartera_por_cobrar,
-          detalle: `${report.activo.cartera_detalle.facturas} factura(s)`,
-        },
-        {
-          key: "iva-favor",
-          concepto: "IVA a favor",
-          valor: report.activo.iva_a_favor,
-        },
-        {
-          key: "ret-favor",
-          concepto: "Retenciones a favor",
-          valor: report.activo.retenciones_a_favor,
-        },
-        {
-          key: "total-activo",
-          concepto: "Total activo",
-          valor: report.activo.total,
-          total: true,
-        },
-      ]
-    : [];
-
-  const pasivoRows: BalanceRow[] = report
-    ? [
-        {
-          key: "cartera-pagar",
-          concepto: "Cartera por pagar",
-          valor: report.pasivo.cartera_por_pagar,
-          detalle: `${report.pasivo.cartera_detalle.facturas} factura(s)`,
-        },
-        {
-          key: "iva-pagar",
-          concepto: "IVA por pagar",
-          valor: report.pasivo.iva_por_pagar,
-        },
-        {
-          key: "ret-pagar",
-          concepto: "Retenciones por pagar",
-          valor: report.pasivo.retenciones_por_pagar,
-        },
-        {
-          key: "total-pasivo",
-          concepto: "Total pasivo",
-          valor: report.pasivo.total,
-          total: true,
-        },
-        {
-          key: "patrimonio",
-          concepto: "Patrimonio",
-          valor: report.patrimonio,
-          detalle: "Capital + resultados acumulados",
-          total: true,
-        },
-        {
-          key: "total-pasivo-patrimonio",
-          concepto: "Pasivo + patrimonio",
-          valor: report.ecuacion.pasivo_mas_patrimonio,
-          total: true,
-        },
-      ]
-    : [];
+  const activoRows: BalanceRow[] = report ? buildActivoRows(report) : [];
+  const pasivoRows: BalanceRow[] = report ? buildPasivoRows(report) : [];
 
   const rowRender = (r: BalanceRow) => (
     <>
@@ -170,13 +231,23 @@ export default function BalancePage() {
     },
   ];
 
+  const exportCsv = () => {
+    if (!report) return;
+    exportReportCsv(`balance-${report.as_of}.csv`, buildReportDoc(report));
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    if (!report) return;
+    printReport(buildReportDoc(report), target);
+  };
+
   return (
     <>
       <PageHeader
         title="Balance simplificado"
         description="Foto del activo, pasivo y patrimonio a una fecha. La caja, la cartera y los impuestos se cortan a la fecha; el inventario se valora con las existencias y el costo actual."
         extra={
-          <Space>
+          <Space wrap>
             <Typography.Text type="secondary">Al</Typography.Text>
             <DatePicker
               format="DD/MM/YYYY"
@@ -188,6 +259,7 @@ export default function BalancePage() {
                 update({ hasta: d.format(FMT) });
               }}
             />
+            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
           </Space>
         }
       />

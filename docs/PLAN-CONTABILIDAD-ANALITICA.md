@@ -120,6 +120,7 @@ Los huecos principales eran:
 | A2 | Rotación, días de inventario, stock muerto y ABC | Hecho |
 | A3 | Embudo de cotizaciones y tiempo de cierre | Hecho |
 | A4 | Tendencias mensuales y comparación de periodos | Hecho |
+| R4 | Exportación de reportes a CSV y PDF con los filtros activos | Hecho |
 
 ### Fase 3 — Gobierno del dato
 
@@ -146,6 +147,10 @@ Los huecos principales eran:
   (con override) para el flujo de caja.
 - **RN-20**: Los códigos de sistema (`ventas`, `costo_ventas`,
   `iva_por_pagar`, `iva_descontable`, `inventario`, etc.) no se renombran.
+- **RN-25**: Toda exportación de reportes respeta los filtros activos en pantalla.
+  El CSV conserva los valores numéricos sin formato para poder sumarlos en Excel;
+  el PDF es una vista imprimible que incluye metadatos, secciones y notas del
+  reporte, y se guarda como PDF desde el diálogo de impresión del navegador.
 
 ## 6. Criterios de aceptación transversales
 
@@ -177,3 +182,25 @@ Los huecos principales eran:
 | 2026-11-11 | G2 (salud de datos) | — | `/api/finance/data-health` con comprobaciones de asientos huérfanos, pagos sin asiento vigente, stock negativo y productos sin costo; estado global, resumen y detalle por hallazgo; página Salud de datos |
 | 2026-11-11 | G3 (índices e invariantes) | — | Migración `V021` con índices compuestos para facturas, ítems, pagos, productos y cierres; pruebas de invariantes de totales, retenciones, asientos vigentes, anulaciones, cartera, pagos, asignaciones y ecuación del balance |
 | 2026-11-11 | C6 (notas crédito/débito) | — | Migración `V022`; tablas `invoice_adjustments` y `invoice_adjustment_items`; asientos con signo negativo para notas crédito; cartera, P&L, balance, aging y presupuestos netean automáticamente; UI en el detalle de factura con creación y anulación auditada |
+| 2026-11-12 | R4 (exportación) | — | Utilidad común `reportExport` con documentos por secciones; CSV sin formato numérico (Excel) y PDF mediante vista imprimible del navegador; botón **Exportar** en resultados, flujo de caja, balance, cartera, tendencias, rentabilidad, rotación y embudo, respetando filtros y exportando todas las páginas de la cartera |
+
+## 8. Exportación de reportes (R4)
+
+- **Cobertura**: Estado de resultados, flujo de caja, balance simplificado,
+  cartera (incluido aging y principales deudores), tendencias, rentabilidad,
+  rotación de inventario y embudo de cotizaciones.
+- **CSV**: cada reporte genera un archivo con las secciones visibles, separadas
+  por una línea en blanco. Los importes, porcentajes y unidades se escriben como
+  números sin símbolos ni separadores para que Excel los pueda sumar. Se usa
+  `;` como separador y BOM UTF-8, igual que las exportaciones de listas.
+- **PDF**: se abre una vista imprimible con título, periodo, metadatos, tablas y
+  notas; desde el diálogo del navegador se elige *Guardar como PDF*. No se añade
+  una dependencia de PDF al cliente.
+- **Filtros**: la exportación usa el rango de fechas y los filtros activos. La
+  cartera descarga todas las páginas del filtro (no solo la visible) y usa el
+  resumen del servidor y el aging vigente.
+- **Ventanas emergentes**: el PDF abre la ventana al hacer clic para que el
+  navegador no la bloquee; si el usuario las bloquea, se muestra un mensaje de
+  error y no se pierde el gesto original.
+- **Componentes**: `client/src/utils/reportExport.ts` (documento, CSV y HTML
+  imprimible) y `client/src/components/ReportExport.tsx` (botón común).

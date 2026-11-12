@@ -3,7 +3,7 @@ export interface CsvColumn<T> {
   value: (row: T) => string | number | null | undefined;
 }
 
-const escape = (v: unknown) => {
+export const escapeCsvCell = (v: unknown) => {
   let s = v == null ? "" : String(v);
   // Evita que Excel ejecute fórmulas si el texto empieza con = + - @
   if (typeof v === "string" && /^[=+\-@]/.test(s)) s = `'${s}`;
@@ -11,18 +11,22 @@ const escape = (v: unknown) => {
 };
 
 // ";" y BOM: Excel en español abre así las columnas y las tildes bien
-export function downloadCsv<T>(filename: string, columns: CsvColumn<T>[], rows: T[]) {
-  const lines = [
-    columns.map((c) => escape(c.header)).join(";"),
-    ...rows.map((r) => columns.map((c) => escape(c.value(r))).join(";")),
-  ];
-  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+export function downloadCsvFile(filename: string, content: string) {
+  const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export function downloadCsv<T>(filename: string, columns: CsvColumn<T>[], rows: T[]) {
+  const lines = [
+    columns.map((c) => escapeCsvCell(c.header)).join(";"),
+    ...rows.map((r) => columns.map((c) => escapeCsvCell(c.value(r))).join(";")),
+  ];
+  downloadCsvFile(filename, lines.join("\r\n"));
 }
 
 // Descarga todas las páginas, no solo la visible

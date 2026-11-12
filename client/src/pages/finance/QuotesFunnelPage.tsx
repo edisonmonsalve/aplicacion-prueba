@@ -20,6 +20,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
   QuoteFunnelDetail,
@@ -27,6 +28,7 @@ import type {
   QuoteFunnelStage,
   QuoteFunnelState,
 } from "@/types";
+import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
 
 const FMT = "YYYY-MM-DD";
@@ -77,6 +79,114 @@ const Tiempo = ({
   </Card>
 );
 
+function buildReportDoc(r: QuoteFunnelReport): ReportDocument {
+  return {
+    title: "Embudo de cotizaciones",
+    subtitle: `Periodo de creación: ${fmtDate(r.rango.desde)} — ${fmtDate(r.rango.hasta)}`,
+    meta: [
+      { label: "Cotizaciones creadas", value: String(r.resumen.cotizaciones) },
+      { label: "Monto cotizado", value: money(r.resumen.monto) },
+      { label: "Tasa de aprobación", value: `${r.resumen.tasa_aprobacion.toFixed(1)} %` },
+      { label: "Tasa de cierre", value: `${r.resumen.tasa_cierre.toFixed(1)} %` },
+      { label: "Ticket promedio", value: money(r.resumen.ticket_promedio) },
+    ],
+    sections: [
+      {
+        title: "Embudo",
+        columns: [
+          { header: "Etapa" },
+          { header: "Cotizaciones", format: "number" },
+          { header: "Monto", format: "money" },
+          { header: "Tasa conversión", format: "percent" },
+          { header: "Tasa global", format: "percent" },
+        ],
+        rows: r.embudo.map((e) => [
+          STAGE_LABELS[e.etapa] ?? e.etapa,
+          e.cotizaciones,
+          e.monto,
+          e.tasa_conversion,
+          e.tasa_global,
+        ]),
+      },
+      {
+        title: "Estados actuales",
+        columns: [
+          { header: "Estado" },
+          { header: "Cotizaciones", format: "number" },
+          { header: "Monto", format: "money" },
+          { header: "Participación", format: "percent" },
+        ],
+        rows: r.estados.map((e) => [
+          ESTADO_META[e.estado].label,
+          e.cotizaciones,
+          e.monto,
+          e.participacion,
+        ]),
+      },
+      {
+        title: "Tiempos de cierre",
+        columns: [
+          { header: "Tramo" },
+          { header: "Promedio (días)", format: "number" },
+          { header: "Muestra", format: "number" },
+          { header: "Mínimo (días)", format: "number" },
+          { header: "Máximo (días)", format: "number" },
+        ],
+        rows: [
+          [
+            "Creación → aprobación",
+            r.tiempos.aprobacion.promedio,
+            r.tiempos.aprobacion.muestra,
+            r.tiempos.aprobacion.minimo,
+            r.tiempos.aprobacion.maximo,
+          ],
+          [
+            "Aprobación → entrega",
+            r.tiempos.entrega.promedio,
+            r.tiempos.entrega.muestra,
+            r.tiempos.entrega.minimo,
+            r.tiempos.entrega.maximo,
+          ],
+          [
+            "Ciclo completo",
+            r.tiempos.ciclo.promedio,
+            r.tiempos.ciclo.muestra,
+            r.tiempos.ciclo.minimo,
+            r.tiempos.ciclo.maximo,
+          ],
+        ],
+      },
+      {
+        title: "Detalle",
+        columns: [
+          { header: "Cotización" },
+          { header: "Cliente" },
+          { header: "Estado" },
+          { header: "Monto", format: "money" },
+          { header: "Creada", format: "date" },
+          { header: "Aprobada", format: "date" },
+          { header: "Entregada", format: "date" },
+          { header: "Días aprobación", format: "number" },
+          { header: "Días entrega", format: "number" },
+          { header: "Ciclo (días)", format: "number" },
+        ],
+        rows: r.detalle.map((d) => [
+          `#${d.id}`,
+          d.cliente,
+          ESTADO_META[d.estado].label,
+          d.total,
+          d.creado_at,
+          d.aprobado_at,
+          d.entregado_at,
+          d.dias_aprobacion,
+          d.dias_entrega,
+          d.dias_ciclo,
+        ]),
+      },
+    ],
+  };
+}
+
 export default function QuotesFunnelPage() {
   const { message } = App.useApp();
   const { get, update } = useUrlFilters();
@@ -124,18 +234,34 @@ export default function QuotesFunnelPage() {
 
   const creadas = report?.embudo.find((e) => e.etapa === "creadas")?.cotizaciones ?? 0;
 
+  const exportCsv = () => {
+    if (!report) return;
+    exportReportCsv(
+      `embudo-cotizaciones-${report.rango.desde}-a-${report.rango.hasta}.csv`,
+      buildReportDoc(report)
+    );
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    if (!report) return;
+    printReport(buildReportDoc(report), target);
+  };
+
   return (
     <>
       <PageHeader
         title="Embudo de cotizaciones"
         description="Conversión de cotizaciones creadas en el periodo: enviadas, aprobadas y entregadas. Incluye tiempos de aprobación, entrega y ciclo completo."
         extra={
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            value={range}
-            onChange={changeRange}
-            allowClear={false}
-          />
+          <Space wrap>
+            <DatePicker.RangePicker
+              format="DD/MM/YYYY"
+              value={range}
+              onChange={changeRange}
+              allowClear={false}
+            />
+            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
+          </Space>
         }
       />
 

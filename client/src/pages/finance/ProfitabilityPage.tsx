@@ -8,6 +8,7 @@ import {
   Progress,
   Row,
   Segmented,
+  Space,
   Statistic,
   Table,
   Tag,
@@ -19,8 +20,10 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { ProfitabilityReport, ProfitabilityRow, ProfitGroup } from "@/types";
+import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
 
 const FMT = "YYYY-MM-DD";
@@ -45,6 +48,56 @@ const MargenPct = ({ value }: { value: number }) => (
     {value.toFixed(1)} %
   </Tag>
 );
+
+function buildReportDoc(r: ProfitabilityReport): ReportDocument {
+  const grupoLabel = GROUP_OPTIONS.find((g) => g.value === r.grupo)?.label ?? "Producto";
+  const esProducto = r.grupo === "producto";
+
+  const columns = [
+    { header: grupoLabel },
+    ...(esProducto ? [{ header: "SKU" }, { header: "Categoría" }] : []),
+    { header: "Ingresos", format: "money" as const },
+    { header: "Costo", format: "money" as const },
+    { header: "Margen", format: "money" as const },
+    { header: "Margen %", format: "percent" as const },
+    { header: "Participación", format: "percent" as const },
+    { header: "Unidades", format: "number" as const },
+    { header: "Facturas", format: "number" as const },
+  ];
+
+  return {
+    title: `Rentabilidad por ${grupoLabel.toLowerCase()}`,
+    subtitle: `Periodo: ${fmtDate(r.rango.desde)} — ${fmtDate(r.rango.hasta)} · Agrupado por ${grupoLabel.toLowerCase()}`,
+    meta: [
+      { label: "Ingresos", value: money(r.resumen.ingresos) },
+      { label: "Costo de ventas", value: money(r.resumen.costo) },
+      {
+        label: "Margen bruto",
+        value: `${money(r.resumen.margen)} (${r.resumen.margen_pct.toFixed(1)} %)`,
+      },
+      { label: "Unidades", value: String(r.resumen.unidades) },
+      { label: "Facturas", value: String(r.resumen.facturas) },
+    ],
+    sections: [
+      {
+        title: `Detalle por ${grupoLabel.toLowerCase()}`,
+        columns,
+        rows: r.data.map((row) => [
+          row.nombre,
+          ...(esProducto ? [row.sku ?? "", row.categoria ?? ""] : []),
+          row.ingresos,
+          row.costo,
+          row.margen,
+          row.margen_pct,
+          row.participacion,
+          row.unidades,
+          row.facturas,
+        ]),
+        note: "Solo incluye facturas de venta confirmadas en el periodo.",
+      },
+    ],
+  };
+}
 
 export default function ProfitabilityPage() {
   const { message } = App.useApp();
@@ -94,18 +147,34 @@ export default function ProfitabilityPage() {
 
   const sinDatos = report && report.data.length === 0;
 
+  const exportCsv = () => {
+    if (!report) return;
+    exportReportCsv(
+      `rentabilidad-${report.grupo}-${report.rango.desde}-a-${report.rango.hasta}.csv`,
+      buildReportDoc(report)
+    );
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    if (!report) return;
+    printReport(buildReportDoc(report), target);
+  };
+
   return (
     <>
       <PageHeader
         title="Rentabilidad"
         description="Ingresos y costo de ventas por producto, categoría o cliente. Usa el costo histórico del momento de la venta y solo cuenta facturas confirmadas."
         extra={
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            value={range}
-            onChange={changeRange}
-            allowClear={false}
-          />
+          <Space wrap>
+            <DatePicker.RangePicker
+              format="DD/MM/YYYY"
+              value={range}
+              onChange={changeRange}
+              allowClear={false}
+            />
+            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
+          </Space>
         }
       />
 

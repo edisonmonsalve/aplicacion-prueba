@@ -10,6 +10,7 @@ import {
   Input,
   Row,
   Select,
+  Space,
   Statistic,
   Table,
   Tag,
@@ -21,10 +22,13 @@ import { useNavigate } from "react-router-dom";
 import { getFinanceAccounts } from "@/services/financeService";
 import { getCarteraAging, listReceivables } from "@/services/invoicesService";
 import { getErrorMessage } from "@/utils/errors";
+import { fetchAllPages } from "@/utils/csv";
+import { exportReportCsv, printReport, type ReportDocument, type ReportSection } from "@/utils/reportExport";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useAuth } from "@/context/AuthContext";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
   CarteraAging,
@@ -33,6 +37,7 @@ import type {
   InvoiceReceivable,
   InvoiceTipo,
   PaginatedReceivables,
+  ReceivablesSummary,
 } from "@/types";
 import { InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 
@@ -50,6 +55,128 @@ const ESTADO_META: Record<CarteraEstado, { label: string; color: string }> = {
 const ESTADO_OPTIONS = (Object.keys(ESTADO_META) as CarteraEstado[])
   .filter((e) => e !== "no_aplica")
   .map((value) => ({ value, label: ESTADO_META[value].label }));
+
+interface ExportFilters {
+  q?: string;
+  tipo?: InvoiceTipo;
+  estado?: CarteraEstado;
+  desde?: string;
+  hasta?: string;
+}
+
+function buildReportDoc(
+  rows: InvoiceReceivable[],
+  resumen: ReceivablesSummary,
+  aging: CarteraAging | null,
+  filtros: ExportFilters
+): ReportDocument {
+  const filtrosTexto = [
+    filtros.tipo
+      ? `Tipo: ${filtros.tipo === "venta" ? "Por cobrar" : "Por pagar"}`
+      : null,
+    filtros.estado ? `Estado: ${ESTADO_META[filtros.estado].label}` : null,
+    filtros.q ? `Búsqueda: "${filtros.q}"` : null,
+    filtros.desde || filtros.hasta
+      ? `Fecha de factura: ${filtros.desde ? fmtDate(filtros.desde) : "inicio"} — ${
+          filtros.hasta ? fmtDate(filtros.hasta) : "hoy"
+        }`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const sections: ReportSection[] = [];
+
+  if (aging) {
+    const a = aging.aging.venta;
+    sections.push({
+      title: "Antigüedad por cobrar",
+      columns: [
+        { header: "Tramo" },
+        { header: "Saldo", format: "money" },
+      ],
+      rows: [
+        ["Corriente", a.corriente],
+        ["1-30 días", a.d1_30],
+        ["31-60 días", a.d31_60],
+        ["61-90 días", a.d61_90],
+        ["+90 días", a.d90_mas],
+        ["Total", a.total],
+      ],
+      note: `Corte del aging: ${fmtDate(aging.as_of)}.`,
+    });
+
+    sections.push({
+      title: "Indicadores de cobro",
+      columns: [{ header: "Indicador" }, { header: "Valor" }],
+      rows: [
+        ["DSO", aging.dso === null ? "—" : `${aging.dso.toFixed(1)} días`],
+        ["Vencido por cobrar", money(aging.totales.vencido_cobrar)],
+        ["Por vencer (7 días)", money(aging.totales.por_vencer_7d)],
+        ["Ventas a crédito del periodo", money(aging.ventas_credito)],
+        ["Facturas a crédito", String(aging.facturas_credito)],
+        ["Facturas vencidas", String(aging.totales.facturas_vencidas)],
+      ],
+    });
+
+    if (aging.top_deudores.length > 0) {
+      sections.push({
+        title: "Principales deudores",
+        columns: [
+          { header: "Cliente" },
+          { header: "Saldo", format: "money" },
+          { header: "Vencido", format: "money" },
+          { header: "Mora máxima (días)", format: "number" },
+        ],
+        rows: aging.top_deudores.map((d) => [d.contraparte, d.saldo, d.vencido, d.max_dias]),
+      });
+    }
+  }
+
+  sections.push({
+    title: "Facturas",
+    columns: [
+      { header: "Número" },
+      { header: "Tipo" },
+      { header: "Contraparte" },
+      { header: "Fecha", format: "date" },
+      { header: "Vencimiento", format: "date" },
+      { header: "Estado" },
+      { header: "Mora (días)", format: "number" },
+      { header: "Total neto", format: "money" },
+      { header: "Pagado", format: "money" },
+      { header: "Saldo", format: "money" },
+    ],
+    rows: rows.map((r) => [
+      r.numero,
+      r.tipo === "venta" ? "Venta" : "Compra",
+      r.contraparte,
+      r.fecha,
+      r.fecha_vencimiento,
+      ESTADO_META[r.estado_cartera]?.label ?? r.estado_cartera,
+      r.dias_vencido,
+      r.total_neto,
+      r.pagado,
+      r.saldo_pendiente,
+    ]),
+  });
+
+  return {
+    title: "Cartera",
+    subtitle: filtrosTexto || "Sin filtros",
+    meta: [
+      { label: "Por cobrar", value: money(resumen.por_cobrar) },
+      { label: "Por pagar", value: money(resumen.por_pagar) },
+      { label: "Neto", value: money(resumen.por_cobrar - resumen.por_pagar) },
+      { label: "Vencido", value: money(resumen.vencido) },
+      { label: "Facturas", value: String(rows.length) },
+    ],
+    sections,
+    notes: [
+      "La cartera incluye solo facturas confirmadas con saldo pendiente. Los pagos y las notas crédito reducen el saldo.",
+    ],
+  };
+}
 
 export default function ReceivablesPage() {
   const navigate = useNavigate();
@@ -129,13 +256,41 @@ export default function ReceivablesPage() {
   const pagar = data.resumen.por_pagar;
   const neto = cobrar - pagar;
 
+  const buildDoc = async () => {
+    const all = await fetchAllPages<InvoiceReceivable>((pageNumber) =>
+      listReceivables({
+        page: pageNumber,
+        pageSize: 100,
+        q: q || undefined,
+        tipo,
+        estado,
+        desde,
+        hasta,
+      })
+    );
+    return buildReportDoc(all, data.resumen, aging, { q, tipo, estado, desde, hasta });
+  };
+
+  const exportCsv = async () => {
+    const doc = await buildDoc();
+    exportReportCsv(`cartera-${dayjs().format("YYYY-MM-DD")}.csv`, doc);
+  };
+
+  const exportPdf = async (target?: Window | null) => {
+    const doc = await buildDoc();
+    printReport(doc, target);
+  };
+
   return (
     <>
       <PageHeader
         title="Cartera"
         description="Cuentas por cobrar y por pagar de facturas a crédito, con su vencimiento y saldo pendiente."
         extra={
-          <Button onClick={() => navigate("/facturas")}>Ir a facturas</Button>
+          <Space wrap>
+            <Button onClick={() => navigate("/facturas")}>Ir a facturas</Button>
+            <ReportExport onCsv={exportCsv} onPdf={exportPdf} />
+          </Space>
         }
       />
 

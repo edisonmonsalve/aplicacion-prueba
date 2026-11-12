@@ -7,6 +7,7 @@ import {
   DatePicker,
   Row,
   Select,
+  Space,
   Statistic,
   Table,
   Tag,
@@ -18,6 +19,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
   InventoryAbcClass,
@@ -25,6 +27,7 @@ import type {
   InventoryAnalyticsReport,
   InventoryAnalyticsRow,
 } from "@/types";
+import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
 
 const FMT = "YYYY-MM-DD";
@@ -49,6 +52,93 @@ const Numero = ({ value, suffix }: { value: number | null; suffix?: string }) =>
     </span>
   );
 };
+
+function buildReportDoc(r: InventoryAnalyticsReport): ReportDocument {
+  return {
+    title: "Rotación de inventario",
+    subtitle: `Periodo: ${fmtDate(r.rango.desde)} — ${fmtDate(r.rango.hasta)} (${
+      r.rango.dias
+    } días) · Stock muerto sin ventas en ${r.rango.dias_muerto} días`,
+    meta: [
+      { label: "Valor del inventario", value: money(r.resumen.valor_inventario) },
+      {
+        label: "Rotación del periodo",
+        value: r.resumen.rotacion === null ? "—" : `${r.resumen.rotacion.toFixed(2)} veces`,
+      },
+      {
+        label: "Días de inventario",
+        value: r.resumen.dias_inventario === null ? "—" : `${r.resumen.dias_inventario.toFixed(2)} días`,
+      },
+      {
+        label: "Productos vendidos",
+        value: `${r.resumen.productos_vendidos} de ${r.resumen.productos}`,
+      },
+      {
+        label: "Stock muerto",
+        value: `${r.resumen.stock_muerto.productos} producto(s) · ${money(r.resumen.stock_muerto.valor)}`,
+      },
+    ],
+    sections: [
+      {
+        title: "Clasificación ABC por ingresos",
+        columns: [
+          { header: "Clase", align: "center" },
+          { header: "Criterio" },
+          { header: "Productos", format: "number" },
+          { header: "Ingresos", format: "money" },
+          { header: "Participación", format: "percent" },
+        ],
+        rows: r.resumen.abc.map((g) => [
+          g.clase,
+          ABC_META[g.clase].hint,
+          g.productos,
+          g.ingresos,
+          g.participacion,
+        ]),
+      },
+      {
+        title: "Detalle por producto",
+        columns: [
+          { header: "Producto" },
+          { header: "SKU" },
+          { header: "Categoría" },
+          { header: "ABC", align: "center" },
+          { header: "Stock", format: "number" },
+          { header: "Valor inventario", format: "money" },
+          { header: "Unidades", format: "number" },
+          { header: "Ingresos", format: "money" },
+          { header: "Costo", format: "money" },
+          { header: "Margen %", format: "percent" },
+          { header: "Rotación", format: "number" },
+          { header: "Días inv.", format: "number" },
+          { header: "Última venta", format: "date" },
+          { header: "Días sin venta", format: "number" },
+          { header: "Estado" },
+        ],
+        rows: r.data.map((row) => [
+          row.nombre,
+          row.sku,
+          row.categoria ?? "",
+          row.clase_abc,
+          row.stock_actual,
+          row.valor_inventario,
+          row.unidades_vendidas,
+          row.ingresos,
+          row.costo_ventas,
+          row.margen_pct,
+          row.rotacion,
+          row.dias_inventario,
+          row.ultima_venta,
+          row.dias_sin_venta,
+          [row.stock_muerto ? "Muerto" : "Con venta", row.sin_costo ? "Sin costo" : ""]
+            .filter(Boolean)
+            .join(" · "),
+        ]),
+        note: "La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo.",
+      },
+    ],
+  };
+}
 
 export default function InventoryAnalyticsPage() {
   const { message } = App.useApp();
@@ -97,18 +187,34 @@ export default function InventoryAnalyticsPage() {
     };
   }, [range, diasMuerto, message]);
 
+  const exportCsv = () => {
+    if (!report) return;
+    exportReportCsv(
+      `rotacion-inventario-${report.rango.desde}-a-${report.rango.hasta}.csv`,
+      buildReportDoc(report)
+    );
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    if (!report) return;
+    printReport(buildReportDoc(report), target);
+  };
+
   return (
     <>
       <PageHeader
         title="Rotación de inventario"
         description="Rotación, días de inventario, stock muerto y clasificación ABC. La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo."
         extra={
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            value={range}
-            onChange={changeRange}
-            allowClear={false}
-          />
+          <Space wrap>
+            <DatePicker.RangePicker
+              format="DD/MM/YYYY"
+              value={range}
+              onChange={changeRange}
+              allowClear={false}
+            />
+            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
+          </Space>
         }
       />
 

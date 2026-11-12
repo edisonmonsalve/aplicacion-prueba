@@ -6,6 +6,7 @@ import {
   Col,
   DatePicker,
   Row,
+  Space,
   Statistic,
   Table,
   Typography,
@@ -16,8 +17,10 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { PnlReport } from "@/types";
+import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
 
 const FMT = "YYYY-MM-DD";
@@ -126,6 +129,43 @@ function buildRows(r: PnlReport): PnlRow[] {
   return rows;
 }
 
+function buildReportDoc(r: PnlReport): ReportDocument {
+  const rows = buildRows(r);
+  return {
+    title: "Estado de resultados",
+    subtitle: `Periodo: ${fmtDate(r.rango.desde)} — ${fmtDate(
+      r.rango.hasta
+    )} (${r.rango.dias} días) · Comparado con ${fmtDate(r.comparativo.desde)} — ${fmtDate(
+      r.comparativo.hasta
+    )}`,
+    meta: [
+      { label: "Ingresos", value: money(r.ingresos.total) },
+      { label: "Margen bruto", value: `${money(r.margen_bruto)} (${r.margen_bruto_pct.toFixed(1)} %)` },
+      { label: "Gastos operativos", value: money(r.gastos.total) },
+      { label: "Utilidad", value: `${money(r.utilidad)} (${r.utilidad_pct.toFixed(1)} %)` },
+    ],
+    sections: [
+      {
+        columns: [
+          { header: "Concepto" },
+          { header: "Periodo", format: "money" },
+          { header: "% ingresos", format: "percent" },
+          { header: "Periodo anterior", format: "money" },
+          { header: "Variación", format: "percent" },
+        ],
+        rows: rows.map((row) => [
+          row.tipo === "line" ? `  ${row.concepto}` : row.concepto,
+          row.actual,
+          row.pct,
+          row.anterior,
+          row.variacion,
+        ]),
+        note: "La variación se calcula contra el periodo anterior de igual duración.",
+      },
+    ],
+  };
+}
+
 function Variation({ value, gasto }: { value: number | null; gasto?: boolean }) {
   if (value === null) {
     return <Typography.Text type="secondary">—</Typography.Text>;
@@ -195,18 +235,34 @@ export default function ProfitLossPage() {
     report.costo_ventas.total === 0 &&
     report.gastos.total === 0;
 
+  const exportCsv = () => {
+    if (!report) return;
+    exportReportCsv(
+      `estado-resultados-${report.rango.desde}-a-${report.rango.hasta}.csv`,
+      buildReportDoc(report)
+    );
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    if (!report) return;
+    printReport(buildReportDoc(report), target);
+  };
+
   return (
     <>
       <PageHeader
         title="Estado de resultados"
         description="Resultado por devengo: incluye ventas a crédito y excluye cobros de cartera, que solo mueven caja. Comparado con el periodo anterior de igual duración."
         extra={
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            value={range}
-            onChange={changeRange}
-            allowClear={false}
-          />
+          <Space wrap>
+            <DatePicker.RangePicker
+              format="DD/MM/YYYY"
+              value={range}
+              onChange={changeRange}
+              allowClear={false}
+            />
+            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
+          </Space>
         }
       />
 
