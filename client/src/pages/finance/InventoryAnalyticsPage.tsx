@@ -4,21 +4,20 @@ import {
   App,
   Card,
   Col,
-  DatePicker,
   Row,
   Select,
-  Space,
   Statistic,
   Table,
   Tag,
   Typography,
 } from "antd";
-import dayjs from "dayjs";
 import { getInventoryAnalytics } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
@@ -29,8 +28,6 @@ import type {
 } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
-
-const FMT = "YYYY-MM-DD";
 
 const DIAS_MUERTO_OPTIONS = [30, 60, 90, 180, 365].map((dias) => ({
   value: dias,
@@ -142,37 +139,28 @@ function buildReportDoc(r: InventoryAnalyticsReport): ReportDocument {
 
 export default function InventoryAnalyticsPage() {
   const { message } = App.useApp();
-  const { get, getPositiveInt, update } = useUrlFilters();
+  const { getPositiveInt, update } = useUrlFilters();
   const [report, setReport] = useState<InventoryAnalyticsReport | null>(null);
   const [loading, setLoading] = useState(true);
 
   const diasMuerto = getPositiveInt("dias_muerto", 90);
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
-  });
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange();
 
   useDocumentTitle("Rotación de inventario");
-
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
-    setRange(next);
-    update({ desde: next[0].format(FMT), hasta: next[1].format(FMT) });
-  };
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getInventoryAnalytics({
-      desde: range[0].format(FMT),
-      hasta: range[1].format(FMT),
-      dias_muerto: diasMuerto,
-    })
+    getInventoryAnalytics({ desde, hasta, dias_muerto: diasMuerto })
       .then((r) => {
         if (!cancelled) setReport(r);
       })
@@ -185,7 +173,7 @@ export default function InventoryAnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, diasMuerto, message]);
+  }, [desde, hasta, diasMuerto, message]);
 
   const exportCsv = () => {
     if (!report) return;
@@ -205,30 +193,30 @@ export default function InventoryAnalyticsPage() {
       <PageHeader
         title="Rotación de inventario"
         description="Rotación, días de inventario, stock muerto y clasificación ABC. La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo."
-        extra={
-          <Space wrap>
-            <DatePicker.RangePicker
-              format="DD/MM/YYYY"
-              value={range}
-              onChange={changeRange}
-              allowClear={false}
-            />
-            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
-          </Space>
-        }
       />
 
-      <div style={{ marginBottom: 16, maxWidth: 260 }}>
-        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-          Umbral de stock muerto
-        </Typography.Text>
-        <Select
-          style={{ width: "100%" }}
-          value={diasMuerto}
-          options={DIAS_MUERTO_OPTIONS}
-          onChange={(value) => update({ dias_muerto: value })}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
         />
-      </div>
+        <div style={{ marginTop: 12, maxWidth: 260 }}>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Umbral de stock muerto
+          </Typography.Text>
+          <Select
+            style={{ width: "100%" }}
+            value={diasMuerto}
+            options={DIAS_MUERTO_OPTIONS}
+            onChange={(value) => update({ dias_muerto: value })}
+          />
+        </div>
+      </Card>
 
       {report && report.resumen.stock_muerto.productos > 0 && (
         <Alert

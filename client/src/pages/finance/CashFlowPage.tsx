@@ -4,28 +4,25 @@ import {
   App,
   Card,
   Col,
-  DatePicker,
   Row,
   Select,
-  Space,
   Statistic,
   Table,
   Tag,
   Typography,
 } from "antd";
-import dayjs from "dayjs";
 import { getCashFlow, getFinanceAccounts } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { CashFlowAccountRow, CashFlowMonth, CashFlowReport, FinanceAccount } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
-
-const FMT = "YYYY-MM-DD";
 
 const MESES = [
   "Ene",
@@ -117,20 +114,22 @@ function buildReportDoc(r: CashFlowReport, cuentas: FinanceAccount[]): ReportDoc
 
 export default function CashFlowPage() {
   const { message } = App.useApp();
-  const { get, getPositiveInt, update } = useUrlFilters();
+  const { getPositiveInt, update } = useUrlFilters();
   const [report, setReport] = useState<CashFlowReport | null>(null);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [loading, setLoading] = useState(true);
 
   const accountId = getPositiveInt("account_id", 0) || undefined;
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
-  });
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange();
 
   useDocumentTitle("Flujo de caja");
 
@@ -140,19 +139,12 @@ export default function CashFlowPage() {
       .catch(() => message.error("No se pudieron cargar las cuentas"));
   }, [message]);
 
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
-    setRange(next);
-    update({ desde: next[0].format(FMT), hasta: next[1].format(FMT) });
-  };
-
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     getCashFlow({
-      desde: range[0].format(FMT),
-      hasta: range[1].format(FMT),
+      desde,
+      hasta,
       account_id: accountId,
     })
       .then((r) => {
@@ -165,7 +157,7 @@ export default function CashFlowPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, accountId, message]);
+  }, [desde, hasta, accountId, message]);
 
   const sinMovimiento =
     report && report.totales.entradas === 0 && report.totales.salidas === 0;
@@ -188,35 +180,35 @@ export default function CashFlowPage() {
       <PageHeader
         title="Flujo de caja"
         description="Entradas y salidas reales de dinero por cuenta y por mes. Solo incluye asientos que mueven caja; el costo de ventas y el IVA informativos no aparecen."
-        extra={
-          <Space wrap>
-            <DatePicker.RangePicker
-              format="DD/MM/YYYY"
-              value={range}
-              onChange={changeRange}
-              allowClear={false}
-            />
-            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
-          </Space>
-        }
       />
 
-      <div style={{ marginBottom: 16, maxWidth: 320 }}>
-        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-          Cuenta
-        </Typography.Text>
-        <Select
-          allowClear
-          placeholder="Todas las cuentas"
-          style={{ width: "100%" }}
-          value={accountId}
-          onChange={(v) => update({ account_id: v })}
-          options={accounts.map((a) => ({
-            value: a.id,
-            label: `${a.nombre}${a.activo ? "" : " (inactiva)"}`,
-          }))}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
         />
-      </div>
+        <div style={{ marginTop: 12, maxWidth: 320 }}>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+            Cuenta
+          </Typography.Text>
+          <Select
+            allowClear
+            placeholder="Todas las cuentas"
+            style={{ width: "100%" }}
+            value={accountId}
+            onChange={(v) => update({ account_id: v })}
+            options={accounts.map((a) => ({
+              value: a.id,
+              label: `${a.nombre}${a.activo ? "" : " (inactiva)"}`,
+            }))}
+          />
+        </div>
+      </Card>
 
       {sinMovimiento && (
         <Alert

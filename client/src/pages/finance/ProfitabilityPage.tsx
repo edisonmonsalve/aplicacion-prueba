@@ -4,29 +4,26 @@ import {
   App,
   Card,
   Col,
-  DatePicker,
   Progress,
   Row,
   Segmented,
-  Space,
   Statistic,
   Table,
   Tag,
   Typography,
 } from "antd";
-import dayjs from "dayjs";
 import { getProfitability } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { ProfitabilityReport, ProfitabilityRow, ProfitGroup } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
-
-const FMT = "YYYY-MM-DD";
 
 const GROUP_OPTIONS: { label: string; value: ProfitGroup }[] = [
   { label: "Producto", value: "producto" },
@@ -107,32 +104,23 @@ export default function ProfitabilityPage() {
 
   const rawGroup = get("grupo");
   const grupo: ProfitGroup = isGroup(rawGroup) ? rawGroup : "producto";
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
-  });
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange();
 
   useDocumentTitle("Rentabilidad");
-
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
-    setRange(next);
-    update({ desde: next[0].format(FMT), hasta: next[1].format(FMT) });
-  };
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getProfitability({
-      desde: range[0].format(FMT),
-      hasta: range[1].format(FMT),
-      grupo,
-    })
+    getProfitability({ desde, hasta, grupo })
       .then((r) => {
         if (!cancelled) setReport(r);
       })
@@ -143,7 +131,7 @@ export default function ProfitabilityPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, grupo, message]);
+  }, [desde, hasta, grupo, message]);
 
   const sinDatos = report && report.data.length === 0;
 
@@ -165,26 +153,26 @@ export default function ProfitabilityPage() {
       <PageHeader
         title="Rentabilidad"
         description="Ingresos y costo de ventas por producto, categoría o cliente. Usa el costo histórico del momento de la venta y solo cuenta facturas confirmadas."
-        extra={
-          <Space wrap>
-            <DatePicker.RangePicker
-              format="DD/MM/YYYY"
-              value={range}
-              onChange={changeRange}
-              allowClear={false}
-            />
-            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
-          </Space>
-        }
       />
 
-      <div style={{ marginBottom: 16, overflowX: "auto" }}>
-        <Segmented
-          options={GROUP_OPTIONS}
-          value={grupo}
-          onChange={(value) => update({ grupo: String(value) })}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
         />
-      </div>
+        <div style={{ marginTop: 12, overflowX: "auto" }}>
+          <Segmented
+            options={GROUP_OPTIONS}
+            value={grupo}
+            onChange={(value) => update({ grupo: String(value) })}
+          />
+        </div>
+      </Card>
 
       {sinDatos && (
         <Alert

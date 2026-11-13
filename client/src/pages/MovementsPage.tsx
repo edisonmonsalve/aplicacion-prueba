@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Button,
-  DatePicker,
+  Card,
   Empty,
   Input,
   Select,
@@ -26,11 +26,11 @@ import { canSeeCosts } from "@/utils/roles";
 import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
 import type { StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
-
-const DATE_FMT = "DD/MM/YYYY";
 
 const SORT_KEYS: MovementSortKey[] = [
   "fecha",
@@ -79,8 +79,16 @@ export default function MovementsPage() {
   const tipo = (get("tipo") as MovementsQuery["tipo"]) ?? undefined;
   const origen = (get("origen") as MovementsQuery["origen"]) ?? undefined;
   const q = get("q") ?? "";
-  const desde = get("desde");
-  const hasta = get("hasta");
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange({ allowClear: true, resetPage: true });
   const rawSort = get("sort");
   const sort = SORT_KEYS.includes(rawSort as MovementSortKey)
     ? (rawSort as MovementSortKey)
@@ -398,6 +406,19 @@ export default function MovementsPage() {
         }
       />
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          allowClear
+          size="small"
+        />
+      </Card>
+
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>
           <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
@@ -460,23 +481,6 @@ export default function MovementsPage() {
               label: ORIGEN_META[o].label,
             }))}
             onChange={(origen) => updateFilters({ origen })}
-          />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Rango de fechas
-          </Typography.Text>
-          <DatePicker.RangePicker
-            format={DATE_FMT}
-            allowClear
-            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-            onChange={(v) =>
-              updateFilters({
-                desde: v?.[0]?.format("YYYY-MM-DD"),
-                hasta: v?.[1]?.format("YYYY-MM-DD"),
-              })
-            }
-            style={{ width: 280, maxWidth: "100%" }}
           />
         </div>
         {(query.invoice_id !== undefined || query.quote_id !== undefined) && (

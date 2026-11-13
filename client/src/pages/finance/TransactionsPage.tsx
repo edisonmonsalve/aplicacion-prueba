@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, App, Button, DatePicker, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Card, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
@@ -18,7 +18,9 @@ import type {
 } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { fetchAllPages, downloadCsv } from "@/utils/csv";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import TransactionFormModal from "./TransactionFormModal";
@@ -72,13 +74,19 @@ export default function TransactionsPage() {
   const [resumen, setResumen] = useState<TransactionsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const { get, getNumber, getPositiveInt, update } = useUrlFilters();
-  const defaultDesde = dayjs().startOf("month").format("YYYY-MM-DD");
-  const defaultHasta = dayjs().format("YYYY-MM-DD");
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange({ resetPage: true });
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const tipo = (get("tipo") as FinanceTransaction["tipo"]) ?? undefined;
-  const desde = get("desde") ?? defaultDesde;
-  const hasta = get("hasta") ?? defaultHasta;
   const categoryId = getNumber("finance_category_id");
   const accountId = getNumber("account_id");
   const rawSort = get("sort");
@@ -301,9 +309,7 @@ export default function TransactionsPage() {
     },
   ];
 
-  const hasFilters = Boolean(
-    tipo || categoryId || accountId || desde !== defaultDesde || hasta !== defaultHasta
-  );
+  const hasFilters = Boolean(tipo || categoryId || accountId || !enPeriodoActual);
 
   const clearFilters = () => {
     update({
@@ -345,6 +351,18 @@ export default function TransactionsPage() {
         description="El costo de ventas y el IVA son asientos informativos: se marcan como «No afecta caja» y no modifican el capital disponible."
       />
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          size="small"
+        />
+      </Card>
+
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>
           <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
@@ -385,22 +403,6 @@ export default function TransactionsPage() {
             value={accountId}
             onChange={(v) => update({ account_id: v, page: undefined })}
             options={accounts.map((a) => ({ value: a.id, label: a.nombre }))}
-          />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Rango de fechas
-          </Typography.Text>
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-            onChange={(v) =>
-              update({
-                desde: v?.[0]?.format("YYYY-MM-DD"),
-                hasta: v?.[1]?.format("YYYY-MM-DD"),
-                page: undefined,
-              })
-            }
           />
         </div>
         {hasFilters && (

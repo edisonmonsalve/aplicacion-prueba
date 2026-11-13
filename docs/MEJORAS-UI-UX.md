@@ -98,7 +98,7 @@ un cambio pequeño en el servidor.
 | N10 | Alta | Resumen financiero con atajos de **día, semana, mes y año**, navegación anterior/actual/siguiente y rango personalizado, todo persistido en la URL. **Implementado**: selector `Segmented`, semana que empieza en lunes, etiqueta del periodo y comparación contra el periodo calendario anterior (para rangos libres, bloque de igual duración). |
 | N11 | Media | Comparación visual en las tarjetas: variación porcentual contra el periodo previo, con color según si subir es bueno (ingresos/utilidad) o malo (egresos/compras/costo). **Implementado** en ingresos, egresos, compras, utilidad, costo de ventas y margen bruto. |
 | N12 | Media | Enlaces “Ver en” desde el resumen hacia Resultados, Flujo de caja, Tendencias y Transacciones conservando `desde` y `hasta`. **Implementado**: los reportes reciben el mismo rango sin volver a escribirlo. |
-| N13 | Baja | Extender los atajos de periodo a todos los reportes derivados con un componente compartido `PeriodRangePicker` y permitir guardar rangos favoritos. **Propuesto** (no implementado en este punto). |
+| N13 | Baja | Extender los atajos de periodo a todos los reportes derivados con un componente compartido `PeriodRangePicker` y permitir guardar rangos favoritos. **Implementado** el selector compartido (`PeriodRangePicker` + `useDateRange`) en Resultados, Flujo de caja, Tendencias, Rentabilidad, Rotación de inventario, Embudo de cotizaciones, Transacciones, Auditoría, Movimientos, Facturas, Cotizaciones y Cartera. Los rangos favoritos quedan propuestos. |
 
 ## 10. Usuarios y perfil
 

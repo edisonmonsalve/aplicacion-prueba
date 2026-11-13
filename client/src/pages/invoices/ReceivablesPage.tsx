@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Col,
-  DatePicker,
   Empty,
   Input,
   Row,
@@ -25,9 +24,11 @@ import { getErrorMessage } from "@/utils/errors";
 import { fetchAllPages } from "@/utils/csv";
 import { exportReportCsv, printReport, type ReportDocument, type ReportSection } from "@/utils/reportExport";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useAuth } from "@/context/AuthContext";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
@@ -42,7 +43,6 @@ import type {
 import { InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import CarteraAlerts from "./CarteraAlerts";
 
-const FMT = "YYYY-MM-DD";
 const DEFAULT_PAGE_SIZE = 20;
 
 const ESTADO_META: Record<CarteraEstado, { label: string; color: string }> = {
@@ -190,6 +190,14 @@ export default function ReceivablesPage() {
   const estado = (get("estado") as CarteraEstado | undefined) ?? undefined;
   const desde = get("desde");
   const hasta = get("hasta");
+  const {
+    range,
+    periodo,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange({ allowClear: true, resetPage: true });
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", DEFAULT_PAGE_SIZE);
 
@@ -468,6 +476,19 @@ export default function ReceivablesPage() {
         </>
       )}
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          allowClear
+          size="small"
+        />
+      </Card>
+
       <div
         style={{
           display: "flex",
@@ -516,21 +537,6 @@ export default function ReceivablesPage() {
             value={estado}
             options={ESTADO_OPTIONS}
             onChange={(v) => update({ estado: v }, { resetPage: true })}
-          />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Fecha de factura
-          </Typography.Text>
-          <DatePicker.RangePicker
-            format={FMT}
-            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-            onChange={(v) =>
-              update(
-                { desde: v?.[0]?.format(FMT), hasta: v?.[1]?.format(FMT) },
-                { resetPage: true }
-              )
-            }
           />
         </div>
         {hasFilters && (

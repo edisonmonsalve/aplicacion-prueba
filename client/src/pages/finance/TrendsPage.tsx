@@ -4,9 +4,7 @@ import {
   App,
   Card,
   Col,
-  DatePicker,
   Row,
-  Space,
   Statistic,
   Table,
   Tag,
@@ -29,15 +27,14 @@ import {
 import { getTrends } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { TrendMonth, TrendsReport } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
-
-const FMT = "YYYY-MM-DD";
 
 const MES_LABEL = (mes: string) => {
   const [anio, m] = mes.split("-");
@@ -186,35 +183,29 @@ function buildReportDoc(r: TrendsReport): ReportDocument {
 
 export default function TrendsPage() {
   const { message } = App.useApp();
-  const { get, update } = useUrlFilters();
   const [report, setReport] = useState<TrendsReport | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().subtract(5, "month").startOf("month"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
+  // Por defecto, la serie de los últimos seis meses.
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange({
+    defaultPeriodo: "personalizado",
+    defaultRange: () => [dayjs().subtract(5, "month").startOf("month"), dayjs()],
   });
 
   useDocumentTitle("Tendencias");
 
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
-    setRange(next);
-    update({ desde: next[0].format(FMT), hasta: next[1].format(FMT) });
-  };
-
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getTrends({
-      desde: range[0].format(FMT),
-      hasta: range[1].format(FMT),
-    })
+    getTrends({ desde, hasta })
       .then((r) => {
         if (!cancelled) setReport(r);
       })
@@ -225,7 +216,7 @@ export default function TrendsPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, message]);
+  }, [desde, hasta, message]);
 
   const chartData = useMemo(
     () =>
@@ -257,18 +248,19 @@ export default function TrendsPage() {
       <PageHeader
         title="Tendencias"
         description="Evolución mensual del resultado (devengo) y de la caja real, con comparación contra el periodo anterior de igual duración y el mismo rango del año anterior."
-        extra={
-          <Space wrap>
-            <DatePicker.RangePicker
-              format="DD/MM/YYYY"
-              value={range}
-              onChange={changeRange}
-              allowClear={false}
-            />
-            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
-          </Space>
-        }
       />
+
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+        />
+      </Card>
 
       {report && report.serie.every((m) => m.ingresos === 0 && m.gastos === 0) && (
         <Alert

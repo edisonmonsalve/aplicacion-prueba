@@ -255,6 +255,7 @@ Los huecos principales eran:
 | 2026-11-12 | R8 (rendimiento) | - | Migración `V026` con índices para cartera, DSO, dashboard, auditoría y embudo; filtros de fecha sin `DATE()`; listados con consultas en paralelo; páginas del cliente cargadas con `React.lazy` y `Suspense`; prueba de regresión de índices |
 | 2026-11-12 | Claridad de caja e IVA | - | `invoiceCashProjection` y `impacto_caja` en el detalle; aviso de confirmación con base, IVA, retenciones y movimiento neto separados; a crédito sin movimiento y cartera por el neto; pruebas de coherencia con los asientos y documentación de IVA por pagar/descontable |
 | 2026-11-13 | Resumen financiero por periodo | - | Atajos día/semana/mes/año, navegación anterior/actual/siguiente y rango personalizado persistidos en la URL; comparación contra el periodo calendario anterior; enlaces a Resultados, Flujo de caja, Tendencias y Transacciones conservando el rango |
+| 2026-11-13 | Selector de periodo compartido | - | `useDateRange` y `PeriodRangePicker` reutilizables: presets, navegación, rango personalizado y limpieza; aplicados a Resultados, Flujo de caja, Tendencias, Rentabilidad, Rotación, Embudo, Transacciones, Auditoría, Movimientos, Facturas, Cotizaciones y Cartera, con `desde`/`hasta`/`periodo` en la URL |
 
 ## 8. Exportación de reportes (R4)
 

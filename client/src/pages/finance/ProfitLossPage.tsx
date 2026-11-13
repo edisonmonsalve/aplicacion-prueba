@@ -4,26 +4,22 @@ import {
   App,
   Card,
   Col,
-  DatePicker,
   Row,
-  Space,
   Statistic,
   Table,
   Typography,
 } from "antd";
-import dayjs from "dayjs";
 import { getPnl } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { PnlReport } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
-
-const FMT = "YYYY-MM-DD";
 
 type RowTipo = "section" | "line" | "subtotal";
 
@@ -184,38 +180,25 @@ function Variation({ value, gasto }: { value: number | null; gasto?: boolean }) 
 
 export default function ProfitLossPage() {
   const { message } = App.useApp();
-  const { get, update } = useUrlFilters();
   const [report, setReport] = useState<PnlReport | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
-  });
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange();
 
   useDocumentTitle("Estado de resultados");
-
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
-    setRange(next);
-    update({
-      desde: next[0].format(FMT),
-      hasta: next[1].format(FMT),
-    });
-  };
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getPnl({
-      desde: range[0].format(FMT),
-      hasta: range[1].format(FMT),
-    })
+    getPnl({ desde, hasta })
       .then((r) => {
         if (!cancelled) setReport(r);
       })
@@ -226,7 +209,7 @@ export default function ProfitLossPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, message]);
+  }, [desde, hasta, message]);
 
   const rows = report ? buildRows(report) : [];
   const sinMovimiento =
@@ -253,18 +236,19 @@ export default function ProfitLossPage() {
       <PageHeader
         title="Estado de resultados"
         description="Resultado por devengo: incluye ventas a crédito y excluye cobros de cartera, que solo mueven caja. Comparado con el periodo anterior de igual duración."
-        extra={
-          <Space wrap>
-            <DatePicker.RangePicker
-              format="DD/MM/YYYY"
-              value={range}
-              onChange={changeRange}
-              allowClear={false}
-            />
-            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
-          </Space>
-        }
       />
+
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+        />
+      </Card>
 
       {report && (
         <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>

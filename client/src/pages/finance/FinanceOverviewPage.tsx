@@ -1,16 +1,7 @@
 import { useEffect, useState } from "react";
-import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
-import { useUrlFilters } from "@/hooks/useUrlFilters";
-import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, DatePicker, Alert, List, Segmented } from "antd";
-const { RangePicker } = DatePicker;
-import {
-  DeleteOutlined,
-  EditOutlined,
-  LeftOutlined,
-  PlusOutlined,
-  RightOutlined,
-} from "@ant-design/icons";
+import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, Alert, List } from "antd";
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggestions } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { canWriteFinance } from "@/utils/roles";
@@ -19,6 +10,8 @@ import { money } from "./FinanceUtils";
 import type { FinanceAccount, FinanceCategoryTipo, FinanceSummary, Suggestion } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
+import { useDateRange } from "@/hooks/useDateRange";
 import AccountFormModal from "./AccountFormModal";
 
 const TIPO_LABEL: Record<FinanceCategoryTipo, string> = {
@@ -27,47 +20,6 @@ const TIPO_LABEL: Record<FinanceCategoryTipo, string> = {
   activo: "Activo",
   pasivo: "Pasivo",
 };
-
-type Periodo = "dia" | "semana" | "mes" | "anio";
-
-const PERIODOS: Array<{ label: string; value: Periodo }> = [
-  { label: "Día", value: "dia" },
-  { label: "Semana", value: "semana" },
-  { label: "Mes", value: "mes" },
-  { label: "Año", value: "anio" },
-];
-
-/**
- * Rango calendario de un periodo. La semana empieza en lunes (convención
- * colombiana), no en domingo como el `startOf("week")` de dayjs.
- */
-function rangoDePeriodo(periodo: Periodo, base: dayjs.Dayjs): [dayjs.Dayjs, dayjs.Dayjs] {
-  const dia = base.startOf("day");
-  if (periodo === "dia") return [dia, dia];
-  if (periodo === "semana") {
-    const lunes = dia.subtract((dia.day() + 6) % 7, "day");
-    return [lunes, lunes.add(6, "day")];
-  }
-  if (periodo === "mes") return [dia.startOf("month"), dia.endOf("month")];
-  return [dia.startOf("year"), dia.endOf("year")];
-}
-
-const UNIDAD_PERIODO: Record<Periodo, dayjs.ManipulateType> = {
-  dia: "day",
-  semana: "week",
-  mes: "month",
-  anio: "year",
-};
-
-function etiquetaPeriodo(periodo: Periodo, range: [dayjs.Dayjs, dayjs.Dayjs]) {
-  const [desde, hasta] = range;
-  if (periodo === "dia") return desde.format("DD/MM/YYYY");
-  if (periodo === "semana") {
-    return `${desde.format("DD/MM")} – ${hasta.format("DD/MM/YYYY")}`;
-  }
-  if (periodo === "mes") return desde.format("MMMM [de] YYYY");
-  return desde.format("YYYY");
-}
 
 /** Variación porcentual contra el periodo inmediatamente anterior. */
 function variacion(actual: number | undefined, anterior: number | undefined | null) {
@@ -109,7 +61,6 @@ export default function FinanceOverviewPage() {
   const { message, modal } = App.useApp();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { get, update } = useUrlFilters();
   const canWrite = canWriteFinance(user?.rol);
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [previousSummary, setPreviousSummary] = useState<FinanceSummary | null>(null);
@@ -118,55 +69,20 @@ export default function FinanceOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // El rango vive en la URL: sobrevive a recargas y se puede compartir.
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
-  });
-  // "personalizado" desactiva los atajos y deja mandar al RangePicker.
-  const [periodo, setPeriodo] = useState<Periodo | "personalizado">(() => {
-    const guardado = get("periodo");
-    if (guardado === "dia" || guardado === "semana" || guardado === "mes" || guardado === "anio") {
-      return guardado;
-    }
-    return get("desde") || get("hasta") ? "personalizado" : "mes";
-  });
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    previousRange,
+    query: reportQuery,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange();
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FinanceAccount | undefined>();
-
-  const commitRange = (next: [dayjs.Dayjs, dayjs.Dayjs], nextPeriodo: Periodo | "personalizado") => {
-    setRange(next);
-    setPeriodo(nextPeriodo);
-    update({
-      desde: next[0].format("YYYY-MM-DD"),
-      hasta: next[1].format("YYYY-MM-DD"),
-      periodo: nextPeriodo === "personalizado" ? undefined : nextPeriodo,
-    });
-  };
-
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    commitRange([value[0], value[1]], "personalizado");
-  };
-
-  const selectPeriodo = (next: Periodo) => {
-    commitRange(rangoDePeriodo(next, dayjs()), next);
-  };
-
-  /** Mueve el rango un periodo completo hacia atrás o adelante. */
-  const shiftPeriodo = (direccion: -1 | 1) => {
-    if (periodo === "personalizado") return;
-    const base = range[0].add(direccion, UNIDAD_PERIODO[periodo]);
-    commitRange(rangoDePeriodo(periodo, base), periodo);
-  };
-
-  const enPeriodoActual =
-    periodo !== "personalizado" &&
-    range[0].isSame(rangoDePeriodo(periodo, dayjs())[0], "day") &&
-    range[1].isSame(rangoDePeriodo(periodo, dayjs())[1], "day");
 
   useDocumentTitle("Finanzas");
 
@@ -174,23 +90,7 @@ export default function FinanceOverviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const desde = range[0].format("YYYY-MM-DD");
-      const hasta = range[1].format("YYYY-MM-DD");
-      // Comparación: para los presets se usa el periodo calendario anterior
-      // (mes anterior, año anterior); para un rango libre, un bloque de igual
-      // duración inmediatamente anterior.
-      let prevDesde: dayjs.Dayjs;
-      let prevHasta: dayjs.Dayjs;
-      if (periodo === "personalizado") {
-        const dias = range[1].startOf("day").diff(range[0].startOf("day"), "day");
-        prevHasta = range[0].subtract(1, "day");
-        prevDesde = prevHasta.subtract(dias, "day");
-      } else {
-        [prevDesde, prevHasta] = rangoDePeriodo(
-          periodo,
-          range[0].subtract(1, UNIDAD_PERIODO[periodo])
-        );
-      }
+      const [prevDesde, prevHasta] = previousRange ?? [range[0], range[1]];
       const [s, a, sg, prev] = await Promise.all([
         getFinanceSummary({ desde, hasta }),
         getFinanceAccounts(),
@@ -215,8 +115,6 @@ export default function FinanceOverviewPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, periodo]);
-
-  const reportQuery = `desde=${range[0].format("YYYY-MM-DD")}&hasta=${range[1].format("YYYY-MM-DD")}`;
 
   const openNewAccount = () => {
     setEditingAccount(undefined);
@@ -266,62 +164,14 @@ export default function FinanceOverviewPage() {
       />
 
       <Card size="small" style={{ marginBottom: 16 }}>
-        <Space direction="vertical" size={8} style={{ width: "100%" }}>
-          <Space wrap align="center" style={{ justifyContent: "space-between", width: "100%" }}>
-            <Space wrap>
-              <Segmented<Periodo>
-                options={PERIODOS}
-                value={periodo === "personalizado" ? undefined : periodo}
-                onChange={selectPeriodo}
-              />
-              {periodo !== "personalizado" && (
-                <Space.Compact>
-                  <Tooltip title={`${periodo} anterior`}>
-                    <Button
-                      icon={<LeftOutlined />}
-                      onClick={() => shiftPeriodo(-1)}
-                      aria-label={`${periodo} anterior`}
-                    />
-                  </Tooltip>
-                  <Button onClick={() => selectPeriodo(periodo)} disabled={enPeriodoActual}>
-                    Actual
-                  </Button>
-                  <Tooltip title={`${periodo} siguiente`}>
-                    <Button
-                      icon={<RightOutlined />}
-                      onClick={() => shiftPeriodo(1)}
-                      aria-label={`${periodo} siguiente`}
-                    />
-                  </Tooltip>
-                </Space.Compact>
-              )}
-            </Space>
-            <Space wrap>
-              <Typography.Text type="secondary">Rango personalizado:</Typography.Text>
-              <RangePicker
-                value={range}
-                onChange={changeRange}
-                format="DD/MM/YYYY"
-                allowClear={false}
-              />
-            </Space>
-          </Space>
-          <Space wrap size={8} style={{ justifyContent: "space-between", width: "100%" }}>
-            <Typography.Text type="secondary">
-              {periodo === "personalizado" ? (
-                <>
-                  Rango personalizado:{" "}
-                  <strong>
-                    {range[0].format("DD/MM/YYYY")} – {range[1].format("DD/MM/YYYY")}
-                  </strong>
-                </>
-              ) : (
-                <>
-                  Periodo: <strong>{etiquetaPeriodo(periodo, range)}</strong> ·{" "}
-                  {range[0].format("DD/MM/YYYY")} – {range[1].format("DD/MM/YYYY")}
-                </>
-              )}
-            </Typography.Text>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          footer={
             <Space wrap size={4}>
               <Typography.Text type="secondary">Ver en:</Typography.Text>
               <Button size="small" type="link" onClick={() => navigate(`/finanzas/resultados?${reportQuery}`)}>
@@ -337,8 +187,8 @@ export default function FinanceOverviewPage() {
                 Transacciones
               </Button>
             </Space>
-          </Space>
-        </Space>
+          }
+        />
       </Card>
 
       <Alert

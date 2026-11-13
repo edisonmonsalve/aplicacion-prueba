@@ -4,7 +4,6 @@ import {
   App,
   Card,
   Col,
-  DatePicker,
   Progress,
   Row,
   Space,
@@ -13,13 +12,13 @@ import {
   Tag,
   Typography,
 } from "antd";
-import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import { getQuoteFunnel } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
@@ -30,8 +29,6 @@ import type {
 } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
-
-const FMT = "YYYY-MM-DD";
 
 const STAGE_LABELS: Record<string, string> = {
   creadas: "Creadas",
@@ -189,35 +186,25 @@ function buildReportDoc(r: QuoteFunnelReport): ReportDocument {
 
 export default function QuotesFunnelPage() {
   const { message } = App.useApp();
-  const { get, update } = useUrlFilters();
   const [report, setReport] = useState<QuoteFunnelReport | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().startOf("month"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
-  });
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange();
 
   useDocumentTitle("Embudo de cotizaciones");
-
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
-    setRange(next);
-    update({ desde: next[0].format(FMT), hasta: next[1].format(FMT) });
-  };
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getQuoteFunnel({
-      desde: range[0].format(FMT),
-      hasta: range[1].format(FMT),
-    })
+    getQuoteFunnel({ desde, hasta })
       .then((r) => {
         if (!cancelled) setReport(r);
       })
@@ -230,7 +217,7 @@ export default function QuotesFunnelPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, message]);
+  }, [desde, hasta, message]);
 
   const creadas = report?.embudo.find((e) => e.etapa === "creadas")?.cotizaciones ?? 0;
 
@@ -252,18 +239,19 @@ export default function QuotesFunnelPage() {
       <PageHeader
         title="Embudo de cotizaciones"
         description="Conversión de cotizaciones creadas en el periodo: enviadas, aprobadas y entregadas. Incluye tiempos de aprobación, entrega y ciclo completo."
-        extra={
-          <Space wrap>
-            <DatePicker.RangePicker
-              format="DD/MM/YYYY"
-              value={range}
-              onChange={changeRange}
-              allowClear={false}
-            />
-            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
-          </Space>
-        }
       />
+
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+        />
+      </Card>
 
       {report && report.resumen.cotizaciones === 0 && (
         <Alert

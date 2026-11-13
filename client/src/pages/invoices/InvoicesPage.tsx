@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, DatePicker, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Card, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -8,11 +8,11 @@ import type { Invoice, InvoiceEstado, InvoiceSortKey, InvoiceSummary, InvoiceTip
 import { ESTADO_OPTIONS, InvoiceEstadoTag, InvoiceTipoTag, TIPO_OPTIONS, fmtDate, money } from "./InvoiceUtils";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { useAuth } from "@/context/AuthContext";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
-
-const FMT = "YYYY-MM-DD";
 
 const SORT_KEYS: InvoiceSortKey[] = [
   "numero",
@@ -57,6 +57,14 @@ export default function InvoicesPage() {
   const estado = (sp.get("estado") as InvoiceEstado | null) ?? undefined;
   const desde = sp.get("desde") ?? undefined;
   const hasta = sp.get("hasta") ?? undefined;
+  const {
+    range,
+    periodo,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange({ allowClear: true, resetPage: true });
   const rawSort = sp.get("sort");
   const sort = SORT_KEYS.includes(rawSort as InvoiceSortKey)
     ? (rawSort as InvoiceSortKey)
@@ -200,6 +208,19 @@ export default function InvoicesPage() {
         }
       />
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          allowClear
+          size="small"
+        />
+      </Card>
+
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
         <div>
           <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
@@ -237,16 +258,6 @@ export default function InvoicesPage() {
             value={estado}
             options={ESTADO_OPTIONS}
             onChange={(v) => update({ estado: v })}
-          />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Rango de fechas
-          </Typography.Text>
-          <DatePicker.RangePicker
-            format={FMT}
-            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-            onChange={(v) => update({ desde: v?.[0]?.format(FMT), hasta: v?.[1]?.format(FMT) })}
           />
         </div>
         {hasFilters && (

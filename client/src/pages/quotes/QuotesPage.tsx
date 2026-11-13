@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   App,
   Button,
-  DatePicker,
+  Card,
   Dropdown,
   Empty,
   Input,
@@ -30,10 +30,10 @@ import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/quoteU
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { useAuth } from "@/context/AuthContext";
-
-const FMT = "YYYY-MM-DD";
 
 const SORT_KEYS: QuoteSortKey[] = ["numero", "cliente", "total", "fecha_validez", "fecha"];
 
@@ -55,6 +55,14 @@ export default function QuotesPage() {
   const estado = (sp.get("estado") as QuoteStatus | null) ?? undefined;
   const desde = sp.get("desde") ?? undefined;
   const hasta = sp.get("hasta") ?? undefined;
+  const {
+    range,
+    periodo,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange({ allowClear: true, resetPage: true });
   const rawSort = sp.get("sort");
   const sort = SORT_KEYS.includes(rawSort as QuoteSortKey)
     ? (rawSort as QuoteSortKey)
@@ -327,6 +335,19 @@ export default function QuotesPage() {
         }
       />
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          allowClear
+          size="small"
+        />
+      </Card>
+
       <div
         style={{
           display: "flex",
@@ -366,19 +387,6 @@ export default function QuotesPage() {
             value={estado}
             options={STATUS_OPTIONS}
             onChange={(v) => update({ estado: v })}
-          />
-        </div>
-        <div>
-          <Typography.Text
-            type="secondary"
-            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
-          >
-            Rango de fechas
-          </Typography.Text>
-          <DatePicker.RangePicker
-            format={FMT}
-            value={desde && hasta ? [dayjs(desde), dayjs(hasta)] : null}
-            onChange={(v) => update({ desde: v?.[0]?.format(FMT), hasta: v?.[1]?.format(FMT) })}
           />
         </div>
         {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}

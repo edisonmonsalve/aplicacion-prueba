@@ -3,7 +3,6 @@ import {
   App,
   Card,
   Col,
-  DatePicker,
   Empty,
   Row,
   Select,
@@ -16,12 +15,12 @@ import dayjs from "dayjs";
 import { listAudit } from "@/services/auditService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import PeriodRangePicker from "@/components/PeriodRangePicker";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { AuditEntity, AuditEntry, AuditList } from "@/types";
-
-const FMT = "YYYY-MM-DD";
 
 const ENTIDAD_META: Record<AuditEntity, { label: string; color: string }> = {
   budget: { label: "Presupuesto", color: "geekblue" },
@@ -98,15 +97,16 @@ export default function AuditPage() {
   const entidad = rawEntidad && rawEntidad in ENTIDAD_META ? (rawEntidad as AuditEntity) : undefined;
   const entidadId = getNumber("entidad_id");
   const accion = get("accion");
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(() => {
-    const inicial = get("desde");
-    const final = get("hasta");
-    if (!inicial && !final) return null;
-    return [
-      inicial && dayjs(inicial).isValid() ? dayjs(inicial) : dayjs().subtract(30, "day"),
-      final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
-    ];
-  });
+  const {
+    range,
+    periodo,
+    desde,
+    hasta,
+    changeRange,
+    selectPeriodo,
+    shiftPeriodo,
+    enPeriodoActual,
+  } = useDateRange({ allowClear: true, resetPage: true });
 
   useDocumentTitle("Auditoría");
 
@@ -117,10 +117,10 @@ export default function AuditPage() {
       entidad,
       entidad_id: entidadId,
       accion,
-      desde: range?.[0].format(FMT),
-      hasta: range?.[1].format(FMT),
+      desde,
+      hasta,
     }),
-    [page, pageSize, entidad, entidadId, accion, range]
+    [page, pageSize, entidad, entidadId, accion, desde, hasta]
   );
 
   useEffect(() => {
@@ -138,17 +138,6 @@ export default function AuditPage() {
       cancelled = true;
     };
   }, [filters, message]);
-
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) {
-      setRange(null);
-      update({ desde: undefined, hasta: undefined, page: undefined });
-      return;
-    }
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
-    setRange(next);
-    update({ desde: next[0].format(FMT), hasta: next[1].format(FMT), page: undefined });
-  };
 
   return (
     <>
@@ -168,6 +157,17 @@ export default function AuditPage() {
       )}
 
       <Card size="small" style={{ marginBottom: 16 }}>
+        <PeriodRangePicker
+          range={range}
+          periodo={periodo}
+          onChange={changeRange}
+          onSelectPeriodo={selectPeriodo}
+          onShift={shiftPeriodo}
+          enPeriodoActual={enPeriodoActual}
+          allowClear
+          size="small"
+          style={{ marginBottom: 12 }}
+        />
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} lg={6}>
             <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
@@ -216,17 +216,6 @@ export default function AuditPage() {
                     all.findIndex((o) => o.value === option.value) === index
                 )}
               onChange={(value) => update({ entidad_id: value, page: undefined })}
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              Fechas
-            </Typography.Text>
-            <DatePicker.RangePicker
-              style={{ width: "100%" }}
-              format="DD/MM/YYYY"
-              value={range}
-              onChange={changeRange}
             />
           </Col>
         </Row>

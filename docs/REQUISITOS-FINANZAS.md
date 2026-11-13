@@ -161,6 +161,15 @@
   fecha final del rango.
 - **RF-PER-6**: Desde el resumen se puede abrir Resultados, Flujo de caja,
   Tendencias y Transacciones con el mismo rango de fechas.
+- **RF-PER-7**: El selector de periodo es un componente compartido
+  (`PeriodRangePicker`) que usan todos los reportes y listados con filtro de
+  fechas. En los listados (facturas, cotizaciones, cartera, movimientos,
+  transacciones y auditoría) permite limpiar el rango; en los reportes el rango
+  siempre está definido. Los reportes de tendencias mantienen por defecto los
+  últimos seis meses.
+- **RN-43**: El rango se deriva de la URL, no de estado local: recargar, volver
+  atrás o compartir un enlace reproduce exactamente el mismo filtro. Los atajos
+  no modifican datos ni asientos.
 - **RN-41**: Un periodo sin base de comparación (anterior en cero) muestra “Sin
   base de comparación” en lugar de un porcentaje infinito.
 - **RN-42**: Cambiar de periodo no modifica datos ni asientos; solo cambia la

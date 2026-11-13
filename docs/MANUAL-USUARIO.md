@@ -68,7 +68,7 @@ Resumen del estado de la empresa:
 
 Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también Rechazado y Vencido).
 
-- **Lista**: filtros por texto, estado y rango de fechas; exportar CSV.
+- **Lista**: filtros por texto, estado y rango de fechas con atajos de día, semana, mes y año; exportar CSV.
 - **Nueva cotización**: cliente, fecha de validez, líneas de producto con descuento e impuesto por línea.
   - El precio se toma del catálogo (solo lectura); se muestra el total por línea y un resumen.
   - Alerta si la cantidad supera el stock disponible.
@@ -79,7 +79,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 
 ## 8. Facturación
 
-- **Lista**: filtros por texto, tipo (venta/compra), estado y rango de fechas.
+- **Lista**: filtros por texto, tipo (venta/compra), estado y rango de fechas con atajos de día, semana, mes y año.
 - **Nueva factura**: tipo, fecha, contraparte, documento, **cuenta (caja o banco)**, orden de compra (referencia), email y notas.
   - La cuenta define si el dinero sale o entra por caja (efectivo) o por banco (transferencia) al confirmar.
   - Líneas con producto, cantidad, precio/costo unitario, descuento % e IVA %. El selector muestra el stock disponible.
@@ -98,7 +98,8 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - Tarjetas: ingresos, egresos de caja, utilidad, capital disponible, compras de inventario, costo de ventas, margen bruto, IVA por pagar e IVA descontable.
 - La compra de inventario es salida de caja y activo; el costo de ventas reduce utilidad/margen pero no mueve caja.
 - Los asientos informativos (costo de ventas, IVA) se marcan como «No afecta caja».
-- Selector de rango de fechas.
+- Selector de periodo compartido con atajos **día, semana, mes y año**, navegación anterior/actual/siguiente y rango personalizado. Se guarda en la URL.
+- Comparación contra el periodo anterior y enlaces a Resultados, Flujo de caja, Tendencias y Transacciones conservando el rango.
 - Sugerencias basadas en la ejecución del presupuesto activo.
 - Tabla de cuentas con saldo inicial, ingresos, egresos y saldo actual; crear/editar/eliminar cuentas sin movimientos.
 - Al iniciar con datos reales, crea primero las cuentas de **caja** y **banco** con su saldo inicial. Ese capital financia la primera compra de inventario (activo) y las demás transacciones.
@@ -121,7 +122,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 
 ### 9.4 Reportes y exportación
 - Reportes disponibles: resultados, flujo de caja, balance, cartera, tendencias, rentabilidad, rotación de inventario y embudo de cotizaciones.
-- Cada reporte respeta sus filtros (fechas, cuenta, agrupación, umbral de stock muerto) y el botón **Exportar** ofrece:
+- Cada reporte usa el mismo selector de periodo (día, semana, mes, año o rango personalizado) y respeta sus filtros (fechas, cuenta, agrupación, umbral de stock muerto); el botón **Exportar** ofrece:
   - **CSV**: todas las secciones del reporte, con números listos para sumar en Excel.
   - **PDF**: vista imprimible; en el diálogo del navegador elige *Guardar como PDF*.
 - En **Cartera** se descargan todas las facturas del filtro, no solo la página visible, junto con el aging y los principales deudores.
