@@ -256,6 +256,7 @@ Los huecos principales eran:
 | 2026-11-12 | Claridad de caja e IVA | - | `invoiceCashProjection` y `impacto_caja` en el detalle; aviso de confirmación con base, IVA, retenciones y movimiento neto separados; a crédito sin movimiento y cartera por el neto; pruebas de coherencia con los asientos y documentación de IVA por pagar/descontable |
 | 2026-11-13 | Resumen financiero por periodo | - | Atajos día/semana/mes/año, navegación anterior/actual/siguiente y rango personalizado persistidos en la URL; comparación contra el periodo calendario anterior; enlaces a Resultados, Flujo de caja, Tendencias y Transacciones conservando el rango |
 | 2026-11-13 | Selector de periodo compartido | - | `useDateRange` y `PeriodRangePicker` reutilizables: presets, navegación, rango personalizado y limpieza; aplicados a Resultados, Flujo de caja, Tendencias, Rentabilidad, Rotación, Embudo, Transacciones, Auditoría, Movimientos, Facturas, Cotizaciones y Cartera, con `desde`/`hasta`/`periodo` en la URL |
+| 2026-11-13 | Terceros en cotizaciones | - | Migración `V027`; `quotes.party_id` con FK a `third_parties` e índice; validación de cliente activo (se rechazan proveedores e inactivos); el formulario autollena nombre, documento y email y guarda snapshot editable; el detalle y la lista muestran el vínculo y duplicar lo conserva; el vínculo entra en la auditoría de la cotización |
 
 ## 8. Exportación de reportes (R4)
 

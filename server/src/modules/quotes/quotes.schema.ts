@@ -21,6 +21,7 @@ const isoDate = z
   .refine((v) => !Number.isNaN(Date.parse(v)), "Fecha no válida");
 
 export const quoteSchema = z.object({
+  party_id: z.number().int().positive().nullable().optional(),
   customer_nombre: z.string().trim().min(2).max(150),
   customer_documento: z.string().trim().max(50).optional(),
   customer_email: z.string().trim().email().max(150).optional(),

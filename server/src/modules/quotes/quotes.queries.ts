@@ -67,13 +67,15 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
 
   // El ? del CASE en el SELECT va antes que los parámetros del WHERE
   const [data] = await pool.query<RowDataPacket[]>(
-    `SELECT q.id, q.customer_nombre, ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw,
+    `SELECT q.id, q.customer_nombre, q.party_id, tp.nombre AS party_nombre,
+            ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw,
             q.fecha_validez, q.total, q.created_by, u.nombre AS creador, q.created_at,
             (SELECT COUNT(*) FROM invoices i
              WHERE i.quote_id = q.id AND i.tipo = 'venta' AND i.estado = 'confirmada')
               AS facturas_confirmadas
      FROM quotes q
      JOIN users u ON u.id = q.created_by
+     LEFT JOIN third_parties tp ON tp.id = q.party_id
      ${clause}
      ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
@@ -97,6 +99,8 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
 export async function getQuote(id: number, actor: AuthUser) {
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT q.id, q.customer_nombre, q.customer_documento, q.customer_email,
+            q.party_id, tp.nombre AS party_nombre, tp.documento AS party_documento,
+            tp.email AS party_email,
             ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw, q.fecha_validez, q.notas,
             q.subtotal, q.descuento_total, q.impuesto_total, q.total,
             q.created_by, u.nombre AS creador, q.created_at, q.updated_at,
@@ -105,6 +109,7 @@ export async function getQuote(id: number, actor: AuthUser) {
               AS facturas_confirmadas
      FROM quotes q
      JOIN users u ON u.id = q.created_by
+     LEFT JOIN third_parties tp ON tp.id = q.party_id
      WHERE q.id = ?`,
     [today(), id]
   );

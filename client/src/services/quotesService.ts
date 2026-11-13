@@ -15,6 +15,7 @@ export const duplicateQuote = async (id: number) =>
   (await api.post<{ id: number }>(`/quotes/${id}/duplicate`)).data;
 
 const toPayload = (d: QuoteInput) => ({
+  party_id: d.party_id ?? null,
   customer_nombre: d.cliente_nombre,
   customer_documento: d.cliente_documento,
   fecha_validez: d.fecha_validez,

@@ -30,7 +30,6 @@ export async function resetDb() {
   await pool.query("DELETE FROM invoices");
   await pool.query("DELETE FROM invoice_counters");
   await pool.query("DELETE FROM adjustment_counters");
-  await pool.query("DELETE FROM third_parties");
   // Las cuentas creadas por las pruebas no forman parte del seed: se limpian y
   // se deja la cuenta base que crea la migración V007.
   await pool.query("DELETE FROM finance_accounts WHERE nombre <> 'Caja principal'");
@@ -43,6 +42,8 @@ export async function resetDb() {
   await pool.query("DELETE FROM quote_status_history");
   await pool.query("DELETE FROM quote_items");
   await pool.query("DELETE FROM quotes");
+  // Las cotizaciones referencian terceros con party_id: se borran antes.
+  await pool.query("DELETE FROM third_parties");
   await pool.query("DELETE FROM products");
   await pool.query("DELETE FROM categories");
   await pool.query("DELETE FROM audit_log");

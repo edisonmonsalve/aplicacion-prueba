@@ -115,6 +115,9 @@ export interface Quote {
   customer_nombre: string;
   customer_documento: string | null;
   customer_email: string | null;
+  /** Cliente del maestro de terceros, si la cotización se vinculó. */
+  party_id: number | null;
+  party_nombre?: string | null;
   estado: QuoteStatus;
   fecha_validez: string;
   notas: string | null;
@@ -148,6 +151,8 @@ export interface QuoteHistory {
 }
 
 export interface QuoteDetail extends Quote {
+  party_documento?: string | null;
+  party_email?: string | null;
   items: QuoteLine[];
   historial: QuoteHistory[];
   facturas: QuoteInvoice[];
@@ -188,6 +193,7 @@ export interface QuoteLineForm extends QuoteLineInput {
 }
 
 export interface QuoteInput {
+  party_id?: number | null;
   cliente_nombre: string;
   cliente_documento?: string;
   fecha_validez: string;

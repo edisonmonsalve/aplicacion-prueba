@@ -170,6 +170,12 @@
 - **RN-43**: El rango se deriva de la URL, no de estado local: recargar, volver
   atrás o compartir un enlace reproduce exactamente el mismo filtro. Los atajos
   no modifican datos ni asientos.
+- **RN-44**: Una cotización puede vincularse a un tercero (`party_id`) solo si
+  está activo y es cliente o «ambos». El nombre, documento y email guardados en
+  la cotización son una copia editable: los cambios posteriores del tercero no
+  reescriben la cotización. Duplicar conserva el vínculo. Un borrador ya
+  vinculado se puede seguir editando aunque el tercero se desactive después; la
+  validación se aplica al elegir o cambiar el tercero.
 - **RN-41**: Un periodo sin base de comparación (anterior en cero) muestra “Sin
   base de comparación” en lugar de un porcentaje infinito.
 - **RN-42**: Cambiar de periodo no modifica datos ni asientos; solo cambia la

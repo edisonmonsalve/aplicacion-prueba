@@ -177,8 +177,12 @@ export async function deleteThirdParty(id: number) {
   if (res.affectedRows === 0) throw new HttpError(404, "Tercero no encontrado");
 }
 
-/** Carga el tercero dentro de una transacción para vincularlo a una factura. */
-export async function findThirdPartyForInvoice(conn: PoolConnection, id: number) {
+/**
+ * Carga un tercero activo dentro de una transacción para vincularlo a un
+ * documento (factura o cotización). El nombre histórico anterior se conserva
+ * como alias para no tocar los llamados existentes.
+ */
+export async function findActiveThirdParty(conn: PoolConnection, id: number) {
   const [rows] = await conn.query<ThirdPartyRow[]>(
     "SELECT id, tipo, tipo_documento, documento, nombre, activo, condicion_pago, dias_credito, email, telefono FROM third_parties WHERE id = ? LIMIT 1",
     [id]
@@ -188,6 +192,12 @@ export async function findThirdPartyForInvoice(conn: PoolConnection, id: number)
   if (!party.activo) throw new HttpError(409, `El tercero "${party.nombre}" está inactivo`);
   return party;
 }
+
+/** Alias histórico: la factura usa este nombre para cargar su contraparte. */
+export const findThirdPartyForInvoice = findActiveThirdParty;
+
+/** Alias para la cotización, que solo admite clientes. */
+export const findThirdPartyForQuote = findActiveThirdParty;
 
 export function assertPartyType(
   party: { tipo: string; nombre: string },

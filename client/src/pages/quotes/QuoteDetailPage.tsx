@@ -322,6 +322,13 @@ export default function QuoteDetailPage() {
             <Descriptions.Item label="Cliente">{quote.customer_nombre}</Descriptions.Item>
             <Descriptions.Item label="Email">{quote.customer_email ?? "—"}</Descriptions.Item>
             <Descriptions.Item label="Documento">{quote.customer_documento ?? "—"}</Descriptions.Item>
+            {quote.party_id && (
+              <Descriptions.Item label="Cliente registrado">
+                <Tooltip title="Vínculo al maestro de terceros. Los datos de la cotización son una copia editable y no cambian si el tercero se actualiza.">
+                  <Tag color="blue">{quote.party_nombre ?? `#${quote.party_id}`}</Tag>
+                </Tooltip>
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="Válido hasta">{fmtDate(quote.fecha_validez)}</Descriptions.Item>
             <Descriptions.Item label="Creado por">{quote.creador}</Descriptions.Item>
             <Descriptions.Item label="Notas" span={2}>

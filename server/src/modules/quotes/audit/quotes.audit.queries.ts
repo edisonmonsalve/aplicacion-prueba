@@ -19,6 +19,7 @@ export async function getQuoteAuditHeader(
 ): Promise<QuoteAuditHeader | null> {
   const [rows] = await conn.query<QuoteAuditHeaderRow[]>(
     `SELECT
+      party_id,
       customer_nombre,
       customer_documento,
       customer_email,

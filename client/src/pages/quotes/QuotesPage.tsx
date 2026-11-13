@@ -220,6 +220,21 @@ export default function QuotesPage() {
       dataIndex: "customer_nombre",
       sorter: true,
       sortOrder: sortOrderFor("cliente"),
+      render: (nombre: string, r) =>
+        r.party_id ? (
+          <Tooltip
+            title={`Cliente registrado: ${r.party_nombre ?? `#${r.party_id}`}. El nombre de la cotización es una copia editable.`}
+          >
+            <Space size={4}>
+              {nombre}
+              <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                Tercero
+              </Tag>
+            </Space>
+          </Tooltip>
+        ) : (
+          nombre
+        ),
     },
     {
       title: <Tooltip title="Estado actual de la cotización">Estado</Tooltip>,

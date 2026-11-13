@@ -15,6 +15,10 @@ import { auditQuoteUpdate } from "./audit/quotes.audit.service.js";
 import type { QuoteAuditSnapshot } from "./audit/quotes.audit.types.js";
 import { registerMovement } from "../movements/movements.service.js";
 import { formatQuoteNumber } from "./quotes.format.js";
+import {
+  assertPartyType,
+  findThirdPartyForQuote,
+} from "../third-parties/third-parties.service.js";
 
 type QuoteInput = z.infer<typeof quoteSchema>;
 
@@ -113,7 +117,7 @@ async function insertItems(
 // Bloquea el presupuesto y comprueba que se puede modificar
 async function lockQuote(conn: PoolConnection, id: number, actor: AuthUser) {
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT id, estado, created_by, fecha_validez, subtotal, descuento_total FROM quotes WHERE id = ? FOR UPDATE",
+    "SELECT id, estado, created_by, fecha_validez, subtotal, descuento_total, party_id FROM quotes WHERE id = ? FOR UPDATE",
     [id]
   );
   const quote = rows[0];
@@ -129,6 +133,7 @@ async function lockDraft(conn: PoolConnection, id: number, actor: AuthUser) {
   if (quote.estado !== "borrador") {
     throw new HttpError(409, "Solo los borradores se pueden modificar"); // RN-P01
   }
+  return quote;
 }
 
 const totalsResponse = (id: number, t: ReturnType<typeof calcTotals>) => ({
@@ -145,15 +150,25 @@ export async function createQuote(input: QuoteInput, actor: AuthUser) {
   return withTransaction(async (conn) => {
     const { lines, totals } = await buildLines(conn, input.items);
 
+    // Una cotización solo se dirige a clientes: se rechazan proveedores e
+    // inactivos. Los datos de contacto quedan copiados como snapshot.
+    const partyId = input.party_id ?? null;
+    if (partyId) {
+      const party = await findThirdPartyForQuote(conn, partyId);
+      assertPartyType(party, "venta");
+    }
+
     const [res] = await conn.query<ResultSetHeader>(
       `INSERT INTO quotes
-         (customer_nombre, customer_documento, customer_email, fecha_validez, notas,
-          subtotal, descuento_total, impuesto_total, total, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (customer_nombre, customer_documento, customer_email, party_id,
+          fecha_validez, notas, subtotal, descuento_total, impuesto_total,
+          total, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.customer_nombre,
         input.customer_documento ?? null,
         input.customer_email ?? null,
+        partyId,
         input.fecha_validez,
         input.notas ?? null,
         totals.subtotal,
@@ -182,9 +197,18 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
 
   return withTransaction(async (conn) => {
     // 1. Verificar existencia, permisos y estado.
-    await lockDraft(conn, id, actor);
+    const locked = await lockDraft(conn, id, actor);
 
-    // 2. Recuperar el estado anterior dentro de la transacción.
+    // 2. Validar el tercero solo cuando se vincula uno nuevo. Un borrador que
+    //    ya apuntaba a un tercero puede seguir editándose aunque este se haya
+    //    desactivado después: el vínculo histórico no se rompe.
+    const partyId = input.party_id ?? null;
+    if (partyId && partyId !== locked.party_id) {
+      const party = await findThirdPartyForQuote(conn, partyId);
+      assertPartyType(party, "venta");
+    }
+
+    // 3. Recuperar el estado anterior dentro de la transacción.
     const previousHeader = await getQuoteAuditHeader(conn, id);
     const previousItems = await getQuoteAuditItems(conn, id);
 
@@ -197,15 +221,16 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
       items: previousItems,
     };
 
-    // 3. Construir las nuevas líneas y calcular totales.
+    // 4. Construir las nuevas líneas y calcular totales.
     const { lines, totals } = await buildLines(conn, input.items);
 
-    // 4. Actualizar encabezado.
+    // 5. Actualizar encabezado.
     await conn.query(
       `UPDATE quotes SET
          customer_nombre = ?,
          customer_documento = ?,
          customer_email = ?,
+         party_id = ?,
          fecha_validez = ?,
          notas = ?,
          subtotal = ?,
@@ -217,6 +242,7 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
         input.customer_nombre,
         input.customer_documento ?? null,
         input.customer_email ?? null,
+        partyId,
         input.fecha_validez,
         input.notas ?? null,
         totals.subtotal,
@@ -227,14 +253,15 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
       ]
     );
 
-    // 5. Reemplazar las líneas.
+    // 6. Reemplazar las líneas.
     await conn.query("DELETE FROM quote_items WHERE quote_id = ?", [id]);
 
     await insertItems(conn, id, lines);
 
-    // 6. Construir el nuevo estado.
+    // 7. Construir el nuevo estado.
     const current: QuoteAuditSnapshot = {
       header: {
+        party_id: partyId,
         customer_nombre: input.customer_nombre,
         customer_documento: input.customer_documento ?? null,
         customer_email: input.customer_email ?? null,
@@ -248,7 +275,7 @@ export async function updateQuote(id: number, input: QuoteInput, actor: AuthUser
       items: lines,
     };
 
-    // 7. Registrar los cambios.
+    // 8. Registrar los cambios.
     await auditQuoteUpdate(conn, id, actor.id, previous, current);
 
     return totalsResponse(id, totals);
@@ -267,6 +294,7 @@ export async function duplicateQuote(id: number, actor: AuthUser) {
     customer_nombre: string;
     customer_documento: string | null;
     customer_email: string | null;
+    party_id: number | null;
     notas: string | null;
   }; // mismas reglas de acceso que para leerlo
 
@@ -287,6 +315,7 @@ export async function duplicateQuote(id: number, actor: AuthUser) {
   // Pasa por createQuote: se aplican todas las reglas (precios vigentes, límites de descuento...)
   const created = await createQuote(
     {
+      party_id: source.party_id ?? undefined,
       customer_nombre: source.customer_nombre,
       customer_documento: source.customer_documento ?? undefined,
       customer_email: source.customer_email ?? undefined,

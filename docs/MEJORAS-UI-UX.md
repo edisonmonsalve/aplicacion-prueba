@@ -68,6 +68,7 @@ un cambio pequeño en el servidor.
 | Q5 | Media | Mostrar acciones deshabilitadas con tooltip (“solo creador o admin”) y sacar Imprimir a la barra principal. **Implementado**: acciones deshabilitadas con tooltip de permisos e Imprimir en la barra principal. |
 | Q6 | Media | Plantilla de impresión: encabezado de empresa, datos de contacto, firma, condiciones y saltos de página. **Implementado**: cabecera compartida `PrintHeader` con logo, identidad de empresa (NIT, régimen, dirección, teléfonos, email y web), condiciones, notas, firmas y control de saltos. La hoja usa `PrintThemeProvider` con tokens claros explícitos para que no cambie entre modo claro y oscuro (incluida la barra de acciones). Los datos de la empresa emisora se centralizan en `client/src/config/company.ts` para reemplazarlos por los reales. |
 | Q7 | Media | Sorter por total/validez y total del filtro. **Implementado**: orden por número, cliente, total, validez y fecha; monto total del filtro calculado en el servidor. |
+| Q8 | Media | Vincular la cotización al maestro de terceros para reutilizar el cliente sin depender del texto libre. **Implementado**: selector “Cliente registrado” con autollenado de nombre, documento y email; el vínculo se guarda en `quotes.party_id` y los datos quedan como snapshot editable. La lista marca las cotizaciones con tercero y el detalle lo muestra; duplicar conserva el vínculo. |
 
 ## 8. Facturación
 

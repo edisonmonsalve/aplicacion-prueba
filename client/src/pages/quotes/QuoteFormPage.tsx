@@ -21,9 +21,10 @@ import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { createQuote, getQuote, updateQuote } from "@/services/quotesService";
 import { getProducts } from "@/services/productsService";
+import { listThirdParties } from "@/services/thirdPartiesService";
 import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
 import StockTag from "@/components/StockTag";
-import type { QuoteLineForm } from "@/types";
+import type { QuoteLineForm, ThirdParty } from "@/types";
 import { money } from "./quoteUtils";
 
 interface ProductOpt {
@@ -35,6 +36,7 @@ interface ProductOpt {
   stock_minimo?: number;
 }
 interface FormValues {
+  party_id?: number;
   cliente_nombre: string;
   cliente_documento?: string;
   fecha_validez: Dayjs;
@@ -75,6 +77,7 @@ export default function QuoteFormPage() {
   const screens = Grid.useBreakpoint();
   const isMobile = screens.md === false;
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
+  const [parties, setParties] = useState<ThirdParty[]>([]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const lineas = Form.useWatch("lineas", form) ?? [];
@@ -88,6 +91,28 @@ export default function QuoteFormPage() {
     } catch {
       message.error("No se pudo buscar productos");
     }
+  };
+
+  // Clientes activos del maestro de terceros, para autollenar la cotización.
+  useEffect(() => {
+    listThirdParties({ page: 1, pageSize: 100, tipo: "cliente", activo: 1 })
+      .then((r) => setParties(r.data))
+      .catch(() => {
+        // Sin terceros la cotización sigue funcionando con datos manuales.
+      });
+  }, []);
+
+  // Al elegir un cliente registrado se copian sus datos como snapshot
+  // editable: la cotización conserva el texto aunque el tercero cambie luego.
+  const onPartyChange = (partyId?: number) => {
+    if (!partyId) return;
+    const p = parties.find((x) => x.id === partyId);
+    if (!p) return;
+    form.setFieldsValue({
+      cliente_nombre: p.nombre,
+      cliente_documento: p.documento ?? undefined,
+      cliente_email: p.email ?? undefined,
+    });
   };
 
   useEffect(() => {
@@ -125,6 +150,7 @@ export default function QuoteFormPage() {
             .catch(() => {});
         }
         form.setFieldsValue({
+          party_id: d.party_id ?? undefined,
           cliente_nombre: d.customer_nombre,
           cliente_documento: d.customer_documento ?? undefined,
           fecha_validez: dayjs(d.fecha_validez),
@@ -165,6 +191,7 @@ export default function QuoteFormPage() {
 
   const onFinish = async (v: FormValues) => {
     const payload = {
+      party_id: v.party_id ?? null,
       cliente_nombre: v.cliente_nombre.trim(),
       cliente_documento: v.cliente_documento?.trim() || undefined,
       fecha_validez: v.fecha_validez.format("YYYY-MM-DD"),
@@ -220,6 +247,24 @@ export default function QuoteFormPage() {
         initialValues={{ fecha_validez: dayjs().add(15, "day"), lineas: [{}] }}
       >
         <Space wrap align="start">
+          <Form.Item
+            name="party_id"
+            label="Cliente registrado"
+            tooltip="Opcional. Al elegirlo se cargan nombre, documento y email desde Terceros. La cotización guarda una copia editable de esos datos."
+          >
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="Sin tercero (escribir manualmente)"
+              style={{ width: 320 }}
+              onChange={onPartyChange}
+              options={parties.map((p) => ({
+                value: p.id,
+                label: `${p.nombre}${p.documento ? ` · ${p.documento}` : ""}`,
+              }))}
+            />
+          </Form.Item>
           <Form.Item
             name="cliente_nombre"
             label="Cliente"

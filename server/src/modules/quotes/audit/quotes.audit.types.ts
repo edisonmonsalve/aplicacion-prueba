@@ -1,4 +1,5 @@
 export interface QuoteAuditHeader {
+  party_id: number | null;
   customer_nombre: string;
   customer_documento: string | null;
   customer_email: string | null;

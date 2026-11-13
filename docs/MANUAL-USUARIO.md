@@ -70,6 +70,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 
 - **Lista**: filtros por texto, estado y rango de fechas con atajos de día, semana, mes y año; exportar CSV.
 - **Nueva cotización**: cliente, fecha de validez, líneas de producto con descuento e impuesto por línea.
+  - **Cliente registrado**: selector opcional que carga nombre, documento y email desde Terceros. La cotización guarda una copia editable; si el tercero cambia después, la cotización no se altera. Se rechazan proveedores y terceros inactivos.
   - El precio se toma del catálogo (solo lectura); se muestra el total por línea y un resumen.
   - Alerta si la cantidad supera el stock disponible.
 - **Detalle**: pasos del flujo, datos del cliente, totales, líneas, historial de estados.
