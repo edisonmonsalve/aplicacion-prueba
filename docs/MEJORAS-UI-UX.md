@@ -78,7 +78,7 @@ un cambio pequeño en el servidor.
 | F3 | Alta | Etiquetar “Guardar borrador”, explicar el paso “Confirmar” y advertir cambios sin guardar. **Implementado**: botón “Guardar borrador”, aviso del flujo borrador → confirmar, `beforeunload` y confirmación al cancelar con cambios. |
 | F4 | Alta | Impresión/PDF de factura (`/facturas/:id/imprimir`) reutilizando la plantilla de cotización. **Implementado**: ruta, botón Imprimir y plantilla con la cabecera de empresa compartida, totales, retenciones, notas y firmas; mismos estilos claros en ambos temas. |
 | F5 | Media | Exportar CSV y totales por tipo/estado. **Implementado**: CSV de todas las páginas del filtro y resumen de documentos/total por tipo y estado. |
-| F6 | Media | Mostrar el saldo de la cuenta elegida y el impacto en caja antes de confirmar. **Implementado**: aviso con saldo actual, impacto y saldo resultante, también en el diálogo de confirmación. |
+| F6 | Media | Mostrar el saldo de la cuenta elegida y el impacto en caja antes de confirmar. **Implementado**: aviso con saldo actual, movimiento neto y saldo resultante, también en el diálogo de confirmación. El movimiento usa la base menos retenciones de fuente/ICA; el IVA y la retención de IVA se muestran aparte porque no mueven caja al confirmar. |
 | F7 | Media | Al cambiar compra/venta, actualizar automáticamente el valor unitario sugerido (precio de venta o costo de compra), respetando precios escritos manualmente. **Implementado.** |
 | F8 | Media | Ordenamiento por columnas: número, tipo, contraparte, estado, fecha, total y creador. **Implementado** `[API]`: orden en el servidor (`sort`/`order`) persistido en la URL; todas las páginas respetan el orden. |
 
@@ -95,6 +95,10 @@ un cambio pequeño en el servidor.
 | N7 | Media | Presupuestos: orden por nombre, periodo, rango, estado, líneas, planeado, meta y creador. **Implementado** `[API]`: orden en el servidor persistido en la URL, etiqueta “Vigente hoy”, filtro rápido y búsqueda con debounce. |
 | N8 | Media | Formulario de presupuesto: drawer a pantalla completa en móvil y búsqueda remota de productos. **Implementado**: `Drawer` responsive y búsqueda remota de productos por SKU o nombre. |
 | N9 | Media | Detalle de presupuesto: filtro “Solo alertas/excedidos”, orden por ejecución y botón “Volver”. **Implementado**: checkbox “Solo líneas con alerta o excedidas”, orden por columnas y botón Volver. |
+| N10 | Alta | Resumen financiero con atajos de **día, semana, mes y año**, navegación anterior/actual/siguiente y rango personalizado, todo persistido en la URL. **Implementado**: selector `Segmented`, semana que empieza en lunes, etiqueta del periodo y comparación contra el periodo calendario anterior (para rangos libres, bloque de igual duración). |
+| N11 | Media | Comparación visual en las tarjetas: variación porcentual contra el periodo previo, con color según si subir es bueno (ingresos/utilidad) o malo (egresos/compras/costo). **Implementado** en ingresos, egresos, compras, utilidad, costo de ventas y margen bruto. |
+| N12 | Media | Enlaces “Ver en” desde el resumen hacia Resultados, Flujo de caja, Tendencias y Transacciones conservando `desde` y `hasta`. **Implementado**: los reportes reciben el mismo rango sin volver a escribirlo. |
+| N13 | Baja | Extender los atajos de periodo a todos los reportes derivados con un componente compartido `PeriodRangePicker` y permitir guardar rangos favoritos. **Propuesto** (no implementado en este punto). |
 
 ## 10. Usuarios y perfil
 

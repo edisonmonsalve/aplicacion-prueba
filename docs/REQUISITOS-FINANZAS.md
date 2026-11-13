@@ -143,3 +143,25 @@
   reglas contables; las pruebas funcionales existentes deben seguir en verde.
 - **RN-38**: Los índices nuevos son de solo lectura para la lógica de negocio: no
   introducen estados ni campos nuevos en las respuestas.
+
+## Resumen financiero por periodo
+
+- **RF-PER-1**: El resumen financiero ofrece atajos **Día**, **Semana**, **Mes** y
+  **Año**, además del rango personalizado. La semana va de lunes a domingo.
+- **RF-PER-2**: El periodo activo se guarda en la URL (`periodo`, `desde`,
+  `hasta`), de modo que recargar o compartir el enlace conserva el mismo resumen.
+- **RF-PER-3**: Se puede navegar al periodo anterior, volver al actual y avanzar
+  al siguiente. El botón **Actual** se deshabilita cuando ya se está en el
+  periodo en curso.
+- **RF-PER-4**: Las tarjetas de flujo (ingresos, egresos, compras, utilidad,
+  costo de ventas y margen bruto) muestran la variación porcentual contra el
+  periodo calendario anterior. Para rangos libres se usa un bloque de igual
+  duración inmediatamente anterior.
+- **RF-PER-5**: El capital disponible no se compara: es un saldo acumulado a la
+  fecha final del rango.
+- **RF-PER-6**: Desde el resumen se puede abrir Resultados, Flujo de caja,
+  Tendencias y Transacciones con el mismo rango de fechas.
+- **RN-41**: Un periodo sin base de comparación (anterior en cero) muestra “Sin
+  base de comparación” en lugar de un porcentaje infinito.
+- **RN-42**: Cambiar de periodo no modifica datos ni asientos; solo cambia la
+  consulta de lectura.

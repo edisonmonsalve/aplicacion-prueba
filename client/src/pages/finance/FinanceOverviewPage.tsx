@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
-import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, DatePicker, Alert, List } from "antd";
+import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, DatePicker, Alert, List, Segmented } from "antd";
 const { RangePicker } = DatePicker;
-import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  LeftOutlined,
+  PlusOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggestions } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { canWriteFinance } from "@/utils/roles";
@@ -21,12 +28,91 @@ const TIPO_LABEL: Record<FinanceCategoryTipo, string> = {
   pasivo: "Pasivo",
 };
 
+type Periodo = "dia" | "semana" | "mes" | "anio";
+
+const PERIODOS: Array<{ label: string; value: Periodo }> = [
+  { label: "Día", value: "dia" },
+  { label: "Semana", value: "semana" },
+  { label: "Mes", value: "mes" },
+  { label: "Año", value: "anio" },
+];
+
+/**
+ * Rango calendario de un periodo. La semana empieza en lunes (convención
+ * colombiana), no en domingo como el `startOf("week")` de dayjs.
+ */
+function rangoDePeriodo(periodo: Periodo, base: dayjs.Dayjs): [dayjs.Dayjs, dayjs.Dayjs] {
+  const dia = base.startOf("day");
+  if (periodo === "dia") return [dia, dia];
+  if (periodo === "semana") {
+    const lunes = dia.subtract((dia.day() + 6) % 7, "day");
+    return [lunes, lunes.add(6, "day")];
+  }
+  if (periodo === "mes") return [dia.startOf("month"), dia.endOf("month")];
+  return [dia.startOf("year"), dia.endOf("year")];
+}
+
+const UNIDAD_PERIODO: Record<Periodo, dayjs.ManipulateType> = {
+  dia: "day",
+  semana: "week",
+  mes: "month",
+  anio: "year",
+};
+
+function etiquetaPeriodo(periodo: Periodo, range: [dayjs.Dayjs, dayjs.Dayjs]) {
+  const [desde, hasta] = range;
+  if (periodo === "dia") return desde.format("DD/MM/YYYY");
+  if (periodo === "semana") {
+    return `${desde.format("DD/MM")} – ${hasta.format("DD/MM/YYYY")}`;
+  }
+  if (periodo === "mes") return desde.format("MMMM [de] YYYY");
+  return desde.format("YYYY");
+}
+
+/** Variación porcentual contra el periodo inmediatamente anterior. */
+function variacion(actual: number | undefined, anterior: number | undefined | null) {
+  if (actual === undefined || anterior === undefined || anterior === null) return null;
+  if (anterior === 0) return null;
+  return ((actual - anterior) / Math.abs(anterior)) * 100;
+}
+
+function Variacion({
+  actual,
+  anterior,
+  inverso = false,
+}: {
+  actual: number | undefined;
+  anterior: number | undefined | null;
+  /** En egresos/compras, subir no es buena noticia. */
+  inverso?: boolean;
+}) {
+  const pct = variacion(actual, anterior);
+  if (pct === null) {
+    return anterior === 0 ? (
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        Sin base de comparación
+      </Typography.Text>
+    ) : null;
+  }
+  const sube = pct >= 0;
+  const bueno = inverso ? !sube : sube;
+  return (
+    <Tooltip title={`Periodo anterior: ${money(Number(anterior))}`}>
+      <Typography.Text style={{ fontSize: 12, color: bueno ? "#389e0d" : "#cf1322" }}>
+        {sube ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% vs. periodo anterior
+      </Typography.Text>
+    </Tooltip>
+  );
+}
+
 export default function FinanceOverviewPage() {
   const { message, modal } = App.useApp();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { get, update } = useUrlFilters();
   const canWrite = canWriteFinance(user?.rol);
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
+  const [previousSummary, setPreviousSummary] = useState<FinanceSummary | null>(null);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,18 +126,47 @@ export default function FinanceOverviewPage() {
       final && dayjs(final).isValid() ? dayjs(final) : dayjs(),
     ];
   });
+  // "personalizado" desactiva los atajos y deja mandar al RangePicker.
+  const [periodo, setPeriodo] = useState<Periodo | "personalizado">(() => {
+    const guardado = get("periodo");
+    if (guardado === "dia" || guardado === "semana" || guardado === "mes" || guardado === "anio") {
+      return guardado;
+    }
+    return get("desde") || get("hasta") ? "personalizado" : "mes";
+  });
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<FinanceAccount | undefined>();
 
-  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    if (!value || !value[0] || !value[1]) return;
-    const next: [dayjs.Dayjs, dayjs.Dayjs] = [value[0], value[1]];
+  const commitRange = (next: [dayjs.Dayjs, dayjs.Dayjs], nextPeriodo: Periodo | "personalizado") => {
     setRange(next);
+    setPeriodo(nextPeriodo);
     update({
       desde: next[0].format("YYYY-MM-DD"),
       hasta: next[1].format("YYYY-MM-DD"),
+      periodo: nextPeriodo === "personalizado" ? undefined : nextPeriodo,
     });
   };
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<FinanceAccount | undefined>();
+
+  const changeRange = (value: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    if (!value || !value[0] || !value[1]) return;
+    commitRange([value[0], value[1]], "personalizado");
+  };
+
+  const selectPeriodo = (next: Periodo) => {
+    commitRange(rangoDePeriodo(next, dayjs()), next);
+  };
+
+  /** Mueve el rango un periodo completo hacia atrás o adelante. */
+  const shiftPeriodo = (direccion: -1 | 1) => {
+    if (periodo === "personalizado") return;
+    const base = range[0].add(direccion, UNIDAD_PERIODO[periodo]);
+    commitRange(rangoDePeriodo(periodo, base), periodo);
+  };
+
+  const enPeriodoActual =
+    periodo !== "personalizado" &&
+    range[0].isSame(rangoDePeriodo(periodo, dayjs())[0], "day") &&
+    range[1].isSame(rangoDePeriodo(periodo, dayjs())[1], "day");
 
   useDocumentTitle("Finanzas");
 
@@ -61,10 +176,34 @@ export default function FinanceOverviewPage() {
     try {
       const desde = range[0].format("YYYY-MM-DD");
       const hasta = range[1].format("YYYY-MM-DD");
-      const [s, a, sg] = await Promise.all([getFinanceSummary({ desde, hasta }), getFinanceAccounts(), getSuggestions()]);
+      // Comparación: para los presets se usa el periodo calendario anterior
+      // (mes anterior, año anterior); para un rango libre, un bloque de igual
+      // duración inmediatamente anterior.
+      let prevDesde: dayjs.Dayjs;
+      let prevHasta: dayjs.Dayjs;
+      if (periodo === "personalizado") {
+        const dias = range[1].startOf("day").diff(range[0].startOf("day"), "day");
+        prevHasta = range[0].subtract(1, "day");
+        prevDesde = prevHasta.subtract(dias, "day");
+      } else {
+        [prevDesde, prevHasta] = rangoDePeriodo(
+          periodo,
+          range[0].subtract(1, UNIDAD_PERIODO[periodo])
+        );
+      }
+      const [s, a, sg, prev] = await Promise.all([
+        getFinanceSummary({ desde, hasta }),
+        getFinanceAccounts(),
+        getSuggestions(),
+        getFinanceSummary({
+          desde: prevDesde.format("YYYY-MM-DD"),
+          hasta: prevHasta.format("YYYY-MM-DD"),
+        }).catch(() => null),
+      ]);
       setSummary(s);
       setAccounts(a);
       setSuggestions(sg);
+      setPreviousSummary(prev);
     } catch (err) {
       setError(getErrorMessage(err, "No se pudo cargar el resumen financiero"));
     } finally {
@@ -75,7 +214,9 @@ export default function FinanceOverviewPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range]);
+  }, [range, periodo]);
+
+  const reportQuery = `desde=${range[0].format("YYYY-MM-DD")}&hasta=${range[1].format("YYYY-MM-DD")}`;
 
   const openNewAccount = () => {
     setEditingAccount(undefined);
@@ -121,18 +262,84 @@ export default function FinanceOverviewPage() {
     <div>
       <PageHeader
         title="Resumen financiero"
-        description="Consulta los ingresos, egresos, utilidad y capital del periodo, además de las alertas y sugerencias del presupuesto activo."
-        extra={
-          <Tooltip title="Rango de fechas que se resume en las tarjetas y tablas">
-            <RangePicker
-              value={range}
-              onChange={changeRange}
-              format="DD/MM/YYYY"
-              allowClear={false}
-            />
-          </Tooltip>
-        }
+        description="Consulta ingresos, egresos, utilidad y capital por día, semana, mes o año, con comparación contra el periodo anterior."
       />
+
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space direction="vertical" size={8} style={{ width: "100%" }}>
+          <Space wrap align="center" style={{ justifyContent: "space-between", width: "100%" }}>
+            <Space wrap>
+              <Segmented<Periodo>
+                options={PERIODOS}
+                value={periodo === "personalizado" ? undefined : periodo}
+                onChange={selectPeriodo}
+              />
+              {periodo !== "personalizado" && (
+                <Space.Compact>
+                  <Tooltip title={`${periodo} anterior`}>
+                    <Button
+                      icon={<LeftOutlined />}
+                      onClick={() => shiftPeriodo(-1)}
+                      aria-label={`${periodo} anterior`}
+                    />
+                  </Tooltip>
+                  <Button onClick={() => selectPeriodo(periodo)} disabled={enPeriodoActual}>
+                    Actual
+                  </Button>
+                  <Tooltip title={`${periodo} siguiente`}>
+                    <Button
+                      icon={<RightOutlined />}
+                      onClick={() => shiftPeriodo(1)}
+                      aria-label={`${periodo} siguiente`}
+                    />
+                  </Tooltip>
+                </Space.Compact>
+              )}
+            </Space>
+            <Space wrap>
+              <Typography.Text type="secondary">Rango personalizado:</Typography.Text>
+              <RangePicker
+                value={range}
+                onChange={changeRange}
+                format="DD/MM/YYYY"
+                allowClear={false}
+              />
+            </Space>
+          </Space>
+          <Space wrap size={8} style={{ justifyContent: "space-between", width: "100%" }}>
+            <Typography.Text type="secondary">
+              {periodo === "personalizado" ? (
+                <>
+                  Rango personalizado:{" "}
+                  <strong>
+                    {range[0].format("DD/MM/YYYY")} – {range[1].format("DD/MM/YYYY")}
+                  </strong>
+                </>
+              ) : (
+                <>
+                  Periodo: <strong>{etiquetaPeriodo(periodo, range)}</strong> ·{" "}
+                  {range[0].format("DD/MM/YYYY")} – {range[1].format("DD/MM/YYYY")}
+                </>
+              )}
+            </Typography.Text>
+            <Space wrap size={4}>
+              <Typography.Text type="secondary">Ver en:</Typography.Text>
+              <Button size="small" type="link" onClick={() => navigate(`/finanzas/resultados?${reportQuery}`)}>
+                Resultados
+              </Button>
+              <Button size="small" type="link" onClick={() => navigate(`/finanzas/flujo-caja?${reportQuery}`)}>
+                Flujo de caja
+              </Button>
+              <Button size="small" type="link" onClick={() => navigate(`/finanzas/tendencias?${reportQuery}`)}>
+                Tendencias
+              </Button>
+              <Button size="small" type="link" onClick={() => navigate(`/finanzas/transacciones?${reportQuery}`)}>
+                Transacciones
+              </Button>
+            </Space>
+          </Space>
+        </Space>
+      </Card>
 
       <Alert
         type="info"
@@ -157,10 +364,6 @@ export default function FinanceOverviewPage() {
         />
       )}
 
-      <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-        Periodo: {range[0].format("DD/MM/YYYY")} – {range[1].format("DD/MM/YYYY")}
-      </Typography.Text>
-
       <Typography.Title level={5} style={{ marginTop: 0 }}>
         Caja y bancos
       </Typography.Title>
@@ -168,22 +371,27 @@ export default function FinanceOverviewPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Ingresos que entran a caja o bancos en el periodo">Ingresos</Tooltip>} value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
+            <Variacion actual={s?.ingresos} anterior={previousSummary?.ingresos} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Salidas reales de caja o bancos: gastos de operación y compras de inventario. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
+            <Variacion actual={s?.egresos} anterior={previousSummary?.egresos} inverso />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>} value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Acumulado a la fecha final
+            </Typography.Text>
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>} value={s?.compras_inventario ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#fa8c16" }} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>Activo, no gasto</Typography.Text>
+            <Variacion actual={s?.compras_inventario} anterior={previousSummary?.compras_inventario} inverso />
           </Card>
         </Col>
       </Row>
@@ -193,22 +401,27 @@ export default function FinanceOverviewPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
+            <Variacion actual={s?.utilidad} anterior={previousSummary?.utilidad} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>No afecta caja</Typography.Text>
+            <Variacion actual={s?.costo_ventas} anterior={previousSummary?.costo_ventas} inverso />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Ingresos menos costo de ventas">Margen bruto</Tooltip>} value={s?.margen_bruto ?? 0} formatter={(v) => money(Number(v))} />
+            <Variacion actual={s?.margen_bruto} anterior={previousSummary?.margen_bruto} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>} value={s?.margen_bruto_pct ?? 0} suffix="%" precision={0} />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Sobre ingresos del periodo
+            </Typography.Text>
           </Card>
         </Col>
       </Row>
