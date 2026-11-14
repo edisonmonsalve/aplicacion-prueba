@@ -295,7 +295,7 @@ export async function getSummary(query: SummaryQuery) {
                          THEN t.monto ELSE 0 END), 0) AS ingresos_totales,
        COALESCE(SUM(CASE WHEN t.tipo IN ('gasto', 'activo') AND ${afectaCaja} = 1
                          THEN t.monto ELSE 0 END), 0) AS egresos,
-       COALESCE(SUM(CASE WHEN t.tipo = 'activo' AND ${afectaCaja} = 1
+       COALESCE(SUM(CASE WHEN t.tipo = 'activo' AND fc.codigo = 'inventario'
                          THEN t.monto ELSE 0 END), 0) AS compras_inventario,
        COALESCE(SUM(CASE WHEN t.tipo = 'gasto' AND fc.afecta_resultado = 1
                          THEN t.monto ELSE 0 END), 0) AS gastos_totales,
