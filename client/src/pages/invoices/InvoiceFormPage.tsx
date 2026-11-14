@@ -645,8 +645,8 @@ export default function InvoiceFormPage() {
               showIcon
               type="info"
               style={{ marginBottom: 12 }}
-              message="El descuento de compra reduce la salida de caja y el valor del inventario"
-              description="El costo neto de la línea (precio − descuento) se guarda como costo histórico de la entrada y valoriza el activo Inventario. No modifica el costo de referencia del producto: el costo de venta se calcula con el costo unitario del producto, no con este descuento."
+              message="El descuento de compra reduce la salida de caja y se reconoce aparte"
+              description="El inventario se valora al precio bruto de compra (costo original) y el descuento se reconoce como 'Descuentos obtenidos' (ingreso), favorable para el margen, sin mover caja. La caja sale por el neto. No modifica el costo de referencia del producto: el costo de venta se calcula con el costo unitario del producto."
             />
           )}
           {quoteEntregada && tipo !== "compra" && (

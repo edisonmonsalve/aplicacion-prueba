@@ -475,11 +475,12 @@ describe("Módulo de Facturación — RF-XX", () => {
        WHERE t.invoice_id = ? ORDER BY t.id`,
       [id]
     );
-    expect(transactions).toHaveLength(2);
+    expect(transactions).toHaveLength(3);
     expect(transactions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ tipo: "activo", monto: 180, categoria: "Inventario" }),
+        expect.objectContaining({ tipo: "activo", monto: 200, categoria: "Inventario" }),
         expect.objectContaining({ tipo: "activo", monto: 34.2, categoria: "IVA descontable" }),
+        expect.objectContaining({ tipo: "ingreso", monto: 20, categoria: "Descuentos obtenidos" }),
       ])
     );
 
@@ -534,21 +535,31 @@ describe("Módulo de Facturación — RF-XX", () => {
       .set(bearer(admin.token));
     expect(confirmedPurchase.status).toBe(200);
 
-    // El activo Inventario se registra por la base neta y la entrada guarda el
-    // costo histórico neto (90), que es el que refleja el descuento.
+    // El activo Inventario se registra por el precio bruto (costo original) y la
+    // entrada guarda el costo histórico bruto (100); el descuento se reconoce
+    // aparte como "Descuentos obtenidos".
     const [inventory] = await pool.query<RowDataPacket[]>(
       `SELECT t.monto FROM transactions t
        JOIN finance_categories fc ON fc.id = t.finance_category_id
        WHERE t.invoice_id = ? AND fc.codigo = 'inventario'`,
       [purchaseId]
     );
-    expect(Number(inventory[0].monto)).toBe(180);
+    expect(Number(inventory[0].monto)).toBe(200);
 
     const [entry] = await pool.query<RowDataPacket[]>(
       "SELECT costo_unitario FROM stock_movements WHERE invoice_id = ? AND tipo = 'entrada'",
       [purchaseId]
     );
-    expect(Number(entry[0].costo_unitario)).toBe(90);
+    expect(Number(entry[0].costo_unitario)).toBe(100);
+
+    const [descuento] = await pool.query<RowDataPacket[]>(
+      `SELECT t.monto, t.afecta_caja FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.invoice_id = ? AND fc.codigo = 'descuentos_obtenidos'`,
+      [purchaseId]
+    );
+    expect(Number(descuento[0].monto)).toBe(20);
+    expect(Number(descuento[0].afecta_caja)).toBe(0);
 
     // El costo de referencia del producto no cambia con la compra (M1).
     const [afterPurchase] = await pool.query<RowDataPacket[]>(

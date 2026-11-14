@@ -598,7 +598,7 @@ describe("Finanzas: API", () => {
     const id = created.body.id as number;
     expect((await post(`/api/finance/budgets/${id}/activate`, admin.token)).status).toBe(200);
 
-    // Compra: base neta 180 (2 x 100 - 10%), IVA 34.2 (no entra al gasto)
+    // Compra: base bruta 200 (2 x 100), descuento 20 reconocido aparte; inventario al precio bruto.
     const invoice = await request(app)
       .post("/api/invoices")
       .set(bearer(admin.token))
@@ -627,9 +627,9 @@ describe("Finanzas: API", () => {
       .set(bearer(admin.token));
     expect(detail.body.lineas[0]).toMatchObject({
       product_category_id: productCategoryId,
-      real: 180,
-      disponible: 820,
-      ejecucion_pct: 18,
+      real: 200,
+      disponible: 800,
+      ejecucion_pct: 20,
     });
 
     const availability = await request(app)
@@ -638,8 +638,8 @@ describe("Finanzas: API", () => {
     expect(availability.body).toMatchObject({
       product_category_id: productCategoryId,
       alcance: "categoria",
-      real: 180,
-      disponible: 820,
+      real: 200,
+      disponible: 800,
     });
   });
 

@@ -18,7 +18,6 @@ import {
   calcTotals,
   insertAllocations,
   invoiceCashProjection,
-  netUnitCost,
   rowToLine,
   totalsFromRows,
 } from "./invoices.shared.js";
@@ -778,8 +777,6 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
       // modifica con edición manual; una compra no lo sobrescribe (M1). El costo neto de la
       // línea se guarda como costo histórico del movimiento de entrada.
       for (const it of items) {
-        const netCost = netUnitCost(it as { precio_unitario: number; descuento_pct: number });
-
         await registerMovement(
           {
             product_id: it.product_id,
@@ -787,7 +784,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
             cantidad: Number(it.cantidad),
             origen: "compra",
             motivo: `Factura ${inv.numero}`,
-            costo_unitario: netCost,
+            costo_unitario: Number(it.precio_unitario),
             invoiceId: id,
             skipFinance: true,
           },
@@ -801,7 +798,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     const lineAllocations = items.map((it) => ({
       invoiceItemId: it.id as number,
       productId: it.product_id as number,
-      monto: rowToLine(it).base,
+      monto: rowToLine(it).bruto,
     }));
 
     if (isVenta) {
@@ -908,7 +905,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
         // el gasto se reconoce al vender como "Costo de ventas".
         const txId = await createAutoTransaction(conn, {
           tipo: "activo",
-          monto: baseTotal,
+          monto: Number(totals.subtotal),
           fecha: inv.fecha,
           categoriaCodigo: "inventario",
           accountId,
@@ -917,7 +914,21 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
         });
-        if (txId) await insertAllocations(conn, txId, lineAllocations, baseTotal);
+        if (txId) await insertAllocations(conn, txId, lineAllocations, Number(totals.subtotal));
+      }
+      const descuentoTotal = roundMoney(Number(totals.descuento_total));
+      if (descuentoTotal > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "ingreso",
+          monto: descuentoTotal,
+          fecha: inv.fecha,
+          categoriaCodigo: "descuentos_obtenidos",
+          accountId,
+          afectaCaja: false,
+          invoiceId: id,
+          descripcion: `Descuento obtenido factura ${inv.numero}`,
+          userId: actor.id,
+        });
       }
       if (ivaTotal > 0) {
         await createAutoTransaction(conn, {
