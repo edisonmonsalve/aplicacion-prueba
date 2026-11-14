@@ -363,6 +363,12 @@ Todas las decisiones de la iteración anterior están cerradas:
   (`GET /api/products?ids=1,2,3`). Así el select y las alertas muestran SKU, nombre y stock
   real también en esas líneas. El indicador de stock es permanente: verde (suficiente),
   naranja (bajo mínimo) y rojo (cantidad solicitada > disponible).
+- **Cotización ya entregada:** si la cotización vinculada está en estado `entregado`, el stock
+  ya salió al entregar y la factura solo reconoce la venta y el costo de ventas. El formulario
+  reemplaza el semáforo de stock por la etiqueta «Entregado en cotización» (o «Agregado tras
+  la entrega» para productos que no estaban en la cotización) y el detalle de la factura
+  (`quote_estado`) ajusta los textos de confirmación y anulación para no prometer un
+  descuento de inventario que no ocurrirá.
 - **Fechas sin desfase horario:** las columnas DATE (`fecha` de factura/cotización, vigencias y
   periodos) se muestran con `formatDateOnly` (`client/src/utils/dates.ts`), que conserva el día
   calendario `AAAA-MM-DD` sin reinterpretarlo como medianoche UTC. En Bogotá (UTC-5) una fecha

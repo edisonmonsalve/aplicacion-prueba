@@ -180,9 +180,10 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
 
 export async function getInvoice(id: number) {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT i.*, u.nombre AS creador
+    `SELECT i.*, u.nombre AS creador, q.estado AS quote_estado
      FROM invoices i
      JOIN users u ON u.id = i.created_by
+     LEFT JOIN quotes q ON q.id = i.quote_id
      WHERE i.id = ?`,
     [id]
   );

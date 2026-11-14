@@ -1199,6 +1199,8 @@ export interface InvoiceDetail extends Invoice {
   email: string | null;
   notas: string | null;
   quote_numero: string | null;
+  /** Estado de la cotización vinculada; `entregado` indica que el stock ya salió. */
+  quote_estado: QuoteStatus | null;
   created_by: number;
   /** Proyección del movimiento de caja al confirmar (IVA excluido). */
   impacto_caja: InvoiceCashProjection;

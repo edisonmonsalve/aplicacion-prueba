@@ -566,6 +566,14 @@ describe("Módulo de Facturación — RF-XX", () => {
         expect.objectContaining({ tipo: "gasto", monto: 800 }),
       ])
     );
+
+    // El detalle expone el estado de la cotización para que la UI no muestre
+    // alertas de stock cuando este ya salió con la entrega.
+    const detail = await request(app)
+      .get(`/api/invoices/${id}`)
+      .set(bearer(admin.token));
+    expect(detail.status).toBe(200);
+    expect(detail.body.quote_estado).toBe("entregado");
   });
 
   it("la cotización no limita el valor de la factura: admite facturación parcial y de más", async () => {

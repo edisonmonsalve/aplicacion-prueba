@@ -158,6 +158,8 @@ export default function InvoiceDetailPage() {
   const saldoResultante =
     account && !esCredito ? Number(account.saldo_actual) + signedImpact : null;
   const ivaLabel = invoice.tipo === "venta" ? "IVA por pagar" : "IVA descontable";
+  // La cotización entregada ya descontó el stock: la factura solo contabiliza.
+  const stockEntregado = invoice.tipo === "venta" && invoice.quote_estado === "entregado";
   const impactoTexto = esCredito
     ? `Sin movimiento de caja · cartera ${
         invoice.tipo === "venta" ? "por cobrar" : "por pagar"
@@ -174,7 +176,9 @@ export default function InvoiceDetailPage() {
         <Space direction="vertical" size={6} style={{ marginTop: 8, width: "100%" }}>
           <span>
             {invoice.tipo === "venta"
-              ? "Se validará el stock, se descontará y se registrará la venta."
+              ? stockEntregado
+                ? "El stock ya salió con la entrega de la cotización: se registrará la venta y el costo de ventas sin volver a descontar inventario."
+                : "Se validará el stock, se descontará y se registrará la venta."
               : "Se sumará el stock y se registrará la compra como inventario."}
           </span>
           <div
@@ -266,7 +270,9 @@ export default function InvoiceDetailPage() {
         title={`Factura ${invoice.numero}`}
         description={
           invoice.tipo === "venta"
-            ? "Al confirmar se descuenta stock y se registra la venta; el IVA va a IVA por pagar y no mueve caja."
+            ? stockEntregado
+              ? "La cotización vinculada ya fue entregada: al confirmar solo se registra la venta y el costo de ventas; el stock no se mueve de nuevo."
+              : "Al confirmar se descuenta stock y se registra la venta; el IVA va a IVA por pagar y no mueve caja."
             : "Al confirmar se suma stock y se registra la compra como inventario; el IVA va a IVA descontable y no mueve caja."
         }
         style={{ marginBottom: 0 }}
@@ -292,7 +298,11 @@ export default function InvoiceDetailPage() {
             {canOperate && isConfirmed && (
               <Popconfirm
                 title="¿Anular esta factura?"
-                description="Se revertirá el stock y se registrará la contrapartida financiera."
+                description={
+                  stockEntregado
+                    ? "Se revertirán la venta y los asientos financieros; el stock no se modifica porque salió con la entrega de la cotización."
+                    : "Se revertirá el stock y se registrará la contrapartida financiera."
+                }
                 okText="Sí, anular"
                 cancelText="No"
                 okButtonProps={{ danger: true }}
@@ -338,7 +348,15 @@ export default function InvoiceDetailPage() {
       )}
 
       {invoice.estado === "anulada" && (
-        <Alert type="warning" showIcon message="Esta factura está anulada. Se revirtieron el stock y todos sus asientos financieros." />
+        <Alert
+          type="warning"
+          showIcon
+          message={
+            stockEntregado
+              ? "Esta factura está anulada. Se revirtieron la venta y sus asientos financieros; el stock no se repuso porque salió con la entrega de la cotización."
+              : "Esta factura está anulada. Se revirtieron el stock y todos sus asientos financieros."
+          }
+        />
       )}
 
       <Card

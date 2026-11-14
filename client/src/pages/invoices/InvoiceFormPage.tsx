@@ -10,6 +10,7 @@ import {
   InputNumber,
   Select,
   Space,
+  Tag,
   Tooltip,
   Typography,
   theme,
@@ -174,6 +175,11 @@ export default function InvoiceFormPage() {
     ? quoteInfo.saldo_por_facturar ?? Math.max(0, quoteInfo.total - (quoteInfo.facturado ?? 0))
     : 0;
   const excedeCotizacion = !!quoteInfo && tipo !== "compra" && t.total > saldoCotizado + 0.005;
+  // Si la cotización ya se entregó, el stock salió en la entrega: confirmar la
+  // factura solo contabiliza y no vuelve a descontar existencias.
+  const quoteEntregada = !!quoteInfo && quoteInfo.estado === "entregado";
+  const enCotizacion = (productId?: number) =>
+    !!productId && !!quoteInfo?.items.some((l) => l.product_id === productId);
 
   const search = async (q: string) => {
     try {
@@ -397,6 +403,11 @@ export default function InvoiceFormPage() {
             impuesto_pct: l.impuesto_pct,
           })),
         });
+        // El detalle de la cotización permite avisar si el stock ya salió en la
+        // entrega; sin él, la edición perdería ese contexto.
+        if (d.quote_id) {
+          getQuote(d.quote_id).then(setQuoteInfo).catch(() => setQuoteInfo(null));
+        }
       })
       .catch(() => {
         message.error("No se pudo cargar la factura");
@@ -629,6 +640,15 @@ export default function InvoiceFormPage() {
               ? "Registra los productos comprados. El precio unitario es el costo neto de compra (sin IVA); al confirmar suma stock y registra el activo Inventario en la cuenta elegida."
               : "Registra los productos vendidos. Al confirmar se descuenta stock (si la cotización no lo entregó antes) y se reconoce el ingreso neto + IVA en la cuenta elegida."}
           </Typography.Paragraph>
+          {quoteEntregada && tipo !== "compra" && (
+            <Alert
+              showIcon
+              type="info"
+              style={{ marginBottom: 12 }}
+              message="La cotización ya fue entregada"
+              description="El stock salió al entregar la cotización. Al confirmar esta factura solo se registra la venta, el IVA y el costo de ventas: no se vuelve a descontar inventario."
+            />
+          )}
 
         <Form.List
           name="items"
@@ -708,6 +728,27 @@ export default function InvoiceFormPage() {
                   {(() => {
                     const l = lineas[name];
                     const p = l?.product_id ? products[l.product_id] : undefined;
+                    // Cotización entregada: el stock ya salió. Se reemplaza el
+                    // semáforo de stock por el estado real de la línea para no
+                    // mostrar un falso "Stock insuficiente".
+                    if (quoteEntregada && tipo !== "compra") {
+                      const incluido = enCotizacion(l?.product_id);
+                      return (
+                        <div style={{ marginTop: 30 }}>
+                          <Tooltip
+                            title={
+                              incluido
+                                ? "El stock salió al entregar la cotización; al confirmar la factura no se vuelve a descontar."
+                                : "Producto agregado después de la entrega: no forma parte del stock ya despachado y esta factura tampoco lo descuenta."
+                            }
+                          >
+                            <Tag color={incluido ? "green" : "orange"}>
+                              {incluido ? "Entregado en cotización" : "Agregado tras la entrega"}
+                            </Tag>
+                          </Tooltip>
+                        </div>
+                      );
+                    }
                     if (!p || p.stock_actual === undefined) return null;
                     return (
                       <div style={{ marginTop: 30 }}>
