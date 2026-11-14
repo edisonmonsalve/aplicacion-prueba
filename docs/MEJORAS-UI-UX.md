@@ -71,6 +71,7 @@ un cambio pequeño en el servidor.
 | Q8 | Media | Vincular la cotización al maestro de terceros para reutilizar el cliente sin depender del texto libre. **Implementado**: selector “Cliente registrado” con autollenado de nombre, documento y email; el vínculo se guarda en `quotes.party_id` y los datos quedan como snapshot editable. La lista marca las cotizaciones con tercero y el detalle lo muestra; duplicar conserva el vínculo. |
 | Q9 | Media | Evitar productos repetidos en las líneas de la cotización, que hoy solo se detectaban al guardar. **Implementado**: los productos ya usados en otra línea aparecen deshabilitados con la marca «ya agregado» y la lista valida duplicados antes de guardar. El servidor mantiene RN-P03 como última barrera. |
 | Q10 | Media | La cotización es una propuesta comercial y la factura el documento legal de la venta: sus montos no tienen que coincidir. **Implementado**: se retiró el bloqueo por superar el total cotizado; el detalle muestra lo facturado y el saldo pendiente, y permite varias facturas por hitos mientras quede saldo. “Pendiente de facturar” ahora significa saldo sin cubrir, no ausencia de factura. |
+| Q11 | Media | Quitar la acción «Entregar» de la cotización y dejar la entrega en manos de la factura. **Implementado**: se retiró el botón; el timeline conserva el paso «Entregado» y explica que se alcanza al confirmar la factura de venta, que es cuando sale el stock y se reconoce la venta. El endpoint `/quotes/:id/deliver` queda para una futura entrega de almacén. |
 
 ## 8. Facturación
 

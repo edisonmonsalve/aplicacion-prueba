@@ -27,7 +27,6 @@ import {
   approveQuote,
   rejectQuote,
   duplicateQuote,
-  deliverQuote,
 } from "../../services/quotesService";
 import type { QuoteDetail, QuoteInvoice, QuoteLine, QuoteStatus, StockFailure } from "../../types";
 import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/quoteUtils";
@@ -203,12 +202,7 @@ export default function QuoteDetailPage() {
             {quote.estado === "enviado" &&
               confirm("Rechazar", rejectQuote, "Cotización rechazada", {
                 danger: true,
-                tooltip: "Marca la cotización como rechazada; ya no podrá entregarse.",
-              })}
-            {quote.estado === "aprobado" &&
-              confirm("Entregar", deliverQuote, "Cotización entregada", {
-                primary: true,
-                tooltip: "Descuenta el stock de cada línea y genera el ingreso correspondiente en finanzas.",
+                tooltip: "Marca la cotización como rechazada; ya no podrá facturarse.",
               })}
             {(quote.estado === "aprobado" || quote.estado === "entregado") && (
               <Tooltip
@@ -316,9 +310,20 @@ export default function QuoteDetailPage() {
             { title: <Tooltip title="La cotización aún no se ha enviado al cliente">Borrador</Tooltip> },
             { title: <Tooltip title="Enviada al cliente, pendiente de respuesta">Enviado</Tooltip> },
             { title: <Tooltip title="El cliente aceptó la cotización">Aprobado</Tooltip> },
-            { title: <Tooltip title="Se descontó el stock y se registró el ingreso">Entregado</Tooltip> },
+            {
+              title: (
+                <Tooltip title="Se alcanza al confirmar la factura de venta: allí sale el stock y se reconoce el ingreso">
+                  Entregado
+                </Tooltip>
+              ),
+            },
           ]}
         />
+        <Typography.Paragraph type="secondary" style={{ margin: "12px 0 0" }}>
+          La entrega se registra al confirmar la factura de venta vinculada: en ese momento sale
+          el stock y se reconoce la venta. Mientras la cotización esté aprobada, usa “Generar
+          factura”. La entrega de almacén desde la cotización quedará para una mejora posterior.
+        </Typography.Paragraph>
       </Card>
 
       <Card title="Resumen" extra={<StatusTag estado={quote.estado} />}>

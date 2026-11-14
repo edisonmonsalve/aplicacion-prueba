@@ -55,7 +55,9 @@ costo histórico, presupuestos por categoría y cuentas.
 
 ### 2.3 Ciclo documental y stock
 
-- La entrega de cotización mueve stock (origen `entrega`) y **no genera contabilidad**.
+- La entrega de cotización mueve stock (origen `entrega`) y **no genera contabilidad**. La
+  interfaz ya no expone la acción «Entregar»: el endpoint se conserva para una futura entrega
+  de almacén, y hoy la cotización queda `entregado` al confirmar su factura de venta.
 - La factura directa mueve stock y contabiliza.
 - Factura vinculada a cotización **aprobada**: mueve stock una vez y deja la cotización en `entregado`.
 - Factura vinculada a cotización **entregada**: no vuelve a mover stock y usa el costo histórico de la entrega.

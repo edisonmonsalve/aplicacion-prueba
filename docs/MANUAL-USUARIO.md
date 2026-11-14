@@ -75,9 +75,9 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
   - No se puede repetir un producto: si ya está en otra línea, la opción aparece deshabilitada como «ya agregado».
   - Alerta si la cantidad supera el stock disponible.
 - **Detalle**: pasos del flujo, datos del cliente, totales, líneas, historial de estados.
-  - Acciones contextuales: Enviar, Aprobar, Rechazar, Entregar, Editar, Duplicar, Imprimir.
+  - Acciones contextuales: Enviar, Aprobar, Rechazar, Editar, Duplicar, Imprimir y Generar factura.
   - **Facturas vinculadas**: muestra lo facturado frente al total cotizado y el saldo pendiente. Se pueden generar varias facturas (por hitos) mientras quede saldo; cuando queda cubierto, “Generar factura” se deshabilita y los ajustes se hacen con nota crédito o débito.
-  - “Entregar” descuenta el stock y **no genera contabilidad**: la cotización es pre-contractual. La salida queda como origen “entrega”.
+  - La cotización pasa a **entregado** al confirmar su factura de venta: en ese momento sale el stock y se reconoce la venta. La entrega de almacén desde la propia cotización quedará para una mejora posterior.
 - **Vencimiento**: alerta cuando quedan 3 días o menos, o si ya venció.
 
 ## 8. Facturación

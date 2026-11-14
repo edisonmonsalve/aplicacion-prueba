@@ -24,6 +24,11 @@ Un presupuesto `enviado` cuya fecha de validez ya pasó se muestra como **vencid
 | Entregar | aprobado | entregado | Creador o admin |
 | Eliminar | borrador | (se borra) | Creador o admin |
 
+> La transición **Entregar** se conserva en el servidor (`POST /api/quotes/:id/deliver`) para
+> una futura entrega de almacén, pero la interfaz ya no la ofrece. Hoy la cotización queda
+> `entregado` al confirmar su factura de venta, que es cuando sale el stock y se reconoce la
+> venta.
+
 ## 3. Requisitos funcionales
 
 | ID | Requisito |
