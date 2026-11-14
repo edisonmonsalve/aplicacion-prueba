@@ -640,6 +640,15 @@ export default function InvoiceFormPage() {
               ? "Registra los productos comprados. El precio unitario es el costo neto de compra (sin IVA); al confirmar suma stock y registra el activo Inventario en la cuenta elegida."
               : "Registra los productos vendidos. Al confirmar se descuenta stock (si la cotización no lo entregó antes) y se reconoce el ingreso neto + IVA en la cuenta elegida."}
           </Typography.Paragraph>
+          {tipo === "compra" && (
+            <Alert
+              showIcon
+              type="info"
+              style={{ marginBottom: 12 }}
+              message="El descuento de compra reduce la salida de caja y el valor del inventario"
+              description="El costo neto de la línea (precio − descuento) se guarda como costo histórico de la entrada y valoriza el activo Inventario. No modifica el costo de referencia del producto: el costo de venta se calcula con el costo unitario del producto, no con este descuento."
+            />
+          )}
           {quoteEntregada && tipo !== "compra" && (
             <Alert
               showIcon

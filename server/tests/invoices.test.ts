@@ -496,6 +496,104 @@ describe("Módulo de Facturación — RF-XX", () => {
     });
   });
 
+  it("RF-14: el descuento de compra reduce caja y activo, pero el costo de venta usa el costo del producto", async () => {
+    // Compra de contado: 2 × 100 con 10 % de descuento → base 180, IVA 34.2.
+    const purchase = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "compra",
+        fecha: "2024-01-15",
+        contraparte: "Proveedor Descuento",
+        items: [
+          {
+            product_id: productId,
+            cantidad: 2,
+            precio_unitario: 100,
+            descuento_pct: 10,
+            impuesto_pct: 19,
+          },
+        ],
+      });
+    const purchaseId = purchase.body.id as number;
+    expect(purchase.status).toBe(201);
+
+    // La caja sale por la base con descuento (180), no por el bruto (200).
+    const purchaseDetail = await request(app)
+      .get(`/api/invoices/${purchaseId}`)
+      .set(bearer(admin.token));
+    expect(purchaseDetail.body.impacto_caja).toMatchObject({
+      mueve_caja: true,
+      base: 180,
+      iva: 34.2,
+      movimiento_caja: -180,
+    });
+
+    const confirmedPurchase = await request(app)
+      .post(`/api/invoices/${purchaseId}/confirmar`)
+      .set(bearer(admin.token));
+    expect(confirmedPurchase.status).toBe(200);
+
+    // El activo Inventario se registra por la base neta y la entrada guarda el
+    // costo histórico neto (90), que es el que refleja el descuento.
+    const [inventory] = await pool.query<RowDataPacket[]>(
+      `SELECT t.monto FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.invoice_id = ? AND fc.codigo = 'inventario'`,
+      [purchaseId]
+    );
+    expect(Number(inventory[0].monto)).toBe(180);
+
+    const [entry] = await pool.query<RowDataPacket[]>(
+      "SELECT costo_unitario FROM stock_movements WHERE invoice_id = ? AND tipo = 'entrada'",
+      [purchaseId]
+    );
+    expect(Number(entry[0].costo_unitario)).toBe(90);
+
+    // El costo de referencia del producto no cambia con la compra (M1).
+    const [afterPurchase] = await pool.query<RowDataPacket[]>(
+      "SELECT costo, stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(Number(afterPurchase[0].costo)).toBe(400);
+    expect(afterPurchase[0].stock_actual).toBe(12);
+
+    // Venta posterior: el costo de venta usa 400 por unidad, no el costo neto
+    // de compra (90). El descuento ya benefició caja y activo, no el margen.
+    const sale = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-16",
+        contraparte: "Cliente Costo",
+        items: [{ product_id: productId, cantidad: 1, precio_unitario: 1000, impuesto_pct: 19 }],
+      });
+    const saleId = sale.body.id as number;
+    expect(sale.status).toBe(201);
+
+    const confirmedSale = await request(app)
+      .post(`/api/invoices/${saleId}/confirmar`)
+      .set(bearer(admin.token));
+    expect(confirmedSale.status).toBe(200);
+
+    const [saleMovement] = await pool.query<RowDataPacket[]>(
+      "SELECT costo_unitario FROM stock_movements WHERE invoice_id = ? AND tipo = 'salida'",
+      [saleId]
+    );
+    expect(Number(saleMovement[0].costo_unitario)).toBe(400);
+
+    // El costo de ventas es un gasto que reduce el margen pero no mueve caja.
+    const [cogs] = await pool.query<RowDataPacket[]>(
+      `SELECT t.monto, t.afecta_caja FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       WHERE t.invoice_id = ? AND fc.codigo = 'costo_ventas'`,
+      [saleId]
+    );
+    expect(Number(cogs[0].monto)).toBe(400);
+    expect(Number(cogs[0].afecta_caja)).toBe(0);
+  });
+
   it("RF-13: factura desde cotización entregada no duplica stock ni ingreso", async () => {
     // Cotización aprobada y entregada: mueve stock, sin contabilidad
     const createdQuote = await request(app)

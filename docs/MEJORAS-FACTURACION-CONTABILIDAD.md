@@ -67,6 +67,12 @@ costo histórico, presupuestos por categoría y cuentas.
 ### 2.4 Costos y precios en movimientos
 
 - Se guarda el **costo histórico** al momento de la salida (base del costo de ventas).
+- **Descuento de compra:** el costo neto (`precio × (1 − descuento)`) se guarda como costo
+  histórico de la entrada y valoriza el activo Inventario; también reduce la salida de caja.
+  No actualiza `products.costo` (M1), así que **el costo de ventas no aplica el descuento**:
+  usa el costo unitario del producto.
+- **Costo de ventas:** gasto con `afecta_caja = 0`; reduce la utilidad y el margen bruto, pero
+  no vuelve a mover caja (la salida ocurrió al comprar o al pagar la compra).
 - Se guarda el **precio de venta** separado en `precio_unitario`.
 - Trazabilidad con `invoice_id` y `quote_id`.
 - Columnas nuevas: **Costo unitario**, **Costo total**, **Precio unitario**, **Origen** y **Documento**.

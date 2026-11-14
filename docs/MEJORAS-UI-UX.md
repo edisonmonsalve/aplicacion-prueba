@@ -88,6 +88,7 @@ un cambio pequeño en el servidor.
 | F9 | Media | Evitar productos repetidos en las líneas de la factura, que hoy solo se detectaban al guardar. **Implementado**: los productos ya usados en otra línea aparecen deshabilitados con la marca «ya agregado» y la lista valida duplicados antes de guardar; el servidor mantiene la validación como última barrera. |
 | F10 | Media | Avisar sin bloquear cuando la factura vinculada difiere de la cotización. **Implementado**: al vincular una cotización se muestra el total cotizado, lo facturado y el saldo; si la factura lo supera, aparece un aviso que explica que puede continuar porque la factura refleja el valor real de la venta. La confirmación ya no responde 409 por exceder lo cotizado. |
 | F11 | Alta | No mostrar “Stock insuficiente” en una factura vinculada a una cotización ya entregada. **Implementado**: el detalle de la factura expone `quote_estado`; con la cotización entregada las líneas muestran «Entregado en cotización» (o «Agregado tras la entrega» para productos nuevos), se suprime el semáforo de stock y se avisa que confirmar solo contabiliza la venta y el costo de ventas. Los textos de confirmación y anulación reflejan que el stock no se vuelve a mover. |
+| F12 | Media | Aclarar en la factura de compra cómo afecta el descuento. **Implementado**: aviso en las líneas que explica que el descuento reduce la salida de caja y el valor del inventario, pero no el costo de referencia del producto; el costo de venta sigue usando el costo unitario del producto. |
 
 ## 9. Finanzas
 

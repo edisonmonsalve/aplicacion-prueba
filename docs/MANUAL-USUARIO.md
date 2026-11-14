@@ -94,6 +94,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
   - Venta desde cotización aprobada: mueve stock una vez y deja la cotización entregada; si ya estaba entregada, no vuelve a mover stock y el formulario marca las líneas como **entregadas en cotización** en lugar de evaluar stock.
   - La cotización es una propuesta comercial y la factura es el documento legal de la venta: sus montos pueden diferir. Una vez emitida la factura, cualquier ajuste se hace con nota crédito o débito.
   - Compra: suma stock, guarda el costo histórico del movimiento y crea **activo Inventario** (salida de caja) + IVA descontable. No modifica `products.costo` (solo edición manual).
+  - **Descuento de compra**: reduce lo que sale de caja y el valor del activo Inventario (base neta), pero no cambia el costo de referencia del producto. El **costo de venta** se calcula con el costo unitario del producto y no aplica el descuento de compra; es un gasto que reduce utilidad y margen sin mover caja.
 - **Anular**: revierte el stock que movió la propia factura (no el de una entrega previa de la cotización) y todos los asientos con contrapartidas; no modifica el costo de referencia del producto.
 - **Detalle**: desglose tributario, link a la cotización y tabla de asientos financieros vinculados.
 
