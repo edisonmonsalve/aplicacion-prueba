@@ -145,6 +145,8 @@ describe("Presupuestos: consulta", () => {
       estado: "confirmada",
     });
     expect(Number(res.body.facturas[0].total)).toBe(1190);
+    expect(res.body.facturado).toBe(1190);
+    expect(res.body.saldo_por_facturar).toBe(0);
   });
 
   it("el detalle respeta los permisos y la existencia", async () => {

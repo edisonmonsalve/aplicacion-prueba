@@ -25,7 +25,14 @@ import { listQuotes, getQuote } from "@/services/quotesService";
 import { listThirdParties } from "@/services/thirdPartiesService";
 import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
 import StockTag from "@/components/StockTag";
-import type { FinanceAccount, InvoiceTipo, PaymentCondition, Quote, ThirdParty } from "@/types";
+import type {
+  FinanceAccount,
+  InvoiceTipo,
+  PaymentCondition,
+  Quote,
+  QuoteDetail,
+  ThirdParty,
+} from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
 
 interface ProductOpt {
@@ -96,6 +103,8 @@ export default function InvoiceFormPage() {
   const [form] = Form.useForm<FormValues>();
   const [products, setProducts] = useState<Record<number, ProductOpt>>({});
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  // Datos de la cotización vinculada para mostrar el saldo cotizado como referencia.
+  const [quoteInfo, setQuoteInfo] = useState<QuoteDetail | null>(null);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [parties, setParties] = useState<ThirdParty[]>([]);
   const [saving, setSaving] = useState(false);
@@ -159,6 +168,12 @@ export default function InvoiceFormPage() {
   const t = totals(lineas);
   const retenciones = (retencionFuente ?? 0) + (retencionIva ?? 0) + (retencionIca ?? 0);
   const totalNeto = Math.max(0, t.total - retenciones);
+  // Referencia informativa: el saldo cotizado no limita la factura, solo ayuda a
+  // detectar diferencias frente a la propuesta comercial.
+  const saldoCotizado = quoteInfo
+    ? quoteInfo.saldo_por_facturar ?? Math.max(0, quoteInfo.total - (quoteInfo.facturado ?? 0))
+    : 0;
+  const excedeCotizacion = !!quoteInfo && tipo !== "compra" && t.total > saldoCotizado + 0.005;
 
   const search = async (q: string) => {
     try {
@@ -279,6 +294,7 @@ export default function InvoiceFormPage() {
           quote_id: d.id,
           notas: d.notas ?? undefined,
         });
+        setQuoteInfo(d);
         const items = d.items.map((l) => ({
           product_id: l.product_id!,
           cantidad: l.cantidad,
@@ -319,6 +335,7 @@ export default function InvoiceFormPage() {
       })
       .catch(() => {
         message.error("No se pudo cargar la cotización");
+        setQuoteInfo(null);
         loadedQuoteRef.current = null;
       });
   }, [quoteIdForm, urlQuoteId, editId, tipo, form, message]);
@@ -542,6 +559,12 @@ export default function InvoiceFormPage() {
                 optionFilterProp="label"
                 placeholder="Sin cotización"
                 style={{ width: 320 }}
+                onChange={(v?: number) => {
+                  if (!v) {
+                    setQuoteInfo(null);
+                    loadedQuoteRef.current = null;
+                  }
+                }}
                 options={quotes.map((q) => ({
                   value: q.id,
                   label: `${q.numero} — ${q.customer_nombre} (${q.estado})`,
@@ -720,6 +743,29 @@ export default function InvoiceFormPage() {
         </Card>
 
         <Card size="small" title="Retenciones y totales" style={{ marginBottom: 16 }}>
+        {quoteInfo && tipo !== "compra" && (
+          <Alert
+            showIcon
+            type={excedeCotizacion ? "warning" : "info"}
+            style={{ marginBottom: 12 }}
+            message={
+              excedeCotizacion
+                ? "Esta factura supera el saldo cotizado"
+                : `Cotización ${quoteInfo.numero} vinculada`
+            }
+            description={
+              excedeCotizacion
+                ? `Cotizado ${money(quoteInfo.total)}, facturado ${money(
+                    quoteInfo.facturado ?? 0
+                  )} y saldo ${money(saldoCotizado)}; esta factura suma ${money(
+                    t.total
+                  )}. Puedes continuar: la factura refleja el valor real de la venta si cambiaron cantidades, precios, descuentos o impuestos.`
+                : `Total cotizado ${money(quoteInfo.total)} · facturado ${money(
+                    quoteInfo.facturado ?? 0
+                  )} · saldo ${money(saldoCotizado)}.`
+            }
+          />
+        )}
         <Space wrap align="start">
           <Form.Item
             name="retencion_fuente"

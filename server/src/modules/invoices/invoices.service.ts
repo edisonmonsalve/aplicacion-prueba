@@ -467,25 +467,12 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     // asientos automáticos usan la primera cuenta activa.
     const accountId = inv.account_id ? Number(inv.account_id) : undefined;
 
-    // M5: una cotización aprobada puede vincularse a varias facturas (facturación por hitos),
-    // pero la suma de los montos facturados no debe superar el total cotizado.
-    if (inv.quote_id) {
-      const [existing] = await conn.query<RowDataPacket[]>(
-        `SELECT COALESCE(SUM(i.total), 0) AS facturado
-         FROM invoices i
-         WHERE i.quote_id = ? AND i.tipo = 'venta' AND i.estado = 'confirmada'`,
-        [inv.quote_id]
-      );
-      const facturado = Number((existing as RowDataPacket[])[0]?.facturado ?? 0);
-      const nuevoTotal = roundMoney(totals.subtotal - totals.descuento_total + totals.impuesto_total);
-      const quoteTotal = quote ? Number(quote.total) : 0;
-      if (quoteTotal > 0 && roundMoney(facturado + nuevoTotal) > quoteTotal) {
-        throw new HttpError(
-          409,
-          `La factura excede el total cotizado: facturado ${facturado} + esta factura ${nuevoTotal} > cotizado ${quoteTotal}`
-        );
-      }
-    }
+    // M5: la cotización es una propuesta comercial y la factura es el documento legal
+    // de la venta, así que sus montos pueden diferir (cantidades, descuentos, precios o
+    // tarifas de impuestos negociados antes de facturar). El total cotizado es una
+    // referencia, no un tope: la factura se confirma con sus propios valores y, si ya
+    // fue emitida, cualquier ajuste posterior se hace con nota crédito o débito.
+    // El saldo cotizado solo se muestra como seguimiento en el detalle de la cotización.
 
     const costByItem = new Map<number, number>();
     // Los movimientos internos de la factura se registran con rol admin para que

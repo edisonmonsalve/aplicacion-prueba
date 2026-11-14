@@ -4,6 +4,7 @@ import { pool } from "../../config/Db.js";
 import type { AuthUser } from "../../types/express.js";
 import { today } from "../../utils/dates.js";
 import { HttpError } from "../../utils/http-error.js";
+import { roundMoney } from "../finance/finance.shared.js";
 import { formatQuoteNumber, parseQuoteNumber } from "./quotes.format.js";
 import type { listQuerySchema } from "./quotes.schema.js";
 
@@ -70,9 +71,9 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
     `SELECT q.id, q.customer_nombre, q.party_id, tp.nombre AS party_nombre,
             ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw,
             q.fecha_validez, q.total, q.created_by, u.nombre AS creador, q.created_at,
-            (SELECT COUNT(*) FROM invoices i
+            (SELECT COALESCE(SUM(i.total), 0) FROM invoices i
              WHERE i.quote_id = q.id AND i.tipo = 'venta' AND i.estado = 'confirmada')
-              AS facturas_confirmadas
+              AS facturado
      FROM quotes q
      JOIN users u ON u.id = q.created_by
      LEFT JOIN third_parties tp ON tp.id = q.party_id
@@ -83,12 +84,19 @@ export async function listQuotes(query: z.infer<typeof listQuerySchema>, actor: 
   );
 
   return {
-    data: data.map((row) => ({
-      ...row,
-      numero: formatQuoteNumber(row.id),
-      pendiente_facturar:
-        row.estado_raw === "entregado" && Number(row.facturas_confirmadas ?? 0) === 0,
-    })),
+    data: data.map((row) => {
+      const facturado = roundMoney(Number(row.facturado ?? 0));
+      return {
+        ...row,
+        numero: formatQuoteNumber(row.id),
+        facturado,
+        // La factura puede superar lo cotizado: aquí solo se informa si queda saldo
+        // del total cotizado por facturar, no se bloquea nada.
+        pendiente_facturar:
+          row.estado_raw === "entregado" &&
+          facturado < roundMoney(Number(row.total ?? 0)),
+      };
+    }),
     total,
     monto_total: Number(summaryRow.monto_total),
     page: query.page,
@@ -103,10 +111,7 @@ export async function getQuote(id: number, actor: AuthUser) {
             tp.email AS party_email,
             ${EFFECTIVE_ESTADO} AS estado, q.estado AS estado_raw, q.fecha_validez, q.notas,
             q.subtotal, q.descuento_total, q.impuesto_total, q.total,
-            q.created_by, u.nombre AS creador, q.created_at, q.updated_at,
-            (SELECT COUNT(*) FROM invoices i
-             WHERE i.quote_id = q.id AND i.tipo = 'venta' AND i.estado = 'confirmada')
-              AS facturas_confirmadas
+            q.created_by, u.nombre AS creador, q.created_at, q.updated_at
      FROM quotes q
      JOIN users u ON u.id = q.created_by
      LEFT JOIN third_parties tp ON tp.id = q.party_id
@@ -119,9 +124,6 @@ export async function getQuote(id: number, actor: AuthUser) {
   if (actor.rol === "operador" && quote.created_by !== actor.id) {
     throw new HttpError(403, "No tienes acceso a este presupuesto");
   }
-
-  const pendienteFacturar =
-    quote.estado_raw === "entregado" && Number(quote.facturas_confirmadas ?? 0) === 0;
 
   const [items, history, facturas] = await Promise.all([
     pool.query<RowDataPacket[]>(
@@ -146,13 +148,24 @@ export async function getQuote(id: number, actor: AuthUser) {
     ),
   ]);
 
+  // Seguimiento informativo: lo facturado se compara con el total cotizado para saber
+  // si queda saldo, pero no es un tope. La factura puede diferir de la cotización.
+  const facturado = roundMoney(
+    (facturas[0] as RowDataPacket[])
+      .filter((f) => f.estado === "confirmada")
+      .reduce((sum, f) => sum + Number(f.total ?? 0), 0)
+  );
+  const saldoPorFacturar = Math.max(0, roundMoney(Number(quote.total ?? 0) - facturado));
+
   return {
     ...quote,
     numero: formatQuoteNumber(quote.id),
     items: items[0],
     historial: history[0],
     facturas: facturas[0],
-    pendiente_facturar: pendienteFacturar,
+    facturado,
+    saldo_por_facturar: saldoPorFacturar,
+    pendiente_facturar: quote.estado_raw === "entregado" && saldoPorFacturar > 0,
   };
 }
 

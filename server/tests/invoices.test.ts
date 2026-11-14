@@ -568,6 +568,68 @@ describe("Módulo de Facturación — RF-XX", () => {
     );
   });
 
+  it("la cotización no limita el valor de la factura: admite facturación parcial y de más", async () => {
+    const createdQuote = await request(app)
+      .post("/api/quotes")
+      .set(bearer(admin.token))
+      .send({
+        customer_nombre: "Cliente Cotización",
+        fecha_validez: "2099-01-01",
+        items: [{ product_id: productId, cantidad: 2 }],
+      });
+    const quoteId = createdQuote.body.id as number;
+    for (const action of ["send", "approve", "deliver"]) {
+      await request(app).post(`/api/quotes/${quoteId}/${action}`).set(bearer(admin.token));
+    }
+
+    // Facturación parcial: una unidad de las dos cotizadas (1.190 de 2.380).
+    const parcial = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-15",
+        contraparte: "Cliente Cotización",
+        quote_id: quoteId,
+        items: [{ product_id: productId, cantidad: 1, precio_unitario: 1000 }],
+      });
+    expect(
+      (await request(app).post(`/api/invoices/${parcial.body.id}/confirmar`).set(bearer(admin.token)))
+        .status
+    ).toBe(200);
+
+    const trasParcial = await request(app)
+      .get(`/api/quotes/${quoteId}`)
+      .set(bearer(admin.token));
+    expect(trasParcial.body.facturado).toBe(1190);
+    expect(trasParcial.body.saldo_por_facturar).toBe(1190);
+    expect(trasParcial.body.pendiente_facturar).toBe(true);
+
+    // La factura es el documento de la venta: puede superar lo cotizado si la
+    // negociación cambió (precios, cantidades, descuentos o impuestos).
+    const excedida = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-16",
+        contraparte: "Cliente Cotización",
+        quote_id: quoteId,
+        items: [{ product_id: productId, cantidad: 2, precio_unitario: 1000 }],
+      });
+    expect(
+      (await request(app).post(`/api/invoices/${excedida.body.id}/confirmar`).set(bearer(admin.token)))
+        .status
+    ).toBe(200);
+
+    const trasExceder = await request(app)
+      .get(`/api/quotes/${quoteId}`)
+      .set(bearer(admin.token));
+    expect(trasExceder.body.facturado).toBe(3570);
+    expect(trasExceder.body.saldo_por_facturar).toBe(0);
+    expect(trasExceder.body.pendiente_facturar).toBe(false);
+  });
+
   it("RF-14: factura desde cotización aprobada mueve stock una vez y anularla lo revierte", async () => {
     const createdQuote = await request(app)
       .post("/api/quotes")

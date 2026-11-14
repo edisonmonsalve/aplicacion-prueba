@@ -118,7 +118,12 @@ export default function QuoteDetailPage() {
   const canAct = canOperate && (user?.rol === "admin" || quote.created_by === user?.id);
   const permissionReason = "Solo el creador o un administrador puede realizar esta acción.";
   const facturas = quote.facturas ?? [];
-  const tieneFacturaConfirmada = facturas.some((f) => f.estado === "confirmada");
+  const facturado = quote.facturado ?? 0;
+  const saldoPorFacturar = quote.saldo_por_facturar ?? 0;
+  // La factura puede diferir de la cotización, pero una vez que el total cotizado
+  // queda cubierto no se generan más facturas desde aquí: los ajustes posteriores
+  // se hacen con nota crédito o débito.
+  const totalmenteFacturada = facturas.some((f) => f.estado === "confirmada") && saldoPorFacturar <= 0;
 
   const confirm = (
     label: string,
@@ -208,8 +213,8 @@ export default function QuoteDetailPage() {
             {(quote.estado === "aprobado" || quote.estado === "entregado") && (
               <Tooltip
                 title={
-                  tieneFacturaConfirmada
-                    ? "Esta cotización ya tiene una factura confirmada vinculada."
+                  totalmenteFacturada
+                    ? "La cotización ya está facturada por su total. Para ajustar valores usa una nota crédito o débito."
                     : !canAct
                       ? permissionReason
                       : "Crea una factura de venta con los datos de esta cotización."
@@ -218,12 +223,12 @@ export default function QuoteDetailPage() {
                 <span
                   style={{
                     display: "inline-block",
-                    cursor: !canAct || tieneFacturaConfirmada ? "not-allowed" : undefined,
+                    cursor: !canAct || totalmenteFacturada ? "not-allowed" : undefined,
                   }}
                 >
                   <Button
                     onClick={() => navigate(`/facturas/nuevo?quote=${quoteId}`)}
-                    disabled={busy || !canAct || tieneFacturaConfirmada}
+                    disabled={busy || !canAct || totalmenteFacturada}
                   >
                     Generar factura
                   </Button>
@@ -272,12 +277,12 @@ export default function QuoteDetailPage() {
         <Alert
           showIcon
           type="warning"
-          message="Esta cotización está entregada pero aún no tiene una factura vinculada."
+          message="Esta cotización está entregada pero aún tiene saldo por facturar."
           description={
             <>
-              Puede generar una factura desde este documento (los datos se precargan) o crear una
-              factura manualmente vinculándola. La suma de todas las facturas de una cotización no
-              debe superar el total cotizado.
+              Puede generar una factura desde este documento (los datos se precargan) o vincular
+              una manualmente. Si la venta cambió, ajusta cantidades, precios, descuentos o
+              impuestos en la factura: es el documento que refleja el cobro real.
             </>
           }
         />
@@ -412,11 +417,18 @@ export default function QuoteDetailPage() {
               },
             ]}
           />
-          {tieneFacturaConfirmada && (
-            <Typography.Text type="secondary" style={{ display: "block", marginTop: 12 }}>
-              La cotización ya está facturada; por eso “Generar factura” queda deshabilitado.
+          <Space size={[8, 4]} wrap style={{ marginTop: 12 }}>
+            <Tag color={saldoPorFacturar > 0 ? "orange" : "green"}>
+              Facturado {money(facturado)} de {money(quote.total)}
+            </Tag>
+            <Typography.Text type="secondary">
+              {saldoPorFacturar > 0
+                ? `Saldo por facturar: ${money(saldoPorFacturar)}`
+                : facturado > quote.total
+                  ? "Facturado por encima del total cotizado: la factura refleja el valor real de la venta."
+                  : "Total cotizado facturado."}
             </Typography.Text>
-          )}
+          </Space>
         </Card>
       )}
 

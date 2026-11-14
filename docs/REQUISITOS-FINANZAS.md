@@ -176,6 +176,12 @@
   reescriben la cotización. Duplicar conserva el vínculo. Un borrador ya
   vinculado se puede seguir editando aunque el tercero se desactive después; la
   validación se aplica al elegir o cambiar el tercero.
+- **RN-45**: La cotización es una propuesta comercial y la factura es el documento
+  legal de la venta: sus montos pueden diferir (cantidades, precios, descuentos o
+  tarifas de impuestos). El total cotizado no limita la factura; se muestra como
+  saldo informativo (`facturado` / `saldo_por_facturar`) y confirmar una factura
+  que lo supera no falla. Una vez emitida la factura, los ajustes se hacen con
+  nota crédito o débito.
 - **RN-41**: Un periodo sin base de comparación (anterior en cero) muestra “Sin
   base de comparación” en lugar de un porcentaje infinito.
 - **RN-42**: Cambiar de periodo no modifica datos ni asientos; solo cambia la

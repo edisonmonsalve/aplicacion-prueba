@@ -76,6 +76,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
   - Alerta si la cantidad supera el stock disponible.
 - **Detalle**: pasos del flujo, datos del cliente, totales, líneas, historial de estados.
   - Acciones contextuales: Enviar, Aprobar, Rechazar, Entregar, Editar, Duplicar, Imprimir.
+  - **Facturas vinculadas**: muestra lo facturado frente al total cotizado y el saldo pendiente. Se pueden generar varias facturas (por hitos) mientras quede saldo; cuando queda cubierto, “Generar factura” se deshabilita y los ajustes se hacen con nota crédito o débito.
   - “Entregar” descuenta el stock y **no genera contabilidad**: la cotización es pre-contractual. La salida queda como origen “entrega”.
 - **Vencimiento**: alerta cuando quedan 3 días o menos, o si ya venció.
 
@@ -86,10 +87,12 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
   - La cuenta define si el dinero sale o entra por caja (efectivo) o por banco (transferencia) al confirmar.
   - Líneas con producto, cantidad, precio/costo unitario, descuento % e IVA %. El selector muestra el stock disponible.
   - En ventas se puede **vincular una cotización** aprobada o entregada para no reconocer dos veces el ingreso.
+  - La factura **no está limitada** por el total cotizado: si la negociación cambió cantidades, precios, descuentos o impuestos, la factura lleva el valor real. El formulario muestra el saldo cotizado y avisa —sin bloquear— cuando lo supera.
   - Retenciones (fuente, IVA, ICA) informativas: reducen el total neto a pagar pero no generan asientos.
 - **Confirmar**:
   - Venta directa: descuenta stock y crea asientos de cabecera (ingreso neto, IVA por pagar y costo de ventas).
   - Venta desde cotización aprobada: mueve stock una vez y deja la cotización entregada; si ya estaba entregada, no vuelve a mover stock.
+  - La cotización es una propuesta comercial y la factura es el documento legal de la venta: sus montos pueden diferir. Una vez emitida la factura, cualquier ajuste se hace con nota crédito o débito.
   - Compra: suma stock, guarda el costo histórico del movimiento y crea **activo Inventario** (salida de caja) + IVA descontable. No modifica `products.costo` (solo edición manual).
 - **Anular**: revierte el stock y todos los asientos con contrapartidas; no modifica el costo de referencia del producto.
 - **Detalle**: desglose tributario, link a la cotización y tabla de asientos financieros vinculados.

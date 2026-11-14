@@ -243,7 +243,7 @@ export default function QuotesPage() {
     },
     {
       title: (
-        <Tooltip title="Cotización entregada que aún no tiene una factura confirmada vinculada">
+        <Tooltip title="Cotización entregada con saldo del total cotizado pendiente de facturar">
           Pendiente de facturar
         </Tooltip>
       ),

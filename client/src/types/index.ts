@@ -128,8 +128,10 @@ export interface Quote {
   created_by: number;
   creador: string;
   created_at: string;
-  /** Cotización entregada que aún no tiene factura confirmada vinculada. */
+  /** Cotización entregada con saldo del total cotizado aún sin facturar. */
   pendiente_facturar?: boolean;
+  /** Suma de facturas de venta confirmadas (solo listado y detalle). */
+  facturado?: number;
 }
 
 export interface QuoteLine {
@@ -156,6 +158,10 @@ export interface QuoteDetail extends Quote {
   items: QuoteLine[];
   historial: QuoteHistory[];
   facturas: QuoteInvoice[];
+  /** Suma de facturas de venta confirmadas vinculadas (con impuestos). */
+  facturado?: number;
+  /** Total cotizado menos lo facturado; 0 si ya se facturó o se superó. */
+  saldo_por_facturar?: number;
 }
 
 /** Factura de venta vinculada a una cotización (solo lectura). */

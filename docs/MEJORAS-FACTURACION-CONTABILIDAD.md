@@ -24,7 +24,7 @@ implementadas, probadas y documentadas:
 | **M2. Inventario y costo de venta** | La compra de inventario es un **activo con salida de caja**; el costo de venta es un **gasto que reduce utilidad/margen sin mover caja**. Cada peso impacta una vez la caja (al comprar) y una vez la utilidad (al vender). | Implementado |
 | **M3. Alertas, IVA y retenciones** | IVA 19 % por defecto (editable) en factura y cotización; autocompletado de impuesto en cotización; alertas de stock bajo en factura y cotización; retenciones prellenadas automáticamente según tipo (tasas configurables). | Implementado |
 | **M4. Aprobación de cotización** | Se **advierte y bloquea** la aprobación si no hay stock suficiente para las líneas cotizadas. | Implementado |
-| **M5. Múltiples facturas por cotización** | Una cotización aprobada puede vincularse a varias facturas (facturación por hitos) siempre que la **suma acumulada no supere el total cotizado**. Generación **asistida** desde la cotización. Avisa y marca cotizaciones entregadas pendientes de facturar. Vínculo bidireccional cotización ↔ factura. | Implementado |
+| **M5. Múltiples facturas por cotización** | Una cotización aprobada puede vincularse a varias facturas (facturación por hitos). La cotización es una propuesta comercial: sus montos **no limitan** los de la factura, que refleja el valor real de la venta. Se muestra el saldo cotizado como seguimiento. Generación **asistida** desde la cotización. Avisa y marca cotizaciones entregadas con saldo pendiente de facturar. Vínculo bidireccional cotización ↔ factura. | Implementado |
 | **M6. Autocompletado desde cotización** | Al seleccionar una cotización en la factura de venta se precargan cliente, email, notas y líneas (producto, cantidad, precio, descuento, impuesto). El cliente puede cambiar valores y agregar productos; los precios **no se bloquean**. | Implementado |
 
 Requisitos conservados: IVA opción B, asientos de cabecera, cotización sin contabilidad,
@@ -276,11 +276,16 @@ sigue validando stock por si cambió desde la aprobación. No se reserva stock a
 6. Evaluar la generación automática de factura solo con confirmación explícita y aviso.
 
 **Decisión adoptada:** sí, una cotización aprobada puede vincularse a **más de una factura**
-(facturación por hitos/avances). El servidor valida que la **suma acumulada de los totales de las
-facturas confirmadas no supere el total cotizado**. La generación es **asistida**, no automática:
-desde la cotización se precargan datos y líneas, y el cliente puede agregar información antes de
-confirmar. Una cotización entregada sin factura se marca como "pendiente de facturar" con una
-alerta persistente (nunca generación silenciosa). Existe vínculo bidireccional cotización ↔ factura.
+(facturación por hitos/avances). La cotización es una **propuesta comercial informativa** y la
+factura es el **documento legal** que refleja el cobro real: los valores pueden diferir si antes de
+facturar cambian cantidades, precios, descuentos o tarifas de impuestos. Por eso el total cotizado
+**no es un tope** y el servidor no bloquea la confirmación por superarlo; el saldo cotizado se
+muestra como seguimiento en el detalle y el formulario avisa (sin impedir) cuando la factura lo
+supera. Una vez emitida la factura, los ajustes se hacen con nota crédito o débito. La generación es
+**asistida**, no automática: desde la cotización se precargan datos y líneas, y el cliente puede
+agregar información antes de confirmar. Una cotización entregada con saldo pendiente se marca como
+"pendiente de facturar" con una alerta persistente (nunca generación silenciosa). Existe vínculo
+bidireccional cotización ↔ factura.
 
 ---
 
@@ -331,7 +336,7 @@ Todas las mejoras están implementadas, probadas y en verde (tests, typecheck y 
 | M2. Inventario y costo de venta | Implementado | Compra = activo con salida de caja; costo de venta = gasto que reduce utilidad/margen sin mover caja. |
 | M3. Alertas, IVA y retenciones | Implementado | IVA 19 % por defecto (editable) en factura y cotización; stock bajo; retenciones prellenadas según tipo. |
 | M4. Aprobación sin stock | Implementado | Bloquea la aprobación con 409 si hay faltante; la entrega sigue validando. |
-| M5. Múltiples facturas por cotización | Implementado | Facturación por hitos con control de suma acumulada ≤ total cotizado; generación asistida; pendientes de facturar. |
+| M5. Múltiples facturas por cotización | Implementado | Facturación por hitos; el total cotizado es referencia y no un tope; aviso no bloqueante si la factura lo supera; generación asistida; saldo pendiente de facturar. |
 | M6. Autocompletado desde cotización | Implementado | Precarga datos y líneas; precios editables y productos adicionales permitidos. |
 
 ---
@@ -345,7 +350,7 @@ Todas las decisiones de la iteración anterior están cerradas:
 3. El costo de ventas es un gasto que afecta utilidad/margen, pero no mueve caja porque el dinero ya salió al comprar el inventario (M2).
 4. Los porcentajes de retención son parámetros configurables; por defecto 0 hasta confirmar tasas legales, y las retenciones se mantienen informativas (M3).
 5. La aprobación de cotización bloquea si no hay stock suficiente (M4).
-6. Una cotización puede generar más de una factura con control de suma acumulada (M5).
+6. Una cotización puede generar más de una factura; el total cotizado se sigue como saldo informativo, no como límite (M5).
 7. La generación de factura desde cotización es asistida, no automática (M5).
 8. El precio de la factura no se bloquea; se permite editar y agregar productos (M6).
 
