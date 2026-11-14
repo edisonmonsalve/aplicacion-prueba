@@ -257,6 +257,7 @@ Los huecos principales eran:
 | 2026-11-13 | Resumen financiero por periodo | - | Atajos día/semana/mes/año, navegación anterior/actual/siguiente y rango personalizado persistidos en la URL; comparación contra el periodo calendario anterior; enlaces a Resultados, Flujo de caja, Tendencias y Transacciones conservando el rango |
 | 2026-11-13 | Selector de periodo compartido | - | `useDateRange` y `PeriodRangePicker` reutilizables: presets, navegación, rango personalizado y limpieza; aplicados a Resultados, Flujo de caja, Tendencias, Rentabilidad, Rotación, Embudo, Transacciones, Auditoría, Movimientos, Facturas, Cotizaciones y Cartera, con `desde`/`hasta`/`periodo` en la URL |
 | 2026-11-13 | Terceros en cotizaciones | - | Migración `V027`; `quotes.party_id` con FK a `third_parties` e índice; validación de cliente activo (se rechazan proveedores e inactivos); el formulario autollena nombre, documento y email y guarda snapshot editable; el detalle y la lista muestran el vínculo y duplicar lo conserva; el vínculo entra en la auditoría de la cotización |
+| 2026-11-14 | Duplicados de producto en líneas | - | En cotizaciones y facturas, los productos ya usados en otra línea aparecen deshabilitados con la marca «ya agregado»; la lista valida duplicados antes de guardar. El servidor conserva RN-P03 y la validación de facturas como última barrera |
 
 ## 8. Exportación de reportes (R4)
 

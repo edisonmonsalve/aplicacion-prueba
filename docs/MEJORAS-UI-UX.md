@@ -69,6 +69,7 @@ un cambio pequeño en el servidor.
 | Q6 | Media | Plantilla de impresión: encabezado de empresa, datos de contacto, firma, condiciones y saltos de página. **Implementado**: cabecera compartida `PrintHeader` con logo, identidad de empresa (NIT, régimen, dirección, teléfonos, email y web), condiciones, notas, firmas y control de saltos. La hoja usa `PrintThemeProvider` con tokens claros explícitos para que no cambie entre modo claro y oscuro (incluida la barra de acciones). Los datos de la empresa emisora se centralizan en `client/src/config/company.ts` para reemplazarlos por los reales. |
 | Q7 | Media | Sorter por total/validez y total del filtro. **Implementado**: orden por número, cliente, total, validez y fecha; monto total del filtro calculado en el servidor. |
 | Q8 | Media | Vincular la cotización al maestro de terceros para reutilizar el cliente sin depender del texto libre. **Implementado**: selector “Cliente registrado” con autollenado de nombre, documento y email; el vínculo se guarda en `quotes.party_id` y los datos quedan como snapshot editable. La lista marca las cotizaciones con tercero y el detalle lo muestra; duplicar conserva el vínculo. |
+| Q9 | Media | Evitar productos repetidos en las líneas de la cotización, que hoy solo se detectaban al guardar. **Implementado**: los productos ya usados en otra línea aparecen deshabilitados con la marca «ya agregado» y la lista valida duplicados antes de guardar. El servidor mantiene RN-P03 como última barrera. |
 
 ## 8. Facturación
 
@@ -82,6 +83,7 @@ un cambio pequeño en el servidor.
 | F6 | Media | Mostrar el saldo de la cuenta elegida y el impacto en caja antes de confirmar. **Implementado**: aviso con saldo actual, movimiento neto y saldo resultante, también en el diálogo de confirmación. El movimiento usa la base menos retenciones de fuente/ICA; el IVA y la retención de IVA se muestran aparte porque no mueven caja al confirmar. |
 | F7 | Media | Al cambiar compra/venta, actualizar automáticamente el valor unitario sugerido (precio de venta o costo de compra), respetando precios escritos manualmente. **Implementado.** |
 | F8 | Media | Ordenamiento por columnas: número, tipo, contraparte, estado, fecha, total y creador. **Implementado** `[API]`: orden en el servidor (`sort`/`order`) persistido en la URL; todas las páginas respetan el orden. |
+| F9 | Media | Evitar productos repetidos en las líneas de la factura, que hoy solo se detectaban al guardar. **Implementado**: los productos ya usados en otra línea aparecen deshabilitados con la marca «ya agregado» y la lista valida duplicados antes de guardar; el servidor mantiene la validación como última barrera. |
 
 ## 9. Finanzas
 

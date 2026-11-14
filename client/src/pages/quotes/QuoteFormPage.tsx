@@ -319,8 +319,16 @@ export default function QuoteFormPage() {
           name="lineas"
           rules={[
             {
-              validator: async (_, v) => {
+              validator: async (_, v: Partial<QuoteLineForm>[] | undefined) => {
                 if (!v?.length) throw new Error("Agrega al menos una línea");
+                const ids = v
+                  .map((l) => l?.product_id)
+                  .filter((id): id is number => typeof id === "number");
+                if (new Set(ids).size !== ids.length) {
+                  throw new Error(
+                    "Un producto no puede repetirse: ajusta las líneas marcadas como «ya agregado»"
+                  );
+                }
               },
             },
           ]}
@@ -364,10 +372,20 @@ export default function QuoteFormPage() {
                       onChange={(pid: number) => onProductChange(name, pid)}
                       placeholder="Producto"
                       style={{ width: isMobile ? "100%" : 280 }}
-                      options={Object.values(products).map((p) => ({
-                        value: p.id,
-                        label: productOptionLabel(p),
-                      }))}
+                      options={Object.values(products).map((p) => {
+                        // Un producto ya elegido en otra línea no se puede repetir:
+                        // el servidor rechazaría el documento (RN-P03).
+                        const taken = lineas.some(
+                          (l, i) => i !== name && l?.product_id === p.id
+                        );
+                        return {
+                          value: p.id,
+                          label: taken
+                            ? `${productOptionLabel(p)} · ya agregado`
+                            : productOptionLabel(p),
+                          disabled: taken,
+                        };
+                      })}
                     />
                   </Form.Item>
                 );

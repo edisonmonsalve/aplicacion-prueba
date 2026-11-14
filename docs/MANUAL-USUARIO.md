@@ -72,6 +72,7 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - **Nueva cotización**: cliente, fecha de validez, líneas de producto con descuento e impuesto por línea.
   - **Cliente registrado**: selector opcional que carga nombre, documento y email desde Terceros. La cotización guarda una copia editable; si el tercero cambia después, la cotización no se altera. Se rechazan proveedores y terceros inactivos.
   - El precio se toma del catálogo (solo lectura); se muestra el total por línea y un resumen.
+  - No se puede repetir un producto: si ya está en otra línea, la opción aparece deshabilitada como «ya agregado».
   - Alerta si la cantidad supera el stock disponible.
 - **Detalle**: pasos del flujo, datos del cliente, totales, líneas, historial de estados.
   - Acciones contextuales: Enviar, Aprobar, Rechazar, Entregar, Editar, Duplicar, Imprimir.
