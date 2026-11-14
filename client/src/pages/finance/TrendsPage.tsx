@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  App,
-  Card,
-  Col,
-  Row,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
+import { Alert, App, Card, Col, Row, Statistic, Table, Tag, Typography } from "antd";
 import { RiseOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
@@ -186,19 +176,11 @@ export default function TrendsPage() {
   const [report, setReport] = useState<TrendsReport | null>(null);
   const [loading, setLoading] = useState(true);
   // Por defecto, la serie de los últimos seis meses.
-  const {
-    range,
-    periodo,
-    desde,
-    hasta,
-    changeRange,
-    selectPeriodo,
-    shiftPeriodo,
-    enPeriodoActual,
-  } = useDateRange({
-    defaultPeriodo: "personalizado",
-    defaultRange: () => [dayjs().subtract(5, "month").startOf("month"), dayjs()],
-  });
+  const { range, periodo, desde, hasta, changeRange, selectPeriodo, shiftPeriodo, enPeriodoActual } =
+    useDateRange({
+      defaultPeriodo: "personalizado",
+      defaultRange: () => [dayjs().subtract(5, "month").startOf("month"), dayjs()],
+    });
 
   useDocumentTitle("Tendencias");
 
@@ -232,10 +214,7 @@ export default function TrendsPage() {
 
   const exportCsv = () => {
     if (!report) return;
-    exportReportCsv(
-      `tendencias-${report.rango.desde}-a-${report.rango.hasta}.csv`,
-      buildReportDoc(report)
-    );
+    exportReportCsv(`tendencias-${report.rango.desde}-a-${report.rango.hasta}.csv`, buildReportDoc(report));
   };
 
   const exportPdf = (target?: Window | null) => {
@@ -275,8 +254,8 @@ export default function TrendsPage() {
       {report && (
         <>
           <Typography.Paragraph type="secondary">
-            Periodo: {fmtDate(report.rango.desde)} — {fmtDate(report.rango.hasta)} ·{" "}
-            {report.rango.meses} mes(es) · {report.rango.dias} días
+            Periodo: {fmtDate(report.rango.desde)} — {fmtDate(report.rango.hasta)} · {report.rango.meses}{" "}
+            mes(es) · {report.rango.dias} días
           </Typography.Paragraph>
 
           <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
