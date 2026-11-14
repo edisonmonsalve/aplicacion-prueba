@@ -1194,6 +1194,24 @@ export interface InvoiceCashProjection {
   cartera: number;
 }
 
+export interface InvoiceDeliveryAdjustment {
+  product_id: number;
+  sku: string;
+  producto: string;
+  entregado: number;
+  facturado_previo: number;
+  facturado_actual: number;
+  cubierto: number;
+  excedente: number;
+  devolucion: number;
+  costo_entrega: number;
+  costo_producto: number;
+}
+export interface InvoiceDeliveryReconciliation {
+  cierra: boolean;
+  lineas: InvoiceDeliveryAdjustment[];
+}
+
 export interface InvoiceDetail extends Invoice {
   documento: string | null;
   email: string | null;
@@ -1201,6 +1219,8 @@ export interface InvoiceDetail extends Invoice {
   quote_numero: string | null;
   /** Estado de la cotización vinculada; `entregado` indica que el stock ya salió. */
   quote_estado: QuoteStatus | null;
+  /** Conciliación de entrega vs. factura cuando la cotización ya fue entregada. */
+  conciliacion_entrega: InvoiceDeliveryReconciliation | null;
   created_by: number;
   /** Proyección del movimiento de caja al confirmar (IVA excluido). */
   impacto_caja: InvoiceCashProjection;

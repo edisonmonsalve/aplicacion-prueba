@@ -262,6 +262,7 @@ Los huecos principales eran:
 | 2026-11-14 | Stock en cotización entregada | - | `getInvoice` expone `quote_estado`; el formulario de factura marca las líneas como «Entregado en cotización» («Agregado tras la entrega» si el producto no estaba), suprime la alerta de stock y avisa que confirmar no mueve inventario; los textos de confirmación y anulación del detalle distinguen este caso |
 | 2026-11-14 | Entrega desde la factura | - | Se retiró el botón «Entregar» de la cotización; el timeline conserva el paso «Entregado» y explica que se alcanza al confirmar la factura de venta. El endpoint `/quotes/:id/deliver` se conserva para una futura entrega de almacén |
 | 2026-11-14 | Descuento de compra y costo de venta | - | Prueba RF-14: el descuento de compra reduce la caja y el activo Inventario (base neta) y queda como costo histórico de la entrada, pero no modifica `products.costo`; el costo de venta usa el costo unitario del producto y es un gasto con `afecta_caja = 0`. Aviso explicativo en el formulario de compra |
+| 2026-11-14 | Conciliacion entrega vs. factura | - | `quoteDeliveryReconciliation` y `conciliacion_entrega` en `getInvoice`; al confirmar una factura vinculada a una cotizacion entregada se descuenta el excedente facturado y se devuelve lo entregado no facturado solo al cerrar el saldo cotizado; notas credito reducen lo facturado acumulado. Pruebas RF-15 y RF-16; anular revierte los ajustes sin tocar la entrega original |
 
 ## 8. Exportación de reportes (R4)
 

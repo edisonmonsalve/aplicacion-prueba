@@ -594,6 +594,96 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(Number(cogs[0].afecta_caja)).toBe(0);
   });
 
+  it("RF-15: conciliacion acumulada entre entrega y factura", async () => {
+    await pool.query("UPDATE products SET stock_actual = 15 WHERE id = ?", [productId]);
+
+    const createdQuote = await request(app)
+      .post("/api/quotes")
+      .set(bearer(admin.token))
+      .send({
+        customer_nombre: "Cliente Conciliacion",
+        fecha_validez: "2099-01-01",
+        items: [{ product_id: productId, cantidad: 10 }],
+      });
+    const quoteId = createdQuote.body.id as number;
+    for (const action of ["send", "approve", "deliver"]) {
+      const r = await request(app).post(`/api/quotes/${quoteId}/${action}`).set(bearer(admin.token));
+      expect(r.status).toBe(200);
+    }
+    const [afterDelivery] = await pool.query<RowDataPacket[]>(
+      "SELECT stock_actual FROM products WHERE id = ?",
+      [productId]
+    );
+    expect(afterDelivery[0].stock_actual).toBe(5);
+
+    // Factura que cierra el saldo (precio superior): devuelve 4 al inventario.
+    const inv1 = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-15",
+        contraparte: "Cliente Conciliacion",
+        quote_id: quoteId,
+        items: [{ product_id: productId, cantidad: 6, precio_unitario: 2000 }],
+      });
+    const id1 = inv1.body.id as number;
+    const conf1 = await request(app).post(`/api/invoices/${id1}/confirmar`).set(bearer(admin.token));
+    expect(conf1.status).toBe(200);
+
+    const [stock1] = await pool.query<RowDataPacket[]>("SELECT stock_actual FROM products WHERE id = ?", [productId]);
+    expect(stock1[0].stock_actual).toBe(9); // 5 + 4 devueltas
+    const [movs1] = await pool.query<RowDataPacket[]>(
+      "SELECT tipo, origen, cantidad FROM stock_movements WHERE invoice_id = ?",
+      [id1]
+    );
+    expect(movs1).toEqual(
+      expect.arrayContaining([expect.objectContaining({ tipo: "entrada", origen: "ajuste", cantidad: 4 })])
+    );
+  });
+
+  it("RF-16: conciliacion descuenta el excedente facturado", async () => {
+    await pool.query("UPDATE products SET stock_actual = 15 WHERE id = ?", [productId]);
+
+    const createdQuote = await request(app)
+      .post("/api/quotes")
+      .set(bearer(admin.token))
+      .send({
+        customer_nombre: "Cliente Excedente",
+        fecha_validez: "2099-01-01",
+        items: [{ product_id: productId, cantidad: 10 }],
+      });
+    const quoteId = createdQuote.body.id as number;
+    for (const action of ["send", "approve", "deliver"]) {
+      const r = await request(app).post(`/api/quotes/${quoteId}/${action}`).set(bearer(admin.token));
+      expect(r.status).toBe(200);
+    }
+
+    const inv = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-17",
+        contraparte: "Cliente Excedente",
+        quote_id: quoteId,
+        items: [{ product_id: productId, cantidad: 12, precio_unitario: 1000 }],
+      });
+    const id = inv.body.id as number;
+    const conf = await request(app).post(`/api/invoices/${id}/confirmar`).set(bearer(admin.token));
+    expect(conf.status).toBe(200);
+
+    const [stock] = await pool.query<RowDataPacket[]>("SELECT stock_actual FROM products WHERE id = ?", [productId]);
+    expect(stock[0].stock_actual).toBe(3); // 5 - 2 descontados
+    const [movs] = await pool.query<RowDataPacket[]>(
+      "SELECT tipo, origen, cantidad FROM stock_movements WHERE invoice_id = ?",
+      [id]
+    );
+    expect(movs).toEqual(
+      expect.arrayContaining([expect.objectContaining({ tipo: "salida", origen: "ajuste", cantidad: 2 })])
+    );
+  });
+
   it("RF-13: factura desde cotización entregada no duplica stock ni ingreso", async () => {
     // Cotización aprobada y entregada: mueve stock, sin contabilidad
     const createdQuote = await request(app)

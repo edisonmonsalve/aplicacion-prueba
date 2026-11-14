@@ -180,7 +180,7 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
 
 export async function getInvoice(id: number) {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT i.*, u.nombre AS creador, q.estado AS quote_estado
+    `SELECT i.*, u.nombre AS creador, q.estado AS quote_estado, q.total AS quote_total
      FROM invoices i
      JOIN users u ON u.id = i.created_by
      LEFT JOIN quotes q ON q.id = i.quote_id
@@ -219,6 +219,22 @@ export async function getInvoice(id: number) {
      ORDER BY t.id`,
     [id]
   );
+  let conciliacionEntrega = null;
+  if (rows[0].estado === "borrador" && rows[0].quote_id && rows[0].quote_estado === "entregado") {
+    const conn = await pool.getConnection();
+    try {
+      const recon = await quoteDeliveryReconciliation(
+        conn,
+        Number(rows[0].quote_id),
+        Number(rows[0].quote_total ?? 0),
+        items.map((it) => ({ product_id: Number(it.product_id), cantidad: Number(it.cantidad) })),
+        Number(rows[0].total)
+      );
+      conciliacionEntrega = recon;
+    } finally {
+      conn.release();
+    }
+  }
   const [balance, pagos, notas] = await Promise.all([
     invoiceBalance(rows[0] as never),
     listInvoicePayments(id),
@@ -233,6 +249,7 @@ export async function getInvoice(id: number) {
     transacciones,
     pagos,
     ajustes: notas,
+    conciliacion_entrega: conciliacionEntrega,
   };
 }
 
@@ -418,6 +435,169 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
   });
 }
 
+interface DeliveryReconciliationLine {
+  product_id: number;
+  sku: string;
+  producto: string;
+  entregado: number;
+  facturado_previo: number;
+  facturado_actual: number;
+  /** Cantidad de esta factura cubierta por la entrega (costo histórico). */
+  cubierto: number;
+  /** Cantidad facturada que no salió en la entrega y debe descontarse ahora. */
+  excedente: number;
+  /** Cantidad entregada que vuelve al inventario al cerrar el saldo cotizado. */
+  devolucion: number;
+  costo_entrega: number;
+  costo_producto: number;
+}
+
+interface DeliveryReconciliation {
+  cierra: boolean;
+  lineas: DeliveryReconciliationLine[];
+}
+
+/**
+ * Compara lo entregado en una cotización con lo facturado (incluida la factura
+ * actual) para decidir los ajustes de stock al confirmar.
+ *
+ * Política acumulada:
+ * - El excedente facturado que no salió en la entrega se descuenta siempre.
+ * - Lo entregado y no facturado solo se devuelve cuando esta factura cierra el
+ *   saldo cotizado; en facturación por hitos se mantiene fuera del inventario
+ *   porque el cliente ya lo recibió.
+ * - Las notas crédito confirmadas reducen lo facturado acumulado y las
+ *   devoluciones ya practicadas evitan devolver dos veces.
+ */
+async function quoteDeliveryReconciliation(
+  conn: PoolConnection,
+  quoteId: number,
+  quoteTotal: number,
+  items: { product_id: number; cantidad: number }[],
+  currentTotal: number
+): Promise<DeliveryReconciliation> {
+  const [deliveredRows] = await conn.query<RowDataPacket[]>(
+    `SELECT sm.product_id, p.sku, p.nombre AS producto,
+            SUM(sm.cantidad) AS entregado,
+            SUM(sm.costo_unitario * sm.cantidad) / NULLIF(SUM(sm.cantidad), 0) AS costo_entrega
+     FROM stock_movements sm
+     JOIN products p ON p.id = sm.product_id
+     WHERE sm.quote_id = ? AND sm.tipo = 'salida' AND sm.origen = 'entrega'
+     GROUP BY sm.product_id, p.sku, p.nombre`,
+    [quoteId]
+  );
+  const delivered = new Map<
+    number,
+    { entregado: number; costo_entrega: number; sku: string; producto: string }
+  >();
+  for (const r of deliveredRows) {
+    delivered.set(Number(r.product_id), {
+      entregado: Number(r.entregado),
+      costo_entrega: Number(r.costo_entrega ?? 0),
+      sku: String(r.sku ?? ""),
+      producto: String(r.producto ?? ""),
+    });
+  }
+
+  const [prevRows] = await conn.query<RowDataPacket[]>(
+    `SELECT ii.product_id, SUM(ii.cantidad) AS facturado
+     FROM invoice_items ii
+     JOIN invoices i ON i.id = ii.invoice_id
+     WHERE i.quote_id = ? AND i.estado = 'confirmada'
+     GROUP BY ii.product_id`,
+    [quoteId]
+  );
+  const invoicedBefore = new Map<number, number>();
+  for (const r of prevRows) {
+    invoicedBefore.set(Number(r.product_id), Number(r.facturado));
+  }
+
+  // Las notas crédito confirmadas devuelven producto: reducen lo facturado.
+  const [creditRows] = await conn.query<RowDataPacket[]>(
+    `SELECT ii.product_id, SUM(iai.cantidad) AS acreditado
+     FROM invoice_adjustment_items iai
+     JOIN invoice_adjustments ia ON ia.id = iai.adjustment_id
+     JOIN invoice_items ii ON ii.id = iai.invoice_item_id
+     JOIN invoices i ON i.id = ia.invoice_id
+     WHERE i.quote_id = ? AND ia.tipo = 'credito' AND ia.estado = 'confirmada'
+     GROUP BY ii.product_id`,
+    [quoteId]
+  );
+  for (const r of creditRows) {
+    const pid = Number(r.product_id);
+    invoicedBefore.set(pid, Math.max(0, (invoicedBefore.get(pid) ?? 0) - Number(r.acreditado)));
+  }
+
+  // Devoluciones ya hechas por conciliaciones anteriores.
+  const [returnRows] = await conn.query<RowDataPacket[]>(
+    `SELECT product_id, SUM(cantidad) AS devuelto
+     FROM stock_movements
+     WHERE quote_id = ? AND invoice_id IS NOT NULL
+       AND tipo = 'entrada' AND origen = 'ajuste'
+     GROUP BY product_id`,
+    [quoteId]
+  );
+  const returnedBefore = new Map<number, number>();
+  for (const r of returnRows) {
+    returnedBefore.set(Number(r.product_id), Number(r.devuelto));
+  }
+
+  const [totalRows] = await conn.query<RowDataPacket[]>(
+    `SELECT COALESCE(SUM(total), 0) AS total
+     FROM invoices WHERE quote_id = ? AND estado = 'confirmada'`,
+    [quoteId]
+  );
+  const prevTotal = Number(totalRows[0]?.total ?? 0);
+  const cierra = prevTotal + currentTotal >= quoteTotal - 0.005;
+
+  const invoiced = new Map<number, number>();
+  for (const it of items) {
+    const pid = Number(it.product_id);
+    invoiced.set(pid, (invoiced.get(pid) ?? 0) + Number(it.cantidad));
+  }
+
+  const ids = [...new Set([...delivered.keys(), ...invoiced.keys()])];
+  if (ids.length === 0) return { cierra, lineas: [] };
+
+  const [productRows] = await conn.query<RowDataPacket[]>(
+    "SELECT id, sku, nombre, costo FROM products WHERE id IN (?)",
+    [ids]
+  );
+  const productById = new Map(productRows.map((p) => [Number(p.id), p]));
+
+  const lineas = ids
+    .map((pid) => {
+      const d = delivered.get(pid);
+      const p = productById.get(pid);
+      const entregado = d?.entregado ?? 0;
+      const previo = invoicedBefore.get(pid) ?? 0;
+      const actual = invoiced.get(pid) ?? 0;
+      const disponible = Math.max(0, entregado - previo);
+      const cubierto = Math.min(actual, disponible);
+      const excedente = Math.max(0, actual - disponible);
+      const devueltoPrevio = returnedBefore.get(pid) ?? 0;
+      const devolucion = cierra
+        ? Math.max(0, entregado - (previo + actual) - devueltoPrevio)
+        : 0;
+      return {
+        product_id: pid,
+        sku: String(p?.sku ?? d?.sku ?? ""),
+        producto: String(p?.nombre ?? d?.producto ?? ""),
+        entregado,
+        facturado_previo: previo,
+        facturado_actual: actual,
+        cubierto,
+        excedente,
+        devolucion,
+        costo_entrega: d?.costo_entrega ?? 0,
+        costo_producto: Number(p?.costo ?? 0),
+      };
+    })
+    .sort((a, b) => a.producto.localeCompare(b.producto));
+
+  return { cierra, lineas };
+}
+
 export async function confirmInvoice(id: number, actor: { id: number }) {
   return withTransaction(async (conn) => {
     const [rows] = await conn.query<RowDataPacket[]>(
@@ -528,26 +708,69 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           );
         }
       } else {
-        // La cotización ya movió el stock (entrega): la factura solo contabiliza, no mueve
-        // stock de nuevo. Se recupera el costo histórico de esas salidas para el costo de ventas.
-        const [costs] = await conn.query<RowDataPacket[]>(
-          `SELECT product_id, SUM(costo_unitario * cantidad) / NULLIF(SUM(cantidad), 0) AS costo_prom
-           FROM stock_movements
-           WHERE quote_id = ? AND tipo = 'salida'
-           GROUP BY product_id`,
-          [inv.quote_id]
+        // La cotización ya movió el stock (entrega): conciliar entrega vs. factura
+        // antes de contabilizar. Se descuenta el excedente facturado que no salió
+        // en la entrega y, si la factura cierra el saldo cotizado, se devuelve lo
+        // entregado y no facturado (política acumulada).
+        const recon = await quoteDeliveryReconciliation(
+          conn,
+          Number(quote!.id),
+          Number(quote!.total),
+          items.map((it) => ({ product_id: it.product_id as number, cantidad: Number(it.cantidad) })),
+          totals.total
         );
-        const avg = new Map(costs.map((c) => [c.product_id, Number(c.costo_prom ?? 0)]));
-        for (const it of items) {
-          if (avg.has(it.product_id)) {
-            costByItem.set(it.id, avg.get(it.product_id) ?? 0);
-          } else {
-            const [p] = await conn.query<RowDataPacket[]>(
-              "SELECT costo FROM products WHERE id = ?",
-              [it.product_id]
+
+        const linePrice = new Map<number, number>(
+          items.map((it) => [Number(it.product_id), Number(it.precio_unitario)])
+        );
+
+        for (const l of recon.lineas) {
+          if (l.excedente > 0) {
+            await registerMovement(
+              {
+                product_id: l.product_id,
+                tipo: "salida",
+                cantidad: l.excedente,
+                origen: "ajuste",
+                motivo: `Conciliación entrega vs factura ${inv.numero}`,
+                precio_unitario: linePrice.get(l.product_id) ?? undefined,
+                costo_unitario: l.costo_producto,
+                invoiceId: id,
+                quoteId: Number(inv.quote_id),
+                skipFinance: true,
+              },
+              systemActor,
+              conn
             );
-            costByItem.set(it.id, Number(p[0]?.costo ?? 0));
           }
+          if (l.devolucion > 0) {
+            await registerMovement(
+              {
+                product_id: l.product_id,
+                tipo: "entrada",
+                cantidad: l.devolucion,
+                origen: "ajuste",
+                motivo: `Devolución por conciliación ${inv.numero}`,
+                costo_unitario: l.costo_entrega,
+                invoiceId: id,
+                quoteId: Number(inv.quote_id),
+                skipFinance: true,
+              },
+              systemActor,
+              conn
+            );
+          }
+        }
+
+        for (const it of items) {
+          const l = recon.lineas.find((x) => x.product_id === Number(it.product_id));
+          const qty = Number(it.cantidad);
+          if (!l || qty <= 0) {
+            costByItem.set(it.id as number, 0);
+            continue;
+          }
+          const totalCost = l.cubierto * l.costo_entrega + l.excedente * l.costo_producto;
+          costByItem.set(it.id as number, totalCost / qty);
         }
       }
     } else {
@@ -812,7 +1035,8 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
     }
 
     // Si la factura fue la que entregó una cotización aprobada, devolverla a aprobada.
-    if (movements.length > 0 && inv.quote_id) {
+    const invoiceDeliveredQuote = movements.some((m: RowDataPacket) => m.origen === "venta");
+    if (invoiceDeliveredQuote && inv.quote_id) {
       const [qrows] = await conn.query<RowDataPacket[]>(
         "SELECT estado FROM quotes WHERE id = ? FOR UPDATE",
         [inv.quote_id]

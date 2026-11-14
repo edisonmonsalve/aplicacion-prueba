@@ -252,7 +252,7 @@ Antes de programar un pago se debe verificar:
 | Orden de compra | campos `orden_compra` | Implementado (referencia) | Se referencia en la factura; no hay módulo completo. |
 | Factura de venta | `invoices` tipo `venta` | Implementado | Asientos de cabecera: ingreso neto, IVA por pagar y costo de ventas. |
 | Factura de compra | `invoices` tipo `compra` | Implementado | Asientos de cabecera: activo Inventario neto e IVA descontable; no actualiza `products.costo` (M1). |
-| Recibo de almacén | `stock_movements` | Implementado | La entrega de cotización y la factura directa mueven stock; la factura vinculada a una cotización entregada no lo duplica. |
+| Recibo de almacén | `stock_movements` | Implementado | La entrega de cotización y la factura directa mueven stock; la factura vinculada a una cotización entregada no lo duplica y concilia las diferencias al confirmar. |
 | Presupuesto | `budgets` | Implementado | Líneas por categoría financiera con alcance general, producto o categoría de producto. |
 
 ### 8.2 Comportamiento corregido

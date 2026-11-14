@@ -160,6 +160,7 @@ export default function InvoiceDetailPage() {
   const ivaLabel = invoice.tipo === "venta" ? "IVA por pagar" : "IVA descontable";
   // La cotización entregada ya descontó el stock: la factura solo contabiliza.
   const stockEntregado = invoice.tipo === "venta" && invoice.quote_estado === "entregado";
+  const recon = invoice.conciliacion_entrega;
   const impactoTexto = esCredito
     ? `Sin movimiento de caja · cartera ${
         invoice.tipo === "venta" ? "por cobrar" : "por pagar"
@@ -177,7 +178,7 @@ export default function InvoiceDetailPage() {
           <span>
             {invoice.tipo === "venta"
               ? stockEntregado
-                ? "El stock ya salió con la entrega de la cotización: se registrará la venta y el costo de ventas sin volver a descontar inventario."
+                ? "La cotización vinculada ya fue entregada: se registrará la venta y el costo de ventas, y se conciliarán los ajustes de stock por diferencias (no se vuelve a descontar la entrega)."
                 : "Se validará el stock, se descontará y se registrará la venta."
               : "Se sumará el stock y se registrará la compra como inventario."}
           </span>
@@ -217,6 +218,23 @@ export default function InvoiceDetailPage() {
                 invoice.tipo === "venta" ? "recibido" : "pagado"
               }.`}
           </Typography.Text>
+          {stockEntregado && recon && recon.lineas.some((l) => l.excedente > 0 || l.devolucion > 0) && (
+            <>
+              <Typography.Text strong style={{ marginTop: 8 }}>
+                Ajustes de stock por conciliacion:
+              </Typography.Text>
+              {recon.lineas
+                .filter((l) => l.excedente > 0 || l.devolucion > 0)
+                .map((l) => (
+                  <span key={l.product_id}>
+                    {l.excedente > 0 &&
+                      "- " + l.excedente + " " + l.producto + " (descuento por excedente no entregado)"}
+                    {l.devolucion > 0 &&
+                      "+ " + l.devolucion + " " + l.producto + " (devolucion por cierre del saldo)"}
+                  </span>
+                ))}
+            </>
+          )}
           {account ? (
             esCredito ? (
               <span>
@@ -343,6 +361,40 @@ export default function InvoiceDetailPage() {
               : account
                 ? `Cuenta ${account.nombre} (${account.tipo}) · Saldo actual ${money(account.saldo_actual)}. La base y las retenciones de fuente/ICA definen el movimiento de caja; el ${ivaLabel.toLowerCase()} (${money(impacto.iva)}) se registra por separado y no mueve caja.`
                 : "Asigna una cuenta desde Editar para poder ver el saldo y el impacto antes de confirmar."
+          }
+        />
+      )}
+
+      {isDraft && stockEntregado && recon && recon.lineas.length > 0 && (
+        <Alert
+          showIcon
+          type="info"
+          message={
+            recon.cierra
+              ? "Conciliacion de la entrega con la factura"
+              : "La factura no cierra el saldo cotizado"
+          }
+          description={
+            <>
+              {recon.lineas
+                .filter((l) => l.excedente > 0 || l.devolucion > 0)
+                .map((l) => (
+                  <div key={l.product_id}>
+                    {l.excedente > 0 &&
+                      l.producto + ": " + l.excedente + " unidades no estaban en la entrega se descontaran ahora."}
+                    {l.devolucion > 0 &&
+                      l.producto + ": " + l.devolucion + " unidades entregadas se devuelven al inventario (cierre del saldo)."}
+                  </div>
+                ))}
+              {!recon.cierra && (
+                <div>
+                  Quedan unidades entregadas pendientes de facturar: no se devuelven al inventario hasta cerrar el saldo cotizado.
+                </div>
+              )}
+              {recon.lineas.every((l) => l.excedente === 0 && l.devolucion === 0) && (
+                <div>La factura coincide con la entrega; no habra ajustes de stock.</div>
+              )}
+            </>
           }
         />
       )}

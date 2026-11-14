@@ -60,7 +60,7 @@ costo histórico, presupuestos por categoría y cuentas.
   de almacén, y hoy la cotización queda `entregado` al confirmar su factura de venta.
 - La factura directa mueve stock y contabiliza.
 - Factura vinculada a cotización **aprobada**: mueve stock una vez y deja la cotización en `entregado`.
-- Factura vinculada a cotización **entregada**: no vuelve a mover stock y usa el costo histórico de la entrega.
+- Factura vinculada a cotización **entregada**: no vuelve a mover stock y usa el costo histórico de la entrega; al confirmar se **concilian** las diferencias (excedentes se descuentan y, al cerrar el saldo, se devuelven las unidades entregadas no facturadas).
 - `quote_id` evita el doble reconocimiento cotización → factura.
 - Anular una factura revierte el stock solo si la factura lo había movido.
 
