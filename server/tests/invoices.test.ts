@@ -475,10 +475,11 @@ describe("Módulo de Facturación — RF-XX", () => {
        WHERE t.invoice_id = ? ORDER BY t.id`,
       [id]
     );
-    expect(transactions).toHaveLength(3);
+    expect(transactions).toHaveLength(4);
     expect(transactions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ tipo: "activo", monto: 200, categoria: "Inventario" }),
+        expect.objectContaining({ tipo: "activo", monto: 180, categoria: "Inventario" }),
         expect.objectContaining({ tipo: "activo", monto: 34.2, categoria: "IVA descontable" }),
         expect.objectContaining({ tipo: "ingreso", monto: 20, categoria: "Descuentos obtenidos" }),
       ])

@@ -909,12 +909,25 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
           fecha: inv.fecha,
           categoriaCodigo: "inventario",
           accountId,
-          afectaCaja,
+          afectaCaja: false,
           invoiceId: id,
           descripcion: `Factura ${inv.numero}`,
           userId: actor.id,
         });
         if (txId) await insertAllocations(conn, txId, lineAllocations, Number(totals.subtotal));
+      }
+      if (!esCredito && baseTotal > 0) {
+        await createAutoTransaction(conn, {
+          tipo: "activo",
+          monto: baseTotal,
+          fecha: inv.fecha,
+          categoriaCodigo: "inventario",
+          accountId,
+          afectaCaja: true,
+          invoiceId: id,
+          descripcion: `Salida de caja factura ${inv.numero}`,
+          userId: actor.id,
+        });
       }
       const descuentoTotal = roundMoney(Number(totals.descuento_total));
       if (descuentoTotal > 0) {
