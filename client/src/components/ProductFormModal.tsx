@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -15,12 +15,19 @@ import {
   Segmented,
   Select,
   Tag,
+  Tooltip,
   Typography,
   message,
   theme,
 } from "antd";
+import { ThunderboltOutlined } from "@ant-design/icons";
 import { isAxiosError } from "axios";
-import { createProduct, updateProduct, type ProductInput } from "@/services/productsService";
+import {
+  createProduct,
+  getNextSku,
+  updateProduct,
+  type ProductInput,
+} from "@/services/productsService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { canEditCosts, canSeeCosts } from "@/utils/roles";
@@ -54,6 +61,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
   const [saving, setSaving] = useState(false);
   const [plannerMode, setPlannerMode] = useState<PlannerMode>("margen");
   const [plannerPct, setPlannerPct] = useState<number | null>(40);
+  const autoSku = useRef(!product); // mientras el usuario no edite el SKU, se refresca solo
 
   const isEdit = product !== null;
   const verCosto = canSeeCosts(user?.rol);
@@ -62,7 +70,37 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
   // Valores vivos del formulario para calcular el margen mientras se escribe.
   const precio = Form.useWatch("precio", form) as number | undefined;
   const costo = Form.useWatch("costo", form) as number | undefined;
+  const categoryId = Form.useWatch("category_id", form) as number | undefined;
   const margin = getMargin(precio, costo);
+
+  // Al elegir categoría se propone el siguiente SKU de su prefijo. Si el
+  // usuario escribió el suyo, se respeta hasta que pida la sugerencia.
+  useEffect(() => {
+    if (isEdit || !categoryId) return;
+    let ignore = false;
+    getNextSku(categoryId)
+      .then((sku) => {
+        if (!ignore && (autoSku.current || !form.getFieldValue("sku"))) {
+          form.setFieldValue("sku", sku);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      ignore = true;
+    };
+  }, [categoryId, isEdit, form]);
+
+  const applySuggestedSku = async () => {
+    if (!categoryId) return;
+    try {
+      const sku = await getNextSku(categoryId);
+      form.setFieldValue("sku", sku);
+      autoSku.current = true;
+      void form.validateFields(["sku"]).catch(() => undefined);
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, "No se pudo sugerir el SKU"));
+    }
+  };
 
   const suggestedPrice =
     plannerMode === "margen"
@@ -134,13 +172,32 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
             <Form.Item
               label="SKU"
               name="sku"
-              tooltip="Código único del producto (no se puede repetir)."
+              tooltip="Código único del producto. Se sugiere según el prefijo de la categoría, pero puedes editarlo."
               rules={[
                 { required: true, message: "Ingresa el SKU" },
                 { max: 50, message: "Máximo 50 caracteres" },
               ]}
+              extra={categoryId ? "Prefijo de la categoría + consecutivo." : "Elige una categoría para generarlo."}
             >
-              <Input placeholder="Ej. CAM-001" />
+              <Input
+                placeholder="Ej. BEB-0001"
+                onChange={() => {
+                  autoSku.current = false;
+                }}
+                addonAfter={
+                  <Tooltip title="Generar el siguiente SKU libre de la categoría">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<ThunderboltOutlined />}
+                      disabled={!categoryId}
+                      onClick={() => void applySuggestedSku()}
+                    >
+                      Sugerir
+                    </Button>
+                  </Tooltip>
+                }
+              />
             </Form.Item>
           </Col>
           <Col xs={24} sm={15}>

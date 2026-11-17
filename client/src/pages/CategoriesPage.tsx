@@ -95,6 +95,12 @@ export default function CategoriesPage() {
 
   const columns: TableProps<Category>["columns"] = [
     {
+      title: <Tooltip title="Prefijo usado en el SKU de sus productos">Código</Tooltip>,
+      dataIndex: "codigo",
+      width: 110,
+      render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+    },
+    {
       title: <Tooltip title="Nombre de la categoría">Nombre</Tooltip>,
       dataIndex: "nombre",
       sorter: (a, b) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),

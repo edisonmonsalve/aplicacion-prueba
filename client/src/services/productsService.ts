@@ -46,6 +46,14 @@ export async function getProducts(params: ProductsQuery) {
   return data;
 }
 
+/** SKU sugerido para una categoría (`PREF-0001`); el usuario puede editarlo. */
+export async function getNextSku(categoryId: number) {
+  const { data } = await api.get<{ sku: string }>("/products/next-sku", {
+    params: { category_id: categoryId },
+  });
+  return data.sku;
+}
+
 export async function createProduct(input: ProductInput) {
   const { data } = await api.post<{ id: number }>("/products", input);
   return data;

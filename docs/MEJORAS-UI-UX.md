@@ -145,6 +145,26 @@ Pase transversal sobre cómo se **escriben** y se **leen** los números y las fe
 | X8 | Media | Fechas relativas con reloj compartido: `hace 12 segundos`, `hace 5 minutos`, `hace 3 horas`, `ayer`, `hace 4 días` y fecha absoluta a partir de la semana; tooltip con la fecha exacta. **Implementado** con `useNow` + `RelativeTime` en Productos, Movimientos, Usuarios e Inicio. Las columnas `DATE` sin hora se muestran como fecha para no inventar un instante. |
 | X9 | Baja | Validaciones de entrada alineadas con la API: `stock_minimo` hasta 1.000.000, búsqueda hasta 100 caracteres, precio y costo hasta 9.999.999.999 y monto de transacción entero mayor que cero. **Implementado** en el cliente y en los esquemas Zod. |
 
+## 13. SKU automático por categoría
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| S1 | Alta | Cada categoría tiene un **código** editable de 2 a 10 letras o números, único y en mayúsculas (`CON`, `FER`, `COM`...). Se propone automáticamente a partir del nombre al crearla y se muestra en el listado de Categorías. **Implementado** `[API]`: columna `categories.codigo` (migración `V030`), validación en el esquema Zod, conflicto 409 si se repite y compatibilidad con peticiones que solo envían `nombre` (se deriva del nombre). |
+| S2 | Alta | SKU sugerido por categoría con consecutivo por prefijo (`CON-0001`, `CON-0002`, `FER-0001`...). Al elegir la categoría en el formulario de producto se rellena solo; el botón **Sugerir** lo regenera; la edición manual se respeta. **Implementado** `[API]`: `GET /api/products/next-sku?category_id=` calcula el mayor consecutivo y busca el primer SKU libre (tolera huecos y códigos repetidos entre categorías). `POST /api/products` también lo genera si el cliente omite `sku`. |
+| S3 | Alta | **Reemplazo de todo el catálogo anterior**: la migración `V030` renumera todos los productos existentes, actualiza `quote_items.sku` por `product_id` y reescribe las instantáneas `quote_audit_log.changes` (`items.old`/`items.new`) conservando el resto de campos. Usa placeholders temporales para no chocar con el índice `UNIQUE`; es idempotente y cubierta por pruebas. |
+| S4 | Media | El seed demo ya no reintroduce SKUs del formato antiguo: usa los prefijos de las cinco categorías del ejemplo y mantiene una clave estable para las referencias internas entre movimientos, cotizaciones, facturas y ajustes. **Implementado.** |
+
+> Nota: cambiar el código de una categoría **no** renombra los SKU ya creados; la sugerencia para productos nuevos usa el código vigente. `.env` y la base de pruebas se actualizaron con `npm run test:db` porque el migrador rechaza cambios de checksum en migraciones ya aplicadas.
+
+## 14. Selector de productos, moneda y fechas en facturación
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| Y1 | Alta | Selector de producto compartido para cotizaciones y facturas (`ProductSelect` + `useProductSearch`): búsqueda remota por **nombre o SKU** con debounce, spinner y mensaje de «sin resultados». **Implementado**: antes se acumulaban los resultados de todas las búsquedas y el listado inicial tapaba al producto buscado; ahora cada búsqueda reemplaza la anterior y el producto ya elegido se mantiene visible. La etiqueta muestra primero el nombre y luego el SKU y el stock. Los productos repetidos siguen deshabilitados. |
+| Y2 | Alta | Formato de moneda en los campos de dinero de facturación y cotización: precio unitario, retenciones, monto de pago y precio de nota de ajuste usan `currencyInputProps` (`$ 1.250.000` mientras se escribe). **Implementado**: el precio unitario de la cotización también se muestra formateado aunque sea de solo lectura. |
+| Y3 | Media | Las columnas **Fecha** de Facturas y Transacciones usan `RelativeTime` (`hoy`, `ayer`, `hace 4 días`) con la fecha exacta en el tooltip, igual que Productos, Movimientos y Usuarios. `RelativeTime` acepta `dateOnlyRelative` para que las columnas `DATE` (`AAAA-MM-DD`, que antes se mostraban siempre como `dd/mm/aaaa`) se comparen por días en hora local; el resto de pantallas conserva la fecha absoluta. **Implementado.** |
+| Y4 | Media | Prueba de servidor que verifica que `/api/products?q=` encuentra productos por nombre, por nombre sin acentos y por SKU. **Implementada** (`server/tests/products-search.test.ts`). |
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

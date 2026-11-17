@@ -6,12 +6,12 @@ export async function getCategories() {
   return data;
 }
 
-export async function createCategory(nombre: string) {
-  await api.post("/categories", { nombre });
+export async function createCategory(nombre: string, codigo: string) {
+  await api.post("/categories", { nombre, codigo });
 }
 
-export async function updateCategory(id: number, nombre: string) {
-  await api.put(`/categories/${id}`, { nombre });
+export async function updateCategory(id: number, nombre: string, codigo: string) {
+  await api.put(`/categories/${id}`, { nombre, codigo });
 }
 
 export async function deleteCategory(id: number) {

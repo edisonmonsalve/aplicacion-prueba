@@ -5,9 +5,10 @@ import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listInvoices } from "@/services/invoicesService";
 import type { Invoice, InvoiceEstado, InvoiceSortKey, InvoiceSummary, InvoiceTipo } from "@/types";
-import { ESTADO_OPTIONS, InvoiceEstadoTag, InvoiceTipoTag, TIPO_OPTIONS, fmtDate, money } from "./InvoiceUtils";
+import { ESTADO_OPTIONS, InvoiceEstadoTag, InvoiceTipoTag, TIPO_OPTIONS, money } from "./InvoiceUtils";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import RelativeTime from "@/components/RelativeTime";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
@@ -381,7 +382,7 @@ export default function InvoicesPage() {
               dataIndex: "fecha",
               sorter: true,
               sortOrder: sortOrderFor("fecha"),
-              render: (v: string) => fmtDate(v),
+              render: (v: string) => <RelativeTime value={v} dateOnlyRelative />,
             },
             {
               title: <Tooltip title="Total de la factura">Total</Tooltip>,

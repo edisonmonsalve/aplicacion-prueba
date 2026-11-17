@@ -65,25 +65,7 @@ const plural = (n: number, singular: string, pluralWord: string) =>
 const startOfDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
-/**
- * Tiempo relativo legible: `hace 12 segundos`, `hace 5 minutos`, `hace 3 horas`,
- * `ayer`, `hace 4 días` o la fecha absoluta cuando tiene más de una semana.
- *
- * - Las fechas sin hora (`AAAA-MM-DD`) se muestran como fecha: no representan
- *   un instante y decir “hace 3 días” sería impreciso.
- * - Las fechas futuras usan “en …”.
- * - `now` se puede inyectar para probar o para refrescar un listado.
- */
-export function formatRelativeTime(
-  value: string | Date | null | undefined,
-  now: number = Date.now()
-): string {
-  if (!value) return "";
-  if (typeof value === "string" && DATE_ONLY.test(value)) return formatDateDisplay(value);
-
-  const date = toDate(value);
-  if (!date) return typeof value === "string" ? value : "";
-
+function relativeFromDate(date: Date, now: number): string {
   const diff = now - date.getTime();
   const elapsed = Math.abs(diff);
 
@@ -115,6 +97,46 @@ export function formatRelativeTime(
   if (dayDiff === 1) return "ayer";
   if (dayDiff > 1 && dayDiff < 7) return `hace ${plural(dayDiff, "día", "días")}`;
   return formatDateDisplay(date);
+}
+
+/**
+ * Tiempo relativo legible: `hace 12 segundos`, `hace 5 minutos`, `hace 3 horas`,
+ * `ayer`, `hace 4 días` o la fecha absoluta cuando tiene más de una semana.
+ *
+ * - Por defecto las fechas sin hora (`AAAA-MM-DD`) se muestran como fecha: no
+ *   representan un instante y decir “hace 3 días” sería impreciso. Con
+ *   `dateOnlyRelative` se interpretan como medianoche local (útil en el listado
+ *   de facturas, donde se quiere ver `ayer` o `hace 2 días`).
+ * - Las fechas futuras usan “en …”.
+ * - `now` se puede inyectar para probar o para refrescar un listado.
+ */
+export function formatRelativeTime(
+  value: string | Date | null | undefined,
+  now: number = Date.now(),
+  dateOnlyRelative = false
+): string {
+  if (!value) return "";
+
+  if (typeof value === "string" && DATE_ONLY.test(value)) {
+    if (!dateOnlyRelative) return formatDateDisplay(value);
+    // Una fecha de calendario no tiene hora: se compara por días, no por
+    // horas, para que la factura de hoy diga «hoy» y no «hace 7 horas».
+    // Se construye en hora local para no correr el día por la zona horaria.
+    const [year, month, day] = value.split("-").map(Number);
+    const local = new Date(year, month - 1, day);
+    if (Number.isNaN(local.getTime())) return formatDateDisplay(value);
+
+    const days = Math.round((startOfDay(new Date(now)) - startOfDay(local)) / 86_400_000);
+    if (days === 0) return "hoy";
+    if (days === 1) return "ayer";
+    if (days > 1 && days < 7) return `hace ${plural(days, "día", "días")}`;
+    if (days < 0 && days > -7) return `en ${plural(Math.abs(days), "día", "días")}`;
+    return formatDateDisplay(value);
+  }
+
+  const date = toDate(value);
+  if (!date) return typeof value === "string" ? value : "";
+  return relativeFromDate(date, now);
 }
 
 /**

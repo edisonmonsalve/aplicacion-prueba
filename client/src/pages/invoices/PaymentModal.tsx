@@ -11,6 +11,7 @@ import {
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { createInvoicePayment } from "@/services/invoicesService";
+import { currencyInputProps } from "@/utils/format";
 import { getErrorMessage } from "@/utils/errors";
 import type { FinanceAccount, InvoiceDetail, PaymentInput, PaymentMetodo } from "@/types";
 import { money } from "./InvoiceUtils";
@@ -124,12 +125,11 @@ export default function PaymentModal({ open, invoice, accounts, onCancel, onSave
             ]}
           >
             <InputNumber
+              {...currencyInputProps}
               min={0.01}
               max={saldo}
-              step={0.01}
-              precision={2}
+              placeholder="$ 0"
               style={{ width: 160 }}
-              formatter={(v) => (v === undefined || v === null ? "" : `${v}`)}
             />
           </Form.Item>
           <Form.Item name="metodo" label="Método" rules={[{ required: true }]}>

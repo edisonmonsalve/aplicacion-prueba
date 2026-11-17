@@ -1,5 +1,15 @@
 import { getProducts } from "@/services/productsService";
-import type { Product } from "@/types";
+
+/** Datos mínimos que necesita un select de producto (nombre, SKU, precio y stock). */
+export interface ProductOption {
+  id: number;
+  sku: string;
+  nombre: string;
+  precio: number;
+  costo?: number | null;
+  stock_actual?: number;
+  stock_minimo?: number;
+}
 
 /**
  * Carga productos por id con todos sus datos (incluido stock).
@@ -10,7 +20,7 @@ import type { Product } from "@/types";
  */
 export async function fetchProductsByIds(
   ids: number[]
-): Promise<Record<number, Product>> {
+): Promise<Record<number, ProductOption>> {
   const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
   if (unique.length === 0) return {};
 
@@ -22,13 +32,8 @@ export async function fetchProductsByIds(
   return Object.fromEntries(data.map((p) => [p.id, p]));
 }
 
-/** Etiqueta uniforme del select de productos, con stock cuando ya se conoce. */
-export function productOptionLabel(p: {
-  sku: string;
-  nombre: string;
-  stock_actual?: number;
-  stock_minimo?: number;
-}) {
+/** Etiqueta uniforme del select de productos, con el nombre primero. */
+export function productOptionLabel(p: ProductOption) {
   const stock =
     p.stock_actual === undefined
       ? ""
@@ -37,5 +42,5 @@ export function productOptionLabel(p: {
             ? " · stock bajo"
             : ""
         })`;
-  return `${p.sku} — ${p.nombre}${stock}`;
+  return `${p.nombre}${stock} — ${p.sku}`;
 }

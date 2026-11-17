@@ -20,11 +20,13 @@ import dayjs, { type Dayjs } from "dayjs";
 import { isAxiosError } from "axios";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { createInvoice, getInvoice, updateInvoice } from "@/services/invoicesService";
-import { getProducts } from "@/services/productsService";
 import { getFinanceAccounts } from "@/services/financeService";
 import { listQuotes, getQuote } from "@/services/quotesService";
 import { listThirdParties } from "@/services/thirdPartiesService";
-import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
+import { fetchProductsByIds, type ProductOption } from "@/utils/productLookup";
+import { currencyInputProps } from "@/utils/format";
+import { useProductSearch } from "@/hooks/useProductSearch";
+import ProductSelect from "@/components/ProductSelect";
 import StockTag from "@/components/StockTag";
 import type {
   FinanceAccount,
@@ -35,16 +37,6 @@ import type {
   ThirdParty,
 } from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
-
-interface ProductOpt {
-  id: number;
-  sku: string;
-  nombre: string;
-  precio: number;
-  costo: number | null;
-  stock_actual?: number;
-  stock_minimo?: number;
-}
 
 interface LineForm {
   product_id?: number;
@@ -102,7 +94,7 @@ export default function InvoiceFormPage() {
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const [form] = Form.useForm<FormValues>();
-  const [products, setProducts] = useState<Record<number, ProductOpt>>({});
+  const { products, addProducts, resultIds, loading, search } = useProductSearch();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   // Datos de la cotización vinculada para mostrar el saldo cotizado como referencia.
   const [quoteInfo, setQuoteInfo] = useState<QuoteDetail | null>(null);
@@ -181,15 +173,6 @@ export default function InvoiceFormPage() {
   const enCotizacion = (productId?: number) =>
     !!productId && !!quoteInfo?.items.some((l) => l.product_id === productId);
 
-  const search = async (q: string) => {
-    try {
-      const r = await getProducts({ q, page: 1, pageSize: 20 });
-      setProducts((prev) => ({ ...prev, ...Object.fromEntries(r.data.map((p) => [p.id, p])) }));
-    } catch {
-      message.error("No se pudo buscar productos");
-    }
-  };
-
   // Cuentas de caja/banco: definen de dónde sale o dónde entra el dinero.
   useEffect(() => {
     getFinanceAccounts()
@@ -261,7 +244,7 @@ export default function InvoiceFormPage() {
       .then((byId) => {
         const p = byId[pid];
         if (!p) return;
-        setProducts((prev) => ({ ...prev, ...byId }));
+        addProducts(Object.values(byId));
         const arr = [...(form.getFieldValue("items") ?? [])];
         if (arr.length === 1 && !arr[0]?.product_id) {
           arr[0] = {
@@ -275,7 +258,7 @@ export default function InvoiceFormPage() {
         }
       })
       .catch(() => message.error("No se pudo cargar el producto a reabastecer"));
-  }, [tipo, editId, urlProductId, form, message]);
+  }, [tipo, editId, urlProductId, form, message, addProducts]);
 
   // M5/M6: al seleccionar (o llegar con ?quote=) una cotización en una factura de venta nueva,
   // precarga cliente, email, notas y líneas con los mismos valores de la cotización. El cliente
@@ -309,22 +292,18 @@ export default function InvoiceFormPage() {
           impuesto_pct: l.impuesto_pct,
         }));
         form.setFieldsValue({ items });
-        setProducts((prev) => ({
-          ...prev,
-          ...Object.fromEntries(
-            d.items
-              .filter((l) => l.product_id)
-              .map((l) => [
-                l.product_id!,
-                {
-                  id: l.product_id!,
-                  sku: l.sku,
-                  nombre: l.nombre,
-                  precio: l.precio_unitario,
-                },
-              ])
-          ),
-        }));
+        addProducts(
+          d.items
+            .filter((l) => l.product_id)
+            .map(
+              (l): ProductOption => ({
+                id: l.product_id!,
+                sku: l.sku,
+                nombre: l.nombre,
+                precio: l.precio_unitario,
+              })
+            )
+        );
         // Completar el stock real de los productos de la cotización. Se consulta
         // por lote de ids porque el catálogo pagina y el stock es lo que alimenta
         // las alertas y la etiqueta del select.
@@ -333,9 +312,7 @@ export default function InvoiceFormPage() {
           .map((l) => l.product_id!);
         if (ids.length > 0) {
           fetchProductsByIds(ids)
-            .then((byId) =>
-              setProducts((prev) => ({ ...prev, ...byId }))
-            )
+            .then((byId) => addProducts(Object.values(byId)))
             .catch(() => {});
         }
       })
@@ -344,10 +321,9 @@ export default function InvoiceFormPage() {
         setQuoteInfo(null);
         loadedQuoteRef.current = null;
       });
-  }, [quoteIdForm, urlQuoteId, editId, tipo, form, message]);
+  }, [quoteIdForm, urlQuoteId, editId, tipo, form, message, addProducts]);
 
   useEffect(() => {
-    search("");
     if (!editId) return;
     getInvoice(editId)
       .then((d) => {
@@ -356,17 +332,19 @@ export default function InvoiceFormPage() {
           navigate(`/facturas/${editId}`, { replace: true });
           return;
         }
-        setProducts((prev) => ({
-          ...prev,
-          ...Object.fromEntries(
-            d.items
-              .filter((l) => l.product_id)
-              .map((l) => [
-                l.product_id,
-                { id: l.product_id, sku: l.sku ?? "", nombre: l.producto ?? "", precio: l.precio_unitario, costo: l.precio_unitario },
-              ])
-          ),
-        }));
+        addProducts(
+          d.items
+            .filter((l) => l.product_id)
+            .map(
+              (l): ProductOption => ({
+                id: l.product_id,
+                sku: l.sku ?? "",
+                nombre: l.producto ?? "",
+                precio: l.precio_unitario,
+                costo: l.precio_unitario,
+              })
+            )
+        );
         // Completar el stock real de los productos de la factura. Se consulta
         // por lote de ids para que las líneas autocompletadas muestren stock.
         const ids = d.items
@@ -374,9 +352,7 @@ export default function InvoiceFormPage() {
           .map((l) => l.product_id);
         if (ids.length > 0) {
           fetchProductsByIds(ids)
-            .then((byId) =>
-              setProducts((prev) => ({ ...prev, ...byId }))
-            )
+            .then((byId) => addProducts(Object.values(byId)))
             .catch(() => {});
         }
         form.setFieldsValue({
@@ -686,27 +662,23 @@ export default function InvoiceFormPage() {
                     label="Producto"
                     rules={[{ required: true, message: "Producto" }]}
                   >
-                    <Select
-                      showSearch
-                      filterOption={false}
+                    <ProductSelect
+                      products={products}
+                      resultIds={resultIds}
+                      loading={loading}
                       onSearch={search}
-                      onChange={(pid: number) => onProductChange(name, pid)}
-                      placeholder="Producto"
+                      onChange={(pid) => onProductChange(name, pid!)}
                       style={{ width: 280 }}
-                      options={Object.values(products).map((p) => {
-                        // Un producto ya elegido en otra línea no se puede repetir:
-                        // el servidor rechazaría la factura.
-                        const taken = lineas.some(
-                          (l, i) => i !== name && l?.product_id === p.id
-                        );
-                        return {
-                          value: p.id,
-                          label: taken
-                            ? `${productOptionLabel(p)} · ya agregado`
-                            : productOptionLabel(p),
-                          disabled: taken,
-                        };
-                      })}
+                      // Un producto ya elegido en otra línea no se puede repetir:
+                      // el servidor rechazaría la factura.
+                      takenIds={
+                        new Set(
+                          lineas
+                            .filter((_, i) => i !== name)
+                            .map((l) => l?.product_id)
+                            .filter((id): id is number => typeof id === "number")
+                        )
+                      }
                     />
                   </Form.Item>
                   <Form.Item name={[name, "cantidad"]} label="Cantidad" rules={[{ required: true, message: "Cant." }]}>
@@ -718,7 +690,12 @@ export default function InvoiceFormPage() {
                     rules={[{ required: true, message: "Precio" }]}
                     tooltip={tipo === "compra" ? "Costo neto de compra (sin IVA). No modifica el costo de referencia del producto." : "Precio de venta por unidad."}
                   >
-                    <InputNumber min={0.01} step={0.01} style={{ width: 140 }} />
+                    <InputNumber
+                      {...currencyInputProps}
+                      min={0.01}
+                      placeholder="$ 0"
+                      style={{ width: 140 }}
+                    />
                   </Form.Item>
                   <Form.Item name={[name, "descuento_pct"]} label="Desc." initialValue={0}>
                     <InputNumber min={0} max={100} addonAfter="%" />
@@ -823,7 +800,7 @@ export default function InvoiceFormPage() {
             initialValue={0}
             tooltip="Informativa: reduce el valor neto a pagar; no modifica el ingreso reconocido."
           >
-            <InputNumber min={0} step={0.01} style={{ width: 160 }} />
+            <InputNumber {...currencyInputProps} style={{ width: 160 }} />
           </Form.Item>
           <Form.Item
             name="retencion_iva"
@@ -831,7 +808,7 @@ export default function InvoiceFormPage() {
             initialValue={0}
             tooltip="Informativa: reduce el valor neto a pagar; no modifica el IVA por pagar."
           >
-            <InputNumber min={0} step={0.01} style={{ width: 160 }} />
+            <InputNumber {...currencyInputProps} style={{ width: 160 }} />
           </Form.Item>
           <Form.Item
             name="retencion_ica"
@@ -839,7 +816,7 @@ export default function InvoiceFormPage() {
             initialValue={0}
             tooltip="Informativa: reduce el valor neto a pagar."
           >
-            <InputNumber min={0} step={0.01} style={{ width: 160 }} />
+            <InputNumber {...currencyInputProps} style={{ width: 160 }} />
           </Form.Item>
         </Space>
 

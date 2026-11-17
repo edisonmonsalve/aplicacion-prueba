@@ -14,6 +14,7 @@ import {
 import dayjs from "dayjs";
 import { isAxiosError } from "axios";
 import { createInvoiceAdjustment } from "@/services/invoicesService";
+import { currencyInputProps } from "@/utils/format";
 import type { InvoiceDetail, InvoiceItem } from "@/types";
 import { money } from "./InvoiceUtils";
 
@@ -212,6 +213,7 @@ export default function InvoiceAdjustmentModal({ open, invoice, onCancel, onSave
               align: "right",
               render: (_: unknown, r) => (
                 <InputNumber
+                  {...currencyInputProps}
                   min={0.01}
                   value={r.precio_unitario}
                   onChange={(v) => updateRow(r.invoice_item_id, { precio_unitario: Number(v ?? 0) })}

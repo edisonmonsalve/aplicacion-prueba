@@ -10,6 +10,7 @@ import type {
   listQuerySchema,
   updateProductSchema,
 } from "./products.schema.js";
+import { suggestSku } from "./sku.js";
 
 export async function listProducts(query: z.infer<typeof listQuerySchema>, actor: AuthUser) {
   const where: string[] = [];
@@ -106,11 +107,13 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>, actor
 export async function createProduct(input: z.infer<typeof createProductSchema>, actor: AuthUser) {
   // Solo admin fija el costo; el operador crea con costo 0 y no lo ve
   const costo = actor.rol === "admin" ? (input.costo ?? 0) : 0;
+  // El cliente sugiere el SKU, pero la API también puede generarlo si no viene.
+  const sku = input.sku || (await suggestSku(input.category_id));
 
   const [res] = await pool.query<ResultSetHeader>(
     `INSERT INTO products (sku, nombre, category_id, precio, costo, stock_minimo)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [input.sku, input.nombre, input.category_id, input.precio, costo, input.stock_minimo]
+    [sku, input.nombre, input.category_id, input.precio, costo, input.stock_minimo]
   );
   return { id: res.insertId };
 }

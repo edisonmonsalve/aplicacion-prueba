@@ -43,6 +43,8 @@ export interface CompanySettings {
 export interface Category {
   id: number;
   nombre: string;
+  /** Prefijo de 2 a 10 caracteres usado en el SKU (p. ej. BEB → BEB-0001). */
+  codigo: string;
   productos: number; // cantidad de productos asociados
 }
 

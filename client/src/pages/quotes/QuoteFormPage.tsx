@@ -20,21 +20,15 @@ import dayjs, { type Dayjs } from "dayjs";
 import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { createQuote, getQuote, updateQuote } from "@/services/quotesService";
-import { getProducts } from "@/services/productsService";
 import { listThirdParties } from "@/services/thirdPartiesService";
-import { fetchProductsByIds, productOptionLabel } from "@/utils/productLookup";
+import { fetchProductsByIds, type ProductOption } from "@/utils/productLookup";
+import { currencyInputProps } from "@/utils/format";
+import { useProductSearch } from "@/hooks/useProductSearch";
+import ProductSelect from "@/components/ProductSelect";
 import StockTag from "@/components/StockTag";
 import type { QuoteLineForm, ThirdParty } from "@/types";
 import { money } from "./quoteUtils";
 
-interface ProductOpt {
-  id: number;
-  sku: string;
-  nombre: string;
-  precio: number;
-  stock_actual?: number;
-  stock_minimo?: number;
-}
 interface FormValues {
   party_id?: number;
   cliente_nombre: string;
@@ -76,22 +70,13 @@ export default function QuoteFormPage() {
   const { message, modal } = App.useApp();
   const screens = Grid.useBreakpoint();
   const isMobile = screens.md === false;
-  const [products, setProducts] = useState<Record<number, ProductOpt>>({});
+  const { products, addProducts, resultIds, loading, search } = useProductSearch();
   const [parties, setParties] = useState<ThirdParty[]>([]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const lineas = Form.useWatch("lineas", form) ?? [];
   const { token } = theme.useToken();
   const t = totals(lineas);
-
-  const search = async (q: string) => {
-    try {
-      const r = await getProducts({ q, page: 1, pageSize: 20 });
-      setProducts((prev) => ({ ...prev, ...Object.fromEntries(r.data.map((p: ProductOpt) => [p.id, p])) }));
-    } catch {
-      message.error("No se pudo buscar productos");
-    }
-  };
 
   // Clientes activos del maestro de terceros, para autollenar la cotización.
   useEffect(() => {
@@ -116,7 +101,6 @@ export default function QuoteFormPage() {
   };
 
   useEffect(() => {
-    search("");
     if (!editId) return;
     getQuote(editId)
       .then((d) => {
@@ -125,17 +109,18 @@ export default function QuoteFormPage() {
           navigate(`/cotizaciones/${editId}`, { replace: true });
           return;
         }
-        setProducts((prev) => ({
-          ...prev,
-          ...Object.fromEntries(
-            d.items
-              .filter((l) => l.product_id)
-              .map((l) => [
-                l.product_id!,
-                { id: l.product_id!, sku: l.sku, nombre: l.nombre, precio: l.precio_unitario },
-              ])
-          ),
-        }));
+        addProducts(
+          d.items
+            .filter((l) => l.product_id)
+            .map(
+              (l): ProductOption => ({
+                id: l.product_id!,
+                sku: l.sku,
+                nombre: l.nombre,
+                precio: l.precio_unitario,
+              })
+            )
+        );
         // Completar el stock real de los productos de las líneas. Se consulta
         // por lote de ids: así las líneas autocompletadas muestran el stock y
         // las alertas funcionan igual que en las agregadas a mano.
@@ -144,9 +129,7 @@ export default function QuoteFormPage() {
           .map((l) => l.product_id!);
         if (ids.length > 0) {
           fetchProductsByIds(ids)
-            .then((byId) =>
-              setProducts((prev) => ({ ...prev, ...byId }))
-            )
+            .then((byId) => addProducts(Object.values(byId)))
             .catch(() => {});
         }
         form.setFieldsValue({
@@ -365,27 +348,23 @@ export default function QuoteFormPage() {
                     rules={[{ required: true, message: "Producto" }]}
                     tooltip="Producto cotizado."
                   >
-                    <Select
-                      showSearch
-                      filterOption={false}
+                    <ProductSelect
+                      products={products}
+                      resultIds={resultIds}
+                      loading={loading}
                       onSearch={search}
-                      onChange={(pid: number) => onProductChange(name, pid)}
-                      placeholder="Producto"
+                      onChange={(pid) => onProductChange(name, pid!)}
                       style={{ width: isMobile ? "100%" : 280 }}
-                      options={Object.values(products).map((p) => {
-                        // Un producto ya elegido en otra línea no se puede repetir:
-                        // el servidor rechazaría el documento (RN-P03).
-                        const taken = lineas.some(
-                          (l, i) => i !== name && l?.product_id === p.id
-                        );
-                        return {
-                          value: p.id,
-                          label: taken
-                            ? `${productOptionLabel(p)} · ya agregado`
-                            : productOptionLabel(p),
-                          disabled: taken,
-                        };
-                      })}
+                      // Un producto ya elegido en otra línea no se puede repetir:
+                      // el servidor rechazaría el documento (RN-P03).
+                      takenIds={
+                        new Set(
+                          lineas
+                            .filter((_, i) => i !== name)
+                            .map((l) => l?.product_id)
+                            .filter((id): id is number => typeof id === "number")
+                        )
+                      }
                     />
                   </Form.Item>
                 );
@@ -411,8 +390,8 @@ export default function QuoteFormPage() {
                       tooltip="Precio unitario del catálogo (solo lectura)."
                     >
                       <InputNumber
-                        min={0}
-                        placeholder="Precio"
+                        {...currencyInputProps}
+                        placeholder="$ 0"
                         style={{ width: isMobile ? "100%" : 130 }}
                         disabled
                       />

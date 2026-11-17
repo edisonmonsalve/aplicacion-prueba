@@ -18,13 +18,13 @@ categoriesRouter.get("/", async (_req, res) => {
 });
 
 categoriesRouter.post("/", requireRole("admin"), async (req, res) => {
-  const { nombre } = categorySchema.parse(req.body);
-  res.status(201).json(await createCategory(nombre));
+  const { nombre, codigo } = categorySchema.parse(req.body);
+  res.status(201).json(await createCategory(nombre, codigo));
 });
 
 categoriesRouter.put("/:id", requireRole("admin"), async (req, res) => {
-  const { nombre } = categorySchema.parse(req.body);
-  await updateCategory(idSchema.parse(req.params.id), nombre);
+  const { nombre, codigo } = categorySchema.parse(req.body);
+  await updateCategory(idSchema.parse(req.params.id), nombre, codigo);
   res.json({ message: "Categoría actualizada" });
 });
 

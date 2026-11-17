@@ -23,6 +23,7 @@ interface Page<T> {
 interface Category {
   id: number;
   nombre: string;
+  codigo?: string;
 }
 
 interface ProductLite {
@@ -132,24 +133,27 @@ async function main() {
   token = login.token;
   log(`✓ Login como ${login.user.email} (${login.user.rol})`);
 
-  // 2. Categorías de productos
+  // 2. Categorías de productos. El código es el prefijo de los SKU del demo.
   const categorias = [
-    "Materiales de construcción",
-    "Ferretería y herramientas",
-    "Equipos de cómputo",
-    "Redes y comunicaciones",
-    "Software y licencias",
+    { nombre: "Materiales de construcción", codigo: "CON" },
+    { nombre: "Ferretería y herramientas", codigo: "FER" },
+    { nombre: "Equipos de cómputo", codigo: "COM" },
+    { nombre: "Redes y comunicaciones", codigo: "RED" },
+    { nombre: "Software y licencias", codigo: "SOF" },
   ];
   const catMap: Record<string, number> = {};
+  const catCode: Record<string, string> = {};
   const existingCats = await get<Category[]>("/categories");
-  for (const nombre of categorias) {
+  for (const { nombre, codigo } of categorias) {
     const found = (existingCats ?? []).find((c) => c.nombre === nombre);
     if (found) {
       catMap[nombre] = found.id;
+      catCode[nombre] = found.codigo ?? codigo;
       log(`  · categoría existente: ${nombre}`);
     } else {
-      const c = await post<IdResponse>("/categories", { nombre });
+      const c = await post<IdResponse>("/categories", { nombre, codigo });
       catMap[nombre] = c.id;
+      catCode[nombre] = codigo;
       log(`  + categoría: ${nombre}`);
     }
   }
@@ -194,17 +198,28 @@ async function main() {
     { sku: "WIN-001", nombre: "Windows 11 Pro", categoria: "Software y licencias", precio: 450000, costo: 380000, stock_minimo: 0 },
   ];
 
+  // `productos[].sku` es solo una clave estable del demo para referenciar los
+  // productos en las secciones siguientes. El SKU real se genera con el prefijo
+  // de la categoría (CON-0001, FER-0001, ...), igual que en la aplicación.
   const productMap: Record<string, number> = {};
   const prodRes = await get<Page<ProductLite>>("/products?page=1&pageSize=100");
   const existingProducts = prodRes.data ?? [];
+  const categoryCounters: Record<string, number> = {};
   for (const p of productos) {
-    const found = existingProducts.find((x) => x.sku === p.sku);
+    const prefix = catCode[p.categoria];
+    const consecutivo = (categoryCounters[prefix] ?? 0) + 1;
+    categoryCounters[prefix] = consecutivo;
+    const sku = `${prefix}-${String(consecutivo).padStart(4, "0")}`;
+
+    // En una ejecución anterior el demo pudo crear el producto con el formato
+    // viejo; se adopta para no duplicarlo y mantener la idempotencia.
+    const found = existingProducts.find((x) => x.sku === sku || x.sku === p.sku);
     if (found) {
       productMap[p.sku] = found.id;
-      log(`  · producto existente: ${p.sku}`);
+      log(`  · producto existente: ${sku}`);
     } else {
       const c = await post<IdResponse>("/products", {
-        sku: p.sku,
+        sku,
         nombre: p.nombre,
         category_id: catMap[p.categoria],
         precio: p.precio,
@@ -212,7 +227,7 @@ async function main() {
         stock_minimo: p.stock_minimo,
       });
       productMap[p.sku] = c.id;
-      log(`  + producto: ${p.sku} ${p.nombre}`);
+      log(`  + producto: ${sku} ${p.nombre}`);
     }
   }
 

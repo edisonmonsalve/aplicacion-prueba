@@ -11,6 +11,8 @@ interface Props {
   /** Texto cuando no hay valor. */
   fallback?: string;
   className?: string;
+  /** Para columnas DATE (`AAAA-MM-DD`): muestra `ayer`/`hace 2 días` en vez de `dd/mm/aaaa`. */
+  dateOnlyRelative?: boolean;
 }
 
 /**
@@ -18,9 +20,15 @@ interface Props {
  *
  * El texto se actualiza solo cada 30 segundos y el tooltip conserva la fecha
  * exacta para cuando haga falta el dato preciso. Las fechas sin hora se
- * muestran como fecha absoluta (no son un instante).
+ * muestran como fecha absoluta salvo que se pida `dateOnlyRelative`.
  */
-export default function RelativeTime({ value, tooltip = true, fallback = "—", className }: Props) {
+export default function RelativeTime({
+  value,
+  tooltip = true,
+  fallback = "—",
+  className,
+  dateOnlyRelative = false,
+}: Props) {
   const now = useNow();
 
   if (!value) return <span className={className}>{fallback}</span>;
@@ -30,7 +38,7 @@ export default function RelativeTime({ value, tooltip = true, fallback = "—", 
       ? formatDateDisplay(value)
       : formatDateTime(value);
 
-  const text = formatRelativeTime(value, now) || fallback;
+  const text = formatRelativeTime(value, now, dateOnlyRelative) || fallback;
 
   if (!tooltip) return <span className={className}>{text}</span>;
 

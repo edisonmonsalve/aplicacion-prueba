@@ -2,7 +2,9 @@ import { z } from "zod";
 
 // stock_actual no está aquí a propósito: solo cambia con movimientos
 const productBase = z.object({
-  sku: z.string().trim().min(1).max(50),
+  // Opcional: si el cliente no lo envía, el servidor lo genera con el prefijo
+  // de la categoría (ver `suggestSku`).
+  sku: z.string().trim().min(1).max(50).optional(),
   nombre: z.string().trim().min(2).max(150),
   category_id: z.number().int().positive(),
   precio: z.number().positive().max(9_999_999_999), // RN-07
@@ -35,3 +37,6 @@ export const listQuerySchema = z.object({
 
 export const activoSchema = z.object({ activo: z.boolean() });
 export const idSchema = z.coerce.number().int().positive();
+export const nextSkuQuerySchema = z.object({
+  category_id: z.coerce.number().int().positive(),
+});
