@@ -1,4 +1,17 @@
-import { Avatar, Button, Dropdown, Layout, Menu, Space, Switch, Tooltip, Typography, message, theme } from "antd";
+import {
+  Avatar,
+  Button,
+  Dropdown,
+  Layout,
+  Menu,
+  Space,
+  Switch,
+  Tooltip,
+  Typography,
+  message,
+  theme,
+  type MenuProps,
+} from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
@@ -60,6 +73,12 @@ const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
   { prefix: "/empresa", key: "/empresa" },
 ];
 
+const navLabel = (index: string, text: string) => (
+  <span className="ui-nav-label">
+    {index} / {text}
+  </span>
+);
+
 export default function AppLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -85,53 +104,98 @@ export default function AppLayout() {
     setOpenKeys((prev) => (prev.includes("finanzas") ? prev : [...prev, "finanzas"]));
   }, [pathname]);
 
-  const items = [
-    { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
-    { key: "/products", icon: <ShoppingOutlined />, label: "Productos" },
-    { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
-    { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
-    { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
-    { key: "/facturas", icon: <FileDoneOutlined />, label: "Facturas" },
-    { key: "/terceros", icon: <ContactsOutlined />, label: "Terceros" },
+  // El menú móvil se cierra también con Escape, además de al tocar el overlay.
+  useEffect(() => {
+    if (!isMobile || collapsed) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCollapsed(true);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isMobile, collapsed]);
+
+  const items: MenuProps["items"] = [
+    {
+      type: "group",
+      label: navLabel("01", "Operación"),
+      children: [
+        { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
+        { key: "/products", icon: <ShoppingOutlined />, label: "Productos" },
+        { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
+        { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
+        { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
+        { key: "/facturas", icon: <FileDoneOutlined />, label: "Facturas" },
+        { key: "/terceros", icon: <ContactsOutlined />, label: "Terceros" },
+      ],
+    },
     ...(canAccessFinance(user?.rol)
       ? [
           {
-            key: "finanzas",
-            icon: <DollarOutlined />,
-            label: "Finanzas",
+            type: "group" as const,
+            label: navLabel("02", "Finanzas"),
             children: [
-              { key: "/finanzas", label: "Resumen" },
-              { key: "/finanzas/cartera", label: "Cartera" },
-              { key: "/finanzas/conciliaciones", label: "Conciliación" },
-              { key: "/finanzas/cierres", label: "Cierres" },
-              { key: "/finanzas/resultados", label: "Resultados" },
-              { key: "/finanzas/flujo-caja", label: "Flujo de caja" },
-              { key: "/finanzas/balance", label: "Balance" },
-              { key: "/finanzas/rentabilidad", label: "Rentabilidad" },
-              { key: "/finanzas/inventario", label: "Rotación" },
-              { key: "/finanzas/embudo", label: "Embudo" },
-              { key: "/finanzas/tendencias", label: "Tendencias" },
-              { key: "/finanzas/auditoria", label: "Auditoría" },
-              { key: "/finanzas/salud", label: "Salud de datos" },
-              { key: "/finanzas/presupuestos", label: "Presupuestos" },
-              { key: "/finanzas/transacciones", label: "Transacciones" },
+              {
+                key: "finanzas",
+                icon: <DollarOutlined />,
+                label: "Finanzas",
+                children: [
+                  { key: "/finanzas", label: "Resumen" },
+                  { key: "/finanzas/cartera", label: "Cartera" },
+                  { key: "/finanzas/conciliaciones", label: "Conciliación" },
+                  { key: "/finanzas/cierres", label: "Cierres" },
+                  { key: "/finanzas/resultados", label: "Resultados" },
+                  { key: "/finanzas/flujo-caja", label: "Flujo de caja" },
+                  { key: "/finanzas/balance", label: "Balance" },
+                  { key: "/finanzas/rentabilidad", label: "Rentabilidad" },
+                  { key: "/finanzas/inventario", label: "Rotación" },
+                  { key: "/finanzas/embudo", label: "Embudo" },
+                  { key: "/finanzas/tendencias", label: "Tendencias" },
+                  { key: "/finanzas/auditoria", label: "Auditoría" },
+                  { key: "/finanzas/salud", label: "Salud de datos" },
+                  { key: "/finanzas/presupuestos", label: "Presupuestos" },
+                  { key: "/finanzas/transacciones", label: "Transacciones" },
+                ],
+              },
             ],
           },
         ]
       : []),
-    ...(user?.rol === "admin" ? [{ key: "/empresa", icon: <ShopOutlined />, label: "Empresa" }] : []),
-    ...(user?.rol === "admin" ? [{ key: "/users", icon: <TeamOutlined />, label: "Usuarios" }] : []),
-    { key: "/perfil", icon: <UserOutlined />, label: "Mi perfil" },
+    {
+      type: "group",
+      label: navLabel("03", "Sistema"),
+      children: [
+        ...(user?.rol === "admin"
+          ? [
+              { key: "/empresa", icon: <ShopOutlined />, label: "Empresa" },
+              { key: "/users", icon: <TeamOutlined />, label: "Usuarios" },
+            ]
+          : []),
+        { key: "/perfil", icon: <UserOutlined />, label: "Mi perfil" },
+      ],
+    },
   ];
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
+      <a className="ui-skip-link" href="#main-content">
+        Saltar al contenido
+      </a>
+
       {isMobile && !collapsed && (
         <div
+          role="presentation"
+          aria-label="Cerrar menú de navegación"
           onClick={() => setCollapsed(true)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 19 }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(6, 14, 13, 0.62)",
+            backdropFilter: "blur(2px)",
+            zIndex: 19,
+          }}
         />
       )}
+
       <Sider
         breakpoint="lg"
         collapsedWidth={isMobile ? 0 : 80}
@@ -141,6 +205,7 @@ export default function AppLayout() {
           setCollapsed(broken);
         }}
         trigger={null}
+        className="ui-grid-bg"
         style={{
           position: isMobile ? "fixed" : "sticky",
           top: 0,
@@ -149,10 +214,18 @@ export default function AppLayout() {
           height: "100vh",
           overflow: "auto",
           zIndex: isMobile ? 20 : undefined,
+          borderRight: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", minHeight: 64, padding: "0 16px", color: "#fff" }}>
-          <AppLogo size={26} tone="light" showText={!collapsed} textSize={17} />
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 64, padding: "14px 16px 10px" }}>
+          <div style={{ color: "#fff" }}>
+            <AppLogo size={26} tone="light" showText={!collapsed} textSize={17} />
+          </div>
+          {!collapsed && (
+            <span className="ui-nav-label" style={{ marginTop: 6, paddingLeft: 2, color: "rgba(255,255,255,.62)" }}>
+              Control de operaciones
+            </span>
+          )}
         </div>
         <Menu
           theme="dark"
@@ -177,21 +250,33 @@ export default function AppLayout() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: 12,
             background: token.colorBgContainer,
             padding: isMobile ? "0 12px" : "0 24px",
             position: "sticky",
             top: 0,
             zIndex: 10,
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
-          <Tooltip title={collapsed ? "Mostrar el menú" : "Ocultar el menú"}>
-            <Button
-              type="text"
-              icon={<MenuOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              aria-label="Mostrar u ocultar el menú"
-            />
-          </Tooltip>
+          <Space size="middle">
+            <Tooltip title={collapsed ? "Mostrar el menú" : "Ocultar el menú"}>
+              <Button
+                type="text"
+                className="ui-nav-toggle"
+                icon={<MenuOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                aria-label="Mostrar u ocultar el menú"
+              />
+            </Tooltip>
+            {!isMobile && (
+              <div className="ui-status">
+                <span className="ui-signal" aria-hidden="true" />
+                <span className="ui-status__text">Sistema operativo</span>
+              </div>
+            )}
+          </Space>
+
           <Space size={isMobile ? "small" : "middle"}>
             <Tooltip title="Cambiar entre tema claro y oscuro">
               <Switch
@@ -224,7 +309,9 @@ export default function AppLayout() {
               }}
             >
               <Space style={{ cursor: "pointer" }}>
-                <Avatar style={{ background: token.colorPrimary }}>{user?.nombre?.[0]?.toUpperCase()}</Avatar>
+                <Avatar className="ui-avatar" style={{ background: token.colorPrimary }}>
+                  {user?.nombre?.[0]?.toUpperCase()}
+                </Avatar>
                 {!isMobile && (
                   <div style={{ lineHeight: 1.2 }}>
                     <div>{user?.nombre}</div>
@@ -238,7 +325,11 @@ export default function AppLayout() {
           </Space>
         </Header>
 
-        <Content style={{ margin: isMobile ? 12 : 24, minWidth: 0 }}>
+        <Content
+          id="main-content"
+          tabIndex={-1}
+          style={{ margin: isMobile ? 12 : 24, minWidth: 0, outline: "none" }}
+        >
           <CompanyProvider>
             <RouteBreadcrumb pathname={pathname} />
             <ErrorBoundary key={pathname}>

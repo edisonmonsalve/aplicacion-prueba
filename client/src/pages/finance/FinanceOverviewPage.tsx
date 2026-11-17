@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, Alert, List } from "antd";
+import { App, Button, Card, Col, Row, Space, Table, Tag, Tooltip, Typography, Alert, List } from "antd";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggestions } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +11,7 @@ import type { FinanceAccount, FinanceCategoryTipo, FinanceSummary, Suggestion } 
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
+import StatCard from "@/components/StatCard";
 import { useDateRange } from "@/hooks/useDateRange";
 import AccountFormModal from "./AccountFormModal";
 
@@ -49,10 +50,13 @@ function Variacion({
   const sube = pct >= 0;
   const bueno = inverso ? !sube : sube;
   return (
-    <Tooltip title={`Periodo anterior: ${money(Number(anterior))}`}>
-      <Typography.Text style={{ fontSize: 12, color: bueno ? "#389e0d" : "#cf1322" }}>
-        {sube ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% vs. periodo anterior
-      </Typography.Text>
+    <Tooltip title={`Periodo anterior: ${money(Number(anterior))} · ${bueno ? "evolución favorable" : "evolución desfavorable"}`}>
+      <span
+        className={`ui-delta ${bueno ? "ui-delta--up" : "ui-delta--down"}`}
+        style={{ cursor: "help" }}
+      >
+        {sube ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%
+      </span>
     </Tooltip>
   );
 }
@@ -159,6 +163,7 @@ export default function FinanceOverviewPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="02 / Finanzas"
         title="Resumen financiero"
         description="Consulta ingresos, egresos, utilidad y capital por día, semana, mes o año, con comparación contra el periodo anterior."
       />
@@ -214,92 +219,127 @@ export default function FinanceOverviewPage() {
         />
       )}
 
-      <Typography.Title level={5} style={{ marginTop: 0 }}>
-        Caja y bancos
-      </Typography.Title>
+      <div style={{ marginBottom: 12 }}>
+        <span className="ui-eyebrow">03 / Liquidez</span>
+        <Typography.Title level={5} style={{ margin: "2px 0 0" }}>
+          Caja y bancos
+        </Typography.Title>
+      </div>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos que entran a caja o bancos en el periodo">Ingresos</Tooltip>} value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
-            <Variacion actual={s?.ingresos} anterior={previousSummary?.ingresos} />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Ingresos que entran a caja o bancos en el periodo">Ingresos</Tooltip>}
+            value={money(s?.ingresos ?? 0)}
+            tone="success"
+            delta={<Variacion actual={s?.ingresos} anterior={previousSummary?.ingresos} />}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Salidas reales de caja o bancos: gastos de operación y compras de inventario. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
-            <Variacion actual={s?.egresos} anterior={previousSummary?.egresos} inverso />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Salidas reales de caja o bancos: gastos de operación y compras de inventario. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>}
+            value={money(s?.egresos ?? 0)}
+            tone="danger"
+            delta={<Variacion actual={s?.egresos} anterior={previousSummary?.egresos} inverso />}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>} value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Acumulado a la fecha final
-            </Typography.Text>
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>}
+            value={money(s?.capital_disponible ?? 0)}
+            tone="primary"
+            hint="Acumulado a la fecha final"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>} value={s?.compras_inventario ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#fa8c16" }} />
-            <Variacion actual={s?.compras_inventario} anterior={previousSummary?.compras_inventario} inverso />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>}
+            value={money(s?.compras_inventario ?? 0)}
+            tone="warning"
+            delta={<Variacion actual={s?.compras_inventario} anterior={previousSummary?.compras_inventario} inverso />}
+          />
         </Col>
       </Row>
 
-      <Typography.Title level={5}>Resultado</Typography.Title>
+      <div style={{ marginBottom: 12 }}>
+        <span className="ui-eyebrow">04 / Rentabilidad</span>
+        <Typography.Title level={5} style={{ margin: "2px 0 0" }}>
+          Resultado
+        </Typography.Title>
+      </div>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
-            <Variacion actual={s?.utilidad} anterior={previousSummary?.utilidad} />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>}
+            value={money(s?.utilidad ?? 0)}
+            tone={(s?.utilidad ?? 0) >= 0 ? "success" : "danger"}
+            delta={<Variacion actual={s?.utilidad} anterior={previousSummary?.utilidad} />}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
-            <Variacion actual={s?.costo_ventas} anterior={previousSummary?.costo_ventas} inverso />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>}
+            value={money(s?.costo_ventas ?? 0)}
+            tone="danger"
+            delta={<Variacion actual={s?.costo_ventas} anterior={previousSummary?.costo_ventas} inverso />}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos menos costo de ventas">Margen bruto</Tooltip>} value={s?.margen_bruto ?? 0} formatter={(v) => money(Number(v))} />
-            <Variacion actual={s?.margen_bruto} anterior={previousSummary?.margen_bruto} />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Ingresos menos costo de ventas">Margen bruto</Tooltip>}
+            value={money(s?.margen_bruto ?? 0)}
+            tone="primary"
+            delta={<Variacion actual={s?.margen_bruto} anterior={previousSummary?.margen_bruto} />}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>} value={s?.margen_bruto_pct ?? 0} suffix="%" precision={0} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Sobre ingresos del periodo
-            </Typography.Text>
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>}
+            value={`${(s?.margen_bruto_pct ?? 0).toFixed(0)}%`}
+            tone="info"
+            hint="Sobre ingresos del periodo"
+          />
         </Col>
       </Row>
 
-      <Typography.Title level={5}>Impuestos</Typography.Title>
+      <div style={{ marginBottom: 12 }}>
+        <span className="ui-eyebrow">05 / Fiscal</span>
+        <Typography.Title level={5} style={{ margin: "2px 0 0" }}>
+          Impuestos
+        </Typography.Title>
+      </div>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="IVA generado en ventas (pasivo). No es dinero disponible.">IVA por pagar</Tooltip>} value={s?.iva_por_pagar ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#722ed1" }} />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="IVA generado en ventas (pasivo). No es dinero disponible.">IVA por pagar</Tooltip>}
+            value={money(s?.iva_por_pagar ?? 0)}
+            tone="primary"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="IVA pagado en compras (activo). No es dinero disponible.">IVA descontable</Tooltip>} value={s?.iva_descontable ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#1677ff" }} />
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="IVA pagado en compras (activo). No es dinero disponible.">IVA descontable</Tooltip>}
+            value={money(s?.iva_descontable ?? 0)}
+            tone="info"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic
-              title={<Tooltip title="IVA por pagar menos IVA descontable del periodo. Un valor negativo es saldo a favor.">IVA neto</Tooltip>}
-              value={s?.iva_neto ?? 0}
-              formatter={(v) => money(Number(v))}
-              valueStyle={{ color: (s?.iva_neto ?? 0) > 0 ? "#fa8c16" : "#52c41a" }}
-            />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {(s?.iva_neto ?? 0) < 0 ? "Saldo a favor" : "A cargo del periodo"}
-            </Typography.Text>
-          </Card>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="IVA por pagar menos IVA descontable del periodo. Un valor negativo es saldo a favor.">IVA neto</Tooltip>}
+            value={money(s?.iva_neto ?? 0)}
+            tone={(s?.iva_neto ?? 0) > 0 ? "warning" : "success"}
+            hint={(s?.iva_neto ?? 0) < 0 ? "Saldo a favor" : "A cargo del periodo"}
+          />
         </Col>
       </Row>
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Col, Empty, Row, Skeleton, Statistic, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
+import { Alert, Button, Card, Col, Empty, Row, Skeleton, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, PercentageOutlined, RiseOutlined, SwapOutlined, WalletOutlined, WarningOutlined } from "@ant-design/icons";
 import {
   Bar,
@@ -25,6 +25,7 @@ import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
 import RelativeTime from "@/components/RelativeTime";
+import StatCard from "@/components/StatCard";
 
 const HOME_TOOLTIPS: Record<string, string> = {
   "Productos activos": "Productos disponibles para vender u operar. Abre el catálogo filtrado por activos.",
@@ -34,15 +35,6 @@ const HOME_TOOLTIPS: Record<string, string> = {
     "Suma del precio de venta × stock actual de los productos activos. No es la utilidad ni el capital disponible.",
   "Inventario al costo":
     "Suma del costo × stock actual. Es el valor contable del activo y la base para calcular rotación y margen.",
-};
-
-const ESTADO_COLOR: Record<string, string> = {
-  borrador: "#8c8c8c",
-  enviado: "#1677ff",
-  aprobado: "#52c41a",
-  rechazado: "#ff4d4f",
-  entregado: "#722ed1",
-  vencido: "#fa8c16",
 };
 
 const greeting = () => {
@@ -85,14 +77,26 @@ export default function HomePage() {
     });
   }, [data]);
 
+  // Colores de gráficos desde tokens del tema: mismo resultado en claro y oscuro.
+  const estadoColor = (estado: string) =>
+    ({
+      borrador: token.colorTextSecondary,
+      enviado: token.colorInfo,
+      aprobado: token.colorSuccess,
+      rechazado: token.colorError,
+      entregado: "#a78bfa",
+      vencido: token.colorWarning,
+    })[estado] ?? token.colorPrimary;
+
   const estados = useMemo(
     () =>
       (data?.presupuestosPorEstado ?? []).map((e) => ({
         name: STATUS_OPTIONS.find((o) => o.value === e.estado)?.label ?? e.estado,
         value: e.total,
-        color: ESTADO_COLOR[e.estado] ?? token.colorPrimary,
+        color: estadoColor(e.estado),
       })),
-    [data, token.colorPrimary]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, token]
   );
 
   const tooltipStyle = {
@@ -108,7 +112,7 @@ export default function HomePage() {
           title: "Productos activos",
           value: data.productosActivos,
           icon: <AppstoreOutlined />,
-          color: token.colorPrimary,
+          tone: "primary" as const,
           to: "/products?activo=1",
           hint: "Abre el catálogo filtrado por productos activos",
         },
@@ -116,7 +120,7 @@ export default function HomePage() {
           title: "Con stock bajo",
           value: data.stockBajo,
           icon: <WarningOutlined />,
-          color: token.colorWarning,
+          tone: "warning" as const,
           to: "/products?bajoStock=1",
           hint: "Abre el catálogo filtrado por productos bajo el stock mínimo",
         },
@@ -124,7 +128,7 @@ export default function HomePage() {
           title: "Movimientos hoy",
           value: data.movimientosHoy,
           icon: <SwapOutlined />,
-          color: token.colorInfo,
+          tone: "info" as const,
           to: "/movements",
           hint: "Abre el historial de movimientos de stock",
         },
@@ -132,7 +136,7 @@ export default function HomePage() {
           title: "Valor del inventario",
           value: formatCurrency(data.valorInventario),
           icon: <DollarOutlined />,
-          color: token.colorSuccess,
+          tone: "success" as const,
           to: "/products?activo=1",
           hint: "Abre el catálogo activo que compone este valor",
           sub: `Al costo: ${formatCurrency(data.valorInventarioCosto)}`,
@@ -141,7 +145,7 @@ export default function HomePage() {
           title: "Inventario al costo",
           value: formatCurrency(data.valorInventarioCosto),
           icon: <WalletOutlined />,
-          color: token.colorInfo,
+          tone: "info" as const,
           to: "/products?activo=1",
           hint: "Valor contable del inventario: costo × stock",
           sub:
@@ -156,40 +160,43 @@ export default function HomePage() {
   const variacion = (value: number | null | undefined) => {
     if (value === null || value === undefined) return null;
     return (
-      <Tag color={value >= 0 ? "green" : "red"} style={{ marginTop: 8 }}>
+      <span className={`ui-delta ${value >= 0 ? "ui-delta--up" : "ui-delta--down"}`}>
         <RiseOutlined rotate={value >= 0 ? 0 : 180} /> {value >= 0 ? "+" : ""}
-        {value.toFixed(1)}% vs. mes anterior
-      </Tag>
+        {value.toFixed(1)}%
+      </span>
     );
   };
 
   return (
     <div>
       <PageHeader
+        eyebrow="01 / Panel de control"
         title={`${greeting()}, ${user?.nombre}`}
         description={`${dayjs().format("dddd, D [de] MMMM")} · Resumen de tu inventario, cotizaciones y presupuestos.`}
       />
 
       {loading && (
-        <Row gutter={[16, 16]}>
-          {Array.from({ length: 4 }, (_, i) => (
-            <Col key={i} xs={24} sm={12} lg={6}>
-              <Card>
-                <Skeleton avatar active paragraph={{ rows: 1 }} />
+        <div aria-live="polite" aria-busy="true">
+          <Row gutter={[16, 16]}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <Col key={i} xs={24} sm={12} lg={6}>
+                <Card className="ui-scan">
+                  <Skeleton avatar active paragraph={{ rows: 1 }} />
+                </Card>
+              </Col>
+            ))}
+            <Col xs={24} lg={14}>
+              <Card className="ui-scan">
+                <Skeleton active paragraph={{ rows: 6 }} />
               </Card>
             </Col>
-          ))}
-          <Col xs={24} lg={14}>
-            <Card>
-              <Skeleton active paragraph={{ rows: 6 }} />
-            </Card>
-          </Col>
-          <Col xs={24} lg={10}>
-            <Card>
-              <Skeleton active paragraph={{ rows: 6 }} />
-            </Card>
-          </Col>
-        </Row>
+            <Col xs={24} lg={10}>
+              <Card className="ui-scan">
+                <Skeleton active paragraph={{ rows: 6 }} />
+              </Card>
+            </Col>
+          </Row>
+        </div>
       )}
 
       {error && !loading && (
@@ -219,106 +226,72 @@ export default function HomePage() {
             />
           )}
 
-          <Row gutter={[16, 16]}>
+          <Row gutter={[16, 16]} aria-live="polite">
             {stats.map((s) => (
               <Col key={s.title} xs={24} sm={12} lg={6}>
-                <Link to={s.to} style={{ display: "block", color: "inherit" }}>
-                  <Card hoverable>
-                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                      <div
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 12,
-                          display: "grid",
-                          placeItems: "center",
-                          fontSize: 22,
-                          color: s.color,
-                          background: `color-mix(in srgb, ${s.color} 15%, transparent)`,
-                        }}
-                      >
-                        {s.icon}
-                      </div>
-                      <div>
-                        <Statistic
-                          title={
-                            <AntTooltip title={`${HOME_TOOLTIPS[s.title] ?? s.title} ${s.hint}.`}>
-                              <span>{s.title}</span>
-                            </AntTooltip>
-                          }
-                          value={s.value}
-                        />
-                        {"sub" in s && s.sub && (
-                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {s.sub}
-                          </Typography.Text>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                </Link>
+                <StatCard
+                  label={
+                    <AntTooltip title={`${HOME_TOOLTIPS[s.title] ?? s.title} ${s.hint}.`}>
+                      <span>{s.title}</span>
+                    </AntTooltip>
+                  }
+                  value={s.value}
+                  icon={s.icon}
+                  tone={s.tone}
+                  hint={"sub" in s ? s.sub : undefined}
+                  onClick={() => navigate(s.to)}
+                />
               </Col>
             ))}
           </Row>
 
           {fin && (
             <>
-              <Typography.Title level={5} style={{ marginTop: 24 }}>
-                Finanzas del mes{" "}
-                <Typography.Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
-                  ({dayjs(fin.desde).format("MMMM YYYY")})
-                </Typography.Text>
-              </Typography.Title>
+              <div style={{ marginTop: 24, marginBottom: 12 }}>
+                <span className="ui-eyebrow">02 / Resultados</span>
+                <Typography.Title level={5} style={{ margin: "2px 0 0" }}>
+                  Finanzas del mes{" "}
+                  <Typography.Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
+                    ({dayjs(fin.desde).format("MMMM YYYY")})
+                  </Typography.Text>
+                </Typography.Title>
+              </div>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic
-                      title={<AntTooltip title="Ingresos de resultado del mes (incluye ventas a crédito)">Ingresos del mes</AntTooltip>}
-                      value={fin.ingresos}
-                      formatter={(v) => formatCurrency(Number(v))}
-                      valueStyle={{ color: token.colorSuccess }}
-                      prefix={<DollarOutlined />}
-                    />
-                    {variacion(fin.variacion_ingresos_pct)}
-                  </Card>
+                  <StatCard
+                    label={<AntTooltip title="Ingresos de resultado del mes (incluye ventas a crédito)">Ingresos del mes</AntTooltip>}
+                    value={formatCurrency(fin.ingresos)}
+                    icon={<DollarOutlined />}
+                    tone="success"
+                    delta={variacion(fin.variacion_ingresos_pct)}
+                  />
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic
-                      title={<AntTooltip title="Salidas reales de caja y bancos del mes">Egresos de caja</AntTooltip>}
-                      value={fin.egresos}
-                      formatter={(v) => formatCurrency(Number(v))}
-                      valueStyle={{ color: token.colorError }}
-                      prefix={<SwapOutlined />}
-                    />
-                    {variacion(fin.variacion_egresos_pct)}
-                  </Card>
+                  <StatCard
+                    label={<AntTooltip title="Salidas reales de caja y bancos del mes">Egresos de caja</AntTooltip>}
+                    value={formatCurrency(fin.egresos)}
+                    icon={<SwapOutlined />}
+                    tone="danger"
+                    delta={variacion(fin.variacion_egresos_pct)}
+                  />
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic
-                      title={<AntTooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad del mes</AntTooltip>}
-                      value={fin.utilidad}
-                      formatter={(v) => formatCurrency(Number(v))}
-                      valueStyle={{ color: fin.utilidad >= 0 ? token.colorSuccess : token.colorError }}
-                      prefix={<RiseOutlined />}
-                    />
-                    {variacion(fin.variacion_utilidad_pct)}
-                  </Card>
+                  <StatCard
+                    label={<AntTooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad del mes</AntTooltip>}
+                    value={formatCurrency(fin.utilidad)}
+                    icon={<RiseOutlined />}
+                    tone={fin.utilidad >= 0 ? "success" : "danger"}
+                    delta={variacion(fin.variacion_utilidad_pct)}
+                  />
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic
-                      title={<AntTooltip title="IVA por pagar menos IVA descontable. Negativo = saldo a favor.">IVA neto</AntTooltip>}
-                      value={fin.iva_neto}
-                      formatter={(v) => formatCurrency(Number(v))}
-                      valueStyle={{ color: fin.iva_neto > 0 ? token.colorWarning : token.colorSuccess }}
-                      prefix={<PercentageOutlined />}
-                    />
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      Margen bruto {fin.margen_bruto_pct.toFixed(0)}% · Capital {formatCurrency(fin.capital_disponible)}
-                    </Typography.Text>
-                  </Card>
+                  <StatCard
+                    label={<AntTooltip title="IVA por pagar menos IVA descontable. Negativo = saldo a favor.">IVA neto</AntTooltip>}
+                    value={formatCurrency(fin.iva_neto)}
+                    icon={<PercentageOutlined />}
+                    tone={fin.iva_neto > 0 ? "warning" : "success"}
+                    hint={`Margen bruto ${fin.margen_bruto_pct.toFixed(0)}% · Capital ${formatCurrency(fin.capital_disponible)}`}
+                  />
                 </Col>
               </Row>
             </>
@@ -327,6 +300,7 @@ export default function HomePage() {
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} lg={14}>
               <Card
+                className="ui-chart-card"
                 title={
                   <AntTooltip title="Entradas y salidas de stock registradas en los últimos 7 días">
                     <span>Movimientos de los últimos 7 días</span>
@@ -335,19 +309,30 @@ export default function HomePage() {
               >
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={dias}>
+                    <defs>
+                      <linearGradient id="signalIn" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={token.colorSuccess} />
+                        <stop offset="100%" stopColor={token.colorSuccess} stopOpacity={0.35} />
+                      </linearGradient>
+                      <linearGradient id="signalOut" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={token.colorWarning} />
+                        <stop offset="100%" stopColor={token.colorWarning} stopOpacity={0.35} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={token.colorSplit} vertical={false} />
                     <XAxis dataKey="dia" stroke={token.colorTextSecondary} />
                     <YAxis allowDecimals={false} stroke={token.colorTextSecondary} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: token.colorFillTertiary }} />
                     <Legend />
-                    <Bar dataKey="Entradas" fill={token.colorSuccess} radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="Salidas" fill={token.colorWarning} radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Entradas" fill="url(#signalIn)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Salidas" fill="url(#signalOut)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
             </Col>
             <Col xs={24} lg={10}>
               <Card
+                className="ui-chart-card"
                 title={
                   <AntTooltip title="Cantidad de cotizaciones agrupadas por estado actual">
                     <span>Cotizaciones por estado</span>
@@ -384,6 +369,7 @@ export default function HomePage() {
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} lg={12}>
               <Card
+                className="ui-chart-card"
                 title={
                   <AntTooltip title="Productos con más unidades en cotizaciones aprobadas o entregadas">
                     <span>Top productos cotizados</span>
@@ -395,6 +381,12 @@ export default function HomePage() {
                 ) : (
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={data.topProductos} layout="vertical" margin={{ left: 16 }}>
+                      <defs>
+                        <linearGradient id="signalTop" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor={token.colorPrimary} stopOpacity={0.55} />
+                          <stop offset="100%" stopColor={token.colorPrimary} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={token.colorSplit} horizontal={false} />
                       <XAxis type="number" allowDecimals={false} stroke={token.colorTextSecondary} />
                       <YAxis type="category" dataKey="nombre" width={120} stroke={token.colorTextSecondary} />
@@ -402,7 +394,7 @@ export default function HomePage() {
                       <Bar
                         dataKey="unidades"
                         name="Unidades"
-                        fill={token.colorPrimary}
+                        fill="url(#signalTop)"
                         radius={[0, 6, 6, 0]}
                       />
                     </BarChart>

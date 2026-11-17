@@ -9,18 +9,21 @@ interface Props {
   extra?: ReactNode;
   /** Contenido junto al título, por ejemplo una etiqueta de estado. */
   titleExtra?: ReactNode;
+  /** Micro-label sobre el título: módulo, sección o contexto. */
+  eyebrow?: ReactNode;
   style?: CSSProperties;
 }
 
 /**
  * Cabecera común de página: mismo orden, jerarquía y aire en todos los módulos.
  *
- * El espacio inferior deja respirar a los filtros y a la tabla que vienen
- * después; en pantallas pequeñas el bloque de acciones pasa a una línea nueva.
+ * Signal añade un micro-label opcional y una barra de señal a la izquierda;
+ * el título usa Space Grotesk para distinguirse del contenido.
  */
-export default function PageHeader({ title, description, extra, titleExtra, style }: Props) {
+export default function PageHeader({ title, description, extra, titleExtra, eyebrow, style }: Props) {
   return (
     <Flex
+      className="ui-page-header"
       justify="space-between"
       align="flex-start"
       gap={16}
@@ -28,8 +31,13 @@ export default function PageHeader({ title, description, extra, titleExtra, styl
       style={{ marginBottom: 20, ...style }}
     >
       <div style={{ minWidth: 0 }}>
+        {eyebrow && (
+          <span className="ui-eyebrow" style={{ marginBottom: 4 }}>
+            {eyebrow}
+          </span>
+        )}
         <Flex gap={8} align="center" wrap>
-          <Typography.Title level={3} style={{ margin: 0 }}>
+          <Typography.Title level={3} className="ui-page-title" style={{ margin: 0 }}>
             {title}
           </Typography.Title>
           {titleExtra}

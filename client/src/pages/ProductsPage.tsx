@@ -2,12 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   App,
   Button,
-  Card,
   Checkbox,
   Col,
   Dropdown,
   Empty,
-  Flex,
   Input,
   Row,
   Select,
@@ -23,6 +21,7 @@ import dayjs from "dayjs";
 import ProductFormModal from "@/components/ProductFormModal";
 import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import { useAuth } from "@/context/AuthContext";
 import { getCategories } from "@/services/categoriesService";
 import { getProducts, setProductActivo, type ProductsQuery } from "@/services/productsService";
@@ -447,59 +446,49 @@ export default function ProductsPage() {
         </Col>
       </Row>
 
-      <Card styles={{ body: { padding: 12 } }} style={{ marginBottom: 16 }}>
-        <Flex gap={12} wrap align="flex-end">
-          <div>
-            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              Buscar
-            </Typography.Text>
-            <Input.Search
-              placeholder="Nombre o SKU"
-              allowClear
-              aria-label="Buscar productos"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onSearch={(value) => updateFilters({ q: value || undefined })}
-              style={{ width: 280, maxWidth: "100%" }}
-            />
-          </div>
-          <div>
-            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              Categoría
-            </Typography.Text>
-            <Select
-              placeholder="Todas"
-              allowClear
-              style={{ width: 180 }}
-              value={query.category_id}
-              options={categories.map((c) => ({ value: c.id, label: c.nombre }))}
-              onChange={(category_id) => updateFilters({ category_id })}
-            />
-          </div>
-          <div>
-            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              Estado
-            </Typography.Text>
-            <Select
-              placeholder="Todos"
-              allowClear
-              style={{ width: 140 }}
-              value={query.activo}
-              options={[
-                { value: "1", label: "Activos" },
-                { value: "0", label: "Inactivos" },
-              ]}
-              onChange={(value) => updateFilters({ activo: value })}
-            />
-          </div>
-          <Checkbox
-            checked={query.bajoStock === "1"}
-            onChange={(e) => updateFilters({ bajoStock: e.target.checked ? "1" : undefined })}
-          >
-            Solo stock bajo
-          </Checkbox>
-        </Flex>
-      </Card>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Buscar" width={280}>
+          <Input.Search
+            placeholder="Nombre o SKU"
+            allowClear
+            aria-label="Buscar productos"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onSearch={(value) => updateFilters({ q: value || undefined })}
+            style={{ width: "100%" }}
+          />
+        </FilterField>
+        <FilterField label="Categoría" width={180}>
+          <Select
+            placeholder="Todas"
+            allowClear
+            style={{ width: "100%" }}
+            value={query.category_id}
+            options={categories.map((c) => ({ value: c.id, label: c.nombre }))}
+            onChange={(category_id) => updateFilters({ category_id })}
+          />
+        </FilterField>
+        <FilterField label="Estado" width={140}>
+          <Select
+            placeholder="Todos"
+            allowClear
+            style={{ width: "100%" }}
+            value={query.activo}
+            options={[
+              { value: "1", label: "Activos" },
+              { value: "0", label: "Inactivos" },
+            ]}
+            onChange={(value) => updateFilters({ activo: value })}
+          />
+        </FilterField>
+        <Checkbox
+          style={{ paddingBottom: 7 }}
+          checked={query.bajoStock === "1"}
+          onChange={(e) => updateFilters({ bajoStock: e.target.checked ? "1" : undefined })}
+        >
+          Solo stock bajo
+        </Checkbox>
+      </FilterBar>
 
       {hasFilters && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>

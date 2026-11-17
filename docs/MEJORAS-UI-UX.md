@@ -165,6 +165,22 @@ Pase transversal sobre cómo se **escriben** y se **leen** los números y las fe
 | Y3 | Media | Las columnas **Fecha** de Facturas y Transacciones usan `RelativeTime` (`hoy`, `ayer`, `hace 4 días`) con la fecha exacta en el tooltip, igual que Productos, Movimientos y Usuarios. `RelativeTime` acepta `dateOnlyRelative` para que las columnas `DATE` (`AAAA-MM-DD`, que antes se mostraban siempre como `dd/mm/aaaa`) se comparen por días en hora local; el resto de pantallas conserva la fecha absoluta. **Implementado.** |
 | Y4 | Media | Prueba de servidor que verifica que `/api/products?q=` encuentra productos por nombre, por nombre sin acentos y por SKU. **Implementada** (`server/tests/products-search.test.ts`). |
 
+## 15. Sistema visual Signal (mejora global)
+
+Dirección aprobada: **dashboard vibrante con influencia minimalista cálida** y lenguaje de
+HUD de videojuego domesticado para el ámbito empresarial. Estudio completo en
+[`ESTILO-SIGNAL.md`](./ESTILO-SIGNAL.md).
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| S1 | Alta | **Tokens de diseño** (`styles/tokens.css`) sincronizados con `ConfigProvider`: paleta cálida/vibrante, superficies, tinta, líneas, radios, sombras y movimiento. AntD y el CSS usan los mismos valores. **Implementado.** |
+| S2 | Alta | **Tipografía con personalidad**: `Space Grotesk Variable` para títulos y cifras, `Plus Jakarta Sans` para el cuerpo, micro-labels en mayúsculas con tracking ancho y cifras tabulares. **Implementado.** |
+| S3 | Alta | **Shell HUD**: sidebar por secciones numeradas, indicador de estado, avatar con anillo, barra de señal en `PageHeader` (28 páginas) y overlay móvil accesible con cierre por `Escape`. **Implementado.** |
+| S4 | Alta | **KPI Signal**: `StatCard` con barra de acento, escuadra, icono, delta y cifra monoespaciada; reemplaza las tarjetas duplicadas de Inicio (9 KPIs) y Finanzas (11 KPIs). Soporta `loading` con shimmer. **Implementado.** |
+| S5 | Media | **`FilterBar` + `FilterField`**: barra y micro-labels unificados para los patrones de filtros repetidos. Aplicado en Productos y Facturas; los demás listados pueden migrarse incrementales. **Implementado.** |
+| S6 | Media | **Gráficos**: paleta desde tokens, tooltips del tema y barras con degradado suave en Inicio. **Implementado.** |
+| S7 | Alta | **Accesibilidad y movimiento**: skip link, `:focus-visible` global, `aria-live` en carga y `prefers-reduced-motion` para toda la app. **Implementado.** Los KPIs migrados usan tokens; los hex sueltos que quedan en otros módulos (Tendencias, Cartera, Balance, etc.) se migran en la siguiente tanda. |
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.
