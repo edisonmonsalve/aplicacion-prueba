@@ -107,7 +107,7 @@ lectura.
 
 | Componente | Cambio global |
 |---|---|
-| `AppLayout` | Sidebar por secciones numeradas con índice en teal, halo de marca, barra de señal en el item activo y pie `Signal · Control`. Header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
+| `AppLayout` | Sidebar con índices en chip monoespaciado, halo de marca, buscador (`/`, Escape, sinónimos y sin tildes), Finanzas agrupado en Panel / Reportes / Gestión, barra de señal en el item activo y en su padre, pip de subsección y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada y glow del hover con el tono del KPI. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |

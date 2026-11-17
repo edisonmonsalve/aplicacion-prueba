@@ -260,6 +260,21 @@ Distribución y Finanzas:
 Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
 preexistentes de `InvoiceFormPage.tsx` se mantienen).
 
+## 20. Navegación del sider: búsqueda y jerarquía
+
+Sobre la base estable del punto 19, se mejora cómo se encuentra y se entiende
+cada sección. El menú pasa de una lista plana a un panel navegable.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| N1 | **Buscador de menú** | Input arriba del listado con `/` para enfocar y `Escape` para limpiar. Filtra de forma recursiva grupos, submenús y hojas; abre automáticamente las ramas con coincidencias y muestra un estado vacío. El índice `NAV_SEARCH` incluye sinónimos (`stock`, `facturación`, `clientes`) y se normaliza sin tildes, así «operacion» encuentra «Operación». Al elegir un resultado se limpia la búsqueda. |
+| N2 | **Finanzas reagrupado** | Las 15 entradas dejan de ser una lista larga: se dividen en `Panel` (2), `Reportes` (7) y `Gestión` (6), con micro-etiquetas en el submenú. El padre se rotula «Módulo financiero» y muestra un contador `15`. |
+| N3 | **Jerarquía visible** | Índice de sección en chip monoespaciado, pip en cada entrada financiera, barra de señal también en el padre cuando alguna hija está activa (`:has`) y sub-etiquetas más tenues que los rótulos de grupo. Los tooltips del modo contraído siguen funcionando porque AntD usa la etiqueta como título. |
+| N4 | **Diseño** | Buscador con superficie translúcida y atajo `/` en `kbd` cuando está vacío; el estado activo del submenú hereda el color del item seleccionado. Sin nuevas animaciones: la navegación sigue siendo instantánea. |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

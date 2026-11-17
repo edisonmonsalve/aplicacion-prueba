@@ -3,6 +3,7 @@ import {
   Avatar,
   Button,
   Dropdown,
+  Input,
   Layout,
   Menu,
   Space,
@@ -33,6 +34,7 @@ import {
   KeyOutlined,
   LogoutOutlined,
   MenuOutlined,
+  SearchOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
@@ -80,6 +82,85 @@ const navLabel = (index: string, text: string) => (
   </span>
 );
 
+type NavItem = NonNullable<NonNullable<MenuProps["items"]>[number]>;
+
+// Texto de búsqueda por clave. Incluye sinónimos ("stock", "facturación",
+// "clientes"…) para que encontrar una sección no dependa de recordar su nombre
+// exacto en el menú.
+const NAV_SEARCH: Record<string, string> = {
+  "group-01": "operación inicio productos movimientos categorías cotizaciones facturas terceros",
+  "/": "inicio dashboard panel principal",
+  "/products": "productos inventario stock bodega",
+  "/movements": "movimientos entradas salidas inventario",
+  "/categories": "categorías clasificación",
+  "/cotizaciones": "cotizaciones propuestas venta",
+  "/facturas": "facturas facturación comprobantes",
+  "/terceros": "terceros clientes proveedores",
+  "group-02": "finanzas análisis reportes gestión",
+  "finanzas": "módulo financiero finanzas análisis reportes gestión",
+  "fin-panel": "panel resumen salud datos",
+  "fin-reportes": "reportes estados financieros análisis",
+  "fin-gestion": "gestión operación financiera",
+  "/finanzas": "resumen financiero finanzas dashboard",
+  "/finanzas/cartera": "cartera por cobrar recaudación",
+  "/finanzas/conciliaciones": "conciliación bancos cuentas",
+  "/finanzas/cierres": "cierres periodos contables",
+  "/finanzas/resultados": "resultados utilidades pérdidas estado",
+  "/finanzas/flujo-caja": "flujo de caja efectivo liquidez",
+  "/finanzas/balance": "balance activos pasivos patrimonio",
+  "/finanzas/rentabilidad": "rentabilidad margen utilidad",
+  "/finanzas/inventario": "rotación inventario stock productos",
+  "/finanzas/embudo": "embudo conversiones ventas",
+  "/finanzas/tendencias": "tendencias evolución gráficas",
+  "/finanzas/auditoria": "auditoría trazabilidad eventos",
+  "/finanzas/salud": "salud de datos calidad integridad",
+  "/finanzas/presupuestos": "presupuestos metas planificación",
+  "/finanzas/transacciones": "transacciones movimientos contables",
+  "group-03": "sistema configuración usuarios perfil empresa",
+  "/empresa": "empresa configuración compañía datos",
+  "/users": "usuarios accesos permisos roles",
+  "/perfil": "mi perfil cuenta contraseña",
+};
+
+// Sin tildes: "operacion" encuentra "Operación" y "auditoria" a "Auditoría".
+const normalizeSearch = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
+
+const filterNavItems = (nodes: NavItem[], term: string): NavItem[] => {
+  const query = normalizeSearch(term.trim());
+  if (!query) return nodes;
+
+  return nodes.flatMap((node) => {
+    const matches = normalizeSearch(NAV_SEARCH[String(node.key)] ?? "").includes(query);
+    const children =
+      "children" in node && node.children ? filterNavItems(node.children as NavItem[], query) : [];
+
+    if (node.type === "group") {
+      const groupChildren = matches ? ((node.children as NavItem[] | undefined) ?? []) : children;
+      return groupChildren.length ? [{ ...node, children: groupChildren } as NavItem] : [];
+    }
+    if (matches) return [node];
+    return children.length ? [{ ...node, children } as NavItem] : [];
+  });
+};
+
+// Con el buscador activo, todas las ramas con resultados deben estar abiertas.
+const collectBranchKeys = (nodes: NavItem[]): string[] =>
+  nodes.flatMap((node) => {
+    if (node.type === "group" || !("children" in node) || !node.children?.length) return [];
+    return [String(node.key), ...collectBranchKeys(node.children as NavItem[])];
+  });
+
+const subItem = (key: string, label: string) => ({
+  key,
+  label: (
+    <span className="ui-nav-subitem">
+      <span className="ui-nav-pip" aria-hidden="true" />
+      {label}
+    </span>
+  ),
+});
+
 export default function AppLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -93,7 +174,9 @@ export default function AppLayout() {
     pathname.startsWith("/finanzas") ? ["finanzas"] : []
   );
   const [clock, setClock] = useState(() => new Date());
+  const [navQuery, setNavQuery] = useState("");
   const siderScrollRef = useRef<HTMLDivElement>(null);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
@@ -123,6 +206,24 @@ export default function AppLayout() {
     container.scrollTop = Math.max(0, top - container.clientHeight / 2 + item.height / 2);
   }, [pathname, openKeys, collapsed]);
 
+  // "/" enfoca el buscador del menú y Escape lo limpia, como en cualquier
+  // paleta de comandos. No interrumpe la escritura en otros campos.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      if (event.key === "/" && !typing) {
+        event.preventDefault();
+        searchBoxRef.current?.querySelector("input")?.focus();
+      } else if (event.key === "Escape" && document.activeElement === searchBoxRef.current?.querySelector("input")) {
+        setNavQuery("");
+        searchBoxRef.current?.querySelector("input")?.blur();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   // El reloj del header refuerza que el panel está vivo sin recargar nada.
   useEffect(() => {
     const id = window.setInterval(() => setClock(new Date()), 30_000);
@@ -142,6 +243,7 @@ export default function AppLayout() {
   const items: MenuProps["items"] = [
     {
       type: "group",
+      key: "group-01",
       label: navLabel("01", "Operación"),
       children: [
         { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
@@ -157,28 +259,54 @@ export default function AppLayout() {
       ? [
           {
             type: "group" as const,
+            key: "group-02",
             label: navLabel("02", "Finanzas"),
             children: [
               {
                 key: "finanzas",
                 icon: <DollarOutlined />,
-                label: "Finanzas",
+                label: (
+                  <span className="ui-nav-parent">
+                    Módulo financiero <span className="ui-nav-count">15</span>
+                  </span>
+                ),
                 children: [
-                  { key: "/finanzas", label: "Resumen" },
-                  { key: "/finanzas/cartera", label: "Cartera" },
-                  { key: "/finanzas/conciliaciones", label: "Conciliación" },
-                  { key: "/finanzas/cierres", label: "Cierres" },
-                  { key: "/finanzas/resultados", label: "Resultados" },
-                  { key: "/finanzas/flujo-caja", label: "Flujo de caja" },
-                  { key: "/finanzas/balance", label: "Balance" },
-                  { key: "/finanzas/rentabilidad", label: "Rentabilidad" },
-                  { key: "/finanzas/inventario", label: "Rotación" },
-                  { key: "/finanzas/embudo", label: "Embudo" },
-                  { key: "/finanzas/tendencias", label: "Tendencias" },
-                  { key: "/finanzas/auditoria", label: "Auditoría" },
-                  { key: "/finanzas/salud", label: "Salud de datos" },
-                  { key: "/finanzas/presupuestos", label: "Presupuestos" },
-                  { key: "/finanzas/transacciones", label: "Transacciones" },
+                  {
+                    type: "group" as const,
+                    key: "fin-panel",
+                    label: <span className="ui-nav-sublabel">Panel</span>,
+                    children: [
+                      subItem("/finanzas", "Resumen"),
+                      subItem("/finanzas/salud", "Salud de datos"),
+                    ],
+                  },
+                  {
+                    type: "group" as const,
+                    key: "fin-reportes",
+                    label: <span className="ui-nav-sublabel">Reportes</span>,
+                    children: [
+                      subItem("/finanzas/resultados", "Resultados"),
+                      subItem("/finanzas/balance", "Balance"),
+                      subItem("/finanzas/flujo-caja", "Flujo de caja"),
+                      subItem("/finanzas/rentabilidad", "Rentabilidad"),
+                      subItem("/finanzas/tendencias", "Tendencias"),
+                      subItem("/finanzas/embudo", "Embudo"),
+                      subItem("/finanzas/inventario", "Rotación"),
+                    ],
+                  },
+                  {
+                    type: "group" as const,
+                    key: "fin-gestion",
+                    label: <span className="ui-nav-sublabel">Gestión</span>,
+                    children: [
+                      subItem("/finanzas/transacciones", "Transacciones"),
+                      subItem("/finanzas/presupuestos", "Presupuestos"),
+                      subItem("/finanzas/conciliaciones", "Conciliación"),
+                      subItem("/finanzas/cierres", "Cierres"),
+                      subItem("/finanzas/cartera", "Cartera"),
+                      subItem("/finanzas/auditoria", "Auditoría"),
+                    ],
+                  },
                 ],
               },
             ],
@@ -187,6 +315,7 @@ export default function AppLayout() {
       : []),
     {
       type: "group",
+      key: "group-03",
       label: navLabel("03", "Sistema"),
       children: [
         ...(user?.rol === "admin"
@@ -199,6 +328,9 @@ export default function AppLayout() {
       ],
     },
   ];
+
+  const filteredItems = filterNavItems((items ?? []) as NavItem[], navQuery);
+  const effectiveOpenKeys = navQuery.trim() ? collectBranchKeys(filteredItems) : openKeys;
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -257,13 +389,27 @@ export default function AppLayout() {
               </span>
             )}
           </div>
+          {!collapsed && (
+            <div className="ui-sider-search" ref={searchBoxRef}>
+              <Input
+                allowClear
+                size="small"
+                prefix={<SearchOutlined />}
+                suffix={!navQuery ? <kbd className="ui-nav-kbd">/</kbd> : undefined}
+                placeholder="Buscar en el menú"
+                value={navQuery}
+                onChange={(event) => setNavQuery(event.target.value)}
+                aria-label="Buscar en la navegación"
+              />
+            </div>
+          )}
           <Menu
             theme="dark"
             mode="inline"
             selectedKeys={[selected]}
-            openKeys={openKeys}
+            openKeys={effectiveOpenKeys}
             onOpenChange={(keys) => setOpenKeys(keys as string[])}
-            items={items}
+            items={filteredItems}
             aria-label="Navegación principal"
             // Sin la animación de colapso de AntD el submenú no "crece" al abrirse.
             motion={{ motionName: "" }}
@@ -272,11 +418,15 @@ export default function AppLayout() {
             subMenuCloseDelay={0}
             onClick={({ key }) => {
               if (typeof key === "string" && key.startsWith("/")) {
+                setNavQuery("");
                 navigate(key);
                 if (isMobile) setCollapsed(true);
               }
             }}
           />
+          {navQuery.trim() && filteredItems.length === 0 && (
+            <p className="ui-nav-empty">Sin secciones para «{navQuery}»</p>
+          )}
         </div>
         {!collapsed && (
           <div className="ui-sider-foot" aria-hidden="true">

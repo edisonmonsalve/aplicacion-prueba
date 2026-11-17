@@ -680,10 +680,17 @@ html[data-theme="dark"] .row-low-stock > td {
 }
 
 .ui-nav-index {
-  font-family: var(--ui-mono);
-  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  min-width: 18px;
+  border: 1px solid color-mix(in srgb, var(--ui-sider-accent, var(--ui-brand)) 40%, transparent);
+  border-radius: 4px;
   color: var(--ui-sider-accent, var(--ui-brand));
+  font-family: var(--ui-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  line-height: 13px;
   letter-spacing: 0.04em;
+  text-align: center;
 }
 
 /* Bloque de marca: un halo tenue detrás del logo, sin ruido adicional. */
@@ -710,6 +717,122 @@ html[data-theme="dark"] .row-low-stock > td {
 .ui-sider-brand .ui-nav-label {
   color: rgba(255, 255, 255, 0.62);
   opacity: 1;
+}
+
+/* Buscador de navegación: "/" lo enfoca y Escape lo limpia. */
+.ui-sider-search {
+  padding: 0 12px 10px;
+}
+
+.ui-sider-search .ant-input-affix-wrapper,
+.ui-sider-search .ant-input-affix-wrapper:hover,
+.ui-sider-search .ant-input-affix-wrapper:focus-within {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.ui-sider-search input {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+.ui-sider-search input::placeholder {
+  color: rgba(255, 255, 255, 0.42) !important;
+}
+
+.ui-sider-search .ant-input-prefix,
+.ui-sider-search .ant-input-suffix {
+  color: var(--ui-sider-accent, var(--ui-brand));
+}
+
+.ui-sider-search .ant-input-prefix {
+  margin-inline-end: 8px !important;
+}
+
+.ui-nav-kbd {
+  min-width: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.ui-nav-empty {
+  margin: 8px 20px 16px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+}
+
+/* Jerarquía dentro de Finanzas: grupo → submenú → sección. */
+.ui-nav-parent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ui-nav-count {
+  min-width: 18px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ui-sider-accent, var(--ui-brand));
+  font-family: var(--ui-mono);
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.ui-nav-sublabel {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ui-nav-subitem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ui-nav-pip {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.ui-app-sider .ant-menu-item-selected .ui-nav-pip {
+  background: var(--ui-sider-accent, var(--ui-brand));
+  box-shadow: 0 0 6px -1px var(--ui-sider-accent, var(--ui-brand));
+  opacity: 1;
+}
+
+.ui-app-sider .ant-menu-sub .ant-menu-item-group-title {
+  margin-top: 2px;
+  padding: 8px 12px 2px 18px !important;
+  line-height: 14px !important;
+}
+
+/* El padre hereda el estado activo cuando una de sus hijas está seleccionada. */
+.ui-app-sider .ant-menu-submenu:has(.ant-menu-item-selected) > .ant-menu-submenu-title {
+  color: #fff !important;
+}
+
+.ui-app-sider .ant-menu-submenu:has(.ant-menu-item-selected) > .ant-menu-submenu-title::before {
+  content: "";
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ui-sider-accent, var(--ui-brand));
 }
 
 /* Densidad regular: los rótulos de grupo no se comen el espacio y el
