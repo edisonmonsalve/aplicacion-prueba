@@ -7,7 +7,7 @@ import { getAvailability, listBudgets } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
 import { canEditCosts } from "@/utils/roles";
-import { formatCurrency } from "@/utils/format";
+import { formatCurrency, currencyInputProps, integerInputProps, formatNumber } from "@/utils/format";
 import type { BudgetAvailability, BudgetListItem, Product } from "@/types";
 
 interface Props {
@@ -92,7 +92,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
       }
       Modal.confirm({
         title: "Presupuesto excedido",
-        content: `Esta compra (${gasto.toLocaleString("es-CO")}) supera el disponible (${availability.disponible.toLocaleString("es-CO")}) de la línea "${availability.budget_nombre}". ¿Deseas continuar?`,
+        content: `Esta compra (${formatCurrency(gasto)}) supera el disponible (${formatCurrency(availability.disponible)}) de la línea "${availability.budget_nombre}". ¿Deseas continuar?`,
         okText: "Continuar",
         cancelText: "Cancelar",
         onOk: () => {
@@ -142,7 +142,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
       <Typography.Paragraph>
         <b>{product.sku}</b> · {product.nombre}
         <br />
-        Stock actual: <b>{product.stock_actual}</b>
+        Stock actual: <b>{formatNumber(product.stock_actual)}</b>
       </Typography.Paragraph>
 
       {closedPeriod && tipo === "entrada" && (
@@ -206,7 +206,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
             }),
           ]}
         >
-          <InputNumber min={1} precision={0} style={{ width: "100%" }} />
+          <InputNumber {...integerInputProps} min={1} />
         </Form.Item>
 
         <Form.Item label="Motivo (opcional)" name="motivo" rules={[{ max: 255 }]} tooltip="Motivo del movimiento de stock.">
@@ -221,7 +221,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
             rules={[{ type: "number", min: 0, message: "No puede ser negativo" }]}
             extra="Si lo dejas vacío se usa el costo del producto."
           >
-            <InputNumber min={0} step={100} style={{ width: "100%" }} />
+            <InputNumber {...currencyInputProps} />
           </Form.Item>
         )}
 

@@ -9,6 +9,7 @@ import {
 } from "@/services/financeService";
 import { getProducts } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
+import { currencyInputProps } from "@/utils/format";
 import { money } from "./FinanceUtils";
 import type { BudgetListItem, FinanceAccount, FinanceCategory, TransactionInput } from "@/types";
 import type { Product } from "@/types";
@@ -140,8 +141,8 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
             ]}
           />
         </Form.Item>
-        <Form.Item label="Monto" name="monto" tooltip="Importe de la transacción en COP." rules={[{ required: true }, { type: "number", min: 0.01 }]}>
-          <InputNumber min={0.01} prefix="$" style={{ width: "100%" }} />
+        <Form.Item label="Monto" name="monto" tooltip="Importe de la transacción en COP." rules={[{ required: true }, { type: "number", min: 1 }]}>
+          <InputNumber {...currencyInputProps} min={1} placeholder="$ 0" />
         </Form.Item>
         <Form.Item label="Fecha" name="fecha" tooltip="Fecha de la transacción." rules={[{ required: true }]}>
           <DatePicker

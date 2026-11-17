@@ -9,7 +9,8 @@ import {
   SendOutlined,
 } from "@ant-design/icons";
 import type { QuoteStatus } from "@/types";
-import { formatDateDisplay } from "@/utils/dates";
+import { formatCurrency } from "@/utils/format";
+import { formatDateDisplay, formatDateTime } from "@/utils/dates";
 
 const META: Record<QuoteStatus, { color: string; label: string; icon: ReactNode }> = {
   borrador: { color: "default", label: "Borrador", icon: <EditOutlined /> },
@@ -31,8 +32,7 @@ export const StatusTag = ({ estado }: { estado: QuoteStatus }) => (
   </Tag>
 );
 
-export const money = (n: number) =>
-  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+export const money = (n: number) => formatCurrency(n);
 
 export const fmtDate = (s: string) => formatDateDisplay(s);
-export const fmtDateTime = (s: string) => new Date(s).toLocaleString("es-CO");
+export const fmtDateTime = (s: string) => formatDateTime(s);

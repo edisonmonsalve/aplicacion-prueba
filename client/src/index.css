@@ -336,11 +336,76 @@ html.theme-switching *::after {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Detalles de interfaz: cifras, tarjetas de indicadores y tablas.
+   Se mantienen fuera de los estilos de impresión a propósito.
+--------------------------------------------------------------------------- */
+
+/* Cifras alineadas en columnas: precios, stock y totales no “bailan”. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fila con stock bajo: un tinte suave, legible en ambos temas. */
+.row-low-stock > td {
+  background: rgba(239, 68, 68, 0.045) !important;
+}
+
+html[data-theme="dark"] .row-low-stock > td {
+  background: rgba(248, 113, 113, 0.08) !important;
+}
+
+/* Tarjetas de indicadores: elevación corta al pasar el cursor. */
+.stat-card {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.stat-card[role="button"]:hover {
+  transform: translateY(-2px);
+}
+
+.stat-card[role="button"]:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
+html[data-theme="dark"] .stat-card[role="button"]:focus-visible {
+  outline-color: #2dd4bf;
+}
+
+/* Encabezados de tabla un poco más compactos y legibles. */
+.ant-table-thead > tr > th {
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+/* Barra de desplazamiento discreta (Chrome/Edge y Firefox). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+}
+
+html[data-theme="dark"] * {
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card {
+    transition: none;
+  }
+  .stat-card[role="button"]:hover {
+    transform: none;
+  }
+}
+
 @media print {
   @page {
     size: A4;
     margin: 16mm 14mm;
   }
+
   .print-area {
     max-width: none;
     margin: 0;

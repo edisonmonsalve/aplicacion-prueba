@@ -49,7 +49,28 @@ async function productRow(productId: number) {
   return rows[0];
 }
 
-describe("Costos: visibilidad y permisos", () => {
+/**
+ * Segundo producto con stock y umbral distintos para probar el resumen:
+ * P-1 (1000/400, 10 unidades) y P-2 (500/100, 5 unidades, mínimo 10).
+ * Valor 12.500, valor al costo 4.500 y margen del stock 64 %.
+ */
+async function seedCatalog(adminToken: string, categoryId: number) {
+  await request(app)
+    .post("/api/products")
+    .set(bearer(adminToken))
+    .send({
+      sku: "P-2",
+      nombre: "Producto 2",
+      category_id: categoryId,
+      precio: 500,
+      costo: 100,
+      stock_minimo: 10,
+    });
+  await pool.query("UPDATE products SET stock_actual = 10 WHERE sku = 'P-1'");
+  await pool.query("UPDATE products SET stock_actual = 5 WHERE sku = 'P-2'");
+}
+
+describe("Costos y margen: visibilidad y permisos", () => {
   beforeEach(resetDb);
   afterAll(() => pool.end());
 
@@ -212,5 +233,57 @@ describe("Costos: visibilidad y permisos", () => {
     const res = await request(app).get("/api/dashboard").set(bearer(operador.token));
     expect(res.status).toBe(200);
     expect(res.body.ultimosMovimientos[0]).toHaveProperty("costo_unitario", null);
+  });
+
+  it("el resumen incluye unidades, valor, stock bajo y margen del stock", async () => {
+    const { admin, categoryId } = await setup();
+    await seedCatalog(admin.token, categoryId);
+
+    const res = await request(app).get("/api/products").set(bearer(admin.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.summary).toEqual({
+      unidades: 15,
+      valor: 12_500,
+      bajos: 1,
+      margen: 64,
+    });
+  });
+
+  it("el operador recibe el resumen sin margen ni valor al costo", async () => {
+    const { admin, operador, categoryId } = await setup();
+    await seedCatalog(admin.token, categoryId);
+
+    const res = await request(app).get("/api/products").set(bearer(operador.token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.summary).toMatchObject({
+      unidades: 15,
+      valor: 12_500,
+      bajos: 1,
+      margen: null,
+    });
+    expect(res.body.summary).not.toHaveProperty("valor_costo");
+  });
+
+  it("ordena por margen y el operador no puede usar ese orden", async () => {
+    const { admin, operador, categoryId } = await setup();
+    await seedCatalog(admin.token, categoryId);
+
+    const asc = await request(app)
+      .get("/api/products?sort=margen&order=asc")
+      .set(bearer(admin.token));
+    expect(asc.body.data.map((p: { sku: string }) => p.sku)).toEqual(["P-1", "P-2"]);
+
+    const desc = await request(app)
+      .get("/api/products?sort=margen&order=desc")
+      .set(bearer(admin.token));
+    expect(desc.body.data.map((p: { sku: string }) => p.sku)).toEqual(["P-2", "P-1"]);
+
+    // Sin permiso de costos el orden se ignora y queda el de creación (id DESC).
+    const op = await request(app)
+      .get("/api/products?sort=margen&order=asc")
+      .set(bearer(operador.token));
+    expect(op.body.data.map((p: { sku: string }) => p.sku)).toEqual(["P-2", "P-1"]);
   });
 });

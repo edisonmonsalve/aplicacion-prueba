@@ -1,14 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
-import { App, Button, Checkbox, Dropdown, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import {
+  App,
+  Button,
+  Card,
+  Checkbox,
+  Col,
+  Dropdown,
+  Empty,
+  Flex,
+  Input,
+  Row,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
 import type { MenuProps, TableProps } from "antd";
 import { DownloadOutlined, MoreOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import ProductFormModal from "@/components/ProductFormModal";
+import RelativeTime from "@/components/RelativeTime";
+import StatCard from "@/components/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { getCategories } from "@/services/categoriesService";
 import { getProducts, setProductActivo, type ProductsQuery } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
-import { formatCurrency } from "@/utils/format";
+import {
+  formatCurrency,
+  formatCurrencyCompact,
+  formatNumber,
+  formatPercent,
+} from "@/utils/format";
+import { getMargin, marginColor, marginLabel } from "@/utils/margin";
 import { canSeeCosts } from "@/utils/roles";
 import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
 import type { Category, Product } from "@/types";
@@ -19,7 +44,7 @@ import MovementFormModal from "@/components/MovementFormModal";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
-const SORT_KEYS = ["sku", "nombre", "precio", "stock", "costo"] as const;
+const SORT_KEYS = ["sku", "nombre", "precio", "stock", "costo", "margen"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 
 // AntD entrega el `field` de la columna; el servidor usa nombres compactos.
@@ -29,6 +54,7 @@ const SORT_BY_FIELD: Record<string, SortKey> = {
   precio: "precio",
   stock_actual: "stock",
   costo: "costo",
+  margen: "margen",
 };
 
 export default function ProductsPage() {
@@ -47,8 +73,8 @@ export default function ProductsPage() {
   const rawSort = get("sort");
   const sort = SORT_KEYS.includes(rawSort as SortKey) ? (rawSort as SortKey) : undefined;
   const rawOrder = get("order");
-  // El costo solo se puede ordenar si el rol puede verlo.
-  const effectiveSort = sort === "costo" && !verCosto ? undefined : sort;
+  // El costo y el margen solo se pueden ordenar si el rol puede verlos.
+  const effectiveSort = (sort === "costo" || sort === "margen") && !verCosto ? undefined : sort;
   const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
@@ -69,7 +95,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
-  const [summary, setSummary] = useState({ unidades: 0, valor: 0 });
+  const [summary, setSummary] = useState({ unidades: 0, valor: 0, bajos: 0, margen: null as number | null });
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -134,12 +160,26 @@ export default function ProductsPage() {
         { header: "Categoría", value: (p) => p.categoria },
         { header: "Precio", value: (p) => p.precio },
         ...(verCosto
-          ? [{ header: "Costo", value: (p: Product) => p.costo ?? "" }]
+          ? [
+              { header: "Costo", value: (p: Product) => p.costo ?? "" },
+              {
+                header: "Utilidad unitaria",
+                value: (p: Product) => getMargin(p.precio, p.costo).utility ?? "",
+              },
+              {
+                header: "Margen %",
+                value: (p: Product) => {
+                  const m = getMargin(p.precio, p.costo).marginPct;
+                  return m === null ? "" : m.toFixed(1);
+                },
+              },
+            ]
           : []),
         { header: "Stock actual", value: (p) => p.stock_actual },
         { header: "Stock mínimo", value: (p) => p.stock_minimo },
         { header: "Valor del stock", value: (p) => p.precio * p.stock_actual },
         { header: "Estado", value: (p) => (p.activo ? "Activo" : "Inactivo") },
+        { header: "Creado", value: (p) => dayjs(p.created_at).format("DD/MM/YYYY HH:mm") },
       ];
       downloadCsv(`productos-${dayjs().format("YYYY-MM-DD")}.csv`, columns, all);
       messageApi.success(`${all.length} producto(s) exportado(s)`);
@@ -178,7 +218,7 @@ export default function ProductsPage() {
   };
   const handleMovementSaved = (newStock: number) => {
     setMovementProduct(null);
-    messageApi.success(`Movimiento registrado. Nuevo stock: ${newStock}`);
+    messageApi.success(`Movimiento registrado. Nuevo stock: ${formatNumber(newStock)}`);
     setReloadKey((k) => k + 1);
   };
 
@@ -213,16 +253,33 @@ export default function ProductsPage() {
   };
 
   const columns: TableProps<Product>["columns"] = [
-    { title: "SKU", dataIndex: "sku", sorter: true, sortOrder: sortOrderFor("sku") },
-    { title: "Nombre", dataIndex: "nombre", sorter: true, sortOrder: sortOrderFor("nombre") },
-    { title: "Categoría", dataIndex: "categoria" },
+    {
+      title: "SKU",
+      dataIndex: "sku",
+      sorter: true,
+      sortOrder: sortOrderFor("sku"),
+      render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+    },
+    {
+      title: "Nombre",
+      dataIndex: "nombre",
+      sorter: true,
+      sortOrder: sortOrderFor("nombre"),
+      render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
+    },
+    {
+      title: "Categoría",
+      dataIndex: "categoria",
+      responsive: ["md"],
+      render: (value: string) => <Typography.Text type="secondary">{value}</Typography.Text>,
+    },
     {
       title: "Precio",
       dataIndex: "precio",
       align: "right",
       sorter: true,
       sortOrder: sortOrderFor("precio"),
-      render: (value: number) => formatCurrency(value),
+      render: (value: number) => <span className="num">{formatCurrency(value)}</span>,
     },
     ...(verCosto
       ? ([
@@ -232,15 +289,39 @@ export default function ProductsPage() {
             align: "right",
             sorter: true,
             sortOrder: sortOrderFor("costo"),
-            render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
+            render: (value: number | null) =>
+              value === null ? (
+                <Typography.Text type="secondary">—</Typography.Text>
+              ) : (
+                <span className="num">{formatCurrency(value)}</span>
+              ),
           },
           {
-            title: <Tooltip title="Margen bruto porcentual (precio - costo) / precio">Margen</Tooltip>,
+            title: (
+              <Tooltip title="Margen sobre el precio = (precio − costo) / precio">
+                Margen
+              </Tooltip>
+            ),
+            dataIndex: "margen",
             align: "right",
+            sorter: true,
+            sortOrder: sortOrderFor("margen"),
             render: (_: unknown, p: Product) => {
-              if (p.costo === null || p.precio <= 0) return "—";
-              const pct = ((p.precio - p.costo) / p.precio) * 100;
-              return <Tag color={pct < 0 ? "red" : pct < 20 ? "orange" : "green"}>{pct.toFixed(1)}%</Tag>;
+              const m = getMargin(p.precio, p.costo);
+              if (m.marginPct === null) {
+                return <Typography.Text type="secondary">—</Typography.Text>;
+              }
+              return (
+                <Tooltip
+                  title={`${marginLabel(m.level)} · Utilidad ${formatCurrency(
+                    m.utility
+                  )} · Markup ${formatPercent(m.markupPct)}`}
+                >
+                  <Tag color={marginColor(m.level)} style={{ marginInlineEnd: 0 }}>
+                    {formatPercent(m.marginPct)}
+                  </Tag>
+                </Tooltip>
+              );
             },
           },
         ] as NonNullable<TableProps<Product>["columns"]>)
@@ -253,14 +334,34 @@ export default function ProductsPage() {
       sortOrder: sortOrderFor("stock"),
       render: (stock: number, p) =>
         // RF-11: alerta visual de stock por debajo del mínimo
-        stock < p.stock_minimo ? <Tag color="red">{stock} · Bajo</Tag> : stock,
+        stock < p.stock_minimo ? (
+          <Tooltip title={`Por debajo del mínimo (${formatNumber(p.stock_minimo)})`}>
+            <Tag color="red" style={{ marginInlineEnd: 0 }}>
+              {formatNumber(stock)} · Bajo
+            </Tag>
+          </Tooltip>
+        ) : (
+          <span className="num">{formatNumber(stock)}</span>
+        ),
     },
-    { title: <Tooltip title="Stock mínimo para generar alerta">Mínimo</Tooltip>, dataIndex: "stock_minimo", align: "right" },
+    {
+      title: <Tooltip title="Stock mínimo para generar alerta">Mínimo</Tooltip>,
+      dataIndex: "stock_minimo",
+      align: "right",
+      responsive: ["md"],
+      render: (value: number) => <span className="num">{formatNumber(value)}</span>,
+    },
     {
       title: "Estado",
       dataIndex: "activo",
       render: (activo: number) =>
         activo ? <Tag color="green">Activo</Tag> : <Tag color="red">Inactivo</Tag>,
+    },
+    {
+      title: "Creado",
+      dataIndex: "created_at",
+      responsive: ["lg"],
+      render: (value: string) => <RelativeTime value={value} />,
     },
     {
       title: "Acciones",
@@ -308,57 +409,97 @@ export default function ProductsPage() {
         }
       />
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Buscar
-          </Typography.Text>
-          <Input.Search
-            placeholder="Nombre o SKU"
-            allowClear
-            aria-label="Buscar productos"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onSearch={(q) => updateFilters({ q: q || undefined })}
-            style={{ width: 280, maxWidth: "100%" }}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <StatCard
+            label="Productos"
+            value={formatNumber(total)}
+            hint={hasFilters ? "con los filtros actuales" : "en el catálogo"}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Categoría
-          </Typography.Text>
-          <Select
-            placeholder="Todas"
-            allowClear
-            style={{ width: 180 }}
-            value={query.category_id}
-            options={categories.map((c) => ({ value: c.id, label: c.nombre }))}
-            onChange={(category_id) => updateFilters({ category_id })}
+        </Col>
+        <Col xs={12} md={6}>
+          <StatCard
+            label="Unidades en stock"
+            value={formatNumber(summary.unidades)}
+            hint="suma del filtro actual"
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Estado
-          </Typography.Text>
-          <Select
-            placeholder="Todos"
-            allowClear
-            style={{ width: 140 }}
-            value={query.activo}
-            options={[
-              { value: "1", label: "Activos" },
-              { value: "0", label: "Inactivos" },
-            ]}
-            onChange={(activo) => updateFilters({ activo })}
+        </Col>
+        <Col xs={12} md={6}>
+          <StatCard
+            label="Valor del stock"
+            value={formatCurrencyCompact(summary.valor)}
+            hint={
+              verCosto && summary.margen !== null
+                ? `${formatCurrency(summary.valor)} · margen ${formatPercent(summary.margen)}`
+                : formatCurrency(summary.valor)
+            }
+            tone="primary"
           />
-        </div>
-        <Checkbox
-          checked={query.bajoStock === "1"}
-          onChange={(e) => updateFilters({ bajoStock: e.target.checked ? "1" : undefined })}
-        >
-          Solo stock bajo
-        </Checkbox>
-      </div>
+        </Col>
+        <Col xs={12} md={6}>
+          <StatCard
+            label="Stock bajo"
+            value={formatNumber(summary.bajos)}
+            hint={summary.bajos > 0 ? "productos bajo el mínimo" : "todo en orden"}
+            tone={summary.bajos > 0 ? "danger" : "success"}
+            onClick={() => updateFilters({ bajoStock: bajoStock ? undefined : "1" })}
+          />
+        </Col>
+      </Row>
+
+      <Card styles={{ body: { padding: 12 } }} style={{ marginBottom: 16 }}>
+        <Flex gap={12} wrap align="flex-end">
+          <div>
+            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+              Buscar
+            </Typography.Text>
+            <Input.Search
+              placeholder="Nombre o SKU"
+              allowClear
+              aria-label="Buscar productos"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onSearch={(value) => updateFilters({ q: value || undefined })}
+              style={{ width: 280, maxWidth: "100%" }}
+            />
+          </div>
+          <div>
+            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+              Categoría
+            </Typography.Text>
+            <Select
+              placeholder="Todas"
+              allowClear
+              style={{ width: 180 }}
+              value={query.category_id}
+              options={categories.map((c) => ({ value: c.id, label: c.nombre }))}
+              onChange={(category_id) => updateFilters({ category_id })}
+            />
+          </div>
+          <div>
+            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
+              Estado
+            </Typography.Text>
+            <Select
+              placeholder="Todos"
+              allowClear
+              style={{ width: 140 }}
+              value={query.activo}
+              options={[
+                { value: "1", label: "Activos" },
+                { value: "0", label: "Inactivos" },
+              ]}
+              onChange={(value) => updateFilters({ activo: value })}
+            />
+          </div>
+          <Checkbox
+            checked={query.bajoStock === "1"}
+            onChange={(e) => updateFilters({ bajoStock: e.target.checked ? "1" : undefined })}
+          >
+            Solo stock bajo
+          </Checkbox>
+        </Flex>
+      </Card>
 
       {hasFilters && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
@@ -402,7 +543,10 @@ export default function ProductsPage() {
           columns={columns}
           dataSource={products}
           loading={loading}
+          size="middle"
+          sticky
           scroll={{ x: "max-content" }}
+          rowClassName={(p) => (p.stock_actual < p.stock_minimo ? "row-low-stock" : "")}
           locale={{
             emptyText: (
               <Empty
@@ -427,6 +571,7 @@ export default function ProductsPage() {
             pageSize: query.pageSize,
             total,
             showSizeChanger: true,
+            showTotal: (count) => `${formatNumber(count)} producto(s)`,
           }}
           onChange={(pagination, _filters, sorter, extra) => {
             if (extra.action === "sort") {
@@ -466,11 +611,17 @@ export default function ProductsPage() {
           }}
         >
           <Typography.Text type="secondary">
-            {total} producto(s) con los filtros actuales
+            {formatNumber(total)} producto(s) con los filtros actuales
           </Typography.Text>
           <Typography.Text type="secondary">
-            Stock total: <strong>{summary.unidades}</strong> unidades · Valor del stock:{" "}
+            Stock total: <strong>{formatNumber(summary.unidades)}</strong> unidades · Valor del stock:{" "}
             <strong>{formatCurrency(summary.valor)}</strong>
+            {verCosto && summary.margen !== null && (
+              <>
+                {" "}
+                · Margen del stock: <strong>{formatPercent(summary.margen)}</strong>
+              </>
+            )}
           </Typography.Text>
         </div>
       )}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Form, Input, InputNumber, Modal, Select, Switch, message } from "antd";
 import { createFinanceAccount, updateFinanceAccount } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
+import { currencyInputProps } from "@/utils/format";
 import type { FinanceAccount, FinanceAccountInput } from "@/types";
 
 interface Props {
@@ -101,7 +102,7 @@ export default function AccountFormModal({ open, account, onClose, onSaved }: Pr
           tooltip="Saldo con el que abre la cuenta. Solo ingresos y gastos modifican el saldo actual; el IVA no."
           rules={[{ required: true }, { type: "number", min: 0 }]}
         >
-          <InputNumber min={0} prefix="$" style={{ width: "100%" }} />
+          <InputNumber {...currencyInputProps} placeholder="$ 0" />
         </Form.Item>
         <Form.Item
           label="Activa"

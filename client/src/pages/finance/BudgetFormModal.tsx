@@ -20,6 +20,7 @@ import { createBudget, getFinanceCategories, updateBudget } from "@/services/fin
 import { getProducts } from "@/services/productsService";
 import { getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
+import { currencyInputProps } from "@/utils/format";
 import type { BudgetDetail, BudgetInput, Category, FinanceCategory } from "@/types";
 import { money, periodLabel } from "./FinanceUtils";
 
@@ -231,7 +232,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
 
         <Space style={{ width: "100%" }} size="middle" wrap>
           <Form.Item label="Meta de ingresos" name="ingreso_meta" tooltip="Ingreso total esperado en el periodo." style={{ flex: 1, minWidth: 180 }}>
-            <InputNumber min={0} style={{ width: "100%" }} />
+            <InputNumber {...currencyInputProps} placeholder="$ 0" />
           </Form.Item>
           <Form.Item
             label="Alerta (%)"
@@ -334,7 +335,7 @@ export default function BudgetFormModal({ open, budget, onClose, onSaved }: Prop
                     rules={[{ required: true, message: "Monto" }, { type: "number", min: 0 }]}
                     style={{ width: 160 }}
                   >
-                    <InputNumber min={0} style={{ width: "100%" }} placeholder="Monto" />
+                    <InputNumber {...currencyInputProps} placeholder="Monto" style={{ width: "100%" }} />
                   </Form.Item>
                   <Tooltip title="Quitar esta línea">
                     <Button

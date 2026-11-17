@@ -21,7 +21,7 @@ import { getMovements, type MovementSortKey, type MovementsQuery } from "@/servi
 import { getProducts } from "@/services/productsService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
-import { formatCurrency } from "@/utils/format";
+import { formatCurrency, formatNumber } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
 import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
 import type { StockMovement } from "@/types";
@@ -29,6 +29,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import RelativeTime from "@/components/RelativeTime";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 
@@ -303,7 +304,7 @@ export default function MovementsPage() {
       dataIndex: "created_at",
       sorter: true,
       sortOrder: sortOrderFor("fecha"),
-      render: (value: string) => dayjs(value).format("DD/MM/YYYY HH:mm"),
+      render: (value: string) => <RelativeTime value={value} />,
     },
     {
       title: <Tooltip title="Producto afectado por el movimiento">Producto</Tooltip>,
@@ -342,7 +343,8 @@ export default function MovementsPage() {
       sorter: true,
       sortOrder: sortOrderFor("cantidad"),
       align: "right",
-      render: (_, m) => (m.tipo === "entrada" ? `+${m.cantidad}` : `-${m.cantidad}`),
+      render: (_, m) =>
+        m.tipo === "entrada" ? `+${formatNumber(m.cantidad)}` : `−${formatNumber(m.cantidad)}`,
     },
     ...(verCosto
       ? ([
@@ -356,13 +358,22 @@ export default function MovementsPage() {
             align: "right",
             sorter: true,
             sortOrder: sortOrderFor("costo"),
-            render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
+            render: (value: number | null) =>
+              value === null ? (
+                <Typography.Text type="secondary">—</Typography.Text>
+              ) : (
+                <span className="num">{formatCurrency(value)}</span>
+              ),
           },
           {
             title: <Tooltip title="Costo histórico por unidad multiplicado por la cantidad">Costo total</Tooltip>,
             align: "right",
             render: (_: unknown, m: StockMovement) =>
-              m.costo_unitario === null ? "—" : formatCurrency(m.costo_unitario * m.cantidad),
+              m.costo_unitario === null ? (
+                <Typography.Text type="secondary">—</Typography.Text>
+              ) : (
+                <span className="num">{formatCurrency(m.costo_unitario * m.cantidad)}</span>
+              ),
           },
           {
             title: (
@@ -374,7 +385,12 @@ export default function MovementsPage() {
             align: "right",
             sorter: true,
             sortOrder: sortOrderFor("precio"),
-            render: (value: number | null) => (value === null ? "—" : formatCurrency(value)),
+            render: (value: number | null) =>
+              value === null ? (
+                <Typography.Text type="secondary">—</Typography.Text>
+              ) : (
+                <span className="num">{formatCurrency(value)}</span>
+              ),
           },
         ] as NonNullable<TableProps<StockMovement>["columns"]>)
       : []),

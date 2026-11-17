@@ -12,6 +12,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
 import ConfirmAction from "@/components/ConfirmAction";
 import PageHeader from "@/components/PageHeader";
+import RelativeTime from "@/components/RelativeTime";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { ROLES, roleColor, roleLabel } from "@/utils/roles";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
@@ -177,7 +178,7 @@ export default function UsersPage() {
       dataIndex: "created_at",
       sorter: true,
       sortOrder: sortOrderFor("creado"),
-      render: (value: string) => dayjs(value).format("DD/MM/YYYY"),
+      render: (value: string) => <RelativeTime value={value} />,
     },
     {
       title: "Acciones",

@@ -45,27 +45,38 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>, actor
   const verCosto = canSeeCosts(actor.rol);
   const costoColumn = verCosto ? "p.costo" : "NULL AS costo";
 
-  // "costo" solo tiene sentido para roles que pueden verlo: en el resto se
-  // ignora y queda el orden por fecha de creación.
-  const sort = query.sort && (query.sort !== "costo" || verCosto) ? query.sort : undefined;
+  // "costo" y "margen" solo tienen sentido para roles que pueden verlos: en el
+  // resto se ignoran y queda el orden por fecha de creación.
+  const needsCost = query.sort === "costo" || query.sort === "margen";
+  const sort = query.sort && (!needsCost || verCosto) ? query.sort : undefined;
   const sortColumns = {
     sku: "p.sku",
     nombre: "p.nombre",
     precio: "p.precio",
     stock: "p.stock_actual",
     costo: "p.costo",
+    margen: "(p.precio - p.costo) / p.precio",
   } as const;
   const orderBy = sort
     ? `${sortColumns[sort]} ${query.order === "desc" ? "DESC" : "ASC"}, p.id ASC`
     : "p.id DESC";
 
-  const [[{ total, unidades, valor }]] = await pool.query<RowDataPacket[]>(
+  // Resumen del filtro completo (no solo de la página visible). El valor al
+  // costo permite mostrar el margen del stock sin exponer costos al operador.
+  const [summaryRows] = await pool.query<RowDataPacket[]>(
     `SELECT COUNT(*) AS total,
             COALESCE(SUM(p.stock_actual), 0) AS unidades,
-            COALESCE(SUM(p.precio * p.stock_actual), 0) AS valor
+            COALESCE(SUM(p.precio * p.stock_actual), 0) AS valor,
+            COALESCE(SUM(CASE WHEN p.stock_actual < p.stock_minimo THEN 1 ELSE 0 END), 0) AS bajos
+            ${verCosto ? ", COALESCE(SUM(p.costo * p.stock_actual), 0) AS valor_costo" : ""}
        FROM products p ${clause}`,
     params
   );
+  const summary = summaryRows[0];
+  const total = Number(summary.total);
+  const valor = Number(summary.valor);
+  const valorCosto = Number(summary.valor_costo ?? 0);
+  const margen = verCosto && valor > 0 ? ((valor - valorCosto) / valor) * 100 : null;
 
   const [data] = await pool.query<RowDataPacket[]>(
     `SELECT p.id, p.sku, p.nombre, p.category_id, c.nombre AS categoria,
@@ -83,7 +94,12 @@ export async function listProducts(query: z.infer<typeof listQuerySchema>, actor
     total,
     page: query.page,
     pageSize: query.pageSize,
-    summary: { unidades: Number(unidades), valor: Number(valor) },
+    summary: {
+      unidades: Number(summary.unidades),
+      valor,
+      bajos: Number(summary.bajos),
+      margen,
+    },
   };
 }
 

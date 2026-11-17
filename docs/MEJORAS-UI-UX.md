@@ -129,6 +129,22 @@ un cambio pequeño en el servidor.
 
 QA visual con capturas reales en 1440×900 y 390×844 sobre las 14 vistas principales: sin errores de runtime; se corrigieron el desborde de la tabla de Usuarios en móvil y las acciones fuera de pantalla en Productos y Transacciones.
 
+## 12. Moneda, margen y tiempo relativo
+
+Pase transversal sobre cómo se **escriben** y se **leen** los números y las fechas.
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| X1 | Alta | Formato de moneda único en `client/src/utils/format.ts` (`formatCurrency`, `formatCurrencyCompact`, `formatNumber`, `formatPercent`, `formatSignedCurrency`) y reutilizado por cotizaciones (`quoteUtils`), facturas (`InvoiceUtils`), finanzas (`FinanceUtils`), productos y movimientos. **Implementado**: antes cada módulo creaba su propio `Intl.NumberFormat`. |
+| X2 | Alta | Inputs de dinero con separador de miles y `$` mientras se escribe, devolviendo enteros a la API, mediante `currencyInputProps` (precio, costo, costo unitario, saldo inicial de cuenta, monto de transacción, meta de ingresos y montos planeados de presupuesto); `integerInputProps` para cantidades de stock. **Implementado**. |
+| X3 | Alta | Cálculo de margen en `client/src/utils/margin.ts`: margen sobre venta, markup sobre costo, utilidad por unidad y nivel (negativo, ajustado, razonable, alto). **Implementado** con pruebas de servidor del resumen y el orden. |
+| X4 | Alta | Formulario de producto con panel en vivo de utilidad, margen y markup, barra de avance, alerta de precio bajo el costo y aviso de margen menor a 10 %. **Implementado**. |
+| X5 | Media | Planificador “Calcular el precio” que sugiere el precio a partir de un **margen %** (`costo / (1 − margen)`) o un **markup %** (`costo × (1 + markup)`), con botón para aplicarlo. **Implementado**: deja explícita la diferencia, una de las causas más comunes de precios mal fijados. |
+| X6 | Media | Listado de productos con columnas Costo y Margen (solo roles con permiso), orden por margen en servidor, fila resaltada para stock bajo y cuatro tarjetas KPI: productos, unidades, valor del stock y stock bajo clicable como filtro. **Implementado** `[API]`: el resumen incluye `bajos` y `margen` del stock. |
+| X7 | Media | Tendencias de interfaz: radios 12/16, `controlHeight` 38, sombras suaves, tokens de tabla (encabezado compacto, hover tenue), cifras tabulares (`.num`), tarjetas KPI con acento y elevación al pasar el cursor, barra de desplazamiento discreta y respeto a `prefers-reduced-motion`. **Implementado** en `ThemeContext` e `index.css`. |
+| X8 | Media | Fechas relativas con reloj compartido: `hace 12 segundos`, `hace 5 minutos`, `hace 3 horas`, `ayer`, `hace 4 días` y fecha absoluta a partir de la semana; tooltip con la fecha exacta. **Implementado** con `useNow` + `RelativeTime` en Productos, Movimientos, Usuarios e Inicio. Las columnas `DATE` sin hora se muestran como fecha para no inventar un instante. |
+| X9 | Baja | Validaciones de entrada alineadas con la API: `stock_minimo` hasta 1.000.000, búsqueda hasta 100 caracteres, precio y costo hasta 9.999.999.999 y monto de transacción entero mayor que cero. **Implementado** en el cliente y en los esquemas Zod. |
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

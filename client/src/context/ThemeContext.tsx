@@ -62,7 +62,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           algorithm: mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
           token: {
             fontFamily: "'Plus Jakarta Sans Variable', system-ui, sans-serif",
-            borderRadius: 10,
+            borderRadius: 12,
+            borderRadiusLG: 16,
+            controlHeight: 38,
+            fontSize: 14,
+            wireframe: false,
             ...palette[mode],
           },
           components: {
@@ -72,7 +76,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
               darkItemSelectedBg: palette[mode].colorPrimary,
               darkItemSelectedColor: mode === "dark" ? "#052e2b" : "#fff",
             },
-            Card: { borderRadiusLG: 14 },
+            Card: {
+              borderRadiusLG: 16,
+              boxShadowTertiary:
+                mode === "dark"
+                  ? "0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.7)"
+                  : "0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -16px rgba(16, 24, 40, 0.18)",
+            },
+            Table: {
+              headerBg: mode === "dark" ? "#16231f" : "#f7fafa",
+              headerColor: mode === "dark" ? "#cfe7e2" : "#475569",
+              headerSplitColor: "transparent",
+              rowHoverBg: mode === "dark" ? "#132a26" : "#f2fbf9",
+              borderColor: mode === "dark" ? "#1e2f2b" : "#eef2f1",
+              cellPaddingBlock: 12,
+            },
+            Button: { fontWeight: 600 },
           },
         }}
       >

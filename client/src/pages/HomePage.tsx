@@ -24,6 +24,7 @@ import { STATUS_OPTIONS } from "@/pages/quotes/quoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import RelativeTime from "@/components/RelativeTime";
 
 const HOME_TOOLTIPS: Record<string, string> = {
   "Productos activos": "Productos disponibles para vender u operar. Abre el catálogo filtrado por activos.",
@@ -478,7 +479,7 @@ export default function HomePage() {
                 {
                   title: <AntTooltip title="Fecha del movimiento">Fecha</AntTooltip>,
                   dataIndex: "created_at",
-                  render: (v: string) => dayjs(v).format("DD/MM HH:mm"),
+                  render: (v: string) => <RelativeTime value={v} />,
                 },
                 { title: <AntTooltip title="Producto">Producto</AntTooltip>, dataIndex: "producto" },
                 {

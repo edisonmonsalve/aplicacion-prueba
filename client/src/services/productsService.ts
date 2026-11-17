@@ -10,7 +10,7 @@ export interface ProductsQuery {
   category_id?: number;
   activo?: "0" | "1";
   bajoStock?: "1";
-  sort?: "sku" | "nombre" | "precio" | "stock" | "costo";
+  sort?: "sku" | "nombre" | "precio" | "stock" | "costo" | "margen";
   order?: "asc" | "desc";
 }
 
@@ -19,6 +19,13 @@ export interface ProductsSummary {
   unidades: number;
   /** Valor del stock (precio × stock) de esos productos. */
   valor: number;
+  /** Productos por debajo del stock mínimo. */
+  bajos: number;
+  /**
+   * Margen del stock a precio de venta: (valor − valor al costo) / valor.
+   * `null` para roles que no ven costos.
+   */
+  margen: number | null;
 }
 
 export interface ProductsResponse extends Paginated<Product> {

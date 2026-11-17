@@ -7,7 +7,7 @@ const productBase = z.object({
   category_id: z.number().int().positive(),
   precio: z.number().positive().max(9_999_999_999), // RN-07
   costo: z.number().min(0).max(9_999_999_999).optional(),
-  stock_minimo: z.number().int().min(0).default(0),
+  stock_minimo: z.number().int().min(0).max(1_000_000).default(0),
 });
 
 export const createProductSchema = productBase;
@@ -16,7 +16,7 @@ export const updateProductSchema = productBase.partial();
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
-  q: z.string().trim().optional(),
+  q: z.string().trim().max(100).optional(),
   // Búsqueda por lote: "1,2,3". Permite hidratar líneas autocompletadas
   // (edición, cotización -> factura, reabastecimiento) sin paginar el catálogo.
   ids: z
@@ -29,7 +29,7 @@ export const listQuerySchema = z.object({
   bajoStock: z.enum(["1"]).optional(), // RF-11
   // Ordenamiento del listado: se aplica en el servidor para que funcione en
   // todas las páginas y no solo en la página visible.
-  sort: z.enum(["sku", "nombre", "precio", "stock", "costo"]).optional(),
+  sort: z.enum(["sku", "nombre", "precio", "stock", "costo", "margen"]).optional(),
   order: z.enum(["asc", "desc"]).optional(),
 });
 
