@@ -43,6 +43,7 @@ import { canWriteFinance } from "@/utils/roles";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
 import { getFinanceAccounts } from "@/services/financeService";
 import {
@@ -453,6 +454,8 @@ export default function ReconciliationsPage() {
           ) : undefined
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       {loading && rows.length === 0 ? (
         <TableSkeleton />

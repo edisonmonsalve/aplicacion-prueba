@@ -37,6 +37,7 @@ import { canWriteFinance } from "@/utils/roles";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
 import {
   createFiscalClosure,
@@ -452,6 +453,8 @@ export default function PeriodClosuresPage() {
           ) : undefined
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       <Tabs
         activeKey={tab}

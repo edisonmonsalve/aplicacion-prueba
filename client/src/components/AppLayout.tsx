@@ -19,25 +19,29 @@ import { useAuth } from "@/context/AuthContext";
 import { useEffect, useRef, useState } from "react";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import {
-  DashboardOutlined,
-  ShoppingOutlined,
-  SwapOutlined,
-  FileTextOutlined,
-  FileDoneOutlined,
+  BarChartOutlined,
   ContactsOutlined,
-  TeamOutlined,
-  ShopOutlined,
-  MoonOutlined,
-  SunOutlined,
+  DashboardOutlined,
+  FileDoneOutlined,
+  FileTextOutlined,
+  FundOutlined,
   KeyOutlined,
   LogoutOutlined,
   MenuOutlined,
+  MoonOutlined,
   SearchOutlined,
+  ShopOutlined,
+  ShoppingOutlined,
+  SlidersOutlined,
+  SunOutlined,
+  SwapOutlined,
+  TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
 import { CompanyProvider } from "@/context/CompanyContext";
 import { canAccessFinance } from "@/utils/roles";
+import usePointerGrid from "@/hooks/usePointerGrid";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppLogo from "@/components/AppLogo";
 import { roleLabel } from "@/utils/roles";
@@ -47,20 +51,22 @@ const { Sider, Header, Content } = Layout;
 // Módulo al que pertenece cada ruta. El orden importa: las rutas más
 // específicas (Finanzas → Presupuestos) deben evaluarse antes que su prefijo.
 const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
-  { prefix: "/finanzas/transacciones", key: "/finanzas/transacciones" },
-  { prefix: "/finanzas/presupuestos", key: "/finanzas/presupuestos" },
-  { prefix: "/finanzas/cartera", key: "/finanzas/cartera" },
-  { prefix: "/finanzas/conciliaciones", key: "/finanzas/conciliaciones" },
-  { prefix: "/finanzas/cierres", key: "/finanzas/cierres" },
+  // Finanzas se resume a 3 entradas; las pestañas contextuales de cada página
+  // navegan entre hojas y esta tabla solo resalta la sección activa del sider.
+  { prefix: "/finanzas/salud", key: "/finanzas" },
   { prefix: "/finanzas/resultados", key: "/finanzas/resultados" },
-  { prefix: "/finanzas/flujo-caja", key: "/finanzas/flujo-caja" },
-  { prefix: "/finanzas/balance", key: "/finanzas/balance" },
-  { prefix: "/finanzas/rentabilidad", key: "/finanzas/rentabilidad" },
-  { prefix: "/finanzas/inventario", key: "/finanzas/inventario" },
-  { prefix: "/finanzas/embudo", key: "/finanzas/embudo" },
-  { prefix: "/finanzas/tendencias", key: "/finanzas/tendencias" },
-  { prefix: "/finanzas/auditoria", key: "/finanzas/auditoria" },
-  { prefix: "/finanzas/salud", key: "/finanzas/salud" },
+  { prefix: "/finanzas/flujo-caja", key: "/finanzas/resultados" },
+  { prefix: "/finanzas/balance", key: "/finanzas/resultados" },
+  { prefix: "/finanzas/rentabilidad", key: "/finanzas/resultados" },
+  { prefix: "/finanzas/tendencias", key: "/finanzas/resultados" },
+  { prefix: "/finanzas/embudo", key: "/finanzas/resultados" },
+  { prefix: "/finanzas/inventario", key: "/finanzas/resultados" },
+  { prefix: "/finanzas/transacciones", key: "/finanzas/transacciones" },
+  { prefix: "/finanzas/presupuestos", key: "/finanzas/transacciones" },
+  { prefix: "/finanzas/conciliaciones", key: "/finanzas/transacciones" },
+  { prefix: "/finanzas/cierres", key: "/finanzas/transacciones" },
+  { prefix: "/finanzas/cartera", key: "/finanzas/transacciones" },
+  { prefix: "/finanzas/auditoria", key: "/finanzas/transacciones" },
   { prefix: "/finanzas", key: "/finanzas" },
   { prefix: "/cotizaciones", key: "/cotizaciones" },
   { prefix: "/facturas", key: "/facturas" },
@@ -93,24 +99,9 @@ const NAV_SEARCH: Record<string, string> = {
   "/facturas": "facturas facturación comprobantes",
   "/terceros": "terceros clientes proveedores",
   "group-02": "finanzas análisis reportes gestión módulo financiero",
-  "fin-panel": "panel resumen salud datos",
-  "fin-reportes": "reportes estados financieros análisis",
-  "fin-gestion": "gestión operación financiera",
-  "/finanzas": "resumen financiero finanzas dashboard",
-  "/finanzas/cartera": "cartera por cobrar recaudación",
-  "/finanzas/conciliaciones": "conciliación bancos cuentas",
-  "/finanzas/cierres": "cierres periodos contables",
-  "/finanzas/resultados": "resultados utilidades pérdidas estado",
-  "/finanzas/flujo-caja": "flujo de caja efectivo liquidez",
-  "/finanzas/balance": "balance activos pasivos patrimonio",
-  "/finanzas/rentabilidad": "rentabilidad margen utilidad",
-  "/finanzas/inventario": "rotación inventario stock productos",
-  "/finanzas/embudo": "embudo conversiones ventas",
-  "/finanzas/tendencias": "tendencias evolución gráficas",
-  "/finanzas/auditoria": "auditoría trazabilidad eventos",
-  "/finanzas/salud": "salud de datos calidad integridad",
-  "/finanzas/presupuestos": "presupuestos metas planificación",
-  "/finanzas/transacciones": "transacciones movimientos contables",
+  "/finanzas": "resumen financiero panel dashboard salud datos calidad integridad",
+  "/finanzas/resultados": "reportes resultados balance flujo caja rentabilidad tendencias embudo rotación estados financieros análisis",
+  "/finanzas/transacciones": "gestión operación transacciones presupuestos conciliación cierres cartera auditoría contable trazabilidad",
   "group-03": "sistema configuración usuarios perfil empresa",
   "/empresa": "empresa configuración compañía datos",
   "/users": "usuarios accesos permisos roles",
@@ -139,16 +130,6 @@ const filterNavItems = (nodes: NavItem[], term: string): NavItem[] => {
   });
 };
 
-const subItem = (key: string, label: string) => ({
-  key,
-  label: (
-    <span className="ui-nav-subitem">
-      <span className="ui-nav-pip" aria-hidden="true" />
-      {label}
-    </span>
-  ),
-});
-
 export default function AppLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -162,6 +143,9 @@ export default function AppLayout() {
   const [navQuery, setNavQuery] = useState("");
   const siderScrollRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  // Rejilla ambiental reactiva al puntero; el hook se inhibe con reduced-motion.
+  usePointerGrid();
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
@@ -240,42 +224,9 @@ export default function AppLayout() {
             key: "group-02",
             label: navLabel("02", "Finanzas"),
             children: [
-              {
-                type: "group" as const,
-                key: "fin-panel",
-                label: <span className="ui-nav-sublabel">Panel</span>,
-                children: [
-                  subItem("/finanzas", "Resumen"),
-                  subItem("/finanzas/salud", "Salud de datos"),
-                ],
-              },
-              {
-                type: "group" as const,
-                key: "fin-reportes",
-                label: <span className="ui-nav-sublabel">Reportes</span>,
-                children: [
-                  subItem("/finanzas/resultados", "Resultados"),
-                  subItem("/finanzas/balance", "Balance"),
-                  subItem("/finanzas/flujo-caja", "Flujo de caja"),
-                  subItem("/finanzas/rentabilidad", "Rentabilidad"),
-                  subItem("/finanzas/tendencias", "Tendencias"),
-                  subItem("/finanzas/embudo", "Embudo"),
-                  subItem("/finanzas/inventario", "Rotación"),
-                ],
-              },
-              {
-                type: "group" as const,
-                key: "fin-gestion",
-                label: <span className="ui-nav-sublabel">Gestión</span>,
-                children: [
-                  subItem("/finanzas/transacciones", "Transacciones"),
-                  subItem("/finanzas/presupuestos", "Presupuestos"),
-                  subItem("/finanzas/conciliaciones", "Conciliación"),
-                  subItem("/finanzas/cierres", "Cierres"),
-                  subItem("/finanzas/cartera", "Cartera"),
-                  subItem("/finanzas/auditoria", "Auditoría"),
-                ],
-              },
+              { key: "/finanzas", icon: <FundOutlined />, label: "Resumen" },
+              { key: "/finanzas/resultados", icon: <BarChartOutlined />, label: "Reportes" },
+              { key: "/finanzas/transacciones", icon: <SlidersOutlined />, label: "Gestión" },
             ],
           },
         ]
@@ -299,7 +250,8 @@ export default function AppLayout() {
   const filteredItems = filterNavItems((items ?? []) as NavItem[], navQuery);
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout className="ui-app-shell" style={{ minHeight: "100vh" }}>
+      <div className="ui-ambient-layer" aria-hidden="true" />
       <a className="ui-skip-link" href="#main-content">
         Saltar al contenido
       </a>
@@ -375,7 +327,8 @@ export default function AppLayout() {
             selectedKeys={[selected]}
             items={filteredItems}
             aria-label="Navegación principal"
-            // Finanzas ya no es un submenú: los grupos están siempre visibles.
+            // Finanzas son tres hojas planas; la navegación entre hojas vive
+            // en las pestañas contextuales del contenido.
             motion={{ motionName: "" }}
             inlineIndent={16}
             onClick={({ key }) => {
@@ -481,6 +434,7 @@ export default function AppLayout() {
 
         <Content
           id="main-content"
+          className="ui-app-content"
           tabIndex={-1}
           style={{ margin: isMobile ? 12 : 24, minWidth: 0, outline: "none" }}
         >

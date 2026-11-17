@@ -306,7 +306,7 @@ de datos de ningún reporte. Se ejecutó en este orden: A3 + B1 + B2 + B5 → A2
 |---|---|---|---|
 | A3 | **Menú aplanado** | Medio | Desaparece el nivel «Módulo financiero» (4 → 3 niveles) y su contador `15`. Los tres grupos (Panel / Reportes / Gestión) cuelgan directamente de «Finanzas». Se eliminan `openKeys`, `collectBranchKeys`, el icono `DollarOutlined`, el CSS del submenú y sus sinónimos de búsqueda. |
 | A2 | **Categorías dentro de Productos** | Medio | Nuevo `CategoriesPanel` compartido. `ProductsPage` gana pestañas Productos/Categorías con el estado en la URL (`?view=categorias`) y recarga sus categorías al crear/editar/eliminar. `/categories` sigue enlazable como wrapper delgado (`CategoriesPage`) y sale del menú para evitar duplicidad. |
-| A1 | **Reportes con pestañas (puente)** | Alto | `FinanceReportsTabs` se monta tras el `PageHeader` de las 7 páginas de reportes y navega a las rutas existentes. No monta los 7 informes en una sola pantalla ni toca filtros, exportaciones ni permisos: se eligió esta variante sobre la conversión real por su riesgo bajo. |
+| A1 | **Reportes con pestañas (puente)** | Alto | `FinanceSectionTabs` (entonces `FinanceReportsTabs`) se monta tras el `PageHeader` de las 7 páginas de reportes y navega a las rutas existentes. No monta los 7 informes en una sola pantalla ni toca filtros, exportaciones ni permisos: se eligió esta variante sobre la conversión real por su riesgo bajo. Generalizado a las 3 secciones en la tanda 24. |
 
 ### Sistema visual
 
@@ -316,12 +316,13 @@ de datos de ningún reporte. Se ejecutó en este orden: A3 + B1 + B2 + B5 → A2
 | B2 | **Tipografía** | Alto | Escala compartida `--ui-text-micro/body/kpi/display`; `body` usa `--ui-font` y `font-optical-sizing: auto`. Micro-label, títulos y KPIs dejan de tener tamaños sueltos. |
 | B5 | **Gráficos + reduced-motion** | Medio-alto | `styles/chartPalette.ts` unifica colores y tooltip; `hooks/useReducedMotion.ts` pasa `isAnimationActive={!reduced}` a barras, líneas y sectores de Recharts (antes ignoraban la preferencia). Gradientes suaves en los gráficos de Inicio y Tendencias. |
 
-Archivos nuevos: `CategoriesPanel.tsx`, `FinanceReportsTabs.tsx`, `useReducedMotion.ts` y
-`chartPalette.ts`. El estilo de las pestañas de reportes vive en `.ui-report-tabs`.
+Archivos nuevos: `CategoriesPanel.tsx`, `FinanceSectionTabs.tsx` (antes
+`FinanceReportsTabs`), `useReducedMotion.ts` y `chartPalette.ts`. El estilo de
+las pestañas de Finanzas vive en `.ui-finance-tabs`.
 
 Verificación: `client npm run build` (✓ 3637 módulos) y `client npm run lint` (0 errores;
 los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
-sin errores de whitespace. Sin commit ni push hasta la aprobación explícita.
+sin errores de whitespace. Commit: `2b28c52`.
 
 ## 23. Tanda Signal: KPIs con cuerpo y tablas data-terminal
 
@@ -332,7 +333,7 @@ pantalla ni el sider se tocan.
 | # | Mejora | Impacto | Detalle |
 |---|---|---|---|
 | B3 | **Tarjetas / KPIs** | Medio-alto | Lavado de acento en reposo (radial del 7 % en la esquina de la cifra) y highlight interior con `--ui-inset`. Estado `:active` que hunde 1 px al pulsar, foco reforzado con doble anillo y prop `sparkline` opcional que solo reserva espacio si se aporta una serie. |
-| B4 | **Tablas data-terminal** | Medio | Numéricos monoespaciados vía `.num` y celdas alineadas a la derecha; cabecera con fondo opaco; banding del 2,5 %; rail semántico en la primera celda de `.row-low-stock`; `focus-within` por fila con `outline` para no pisar el rail. Efectos desactivados en impresión. |
+| B4 | **Tablas data-terminal** | Medio | Numéricos monoespaciados vía `.num` y celdas alineadas a la derecha; cabecera con fondo opaco; rail semántico en la primera celda de `.row-low-stock`; `focus-within` por fila con `outline` para no pisar el rail. Efectos desactivados en impresión. El banding inicial del 2,5 % se retiró en la tanda 24: solo conservan color las filas con estado. |
 
 Nota: AntD 6 no expone clases de color por tag en CSS, así que el rail no intenta
 adivinar el color del tag: se apoya en la clase semántica que ya existe
@@ -342,6 +343,40 @@ Verificación: `client npm run build` (✓ 3637 módulos) y `client npm run lint
 los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
 sin errores de whitespace. Commit aprobado: `feat(ui): dar cuerpo a los KPIs y pulir
 tablas data-terminal`. Sin PR.
+
+## 24. Tanda Signal: consola de Finanzas y atmósfera reactiva
+
+Cuarta tanda, ejecutada sobre `96f6054`. Objetivo: simplificar el menú, no
+recargarlo, y que el fondo se sienta vivo sin partículas ni shaders. Sin nuevas
+dependencias. El rail de grupo y las cabeceras fijas se probaron y se retiraron
+dentro de la propia tanda: añadían señales donde ya existían la barra del item
+activo y las pestañas contextuales. A4 (una sola entrada de Reportes) quedó como
+estado intermedio y se sustituyó por F1: Finanzas es una consola de 3 secciones
+con la navegación dentro del contenido.
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| F1 | **Consola de Finanzas por secciones** | Alto | Medio | Finanzas pasa de 9 entradas a 3 hojas planas e iconadas: **Resumen**, **Reportes** y **Gestión**. Las 13 rutas se mapean a esas 3 claves en `MODULE_ROUTES` y `NAV_SEARCH` se reduce a 3 entradas con sinónimos. `FinanceSectionTabs` sustituye a `FinanceReportsTabs` y se monta en las 15 páginas: 7 de reportes, 6 de gestión y 2 de resumen. Conserva la `search` al cambiar de pestaña para no perder periodo ni filtros. «Salud de datos» deja de ser hoja del sider y entra como pestaña de Resumen. |
+| V1 | **Grid reactivo al puntero** | Alto | Bajo-medio | `.ui-ambient-layer` concentra dos rejillas y una viñeta; la fina lleva una máscara radial en `--ui-pointer-x/y`. `usePointerGrid` actualiza las coordenadas a lo sumo una vez por frame, ignora punteros táctiles y no escribe nada con `prefers-reduced-motion`. Sin JS, la máscara conserva una posición estática. |
+| V2 | **Marcos HUD en gráficos** | Medio | Bajo | `.ui-chart-card` y `.ui-deep-surface` ganan dos escuadras en `::after`. Se descartó el `clip-path` en índices y en el atajo `/`: no aportaba y, llevado a tarjetas, recortaría la sombra de profundidad de la tanda anterior. |
+| V3 | **Rejilla por capas + viñeta** | Medio | Bajo | Celda ancha de 56 px enmascarada hacia el centro, celda fina de 28 px para el foco y viñeta del 5 % de la tinta. Colores ≤ 5 % en ambos temas; la capa desaparece en impresión. |
+| B6 | **Tablas sin cebrado** | Medio | Bajo | Corrección sobre B4: se elimina `:nth-child(even)` y su excepción de impresión. Las filas normales comparten fondo; el color queda reservado a estados reales (`.row-low-stock`, `.pnl-subtotal` / `.pnl-section`), al hover de AntD y al `focus-within`. El cebrado además tapaba el fondo de los subtotales en filas pares. El export `reportExport.ts` mantiene su estilo y no se toca. |
+
+Nota: `M1` (rail de grupo, cabeceras `sticky` y tinte del índice activo) y la
+esquina recortada de los índices se implementaron y se retiraron tras la revisión
+visual. Tampoco queda rastro de `ui-nav-sublabel`, `ui-nav-pip`, `subItem` ni de
+`FinanceReportsTabs.tsx`: F1 los sustituyó por hojas iconadas y pestañas
+contextuales. El cebrado de `reportExport.ts` sigue fuera del alcance de B6.
+
+Archivos: `usePointerGrid.ts` y `FinanceSectionTabs.tsx` (nuevos),
+`FinanceReportsTabs.tsx` (eliminado), `AppLayout.tsx`, `index.css`, `tokens.css`,
+15 páginas de Finanzas y estos dos documentos. El shell queda en
+`position: relative` y el contenido en `z-index: 1` para que la atmósfera nunca
+se cruce con el texto.
+
+Verificación: `client npm run build` (✓ 3638 módulos) y `client npm run lint` (0 errores;
+los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
+sin errores de whitespace. Sin commit ni push hasta la aprobación explícita.
 
 ## Ruta sugerida
 

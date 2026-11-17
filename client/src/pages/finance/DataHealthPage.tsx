@@ -19,6 +19,7 @@ import { getDataHealth } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { DataHealthCheck, DataHealthReport } from "@/types";
 
@@ -102,6 +103,8 @@ export default function DataHealthPage() {
           </Button>
         }
       />
+
+      <FinanceSectionTabs section="resumen" />
 
       {loading && !report ? (
         <TableSkeleton />

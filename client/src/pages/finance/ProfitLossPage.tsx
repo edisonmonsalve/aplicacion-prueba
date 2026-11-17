@@ -15,7 +15,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
-import FinanceReportsTabs from "@/components/FinanceReportsTabs";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -240,7 +240,7 @@ export default function ProfitLossPage() {
         description="Resultado por devengo: incluye ventas a crédito y excluye cobros de cartera, que solo mueven caja. Comparado con el periodo anterior de igual duración."
       />
 
-      <FinanceReportsTabs />
+      <FinanceSectionTabs section="reportes" />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker

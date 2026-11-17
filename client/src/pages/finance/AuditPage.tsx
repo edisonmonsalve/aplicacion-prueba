@@ -18,6 +18,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -147,6 +148,8 @@ export default function AuditPage() {
         title="Auditoría"
         description="Bitácora de solo lectura del módulo financiero: quién cambió qué, cuándo y con qué valores antes y después. No permite editar ni borrar registros."
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       {report && report.resumen_por_entidad.length > 0 && (
         <Space wrap style={{ marginBottom: 16 }}>

@@ -92,8 +92,73 @@ html.theme-switching *::after {
   background-image:
     linear-gradient(to right, var(--ui-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--ui-grid-line) 1px, transparent 1px);
-  background-size: 28px 28px;
+  background-size: var(--ui-grid-cell) var(--ui-grid-cell);
   background-position: -1px -1px;
+}
+
+/* Capa ambiental única, detrás del shell. Dos rejillas (ancha y fina) más una
+   viñeta de ≤ 5 %: dan textura sin volverse contenido. El foco del puntero lo
+   escribe usePointerGrid; sin JS se queda en 50% / 18%. */
+.ui-ambient-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(
+    130% 95% at 50% 5%,
+    transparent 46%,
+    color-mix(in srgb, var(--ui-ink) 5%, transparent) 100%
+  );
+}
+
+/* Rejilla ancha, enmascarada hacia el centro para que no compita con la lectura. */
+.ui-ambient-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--ui-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--ui-grid-line) 1px, transparent 1px);
+  background-size: var(--ui-grid-cell-wide) var(--ui-grid-cell-wide);
+  background-position: -1px -1px;
+  opacity: 0.55;
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 78%);
+}
+
+/* Rejilla fina que "despierta" alrededor del cursor. En reduced-motion se
+   apaga y queda únicamente la capa estática anterior. */
+.ui-ambient-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--ui-brand) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--ui-brand) 4%, transparent) 1px, transparent 1px);
+  background-size: var(--ui-grid-cell) var(--ui-grid-cell);
+  background-position: -1px -1px;
+  -webkit-mask-image: radial-gradient(
+    circle var(--ui-grid-focus) at var(--ui-pointer-x, 50%) var(--ui-pointer-y, 18%),
+    #000 0%,
+    transparent 72%
+  );
+  mask-image: radial-gradient(
+    circle var(--ui-grid-focus) at var(--ui-pointer-x, 50%) var(--ui-pointer-y, 18%),
+    #000 0%,
+    transparent 72%
+  );
+}
+
+/* El shell se pinta por encima de la atmósfera; el contenido, por encima del
+   propio shell, para que la rejilla nunca se cruce con el texto. */
+.ui-app-shell {
+  position: relative;
+}
+
+.ui-app-content {
+  position: relative;
+  z-index: 1;
 }
 
 /* Profundidad para superficies de datos (gráficos, paneles). Capa estática:
@@ -114,6 +179,23 @@ html.theme-switching *::after {
   pointer-events: none;
   background: radial-gradient(120% 80% at 12% -20%, var(--ui-brand-soft), transparent 60%);
   opacity: 0.7;
+}
+
+/* Marco HUD: dos escuadras opuestas sobre la superficie. Se dibuja con ::after
+   en vez de clip-path para no recortar la sombra de profundidad de B1. */
+.ui-deep-surface::after,
+.ui-chart-card::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: calc(var(--ui-radius-lg) - 7px);
+  pointer-events: none;
+  background:
+    linear-gradient(var(--ui-brand), var(--ui-brand)) right top / 14px 1px no-repeat,
+    linear-gradient(var(--ui-brand), var(--ui-brand)) right top / 1px 14px no-repeat,
+    linear-gradient(var(--ui-brand), var(--ui-brand)) left bottom / 14px 1px no-repeat,
+    linear-gradient(var(--ui-brand), var(--ui-brand)) left bottom / 1px 14px no-repeat;
+  opacity: 0.28;
 }
 
 /* Punto de estado con halo: solo para estados activos. */
@@ -829,38 +911,8 @@ html[data-theme="dark"] .row-low-stock > td {
   font-size: 11px;
 }
 
-/* Jerarquía dentro de Finanzas: sub-etiqueta de grupo + pip de sección. */
-.ui-nav-sublabel {
-  color: rgba(255, 255, 255, 0.38);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.ui-nav-subitem {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ui-nav-pip {
-  flex: 0 0 auto;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.35;
-}
-
-.ui-app-sider .ant-menu-item-selected .ui-nav-pip {
-  background: var(--ui-sider-accent, var(--ui-brand));
-  box-shadow: 0 0 6px -1px var(--ui-sider-accent, var(--ui-brand));
-  opacity: 1;
-}
-
-/* Densidad regular: los rótulos de grupo no se comen el espacio. Finanzas ya
-   no es un submenú; sus tres grupos cuelgan directamente del menú raíz. */
+/* Densidad regular: los rótulos de grupo no se comen el espacio. Finanzas son
+   tres hojas planas; ya no hay subgrupos ni rótulos de sección en el sider. */
 .ui-app-sider .ant-menu-item-group-title {
   padding: 8px 20px 4px !important;
   margin-top: 6px;
@@ -1074,22 +1126,23 @@ html[data-theme="dark"] .row-low-stock > td {
   letter-spacing: -0.035em !important;
 }
 
-/* Puente de Reportes: pestañas que navegan entre los 7 informes del módulo
-   financiero. Misma voz que el resto del sistema: micro-label, filo tenue y
-   acento de marca en la pestaña activa. Sin movimiento nuevo. */
-.ui-report-tabs.ant-tabs {
+/* Pestañas contextuales de Finanzas: navegan entre las hojas de cada sección
+   (Resumen, Reportes y Gestión) conservando la query de periodo y filtros.
+   Misma voz que el resto del sistema: micro-label, filo tenue y acento de
+   marca en la pestaña activa. Sin movimiento nuevo. */
+.ui-finance-tabs.ant-tabs {
   margin-bottom: 16px;
 }
 
-.ui-report-tabs .ant-tabs-nav {
+.ui-finance-tabs .ant-tabs-nav {
   margin-bottom: 0;
 }
 
-.ui-report-tabs .ant-tabs-nav::before {
+.ui-finance-tabs .ant-tabs-nav::before {
   border-bottom-color: var(--ui-line);
 }
 
-.ui-report-tabs .ant-tabs-tab {
+.ui-finance-tabs .ant-tabs-tab {
   padding: 8px 6px;
   font-size: var(--ui-text-micro);
   font-weight: 700;
@@ -1097,18 +1150,18 @@ html[data-theme="dark"] .row-low-stock > td {
   text-transform: uppercase;
 }
 
-.ui-report-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+.ui-finance-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
   color: var(--ui-brand-strong);
 }
 
-.ui-report-tabs .ant-tabs-ink-bar {
+.ui-finance-tabs .ant-tabs-ink-bar {
   height: 2px;
   border-radius: 2px 2px 0 0;
 }
 
-/* Tablas data-terminal: cabecera legible, banding casi invisible y foco
-   visible. La cabecera ya es sticky donde AntD declara `sticky`; aquí solo se
-   refuerza el fondo para que el contenido no se lea a través al desplazarse. */
+/* Tablas data-terminal: cabecera legible, fondo uniforme y foco visible. La
+   cabecera ya es sticky donde AntD declara `sticky`; aquí solo se refuerza el
+   fondo para que el contenido no se lea a través al desplazarse. */
 .ant-table-thead > tr > th {
   background: var(--ui-surface-2) !important;
   font-size: var(--ui-text-micro) !important;
@@ -1116,11 +1169,6 @@ html[data-theme="dark"] .row-low-stock > td {
   letter-spacing: 0.1em !important;
   text-transform: uppercase;
   color: var(--ui-ink-2) !important;
-}
-
-/* Banding de 2,5 %: guía la vista sin competir con el hover de AntD. */
-.ant-table-tbody > tr:nth-child(even) > td {
-  background-color: color-mix(in srgb, var(--ui-ink) 2.5%, transparent);
 }
 
 /* Rail semántico en la primera celda: el color lo aporta cada fila con clase
@@ -1190,12 +1238,22 @@ html[data-theme="dark"] * {
   .ui-app-sider .ant-menu-item:hover .ant-menu-item-icon {
     transform: none;
   }
+
+  /* La rejilla reactiva se apaga; queda la atmósfera estática. */
+  .ui-ambient-layer::after {
+    opacity: 0;
+  }
 }
 
 @media print {
   @page {
     size: A4;
     margin: 16mm 14mm;
+  }
+
+  /* La atmósfera es decoración de pantalla: no se imprime. */
+  .ui-ambient-layer {
+    display: none;
   }
 
   .print-area {
@@ -1228,10 +1286,7 @@ html[data-theme="dark"] * {
   .ant-table {
     font-size: 11px;
   }
-  /* El banding, el rail y el foco son señales de pantalla, no de papel. */
-  .ant-table-tbody > tr:nth-child(even) > td {
-    background-color: transparent;
-  }
+  /* El rail y el foco son señales de pantalla, no de papel. */
   .row-low-stock > td:first-child {
     box-shadow: none;
   }

@@ -11,6 +11,7 @@ import { canWriteFinance } from "@/utils/roles";
 import type { BudgetEstado, BudgetListItem, BudgetPeriodo, BudgetSortKey } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
@@ -231,6 +232,8 @@ export default function BudgetsPage() {
           )
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
         <FilterField label="Buscar" width={240}>

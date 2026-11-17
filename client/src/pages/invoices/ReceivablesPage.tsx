@@ -29,6 +29,7 @@ import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useAuth } from "@/context/AuthContext";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -304,6 +305,8 @@ export default function ReceivablesPage() {
           </Space>
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>

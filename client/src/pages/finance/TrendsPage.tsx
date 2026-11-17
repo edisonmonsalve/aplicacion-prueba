@@ -21,7 +21,7 @@ import useReducedMotion from "@/hooks/useReducedMotion";
 import { CHART } from "@/styles/chartPalette";
 import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
-import FinanceReportsTabs from "@/components/FinanceReportsTabs";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -233,7 +233,7 @@ export default function TrendsPage() {
         description="Evolución mensual del resultado (devengo) y de la caja real, con comparación contra el periodo anterior de igual duración y el mismo rango del año anterior."
       />
 
-      <FinanceReportsTabs />
+      <FinanceSectionTabs section="reportes" />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker

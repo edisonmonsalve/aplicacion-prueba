@@ -18,7 +18,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
-import FinanceReportsTabs from "@/components/FinanceReportsTabs";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -198,7 +198,7 @@ export default function InventoryAnalyticsPage() {
         description="Rotación, días de inventario, stock muerto y clasificación ABC. La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo."
       />
 
-      <FinanceReportsTabs />
+      <FinanceSectionTabs section="reportes" />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker

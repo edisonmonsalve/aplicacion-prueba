@@ -10,6 +10,7 @@ import { fmtPct, money } from "./FinanceUtils";
 import type { FinanceAccount, FinanceCategoryTipo, FinanceSummary, Suggestion } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import StatCard from "@/components/StatCard";
 import AnimatedNumber from "@/components/AnimatedNumber";
@@ -168,6 +169,8 @@ export default function FinanceOverviewPage() {
         title="Resumen financiero"
         description="Consulta ingresos, egresos, utilidad y capital por día, semana, mes o año, con comparación contra el periodo anterior."
       />
+
+      <FinanceSectionTabs section="resumen" />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker

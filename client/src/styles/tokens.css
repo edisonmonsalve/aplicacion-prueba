@@ -13,6 +13,12 @@
   --ui-line: #e6e9e5;
   --ui-grid-line: rgba(22, 32, 30, 0.045);
 
+  /* Rejilla ambiental: celda fina, celda ancha y radio del foco del puntero.
+     El color sigue siendo --ui-grid-line (≤ 5 % en ambos temas). */
+  --ui-grid-cell: 28px;
+  --ui-grid-cell-wide: 56px;
+  --ui-grid-focus: 320px;
+
   /* Señales. Cada tono tiene una versión `ink`, más oscura, para cifras:
      el acento ilumina shapes y el ink garantiza contraste AA sobre superficie. */
   --ui-brand: #0d9488;

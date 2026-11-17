@@ -79,15 +79,20 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 
 ## 4. Formas y shapes
 
-- Radio general 14–16 px; esquinas recortadas (`clip-path`) solo en chips y píxeles de acento.
+- Radio general 14–16 px; la forma la dan el radio y las escuadras de los KPIs,
+  sin `clip-path` en índices ni chips.
 - KPI con **barra superior degradada** y **escuadra** en la esquina superior derecha.
 - `status pip`: punto de 6 px con halo suave para estados activos.
 - Barras de progreso **segmentadas** (estilo barra de vida) en metas y cartera.
-- Cuadrícula de fondo de 28 px en el sidebar y en el bloque de bienvenida.
-- Sider: índice de sección monoespaciado y barra vertical de 3 px en el item activo.
+- Rejilla de 28 px en el sidebar y atmósfera por capas en el contenido: celda
+  ancha de 56 px enmascarada hacia el centro, celda fina de 28 px con foco
+  radial y viñeta del 5 %. Ninguna capa pasa del 5 % de opacidad.
+- Sider: índice monoespaciado y barra de 3 px en el item activo; sin rail de
+  grupo ni cabeceras fijas. Finanzas son 3 hojas iconadas (Resumen, Reportes y
+  Gestión); cada sección se navega con pestañas dentro de la página.
 - Profundidad de datos: `--ui-shadow-deep` + `--ui-inset` (doble sombra y filo
-  interior claro) en `.ui-deep-surface` y `.ui-chart-card`, con un halo radial
-  de marca estático en `::before`. No es contenido ni añade movimiento.
+  interior claro) en `.ui-deep-surface` y `.ui-chart-card`, con halo radial en
+  `::before` y dos escuadras HUD en `::after`. No es contenido ni añade movimiento.
 
 ## 5. Movimiento
 
@@ -104,30 +109,34 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 | Entrada de ruta | 380 ms | fundido + 6 px, sin `scale` |
 | Gráficos Recharts | 850 ms → 0 | `isAnimationActive={!reduced}` con `useReducedMotion` |
 
-La sensación de "vivo" se consigue con cuatro capas discretas: halos ambientales
-que respiran, KPIs que entran en cascada, cifras que cuentan al cambiar de
-periodo y un `status pip` que late. El sider se mantuvo quieto a propósito: su
-antiguo barrido y el `scale` de entrada de ruta se percibían como un crecimiento
-durante el scroll. Ninguna capa usa más del 10 % de opacidad ni interrumpe la
-lectura.
+La sensación de "vivo" se consigue con cinco capas discretas: halos ambientales
+que respiran, rejilla por capas con foco en el puntero, KPIs que entran en
+cascada, cifras que cuentan al cambiar de periodo y un `status pip` que late.
+El sider se mantuvo quieto a propósito: su antiguo barrido y el `scale` de
+entrada de ruta se percibían como un crecimiento durante el scroll. El rail y
+las cabeceras fijas se descartaron por redundantes. Ninguna capa pasa del 10 %
+de opacidad ni interrumpe la lectura.
 
 `prefers-reduced-motion: reduce` anula **todas** las animaciones y transformaciones;
 `AnimatedNumber` muestra el valor final directamente. Recharts anima por SVG/JS, así
 que la regla CSS no bastaba: `useReducedMotion` refleja la preferencia en React y
 pasa `isAnimationActive={!reduced}` a cada Bar/Line/Pie de Inicio y Tendencias.
+`usePointerGrid` deja de escribir coordenadas y `.ui-ambient-layer::after` se
+apaga, por lo que solo queda la rejilla estática.
 
 ## 6. Componentes
 
 | Componente | Cambio global |
 |---|---|
-| `AppLayout` | Sidebar con índices en chip monoespaciado, halo de marca, buscador (`/`, Escape, sinónimos y sin tildes), Finanzas aplanado en Panel / Reportes / Gestión (sin nivel intermedio ni contador) y Categorías integrado en Productos, barra de señal en el item activo, pip de subsección y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
+| `AppLayout` | Sidebar con índices monoespaciados, halo de marca y buscador (`/`, Escape, sinónimos y sin tildes); Finanzas reducido a 3 hojas iconadas (Resumen, Reportes y Gestión), sin subgrupos, contador ni pips, con las 13 rutas resaltando su sección. Categorías integrado en Productos, barra de señal en el item activo y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Capa ambiental detrás del shell; header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
+| `usePointerGrid` | Escribe `--ui-pointer-x/y` en `:root` con el puntero, a lo sumo una vez por frame. Ignora el tacto y se inhibe con `prefers-reduced-motion`; sin JS la rejilla conserva su posición estática. |
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. Breadcrumb único derivado de la ruta (`useRouteBreadcrumb`) con `breadcrumbLeaf` para el dato de la página; ya no hay breadcrumb global en el shell. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada, lavado de acento en reposo y highlight interior; `:active` hunde 1 px, foco con doble anillo y `sparkline` opcional sin espacio vacío. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
-| `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad y halo). |
-| `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, banding del 2,5 %, rail semántico en `.row-low-stock` y `focus-within` por fila con `outline`. Efectos fuera de la impresión. |
+| `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad, halo y marco HUD de dos escuadras). |
+| `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, fondo uniforme en filas normales y color solo para estados reales (`.row-low-stock`, subtotales de resultados); `focus-within` por fila con `outline`. Efectos fuera de la impresión. |
 | Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |
-| `FinanceReportsTabs` | Pestañas de Reportes bajo el `PageHeader` de las 7 páginas; navegan a las rutas existentes. Estilo en `.ui-report-tabs`: micro-label, filo tenue y acento de marca en la activa. |
+| `FinanceSectionTabs` | Pestañas contextuales bajo el `PageHeader` de las 15 páginas de Finanzas: Resumen (2 hojas), Reportes (7) y Gestión (6). Navegan a rutas existentes conservando la query de periodo y filtros. Estilo en `.ui-finance-tabs`: micro-label, filo tenue y acento de marca en la activa. |
 | `CategoriesPanel` | Cuerpo compartido de Categorías, sin cabecera ni título propios; se usa en `/categories` y en la pestaña de `ProductsPage`. |
 
 ## 7. Accesibilidad

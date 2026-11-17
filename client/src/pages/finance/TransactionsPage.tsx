@@ -18,6 +18,7 @@ import type {
 } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import RelativeTime from "@/components/RelativeTime";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
@@ -344,6 +345,8 @@ export default function TransactionsPage() {
           </Space>
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       <Alert
         type="info"
