@@ -6,12 +6,13 @@ import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggest
 import { useAuth } from "@/context/AuthContext";
 import { canWriteFinance } from "@/utils/roles";
 import { getErrorMessage } from "@/utils/errors";
-import { money } from "./FinanceUtils";
+import { fmtPct, money } from "./FinanceUtils";
 import type { FinanceAccount, FinanceCategoryTipo, FinanceSummary, Suggestion } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import StatCard from "@/components/StatCard";
+import AnimatedNumber from "@/components/AnimatedNumber";
 import { useDateRange } from "@/hooks/useDateRange";
 import AccountFormModal from "./AccountFormModal";
 
@@ -230,25 +231,27 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="Ingresos que entran a caja o bancos en el periodo">Ingresos</Tooltip>}
-            value={money(s?.ingresos ?? 0)}
-            tone="success"
+            value={<AnimatedNumber value={s?.ingresos ?? 0} format={money} />}
+            tone="income"
             delta={<Variacion actual={s?.ingresos} anterior={previousSummary?.ingresos} />}
+            onClick={() => navigate(`/finanzas/transacciones?${reportQuery}`)}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             loading={loading}
             label={<Tooltip title="Salidas reales de caja o bancos: gastos de operación y compras de inventario. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>}
-            value={money(s?.egresos ?? 0)}
-            tone="danger"
+            value={<AnimatedNumber value={s?.egresos ?? 0} format={money} />}
+            tone="expense"
             delta={<Variacion actual={s?.egresos} anterior={previousSummary?.egresos} inverso />}
+            onClick={() => navigate(`/finanzas/transacciones?${reportQuery}`)}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             loading={loading}
             label={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>}
-            value={money(s?.capital_disponible ?? 0)}
+            value={<AnimatedNumber value={s?.capital_disponible ?? 0} format={money} />}
             tone="primary"
             hint="Acumulado a la fecha final"
           />
@@ -257,9 +260,10 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>}
-            value={money(s?.compras_inventario ?? 0)}
-            tone="warning"
+            value={<AnimatedNumber value={s?.compras_inventario ?? 0} format={money} />}
+            tone="outflow"
             delta={<Variacion actual={s?.compras_inventario} anterior={previousSummary?.compras_inventario} inverso />}
+            onClick={() => navigate(`/finanzas/inventario?${reportQuery}`)}
           />
         </Col>
       </Row>
@@ -275,17 +279,18 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>}
-            value={money(s?.utilidad ?? 0)}
-            tone={(s?.utilidad ?? 0) >= 0 ? "success" : "danger"}
+            value={<AnimatedNumber value={s?.utilidad ?? 0} format={money} />}
+            tone={(s?.utilidad ?? 0) >= 0 ? "income" : "expense"}
             delta={<Variacion actual={s?.utilidad} anterior={previousSummary?.utilidad} />}
+            onClick={() => navigate(`/finanzas/resultados?${reportQuery}`)}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             loading={loading}
             label={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>}
-            value={money(s?.costo_ventas ?? 0)}
-            tone="danger"
+            value={<AnimatedNumber value={s?.costo_ventas ?? 0} format={money} />}
+            tone="expense"
             delta={<Variacion actual={s?.costo_ventas} anterior={previousSummary?.costo_ventas} inverso />}
           />
         </Col>
@@ -293,7 +298,7 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="Ingresos menos costo de ventas">Margen bruto</Tooltip>}
-            value={money(s?.margen_bruto ?? 0)}
+            value={<AnimatedNumber value={s?.margen_bruto ?? 0} format={money} />}
             tone="primary"
             delta={<Variacion actual={s?.margen_bruto} anterior={previousSummary?.margen_bruto} />}
           />
@@ -302,7 +307,7 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>}
-            value={`${(s?.margen_bruto_pct ?? 0).toFixed(0)}%`}
+            value={<AnimatedNumber value={s?.margen_bruto_pct ?? 0} format={fmtPct} />}
             tone="info"
             hint="Sobre ingresos del periodo"
           />
@@ -320,7 +325,7 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="IVA generado en ventas (pasivo). No es dinero disponible.">IVA por pagar</Tooltip>}
-            value={money(s?.iva_por_pagar ?? 0)}
+            value={<AnimatedNumber value={s?.iva_por_pagar ?? 0} format={money} />}
             tone="primary"
           />
         </Col>
@@ -328,7 +333,7 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="IVA pagado en compras (activo). No es dinero disponible.">IVA descontable</Tooltip>}
-            value={money(s?.iva_descontable ?? 0)}
+            value={<AnimatedNumber value={s?.iva_descontable ?? 0} format={money} />}
             tone="info"
           />
         </Col>
@@ -336,8 +341,8 @@ export default function FinanceOverviewPage() {
           <StatCard
             loading={loading}
             label={<Tooltip title="IVA por pagar menos IVA descontable del periodo. Un valor negativo es saldo a favor.">IVA neto</Tooltip>}
-            value={money(s?.iva_neto ?? 0)}
-            tone={(s?.iva_neto ?? 0) > 0 ? "warning" : "success"}
+            value={<AnimatedNumber value={s?.iva_neto ?? 0} format={money} />}
+            tone={(s?.iva_neto ?? 0) > 0 ? "outflow" : "income"}
             hint={(s?.iva_neto ?? 0) < 0 ? "Saldo a favor" : "A cargo del periodo"}
           />
         </Col>

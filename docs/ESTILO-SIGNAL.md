@@ -29,13 +29,32 @@ El fondo es cálido y neutro (minimalismo cálido) y el color se reserva para lo
 | Tinta secundaria | `#5b6b67` | `#9db3ae` | Etiquetas, ayudas |
 | Línea | `#e6e9e5` | `#243631` | Bordes y divisores |
 | Marca (teal) | `#0d9488` | `#2dd4bf` | Primario, enfoque, activo |
-| Cítrico | `#f59e0b` | `#fbbf24` | Advertencia, stock bajo |
-| Coral | `#fb7185` | `#fb7185` | Error, negativo |
-| Eléctrico | `#38bdf8` | `#38bdf8` | Información |
+| Cítrico | `#f59e0b` | `#fbbf24` | Salida de caja, advertencia, stock bajo |
+| Coral | `#fb7185` | `#fb7185` | Egreso, error, negativo |
+| Eléctrico | `#38bdf8` | `#38bdf8` | Información, movimientos |
 | Violeta | `#a78bfa` | `#a78bfa` | Destacado / insight |
+
+Cada señal tiene un par `acento` + `ink`: el acento tiñe barras, iconos y glow;
+el `ink` (más oscuro en claro, más claro en oscuro) tiñe la **cifra** y cumple AA.
 
 > Nota: los hex sueltos quedan centralizados en `styles/tokens.css` y replicados en
 > `ConfigProvider` para que AntD y el CSS no se desincronicen.
+
+### Semántica de negocio en los KPI
+
+La cifra vuelve a ser la señal. No se usa un color genérico por "éxito/error",
+sino el significado contable de cada indicador:
+
+| Tono `StatCard` | Significado | Cifra |
+|---|---|---|
+| `income` | Ingreso, utilidad positiva, saldo a favor | verde |
+| `expense` | Egreso de caja, costo, utilidad negativa | coral |
+| `outflow` | Salida de caja que es activo (compras) o IVA a pagar | ámbar |
+| `primary` | Capital, saldo, magnitud neutral de marca | teal |
+| `info` | Movimientos, porcentajes, información | eléctrico |
+| `violet` | Valoración / insight | violeta |
+
+`success`, `warning` y `danger` se conservan como alias para pantallas antiguas.
 
 ## 3. Tipografía
 
@@ -62,9 +81,18 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 | Hover de tarjeta | 220 ms | `cubic-bezier(.2,.8,.2,1)` |
 | Hover de botón / fila | 140 ms | `ease-out` |
 | Entrada de skeleton | 180 ms | shimmer, una sola pasada |
+| Entrada escalonada de KPI | 420 ms + 60 ms por columna | `--ui-ease` |
+| Conteo de cifras | 620 ms | `ease-out` cúbico |
+| Atmósfera / pip / barra | 14–26 s, 2,6 s, 2,8 s | respiración, no distracción |
 | Cambio de tema | 0 ms | se desactivan transiciones (anti-parpadeo) |
 
-`prefers-reduced-motion: reduce` anula **todas** las animaciones y transformaciones.
+La sensación de "vivo" se consigue con cinco capas discretas: halos ambientales
+que respiran, KPIs que entran en cascada, cifras que cuentan al cambiar de
+periodo, un `status pip` que late y un barrido casi invisible en la cuadrícula
+del sidebar. Ninguna usa más del 10 % de opacidad ni interrumpe la lectura.
+
+`prefers-reduced-motion: reduce` anula **todas** las animaciones y transformaciones;
+`AnimatedNumber` muestra el valor final directamente.
 
 ## 6. Componentes
 
@@ -72,7 +100,8 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 |---|---|
 | `AppLayout` | Sidebar por secciones numeradas, indicador activo con glow, skip link, overlay móvil accesible, «system status» en el header. |
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. |
-| `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y cifra monoespaciada. |
+| `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada y glow del hover con el tono del KPI. |
+| `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
 | `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. |
 | `Table` (AntD) | Cabecera en micro-label; hover sutil. |
 | Recharts | Paleta de tokens, tooltips del tema, barras con degradado suave. |

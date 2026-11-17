@@ -181,6 +181,26 @@ HUD de videojuego domesticado para el ámbito empresarial. Estudio completo en
 | S6 | Media | **Gráficos**: paleta desde tokens, tooltips del tema y barras con degradado suave en Inicio. **Implementado.** |
 | S7 | Alta | **Accesibilidad y movimiento**: skip link, `:focus-visible` global, `aria-live` en carga y `prefers-reduced-motion` para toda la app. **Implementado.** Los KPIs migrados usan tokens; los hex sueltos que quedan en otros módulos (Tendencias, Cartera, Balance, etc.) se migran en la siguiente tanda. |
 
+## 16. Signal vivo: color semántico y ambiente animado
+
+Tras la primera tanda Signal los KPIs se veían monotónicos: el color había quedado
+reducido a un icono pequeño y una barra de 3 px, mientras la cifra era tinta neutra
+en todos los casos. Esta tanda devuelve la señal al dato y hace que el panel se
+sienta vivo sin perder sobriedad.
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| V1 | Alta | **Color semántico en la cifra**. `StatCard` incorpora tonos de negocio (`income`, `expense`, `outflow`, `violet`) y pinta el valor con una variante `ink` legible en claro y oscuro: ingreso verde, egreso coral, salida de caja ámbar, capital teal, valoración violeta. Inicio y Resumen financiero usan la semántica correcta en sus 20 KPIs. **Implementado.** |
+| V2 | Alta | **Ambiente que respira**: dos halos tenues en el lienzo (marca + violeta al 7 %) con un ciclo de 26 s, `status pip` con pulso de 2,6 s y barrado casi invisible en la cuadrícula del sidebar. **Implementado.** |
+| V3 | Alta | **Movimiento con propósito**: entrada escalonada de KPIs (60 ms por columna), entrada de cabecera y de página al cambiar de ruta, glow del hover con el color del tono y barras de gráficos con animación de 850 ms. **Implementado.** |
+| V4 | Media | **`AnimatedNumber`**: las cifras financieras cuentan hasta su valor al cargar o al cambiar de periodo (620 ms, `ease-out` cúbico). Respeta `prefers-reduced-motion` mostrando el valor final. **Implementado.** |
+| V5 | Media | **Stock bajo más legible**: la tabla de Inicio añade una mini-barra que hace perceptible la relación stock/mínimo junto al tag. **Implementado.** |
+| V6 | Media | **Header vivo**: el indicador «Sistema operativo» pasa a «En vivo · HH:mm» con hora local que se actualiza cada 30 s. **Implementado.** |
+| V7 | Media | **KPIs como atajos**: Ingresos y Egresos abren Transacciones, Compras abre Rotación de inventario y Utilidad abre Resultados, conservando el periodo de la URL. **Implementado.** |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

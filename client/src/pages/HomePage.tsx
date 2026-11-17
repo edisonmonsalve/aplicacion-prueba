@@ -19,13 +19,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { getDashboard } from "@/services/dashboardService";
 import { getErrorMessage } from "@/utils/errors";
-import { formatCurrency } from "@/utils/format";
+import { formatCurrency, formatNumber } from "@/utils/format";
 import { STATUS_OPTIONS } from "@/pages/quotes/quoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
 import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
+import AnimatedNumber from "@/components/AnimatedNumber";
 
 const HOME_TOOLTIPS: Record<string, string> = {
   "Productos activos": "Productos disponibles para vender u operar. Abre el catálogo filtrado por activos.",
@@ -110,7 +111,7 @@ export default function HomePage() {
     ? [
         {
           title: "Productos activos",
-          value: data.productosActivos,
+          value: <AnimatedNumber value={data.productosActivos} format={formatNumber} />,
           icon: <AppstoreOutlined />,
           tone: "primary" as const,
           to: "/products?activo=1",
@@ -118,7 +119,7 @@ export default function HomePage() {
         },
         {
           title: "Con stock bajo",
-          value: data.stockBajo,
+          value: <AnimatedNumber value={data.stockBajo} format={formatNumber} />,
           icon: <WarningOutlined />,
           tone: "warning" as const,
           to: "/products?bajoStock=1",
@@ -126,7 +127,7 @@ export default function HomePage() {
         },
         {
           title: "Movimientos hoy",
-          value: data.movimientosHoy,
+          value: <AnimatedNumber value={data.movimientosHoy} format={formatNumber} />,
           icon: <SwapOutlined />,
           tone: "info" as const,
           to: "/movements",
@@ -134,18 +135,18 @@ export default function HomePage() {
         },
         {
           title: "Valor del inventario",
-          value: formatCurrency(data.valorInventario),
+          value: <AnimatedNumber value={data.valorInventario} format={formatCurrency} />,
           icon: <DollarOutlined />,
-          tone: "success" as const,
+          tone: "violet" as const,
           to: "/products?activo=1",
           hint: "Abre el catálogo activo que compone este valor",
           sub: `Al costo: ${formatCurrency(data.valorInventarioCosto)}`,
         },
         {
           title: "Inventario al costo",
-          value: formatCurrency(data.valorInventarioCosto),
+          value: <AnimatedNumber value={data.valorInventarioCosto} format={formatCurrency} />,
           icon: <WalletOutlined />,
-          tone: "info" as const,
+          tone: "primary" as const,
           to: "/products?activo=1",
           hint: "Valor contable del inventario: costo × stock",
           sub:
@@ -260,36 +261,36 @@ export default function HomePage() {
                 <Col xs={24} sm={12} lg={6}>
                   <StatCard
                     label={<AntTooltip title="Ingresos de resultado del mes (incluye ventas a crédito)">Ingresos del mes</AntTooltip>}
-                    value={formatCurrency(fin.ingresos)}
+                    value={<AnimatedNumber value={fin.ingresos} format={formatCurrency} />}
                     icon={<DollarOutlined />}
-                    tone="success"
+                    tone="income"
                     delta={variacion(fin.variacion_ingresos_pct)}
                   />
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                   <StatCard
                     label={<AntTooltip title="Salidas reales de caja y bancos del mes">Egresos de caja</AntTooltip>}
-                    value={formatCurrency(fin.egresos)}
+                    value={<AnimatedNumber value={fin.egresos} format={formatCurrency} />}
                     icon={<SwapOutlined />}
-                    tone="danger"
+                    tone="expense"
                     delta={variacion(fin.variacion_egresos_pct)}
                   />
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                   <StatCard
                     label={<AntTooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad del mes</AntTooltip>}
-                    value={formatCurrency(fin.utilidad)}
+                    value={<AnimatedNumber value={fin.utilidad} format={formatCurrency} />}
                     icon={<RiseOutlined />}
-                    tone={fin.utilidad >= 0 ? "success" : "danger"}
+                    tone={fin.utilidad >= 0 ? "income" : "expense"}
                     delta={variacion(fin.variacion_utilidad_pct)}
                   />
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                   <StatCard
                     label={<AntTooltip title="IVA por pagar menos IVA descontable. Negativo = saldo a favor.">IVA neto</AntTooltip>}
-                    value={formatCurrency(fin.iva_neto)}
+                    value={<AnimatedNumber value={fin.iva_neto} format={formatCurrency} />}
                     icon={<PercentageOutlined />}
-                    tone={fin.iva_neto > 0 ? "warning" : "success"}
+                    tone={fin.iva_neto > 0 ? "outflow" : "income"}
                     hint={`Margen bruto ${fin.margen_bruto_pct.toFixed(0)}% · Capital ${formatCurrency(fin.capital_disponible)}`}
                   />
                 </Col>
@@ -324,8 +325,8 @@ export default function HomePage() {
                     <YAxis allowDecimals={false} stroke={token.colorTextSecondary} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: token.colorFillTertiary }} />
                     <Legend />
-                    <Bar dataKey="Entradas" fill="url(#signalIn)" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="Salidas" fill="url(#signalOut)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Entradas" fill="url(#signalIn)" radius={[6, 6, 0, 0]} animationDuration={850} />
+                    <Bar dataKey="Salidas" fill="url(#signalOut)" radius={[6, 6, 0, 0]} animationDuration={850} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -352,6 +353,7 @@ export default function HomePage() {
                         outerRadius={90}
                         paddingAngle={2}
                         stroke="none"
+                        animationDuration={850}
                       >
                         {estados.map((e) => (
                           <Cell key={e.name} fill={e.color} />
@@ -396,6 +398,7 @@ export default function HomePage() {
                         name="Unidades"
                         fill="url(#signalTop)"
                         radius={[0, 6, 6, 0]}
+                        animationDuration={850}
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -422,7 +425,18 @@ export default function HomePage() {
                     { title: <AntTooltip title="Nombre del producto">Producto</AntTooltip>, dataIndex: "nombre" },
                     {
                       title: <AntTooltip title="Stock actual y stock mínimo del producto">Stock / mínimo</AntTooltip>,
-                      render: (_, p) => <Tag color="red">{`${p.stock_actual} / ${p.stock_minimo}`}</Tag>,
+                      render: (_, p) => (
+                        <div className="ui-stock-cell">
+                          <Tag color="red">{`${p.stock_actual} / ${p.stock_minimo}`}</Tag>
+                          <span className="ui-mini-bar" aria-hidden="true">
+                            <span
+                              style={{
+                                width: `${Math.min(100, Math.max(4, (p.stock_actual / Math.max(p.stock_minimo, 1)) * 100))}%`,
+                              }}
+                            />
+                          </span>
+                        </div>
+                      ),
                     },
                     ...(canOperate
                       ? [

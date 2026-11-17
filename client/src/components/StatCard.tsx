@@ -1,16 +1,35 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Card, theme } from "antd";
+import { Card } from "antd";
 
-export type StatTone = "neutral" | "primary" | "info" | "success" | "warning" | "danger";
+/**
+ * Tonos semánticos. `income` / `expense` / `outflow` son alias explícitos de
+ * las señales de negocio (ingreso, egreso, salida) para que el significado se
+ * lea en el código y no dependa de un color genérico.
+ */
+export type StatTone =
+  | "neutral"
+  | "primary"
+  | "info"
+  | "success"
+  | "income"
+  | "warning"
+  | "outflow"
+  | "danger"
+  | "expense"
+  | "violet";
 
-const TONE_TOKEN = {
-  neutral: "colorTextSecondary",
-  primary: "colorPrimary",
-  info: "colorInfo",
-  success: "colorSuccess",
-  warning: "colorWarning",
-  danger: "colorError",
-} as const;
+const TONE_VARS: Record<StatTone, { accent: string; ink: string }> = {
+  neutral: { accent: "var(--ui-ink-2)", ink: "var(--ui-ink)" },
+  primary: { accent: "var(--ui-brand)", ink: "var(--ui-brand-strong)" },
+  info: { accent: "var(--ui-info)", ink: "var(--ui-info-ink)" },
+  success: { accent: "var(--ui-success)", ink: "var(--ui-success-ink)" },
+  income: { accent: "var(--ui-success)", ink: "var(--ui-success-ink)" },
+  warning: { accent: "var(--ui-warning)", ink: "var(--ui-warning-ink)" },
+  outflow: { accent: "var(--ui-warning)", ink: "var(--ui-warning-ink)" },
+  danger: { accent: "var(--ui-danger)", ink: "var(--ui-danger-ink)" },
+  expense: { accent: "var(--ui-danger)", ink: "var(--ui-danger-ink)" },
+  violet: { accent: "var(--ui-violet)", ink: "var(--ui-violet-ink)" },
+};
 
 interface Props {
   label: ReactNode;
@@ -32,9 +51,9 @@ interface Props {
 /**
  * Tarjeta de indicador Signal.
  *
- * Barra de acento y escuadra superior, micro-label, cifra en Space Grotesk y
- * zona de apoyo opcional. Usa tokens del tema (no colores fijos) para que el
- * modo claro y el oscuro mantengan el contraste. Con `onClick` es un atajo
+ * Barra de acento y escuadra superior, micro-label y cifra en Space Grotesk.
+ * El tono tiñe la cifra, el icono, la barra y el glow del hover: ingreso, egreso
+ * y salida vuelven a distinguirse de un vistazo. Con `onClick` es un atajo
  * accesible: foco por teclado, rol de botón y elevación al pasar el cursor.
  */
 export default function StatCard({
@@ -48,13 +67,12 @@ export default function StatCard({
   onClick,
   style,
 }: Props) {
-  const { token } = theme.useToken();
-  const accent = token[TONE_TOKEN[tone]];
-  const accentVar = { "--stat-accent": accent } as CSSProperties;
+  const { accent, ink } = TONE_VARS[tone];
+  const toneVars = { "--stat-accent": accent, "--stat-ink": ink } as CSSProperties;
 
   return (
     <Card
-      className={`stat-card ui-scan${loading ? " ui-scan-active" : ""}`}
+      className={`stat-card ui-stat${loading ? " ui-scan-active" : ""}`}
       loading={loading}
       hoverable={!!onClick}
       onClick={onClick}
@@ -71,12 +89,12 @@ export default function StatCard({
           : undefined
       }
       styles={{ body: { padding: "16px 18px" } }}
-      style={{ ...accentVar, height: "100%", ...style }}
+      style={{ ...toneVars, height: "100%", ...style }}
     >
       <div className="ui-stat__top">
         <span className="ui-eyebrow">{label}</span>
         {icon && (
-          <span className="ui-stat__icon" aria-hidden="true" style={{ color: accent }}>
+          <span className="ui-stat__icon" aria-hidden="true">
             {icon}
           </span>
         )}

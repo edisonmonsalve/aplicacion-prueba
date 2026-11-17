@@ -91,6 +91,7 @@ export default function AppLayout() {
   const [openKeys, setOpenKeys] = useState<string[]>(() =>
     pathname.startsWith("/finanzas") ? ["finanzas"] : []
   );
+  const [clock, setClock] = useState(() => new Date());
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
@@ -103,6 +104,12 @@ export default function AppLayout() {
     if (!pathname.startsWith("/finanzas")) return;
     setOpenKeys((prev) => (prev.includes("finanzas") ? prev : [...prev, "finanzas"]));
   }, [pathname]);
+
+  // El reloj del header refuerza que el panel está vivo sin recargar nada.
+  useEffect(() => {
+    const id = window.setInterval(() => setClock(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // El menú móvil se cierra también con Escape, además de al tocar el overlay.
   useEffect(() => {
@@ -270,10 +277,14 @@ export default function AppLayout() {
               />
             </Tooltip>
             {!isMobile && (
-              <div className="ui-status">
-                <span className="ui-signal" aria-hidden="true" />
-                <span className="ui-status__text">Sistema operativo</span>
-              </div>
+              <Tooltip title="Sistema operativo · hora local">
+                <div className="ui-status">
+                  <span className="ui-signal" aria-hidden="true" />
+                  <span className="ui-status__text">
+                    En vivo · {clock.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              </Tooltip>
             )}
           </Space>
 
@@ -333,7 +344,9 @@ export default function AppLayout() {
           <CompanyProvider>
             <RouteBreadcrumb pathname={pathname} />
             <ErrorBoundary key={pathname}>
-              <Outlet />
+              <div className="ui-page-enter" key={pathname}>
+                <Outlet />
+              </div>
             </ErrorBoundary>
             {contextHolder}
             {passwordOpen && (
