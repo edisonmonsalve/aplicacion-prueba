@@ -117,6 +117,14 @@ html.theme-switching *::after {
   flex: 0 0 auto;
 }
 
+.print-brand-image {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
 .print-brand-text {
   min-width: 0;
 }

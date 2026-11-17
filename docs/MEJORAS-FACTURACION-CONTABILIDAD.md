@@ -396,5 +396,9 @@ Todas las decisiones de la iteración anterior están cerradas:
 - **Numeración de cotizaciones:** el prefijo documental es `COT-` (antes `PRE-`). La migración
   V013 actualiza también los motivos históricos de movimientos de stock
   («Presupuesto PRE-n» → «Presupuesto COT-n»).
+- **Identidad del emisor:** la cabecera y el pie de cotizaciones y facturas leen los datos de
+  la empresa desde `company_settings` (migración V029) y se administran en **Empresa**. Ya no
+  hay que tocar `client/src/config/company.ts`; esos valores solo quedan como respaldo mientras
+  carga la configuración.
 
 ---

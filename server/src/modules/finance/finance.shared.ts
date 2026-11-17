@@ -48,7 +48,8 @@ export async function auditFinance(
     | "period_closure"
     | "invoice_adjustment"
     | "bank_reconciliation"
-    | "receivable_followup",
+    | "receivable_followup"
+    | "company_settings",
   entidadId: number,
   accion: string,
   antes: unknown,

@@ -22,13 +22,14 @@ Roles y permisos:
 | operador | Operación | Operación | Lectura | — |
 | consulta | Lectura | Lectura | Lectura | — |
 
-- El menú lateral se adapta al rol: solo el administrador ve “Usuarios” y “Finanzas → transacciones”.
+- El menú lateral se adapta al rol: solo el administrador ve “Empresa”, “Usuarios” y “Finanzas → transacciones”.
 - El tema claro/oscuro se alterna con el interruptor de la barra superior.
 
 ## 2. Navegación
 
 - **Menú lateral** (colapsable, con soporte móvil): Inicio, Productos, Movimientos, Categorías,
-  Cotizaciones y Finanzas (Resumen, Presupuestos, Transacciones).
+  Cotizaciones, Facturas, Terceros, Finanzas (Resumen, Presupuestos, Transacciones…) y, para el
+  administrador, Empresa y Usuarios.
 - **Barra superior**: cambio de tema, avatar con menú (cambiar contraseña, cerrar sesión).
 - **Breadcrumbs visuales**: cada página muestra título, subtítulo y filtros.
 
@@ -168,17 +169,31 @@ Flujo de estados: **Borrador → Enviado → Aprobado → Entregado** (también 
 - El detalle anual muestra el resultado (ingresos, costo de ventas, margen, gastos y utilidad), el balance completo, la ecuación de cuadre, la cartera, las facturas y los meses incluidos.
 - El cierre y la reapertura quedan en **Auditoría** como *Cierre* con las acciones *Cerrar ejercicio* y *Reabrir*.
 
-## 10. Perfil
+## 10. Empresa (solo administrador)
+
+- En el menú **Empresa** el administrador configura la identidad del emisor que
+  aparece en la cabecera y el pie de las cotizaciones y facturas impresas: razón
+  social, eslogan, NIT, régimen tributario, dirección, teléfonos, correo, sitio
+  web y, opcionalmente, la URL del logo.
+- La vista previa muestra cómo quedará la cabecera antes de guardar. Si no hay
+  logo se usa la marca gráfica de la aplicación.
+- Los cambios se aplican a los documentos ya emitidos la próxima vez que se
+  impriman; no modifican los totales ni la contabilidad.
+- Cada guardado queda en **Auditoría** como *Empresa* con la acción *Actualizar*
+  y el antes/después. Solo el administrador puede guardar; los demás roles ven
+  los datos en modo lectura.
+
+## 11. Perfil
 
 - Datos del usuario, cambio de contraseña y ajuste de tema (claro/oscuro).
 
-## 11. Ayuda contextual y estados vacíos
+## 12. Ayuda contextual y estados vacíos
 
 - **Tooltips** en columnas, acciones y campos de formulario.
 - **Estados vacíos** diferencian “sin datos” vs “sin resultados” y ofrecen crear el primer registro o limpiar filtros.
 - **Alertas** para periodos cerrados, stock bajo, presupuesto excedido y vencimiento de cotizaciones.
 
-## 12. Glosario
+## 13. Glosario
 
 - **Disponible (presupuesto)**: monto planeado menos el ejecutado.
 - **Ejecución**: porcentaje del monto planeado ya gastado.

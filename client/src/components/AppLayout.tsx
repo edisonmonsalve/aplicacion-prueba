@@ -13,6 +13,7 @@ import {
   ContactsOutlined,
   TeamOutlined,
   DollarOutlined,
+  ShopOutlined,
   MoonOutlined,
   SunOutlined,
   KeyOutlined,
@@ -21,6 +22,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { useThemeMode } from "@/context/ThemeContext";
+import { CompanyProvider } from "@/context/CompanyContext";
 import { canAccessFinance } from "@/utils/roles";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import RouteBreadcrumb from "@/components/RouteBreadcrumb";
@@ -55,6 +57,7 @@ const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
   { prefix: "/categories", key: "/categories" },
   { prefix: "/users", key: "/users" },
   { prefix: "/perfil", key: "/perfil" },
+  { prefix: "/empresa", key: "/empresa" },
 ];
 
 export default function AppLayout() {
@@ -116,6 +119,7 @@ export default function AppLayout() {
           },
         ]
       : []),
+    ...(user?.rol === "admin" ? [{ key: "/empresa", icon: <ShopOutlined />, label: "Empresa" }] : []),
     ...(user?.rol === "admin" ? [{ key: "/users", icon: <TeamOutlined />, label: "Usuarios" }] : []),
     { key: "/perfil", icon: <UserOutlined />, label: "Mi perfil" },
   ];
@@ -235,20 +239,22 @@ export default function AppLayout() {
         </Header>
 
         <Content style={{ margin: isMobile ? 12 : 24, minWidth: 0 }}>
-          <RouteBreadcrumb pathname={pathname} />
-          <ErrorBoundary key={pathname}>
-            <Outlet />
-          </ErrorBoundary>
-          {contextHolder}
-          {passwordOpen && (
-            <ChangePasswordModal
-              onClose={() => setPasswordOpen(false)}
-              onSaved={() => {
-                setPasswordOpen(false);
-                messageApi.success("Contraseña actualizada");
-              }}
-            />
-          )}
+          <CompanyProvider>
+            <RouteBreadcrumb pathname={pathname} />
+            <ErrorBoundary key={pathname}>
+              <Outlet />
+            </ErrorBoundary>
+            {contextHolder}
+            {passwordOpen && (
+              <ChangePasswordModal
+                onClose={() => setPasswordOpen(false)}
+                onSaved={() => {
+                  setPasswordOpen(false);
+                  messageApi.success("Contraseña actualizada");
+                }}
+              />
+            )}
+          </CompanyProvider>
         </Content>
       </Layout>
     </Layout>

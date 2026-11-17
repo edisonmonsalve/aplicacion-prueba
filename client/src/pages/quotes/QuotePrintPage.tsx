@@ -6,11 +6,12 @@ import type { QuoteDetail, QuoteLine } from "../../types";
 import { StatusTag, money, fmtDate } from "./quoteUtils";
 import PrintHeader from "@/components/print/PrintHeader";
 import PrintThemeProvider from "@/components/print/PrintThemeProvider";
-import { COMPANY } from "@/config/company";
+import { useCompany } from "@/context/CompanyContext";
 
 export default function QuotePrintPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { company } = useCompany();
   const [quote, setQuote] = useState<QuoteDetail | null>(null);
 
   useEffect(() => {
@@ -157,7 +158,7 @@ export default function QuotePrintPage() {
           </section>
 
           <footer className="print-footer">
-            {COMPANY.nombre} · {COMPANY.telefono} · {COMPANY.email} · Gracias por su preferencia.
+            {company.nombre} · {company.telefono} · {company.email} · Gracias por su preferencia.
           </footer>
         </article>
       </div>

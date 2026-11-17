@@ -25,6 +25,7 @@ const InvoiceFormPage = lazy(() => import("@/pages/invoices/InvoiceFormPage"));
 const InvoicePrintPage = lazy(() => import("@/pages/invoices/InvoicePrintPage"));
 const ThirdPartiesPage = lazy(() => import("@/pages/ThirdPartiesPage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
+const CompanySettingsPage = lazy(() => import("@/pages/CompanySettingsPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 const FinanceOverviewPage = lazy(() => import("@/pages/finance/FinanceOverviewPage"));
 const BudgetsPage = lazy(() => import("@/pages/finance/BudgetsPage"));
@@ -228,6 +229,14 @@ export default function App() {
                 }
               />
               <Route path="/perfil" element={<ProfilePage />} />
+              <Route
+                path="/empresa"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <CompanySettingsPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

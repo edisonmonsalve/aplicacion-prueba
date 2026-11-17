@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { COMPANY } from "@/config/company";
+import { useCompany } from "@/context/CompanyContext";
 
 interface Props {
   /** Tipo de documento, por ejemplo «COTIZACIÓN». */
@@ -12,14 +12,14 @@ interface Props {
 }
 
 /** Símbolo de la empresa emisora. Pensado para impresión en color o escala de grises. */
-function CompanyMark({ size = 46 }: { size?: number }) {
+function CompanyMark({ name, size = 46 }: { name: string; size?: number }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 48 48"
       role="img"
-      aria-label={`Logotipo de ${COMPANY.nombre}`}
+      aria-label={`Logotipo de ${name}`}
       className="print-brand-mark"
     >
       <circle cx="24" cy="24" r="23" fill="#0f766e" />
@@ -37,27 +37,38 @@ function CompanyMark({ size = 46 }: { size?: number }) {
 
 /**
  * Cabecera común de cotizaciones y facturas: identidad de la empresa a la
- * izquierda y datos del documento a la derecha.
+ * izquierda y datos del documento a la derecha. Los datos del emisor se
+ * configuran en «Empresa» y se comparten con `CompanyProvider`.
  */
 export default function PrintHeader({ docKind, docNumber, status, meta }: Props) {
+  const { company } = useCompany();
+
+  const dataLines = [
+    [company.nit, company.regimen].filter(Boolean).join(" · "),
+    company.direccion,
+    [company.telefono, company.celular].filter(Boolean).join(" · "),
+    [company.email, company.web].filter(Boolean).join(" · "),
+  ].filter(Boolean);
+
   return (
     <header className="print-header">
       <div className="print-brand">
-        <CompanyMark />
+        {company.logo_url ? (
+          <img
+            src={company.logo_url}
+            alt={`Logotipo de ${company.nombre}`}
+            className="print-brand-image"
+          />
+        ) : (
+          <CompanyMark name={company.nombre} />
+        )}
         <div className="print-brand-text">
-          <div className="print-company-name">{COMPANY.nombre}</div>
-          <div className="print-company-tagline">{COMPANY.eslogan}</div>
+          <div className="print-company-name">{company.nombre}</div>
+          {company.eslogan && <div className="print-company-tagline">{company.eslogan}</div>}
           <div className="print-company-data">
-            <span>
-              {COMPANY.nit} · {COMPANY.regimen}
-            </span>
-            <span>{COMPANY.direccion}</span>
-            <span>
-              {COMPANY.telefono} · {COMPANY.celular}
-            </span>
-            <span>
-              {COMPANY.email} · {COMPANY.web}
-            </span>
+            {dataLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
           </div>
         </div>
       </div>

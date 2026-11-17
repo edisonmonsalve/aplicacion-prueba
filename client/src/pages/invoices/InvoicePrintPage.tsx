@@ -7,11 +7,12 @@ import type { InvoiceDetail, InvoiceItem } from "@/types";
 import { InvoiceEstadoTag, fmtDate, money } from "./InvoiceUtils";
 import PrintHeader from "@/components/print/PrintHeader";
 import PrintThemeProvider from "@/components/print/PrintThemeProvider";
-import { COMPANY } from "@/config/company";
+import { useCompany } from "@/context/CompanyContext";
 
 export default function InvoicePrintPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { company } = useCompany();
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
 
   useEffect(() => {
@@ -185,7 +186,7 @@ export default function InvoicePrintPage() {
       </section>
 
       <footer className="print-footer">
-        {COMPANY.nombre} · {COMPANY.telefono} · {COMPANY.email} · Documento generado por el sistema.
+        {company.nombre} · {company.telefono} · {company.email} · Documento generado por el sistema.
       </footer>
         </article>
       </div>

@@ -23,6 +23,23 @@ export interface Paginated<T> {
   pageSize: number;
 }
 
+// ---------- Empresa emisora ----------
+
+export interface CompanySettings {
+  id: number;
+  nombre: string;
+  eslogan: string | null;
+  nit: string | null;
+  regimen: string | null;
+  direccion: string | null;
+  telefono: string | null;
+  celular: string | null;
+  email: string | null;
+  web: string | null;
+  logo_url: string | null;
+  actualizado_en?: string;
+}
+
 export interface Category {
   id: number;
   nombre: string;
@@ -1000,7 +1017,8 @@ export type AuditEntity =
   | "period_closure"
   | "invoice_adjustment"
   | "bank_reconciliation"
-  | "receivable_followup";
+  | "receivable_followup"
+  | "company_settings";
 
 export interface AuditEntry {
   id: number;

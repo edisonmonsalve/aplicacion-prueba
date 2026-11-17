@@ -47,6 +47,8 @@ export async function resetDb() {
   await pool.query("DELETE FROM products");
   await pool.query("DELETE FROM categories");
   await pool.query("DELETE FROM audit_log");
+  // Los datos del emisor vuelven a los valores por defecto del servicio.
+  await pool.query("DELETE FROM company_settings");
   await pool.query("DELETE FROM users");
 }
 

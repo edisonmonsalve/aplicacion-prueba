@@ -11,6 +11,7 @@ const SECTIONS: Record<string, { label: string; to: string }> = {
   finanzas: { label: "Finanzas", to: "/finanzas" },
   users: { label: "Usuarios", to: "/users" },
   perfil: { label: "Mi perfil", to: "/perfil" },
+  empresa: { label: "Empresa", to: "/empresa" },
 };
 
 /**
