@@ -15,7 +15,7 @@ import {
 } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import {
   DashboardOutlined,
@@ -93,6 +93,7 @@ export default function AppLayout() {
     pathname.startsWith("/finanzas") ? ["finanzas"] : []
   );
   const [clock, setClock] = useState(() => new Date());
+  const siderScrollRef = useRef<HTMLDivElement>(null);
 
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
@@ -105,6 +106,22 @@ export default function AppLayout() {
     if (!pathname.startsWith("/finanzas")) return;
     setOpenKeys((prev) => (prev.includes("finanzas") ? prev : [...prev, "finanzas"]));
   }, [pathname]);
+
+  // Finanzas tiene 15 entradas: al navegar, deja el item activo a la vista
+  // dentro del sider. No mueve el scroll de la página y no anima el salto.
+  useEffect(() => {
+    const container = siderScrollRef.current;
+    if (!container || collapsed) return;
+    const active = container.querySelector<HTMLElement>(".ant-menu-item-selected");
+    if (!active) return;
+
+    const box = container.getBoundingClientRect();
+    const item = active.getBoundingClientRect();
+    if (item.top >= box.top && item.bottom <= box.bottom) return;
+
+    const top = item.top - box.top + container.scrollTop;
+    container.scrollTop = Math.max(0, top - container.clientHeight / 2 + item.height / 2);
+  }, [pathname, openKeys, collapsed]);
 
   // El reloj del header refuerza que el panel está vivo sin recargar nada.
   useEffect(() => {
@@ -206,7 +223,8 @@ export default function AppLayout() {
 
       <Sider
         breakpoint="lg"
-        collapsedWidth={isMobile ? 0 : 80}
+        width={228}
+        collapsedWidth={isMobile ? 0 : 72}
         collapsed={collapsed}
         onBreakpoint={(broken) => {
           setIsMobile(broken);
@@ -220,36 +238,46 @@ export default function AppLayout() {
           left: 0,
           alignSelf: "flex-start",
           height: "100vh",
-          overflow: "auto",
+          overflow: "hidden",
           zIndex: isMobile ? 20 : undefined,
           borderRight: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
-        <div className="ui-sider-brand" style={{ display: "flex", flexDirection: "column", minHeight: 64, padding: "14px 16px 10px" }}>
-          <div style={{ color: signal.onBrand }}>
-            <AppLogo size={26} tone="light" showText={!collapsed} textSize={17} />
+        <div className="ui-sider-scroll" ref={siderScrollRef}>
+          <div
+            className="ui-sider-brand"
+            style={{ display: "flex", flexDirection: "column", minHeight: 60, padding: "12px 14px 8px" }}
+          >
+            <div style={{ color: signal.onBrand }}>
+              <AppLogo size={26} tone="light" showText={!collapsed} textSize={17} />
+            </div>
+            {!collapsed && (
+              <span className="ui-nav-label" style={{ marginTop: 6, paddingLeft: 2 }}>
+                Control de operaciones
+              </span>
+            )}
           </div>
-          {!collapsed && (
-            <span className="ui-nav-label" style={{ marginTop: 6, paddingLeft: 2 }}>
-              Control de operaciones
-            </span>
-          )}
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[selected]}
+            openKeys={openKeys}
+            onOpenChange={(keys) => setOpenKeys(keys as string[])}
+            items={items}
+            aria-label="Navegación principal"
+            // Sin la animación de colapso de AntD el submenú no "crece" al abrirse.
+            motion={{ motionName: "" }}
+            inlineIndent={16}
+            subMenuOpenDelay={0}
+            subMenuCloseDelay={0}
+            onClick={({ key }) => {
+              if (typeof key === "string" && key.startsWith("/")) {
+                navigate(key);
+                if (isMobile) setCollapsed(true);
+              }
+            }}
+          />
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[selected]}
-          openKeys={openKeys}
-          onOpenChange={(keys) => setOpenKeys(keys as string[])}
-          items={items}
-          aria-label="Navegación principal"
-          onClick={({ key }) => {
-            if (typeof key === "string" && key.startsWith("/")) {
-              navigate(key);
-              if (isMobile) setCollapsed(true);
-            }
-          }}
-        />
         {!collapsed && (
           <div className="ui-sider-foot" aria-hidden="true">
             <span className="ui-nav-label">Signal · Control</span>

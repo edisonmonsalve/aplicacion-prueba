@@ -90,11 +90,15 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 | Conteo de cifras | 620 ms | `ease-out` cúbico |
 | Atmósfera / pip / barra | 14–26 s, 2,6 s, 2,8 s | respiración, no distracción |
 | Cambio de tema | 0 ms | se desactivan transiciones (anti-parpadeo) |
+| Ancho del sider / submenú inline | 0 ms | sin `scale`, sin colapso animado: el scroll no parece crecer |
+| Entrada de ruta | 380 ms | fundido + 6 px, sin `scale` |
 
-La sensación de "vivo" se consigue con cinco capas discretas: halos ambientales
+La sensación de "vivo" se consigue con cuatro capas discretas: halos ambientales
 que respiran, KPIs que entran en cascada, cifras que cuentan al cambiar de
-periodo, un `status pip` que late y un barrido casi invisible en la cuadrícula
-del sidebar. Ninguna usa más del 10 % de opacidad ni interrumpe la lectura.
+periodo y un `status pip` que late. El sider se mantuvo quieto a propósito: su
+antiguo barrido y el `scale` de entrada de ruta se percibían como un crecimiento
+durante el scroll. Ninguna capa usa más del 10 % de opacidad ni interrumpe la
+lectura.
 
 `prefers-reduced-motion: reduce` anula **todas** las animaciones y transformaciones;
 `AnimatedNumber` muestra el valor final directamente.

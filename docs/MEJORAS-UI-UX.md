@@ -231,6 +231,35 @@ las tablas.
 Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
 preexistentes de `InvoiceFormPage.tsx` se mantienen).
 
+## 19. Sider estable: fin del “crecimiento” al scrollear
+
+Corrección centrada en el comportamiento del aside. El usuario reportó que el
+scroll parecía agrandar el panel y que el submenú de Finanzas era incómodo.
+Se atacaron las cuatro causas reales en vez de añadir más animación:
+
+| Causa | Corrección |
+|---|---|
+| `motion` inline de AntD animaba la altura del submenú (`initCollapseMotion`). | `motion={{ motionName: "" }}` en el `Menu`: abrir Finanzas es instantáneo, sin efecto de “crecer”. |
+| El barrido animado `::before` de `.ui-grid-bg` recorría todo el sider cada 14 s. | Se eliminó; queda solo la cuadrícula estática. Tampoco se referencia en la hoja de impresión. |
+| `ui-rise` incluía `scale(0.985)` y se aplicaba en cada cambio de ruta. | Se quitó el `scale`; la entrada es solo fundido + 6 px de desplazamiento. |
+| El scroll estaba en el propio `.ant-layout-sider`, sin gutter, y su ancho animaba al contraer. | Scroll aislado en `.ui-sider-scroll` con `scrollbar-gutter: stable` y `overscroll-behavior: contain`; `transition: none` en el sider. |
+
+Distribución y Finanzas:
+
+- Ancho 228 px (72 px contraído, 0 en móvil) e `inlineIndent={16}` para que las
+  15 entradas financieras no queden apretadas.
+- Rótulos de grupo y márgenes de item compactos; marca y pie más delgados;
+  el pie queda fuera del área desplazable.
+- Al navegar, un `useEffect` centra el `.ant-menu-item-selected` **dentro del
+  contenedor del sider** (nunca mueve el scroll de la página, sin `behavior:
+  smooth`). Así, entrar en «Transacciones» o «Presupuestos» deja visible la
+  selección aunque esté al final del submenú.
+- Los delays de apertura/cierre del submenú bajan a 0: el hover responde de
+  inmediato y no encadena estados intermedios.
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.
