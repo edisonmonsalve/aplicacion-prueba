@@ -37,19 +37,31 @@ const LABELS: Record<FinanceSection, string> = {
   gestion: "Navegación de gestión financiera",
 };
 
+/** Un detalle (p. ej. /finanzas/presupuestos/:id) no coincide con ninguna clave
+ *  de pestaña. Se resalta la hoja padre más larga para no perder el contexto. */
+const resolveActiveKey = (pathname: string, tabs: Tab[]) =>
+  tabs.reduce(
+    (best, tab) =>
+      (pathname === tab.key || pathname.startsWith(`${tab.key}/`)) && tab.key.length > best.length
+        ? tab.key
+        : best,
+    "",
+  );
+
 type Props = { section: FinanceSection };
 
 export default function FinanceSectionTabs({ section }: Props) {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
+  const tabs = SECTIONS[section];
 
   return (
     <nav aria-label={LABELS[section]}>
       <Tabs
         className="ui-finance-tabs"
-        activeKey={pathname}
+        activeKey={resolveActiveKey(pathname, tabs)}
         onChange={(key) => navigate(`${key}${search}`)}
-        items={SECTIONS[section]}
+        items={tabs}
         size="small"
       />
     </nav>

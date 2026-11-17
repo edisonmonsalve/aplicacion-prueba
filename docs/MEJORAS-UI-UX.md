@@ -356,7 +356,7 @@ con la navegación dentro del contenido.
 
 | # | Mejora | Impacto | Riesgo | Detalle |
 |---|---|---|---|---|
-| F1 | **Consola de Finanzas por secciones** | Alto | Medio | Finanzas pasa de 9 entradas a 3 hojas planas e iconadas: **Resumen**, **Reportes** y **Gestión**. Las 13 rutas se mapean a esas 3 claves en `MODULE_ROUTES` y `NAV_SEARCH` se reduce a 3 entradas con sinónimos. `FinanceSectionTabs` sustituye a `FinanceReportsTabs` y se monta en las 15 páginas: 7 de reportes, 6 de gestión y 2 de resumen. Conserva la `search` al cambiar de pestaña para no perder periodo ni filtros. «Salud de datos» deja de ser hoja del sider y entra como pestaña de Resumen. |
+| F1 | **Consola de Finanzas por secciones** | Alto | Medio | Finanzas pasa de 9 entradas a 3 hojas planas e iconadas: **Resumen**, **Reportes** y **Gestión**. Las 13 rutas se mapean a esas 3 claves en `MODULE_ROUTES` y `NAV_SEARCH` se reduce a 3 entradas con sinónimos. `FinanceSectionTabs` sustituye a `FinanceReportsTabs` y se monta en las 16 páginas: 7 de reportes, 7 de gestión (incluido el detalle de presupuesto) y 2 de resumen. Conserva la `search` al cambiar de pestaña para no perder periodo ni filtros, y resuelve la pestaña padre en rutas anidadas como `/finanzas/presupuestos/:id`. «Salud de datos» deja de ser hoja del sider y entra como pestaña de Resumen. |
 | V1 | **Grid reactivo al puntero** | Alto | Bajo-medio | `.ui-ambient-layer` concentra dos rejillas y una viñeta; la fina lleva una máscara radial en `--ui-pointer-x/y`. `usePointerGrid` actualiza las coordenadas a lo sumo una vez por frame, ignora punteros táctiles y no escribe nada con `prefers-reduced-motion`. Sin JS, la máscara conserva una posición estática. |
 | V2 | **Marcos HUD en gráficos** | Medio | Bajo | `.ui-chart-card` y `.ui-deep-surface` ganan dos escuadras en `::after`. Se descartó el `clip-path` en índices y en el atajo `/`: no aportaba y, llevado a tarjetas, recortaría la sombra de profundidad de la tanda anterior. |
 | V3 | **Rejilla por capas + viñeta** | Medio | Bajo | Celda ancha de 56 px enmascarada hacia el centro, celda fina de 28 px para el foco y viñeta del 5 % de la tinta. Colores ≤ 5 % en ambos temas; la capa desaparece en impresión. |
@@ -370,7 +370,7 @@ contextuales. El cebrado de `reportExport.ts` sigue fuera del alcance de B6.
 
 Archivos: `usePointerGrid.ts` y `FinanceSectionTabs.tsx` (nuevos),
 `FinanceReportsTabs.tsx` (eliminado), `AppLayout.tsx`, `index.css`, `tokens.css`,
-15 páginas de Finanzas y estos dos documentos. El shell queda en
+16 páginas de Finanzas y estos dos documentos. El shell queda en
 `position: relative` y el contenido en `z-index: 1` para que la atmósfera nunca
 se cruce con el texto.
 

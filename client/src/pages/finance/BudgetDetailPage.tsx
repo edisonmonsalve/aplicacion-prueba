@@ -41,6 +41,7 @@ import type { BudgetDetail, BudgetLine, EjecucionEstado, FinanceCategoryTipo } f
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import BudgetFormModal from "./BudgetFormModal";
 
 const TIPO_COLOR: Record<string, string> = {
@@ -310,6 +311,8 @@ export default function BudgetDetailPage() {
           </Space>
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       {budget.estado === "borrador" && (
         <Alert

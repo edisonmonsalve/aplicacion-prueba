@@ -136,7 +136,7 @@ apaga, por lo que solo queda la rejilla estática.
 | `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad, halo y marco HUD de dos escuadras). |
 | `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, fondo uniforme en filas normales y color solo para estados reales (`.row-low-stock`, subtotales de resultados); `focus-within` por fila con `outline`. Efectos fuera de la impresión. |
 | Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |
-| `FinanceSectionTabs` | Pestañas contextuales bajo el `PageHeader` de las 15 páginas de Finanzas: Resumen (2 hojas), Reportes (7) y Gestión (6). Navegan a rutas existentes conservando la query de periodo y filtros. Estilo en `.ui-finance-tabs`: micro-label, filo tenue y acento de marca en la activa. |
+| `FinanceSectionTabs` | Pestañas contextuales bajo el `PageHeader` de las 16 páginas de Finanzas: Resumen (2 hojas), Reportes (7) y Gestión (7, con el detalle de presupuesto). Navegan a rutas existentes conservando la query de periodo y filtros, y resaltan la pestaña padre en rutas anidadas. Estilo en `.ui-finance-tabs`: micro-label, filo tenue y acento de marca en la activa. |
 | `CategoriesPanel` | Cuerpo compartido de Categorías, sin cabecera ni título propios; se usa en `/categories` y en la pestaña de `ProductsPage`. |
 
 ## 7. Accesibilidad
