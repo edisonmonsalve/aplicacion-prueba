@@ -77,6 +77,7 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 - `status pip`: punto de 6 px con halo suave para estados activos.
 - Barras de progreso **segmentadas** (estilo barra de vida) en metas y cartera.
 - Cuadrícula de fondo de 28 px en el sidebar y en el bloque de bienvenida.
+- Sider: índice de sección monoespaciado y barra vertical de 3 px en el item activo.
 
 ## 5. Movimiento
 
@@ -102,7 +103,7 @@ del sidebar. Ninguna usa más del 10 % de opacidad ni interrumpe la lectura.
 
 | Componente | Cambio global |
 |---|---|
-| `AppLayout` | Sidebar por secciones numeradas, indicador activo con glow, skip link, overlay móvil accesible, «system status» en el header. |
+| `AppLayout` | Sidebar por secciones numeradas con índice en teal, halo de marca, barra de señal en el item activo y pie `Signal · Control`. Header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada y glow del hover con el tono del KPI. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |

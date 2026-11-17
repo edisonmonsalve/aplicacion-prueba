@@ -216,6 +216,21 @@ y terminar la migración de filtros que la sección 15 dejó pendiente.
 Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
 preexistentes de `InvoiceFormPage.tsx` se mantienen).
 
+## 18. Shell Signal: sider y header terminados
+
+Pase final de diseño al contenedor de la aplicación. No cambia rutas ni
+comportamiento; hace que el shell se lea con el mismo lenguaje que los KPIs y
+las tablas.
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| W1 | Media | **Sider**: halo tenue detrás del logo, índices de sección en teal legible sobre fondo oscuro (`--ui-sider-accent` con `color-mix`), barra de señal en el item activo, micro-desplazamiento del icono en hover y pie «Signal · Control / OPS» anclado abajo. **Implementado.** |
+| W2 | Media | **Header**: fondo degradado `surface → surface-2`, filo de señal teal→violeta, separador antes del cluster de acciones y el indicador «En vivo · HH:mm» convertido en chip con borde. **Implementado.** |
+| W3 | Baja | **Accesibilidad**: el acento del sider se aclara en ambos temas para no perderse sobre el fondo oscuro; los hovers del avatar y del icono se anulan con `prefers-reduced-motion`. **Implementado.** |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

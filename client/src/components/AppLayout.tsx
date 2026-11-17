@@ -76,7 +76,7 @@ const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
 
 const navLabel = (index: string, text: string) => (
   <span className="ui-nav-label">
-    {index} / {text}
+    <span className="ui-nav-index">{index}</span> / {text}
   </span>
 );
 
@@ -213,7 +213,7 @@ export default function AppLayout() {
           setCollapsed(broken);
         }}
         trigger={null}
-        className="ui-grid-bg"
+        className="ui-grid-bg ui-app-sider"
         style={{
           position: isMobile ? "fixed" : "sticky",
           top: 0,
@@ -225,12 +225,12 @@ export default function AppLayout() {
           borderRight: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", minHeight: 64, padding: "14px 16px 10px" }}>
+        <div className="ui-sider-brand" style={{ display: "flex", flexDirection: "column", minHeight: 64, padding: "14px 16px 10px" }}>
           <div style={{ color: signal.onBrand }}>
             <AppLogo size={26} tone="light" showText={!collapsed} textSize={17} />
           </div>
           {!collapsed && (
-            <span className="ui-nav-label" style={{ marginTop: 6, paddingLeft: 2, color: "rgba(255,255,255,.62)" }}>
+            <span className="ui-nav-label" style={{ marginTop: 6, paddingLeft: 2 }}>
               Control de operaciones
             </span>
           )}
@@ -250,21 +250,23 @@ export default function AppLayout() {
             }
           }}
         />
+        {!collapsed && (
+          <div className="ui-sider-foot" aria-hidden="true">
+            <span className="ui-nav-label">Signal · Control</span>
+            <span className="ui-nav-index">OPS</span>
+          </div>
+        )}
       </Sider>
 
       <Layout>
         <Header
+          className="ui-app-header"
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             gap: 12,
-            background: token.colorBgContainer,
             padding: isMobile ? "0 12px" : "0 24px",
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
           <Space size="middle">
@@ -289,7 +291,7 @@ export default function AppLayout() {
             )}
           </Space>
 
-          <Space size={isMobile ? "small" : "middle"}>
+          <Space className="ui-header-actions" size={isMobile ? "small" : "middle"}>
             <Tooltip title="Cambiar entre tema claro y oscuro">
               <Switch
                 checked={mode === "dark"}

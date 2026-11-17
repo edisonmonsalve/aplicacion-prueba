@@ -624,7 +624,11 @@ html[data-theme="dark"] .row-low-stock > td {
   outline-offset: 2px;
 }
 
-/* Navegación y estado del sistema. */
+/* ---------------------------------------------------------------------------
+   Shell Signal: sider y header. El sidebar es siempre oscuro (tema AntD propio),
+   así que sus acentos se aclaran con color-mix en ambos temas.
+--------------------------------------------------------------------------- */
+
 .ui-nav-label {
   font-size: 10px;
   font-weight: 700;
@@ -633,10 +637,138 @@ html[data-theme="dark"] .row-low-stock > td {
   opacity: 0.6;
 }
 
-.ui-status {
+/* El sider es oscuro en ambos temas: aclara el teal para que el índice no se
+   pierda cuando la app está en modo claro. */
+.ui-app-sider {
+  --ui-sider-accent: color-mix(in srgb, var(--ui-brand) 62%, white);
+}
+
+/* AntD envuelve el contenido del sider en .ant-layout-sider-children. */
+.ui-app-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.ui-nav-index {
+  font-family: var(--ui-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-sider-accent, var(--ui-brand));
+  letter-spacing: 0.04em;
+}
+
+/* Bloque de marca: un halo tenue detrás del logo, sin ruido adicional. */
+.ui-sider-brand {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.ui-sider-brand::before {
+  content: "";
+  position: absolute;
+  inset: -40% -25% auto -25%;
+  height: 150px;
+  background: radial-gradient(closest-side, var(--ui-brand-soft), transparent 74%);
+  pointer-events: none;
+}
+
+.ui-sider-brand > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ui-sider-brand .ui-nav-label {
+  color: rgba(255, 255, 255, 0.62);
+  opacity: 1;
+}
+
+.ui-app-sider .ant-menu-item-group-title {
+  padding-inline: 20px !important;
+  margin-top: 10px;
+}
+
+.ui-app-sider .ant-menu-item-group-title:first-child {
+  margin-top: 0;
+}
+
+.ui-app-sider .ant-menu-item,
+.ui-app-sider .ant-menu-submenu-title {
+  position: relative;
+}
+
+/* Indicador activo: barra de señal a la izquierda del item seleccionado. */
+.ui-app-sider .ant-menu-item-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ui-sider-accent, var(--ui-brand));
+  box-shadow: 0 0 12px -2px var(--ui-sider-accent, var(--ui-brand));
+}
+
+.ui-app-sider .ant-menu-item-icon {
+  transition: transform var(--ui-fast) var(--ui-ease);
+}
+
+.ui-app-sider .ant-menu-item:hover .ant-menu-item-icon {
+  transform: translateX(2px);
+}
+
+.ui-sider-foot {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  margin-top: auto;
+  padding: 14px 20px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ui-sider-foot .ui-nav-label {
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+}
+
+.ui-app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(180deg, var(--ui-surface) 0%, var(--ui-surface-2) 100%);
+  border-bottom: 1px solid var(--ui-line);
+  box-shadow: 0 10px 28px -24px rgba(16, 24, 40, 0.5);
+}
+
+/* Filo de señal: teal hacia la izquierda, violeta al apagarse. */
+.ui-app-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--ui-brand), transparent 46%, var(--ui-violet));
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.ui-header-actions {
+  padding-left: 12px;
+  border-left: 1px solid var(--ui-line);
+}
+
+.ui-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px;
+  border: 1px solid var(--ui-line);
+  border-radius: 999px;
+  background: var(--ui-surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .ui-status__text {
@@ -649,6 +781,12 @@ html[data-theme="dark"] .row-low-stock > td {
 
 .ui-avatar {
   box-shadow: 0 0 0 2px var(--ui-surface), 0 0 0 4px var(--ui-brand-soft);
+  transition: transform var(--ui-fast) var(--ui-ease), box-shadow var(--ui-fast) var(--ui-ease);
+}
+
+.ui-avatar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px var(--ui-surface), 0 0 0 4px var(--ui-brand-soft), var(--ui-shadow);
 }
 
 /* Barrido muy tenue en la cuadrícula del sidebar: el panel no está quieto. */
@@ -829,7 +967,9 @@ html[data-theme="dark"] * {
   .stat-card[role="button"]:hover,
   .ui-stat:hover,
   .stat-card[role="button"]:hover .ui-stat__icon,
-  .ui-stat:hover .ui-stat__icon {
+  .ui-stat:hover .ui-stat__icon,
+  .ui-avatar:hover,
+  .ui-app-sider .ant-menu-item:hover .ant-menu-item-icon {
     transform: none;
   }
 }
