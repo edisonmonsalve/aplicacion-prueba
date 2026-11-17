@@ -474,8 +474,11 @@ html.theme-switching *::after {
 --------------------------------------------------------------------------- */
 
 /* Cifras alineadas en columnas: precios, stock y totales no “bailan”. */
-.num {
+.num,
+.ant-table-cell:where([style*="text-align: right"], [align="right"]) {
+  font-family: var(--ui-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 /* Fila con stock bajo: un tinte suave, legible en ambos temas. */
@@ -497,6 +500,14 @@ html[data-theme="dark"] .row-low-stock > td {
   position: relative;
   overflow: hidden;
   border-radius: var(--ui-radius) !important;
+  /* Lavado de acento en reposo: el tono tiñe apenas la esquina de la cifra.
+     Highlight interior (inset) para que la superficie tenga un filo de luz. */
+  background-image: radial-gradient(
+    120% 90% at 100% 0%,
+    color-mix(in srgb, var(--stat-accent, var(--ui-brand)) 7%, transparent),
+    transparent 62%
+  );
+  box-shadow: var(--ui-inset), var(--ui-shadow);
   animation: ui-rise 420ms var(--ui-ease) backwards;
   animation-delay: var(--ui-delay, 0ms);
   transition:
@@ -590,6 +601,20 @@ html[data-theme="dark"] .row-low-stock > td {
   overflow-wrap: anywhere;
 }
 
+/* Hueco de sparkline: solo se renderiza si se aporta la serie, así que no
+   deja un área vacía en las KPIs que no la usan. */
+.ui-stat__spark {
+  height: 28px;
+  margin-top: 6px;
+  color: var(--stat-accent, var(--ui-brand));
+}
+
+.ui-stat__spark > * {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .ui-stat__foot {
   display: flex;
   flex-wrap: wrap;
@@ -626,9 +651,19 @@ html[data-theme="dark"] .row-low-stock > td {
 .ui-stat:hover {
   transform: translateY(-4px);
   box-shadow:
+    var(--ui-inset),
     var(--ui-shadow),
     0 0 0 1px color-mix(in srgb, var(--stat-accent, var(--ui-brand)) 45%, transparent),
     0 16px 34px -18px color-mix(in srgb, var(--stat-accent, var(--ui-brand)) 60%, transparent);
+}
+
+/* Presionar confirma el atajo: se hunde 1 px y el acento se intensifica. */
+.stat-card[role="button"]:active {
+  transform: translateY(-1px);
+  box-shadow:
+    var(--ui-inset),
+    0 0 0 1px color-mix(in srgb, var(--stat-accent, var(--ui-brand)) 60%, transparent),
+    0 6px 14px -10px color-mix(in srgb, var(--stat-accent, var(--ui-brand)) 50%, transparent);
 }
 
 .stat-card[role="button"]:hover::before,
@@ -648,6 +683,10 @@ html[data-theme="dark"] .row-low-stock > td {
 .stat-card[role="button"]:focus-visible {
   outline: 2px solid var(--ui-brand);
   outline-offset: 2px;
+  box-shadow:
+    var(--ui-inset),
+    0 0 0 4px var(--ui-brand-soft),
+    0 0 0 1px var(--ui-brand);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1067,13 +1106,34 @@ html[data-theme="dark"] .row-low-stock > td {
   border-radius: 2px 2px 0 0;
 }
 
-/* Encabezados de tabla en micro-label. */
+/* Tablas data-terminal: cabecera legible, banding casi invisible y foco
+   visible. La cabecera ya es sticky donde AntD declara `sticky`; aquí solo se
+   refuerza el fondo para que el contenido no se lea a través al desplazarse. */
 .ant-table-thead > tr > th {
-  font-size: 10.5px !important;
+  background: var(--ui-surface-2) !important;
+  font-size: var(--ui-text-micro) !important;
   font-weight: 700 !important;
   letter-spacing: 0.1em !important;
   text-transform: uppercase;
   color: var(--ui-ink-2) !important;
+}
+
+/* Banding de 2,5 %: guía la vista sin competir con el hover de AntD. */
+.ant-table-tbody > tr:nth-child(even) > td {
+  background-color: color-mix(in srgb, var(--ui-ink) 2.5%, transparent);
+}
+
+/* Rail semántico en la primera celda: el color lo aporta cada fila con clase
+   (p. ej. .row-low-stock), reforzando lo que ya dice el tag. */
+.row-low-stock > td:first-child {
+  box-shadow: inset 3px 0 0 var(--ui-danger);
+}
+
+/* Foco dentro de la fila: la tabla también se navega con teclado. Se usa
+   `outline` para no sobrescribir el rail de `.row-low-stock`. */
+.ant-table-tbody > tr:focus-within > td {
+  outline: 1px solid var(--ui-brand-soft);
+  outline-offset: -1px;
 }
 
 /* Skeleton con una pasada de barrido muy tenue. */
@@ -1123,6 +1183,7 @@ html[data-theme="dark"] * {
 
   .stat-card[role="button"]:hover,
   .ui-stat:hover,
+  .stat-card[role="button"]:active,
   .stat-card[role="button"]:hover .ui-stat__icon,
   .ui-stat:hover .ui-stat__icon,
   .ui-avatar:hover,
@@ -1166,6 +1227,16 @@ html[data-theme="dark"] * {
   }
   .ant-table {
     font-size: 11px;
+  }
+  /* El banding, el rail y el foco son señales de pantalla, no de papel. */
+  .ant-table-tbody > tr:nth-child(even) > td {
+    background-color: transparent;
+  }
+  .row-low-stock > td:first-child {
+    box-shadow: none;
+  }
+  .ant-table-tbody > tr:focus-within > td {
+    outline: none;
   }
 
   /* La impresión captura el estado final, nunca una animación a medio camino. */

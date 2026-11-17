@@ -323,6 +323,26 @@ Verificación: `client npm run build` (✓ 3637 módulos) y `client npm run lint
 los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
 sin errores de whitespace. Sin commit ni push hasta la aprobación explícita.
 
+## 23. Tanda Signal: KPIs con cuerpo y tablas data-terminal
+
+Tercera tanda visual, ejecutada encima de `2b28c52` y aprobada para commit en
+esta rama. Alcance: `StatCard.tsx`, `index.css` y estos dos documentos; ninguna
+pantalla ni el sider se tocan.
+
+| # | Mejora | Impacto | Detalle |
+|---|---|---|---|
+| B3 | **Tarjetas / KPIs** | Medio-alto | Lavado de acento en reposo (radial del 7 % en la esquina de la cifra) y highlight interior con `--ui-inset`. Estado `:active` que hunde 1 px al pulsar, foco reforzado con doble anillo y prop `sparkline` opcional que solo reserva espacio si se aporta una serie. |
+| B4 | **Tablas data-terminal** | Medio | Numéricos monoespaciados vía `.num` y celdas alineadas a la derecha; cabecera con fondo opaco; banding del 2,5 %; rail semántico en la primera celda de `.row-low-stock`; `focus-within` por fila con `outline` para no pisar el rail. Efectos desactivados en impresión. |
+
+Nota: AntD 6 no expone clases de color por tag en CSS, así que el rail no intenta
+adivinar el color del tag: se apoya en la clase semántica que ya existe
+(`.row-low-stock`). El foco usa `outline` precisamente para no sobrescribirlo.
+
+Verificación: `client npm run build` (✓ 3637 módulos) y `client npm run lint` (0 errores;
+los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
+sin errores de whitespace. Commit aprobado: `feat(ui): dar cuerpo a los KPIs y pulir
+tablas data-terminal`. Sin PR.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

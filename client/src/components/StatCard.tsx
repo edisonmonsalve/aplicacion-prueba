@@ -45,6 +45,8 @@ interface Props {
   loading?: boolean;
   /** Convierte la tarjeta en un atajo navegable. */
   onClick?: () => void;
+  /** Hueco opcional para una serie mínima; no ocupa espacio si no se aporta. */
+  sparkline?: ReactNode;
   style?: CSSProperties;
 }
 
@@ -65,6 +67,7 @@ export default function StatCard({
   tone = "neutral",
   loading,
   onClick,
+  sparkline,
   style,
 }: Props) {
   const { accent, ink } = TONE_VARS[tone];
@@ -100,6 +103,7 @@ export default function StatCard({
         )}
       </div>
       <div className="ui-stat__value">{value}</div>
+      {sparkline && <div className="ui-stat__spark">{sparkline}</div>}
       {(delta || hint) && (
         <div className="ui-stat__foot">
           {delta}

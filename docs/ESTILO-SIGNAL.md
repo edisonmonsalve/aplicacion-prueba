@@ -122,10 +122,10 @@ pasa `isAnimationActive={!reduced}` a cada Bar/Line/Pie de Inicio y Tendencias.
 |---|---|
 | `AppLayout` | Sidebar con índices en chip monoespaciado, halo de marca, buscador (`/`, Escape, sinónimos y sin tildes), Finanzas aplanado en Panel / Reportes / Gestión (sin nivel intermedio ni contador) y Categorías integrado en Productos, barra de señal en el item activo, pip de subsección y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. Breadcrumb único derivado de la ruta (`useRouteBreadcrumb`) con `breadcrumbLeaf` para el dato de la página; ya no hay breadcrumb global en el shell. |
-| `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada y glow del hover con el tono del KPI. |
+| `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada, lavado de acento en reposo y highlight interior; `:active` hunde 1 px, foco con doble anillo y `sparkline` opcional sin espacio vacío. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
 | `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad y halo). |
-| `Table` (AntD) | Cabecera en micro-label; hover sutil. |
+| `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, banding del 2,5 %, rail semántico en `.row-low-stock` y `focus-within` por fila con `outline`. Efectos fuera de la impresión. |
 | Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |
 | `FinanceReportsTabs` | Pestañas de Reportes bajo el `PageHeader` de las 7 páginas; navegan a las rutas existentes. Estilo en `.ui-report-tabs`: micro-label, filo tenue y acento de marca en la activa. |
 | `CategoriesPanel` | Cuerpo compartido de Categorías, sin cabecera ni título propios; se usa en `/categories` y en la pestaña de `ProductsPage`. |
