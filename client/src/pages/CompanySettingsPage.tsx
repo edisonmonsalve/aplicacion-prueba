@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Col, Divider, Form, Input, Row, Space, Typography, message } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
@@ -208,7 +209,7 @@ export default function CompanySettingsPage() {
                 border: "1px solid rgba(0,0,0,.12)",
                 borderRadius: 8,
                 padding: 16,
-                background: "#fff",
+                background: signal.onBrand,
               }}
             >
               <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -221,11 +222,11 @@ export default function CompanySettingsPage() {
                   />
                 ) : (
                   <svg width={46} height={46} viewBox="0 0 48 48" aria-hidden="true" style={{ flex: "0 0 auto" }}>
-                    <circle cx="24" cy="24" r="23" fill="#0f766e" />
-                    <path d="M24 11.5 36 17.4v13.2L24 36.5l-12-5.9V17.4z" fill="#fff" />
+                    <circle cx="24" cy="24" r="23" fill={signal.brandStrong} />
+                    <path d="M24 11.5 36 17.4v13.2L24 36.5l-12-5.9V17.4z" fill={signal.onBrand} />
                     <path
                       d="M12 17.4 24 23.3l12-5.9M24 23.3v13.2"
-                      stroke="#0f766e"
+                      stroke={signal.brandStrong}
                       strokeWidth="1.7"
                       strokeLinejoin="round"
                       fill="none"
@@ -237,11 +238,11 @@ export default function CompanySettingsPage() {
                     {preview.nombre || "Nombre de la empresa"}
                   </Typography.Text>
                   {preview.eslogan && (
-                    <div style={{ fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: "#0f766e" }}>
+                    <div style={{ fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: signal.brandStrong }}>
                       {preview.eslogan}
                     </div>
                   )}
-                  <div style={{ marginTop: 6, fontSize: 11.5, color: "#475569", lineHeight: 1.5 }}>
+                  <div style={{ marginTop: 6, fontSize: 11.5, color: signal.muted, lineHeight: 1.5 }}>
                     {previewLines.length > 0 ? (
                       previewLines.map((line) => <div key={line}>{line}</div>)
                     ) : (

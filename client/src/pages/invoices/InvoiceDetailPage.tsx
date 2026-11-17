@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -513,14 +514,14 @@ export default function InvoiceDetailPage() {
               value={invoice.pagado}
               precision={2}
               prefix="$"
-              valueStyle={{ color: "#389e0d" }}
+              valueStyle={{ color: signal.positive }}
             />
             <Statistic
               title="Saldo pendiente"
               value={invoice.saldo_pendiente}
               precision={2}
               prefix="$"
-              valueStyle={{ color: invoice.saldo_pendiente > 0 ? "#cf1322" : undefined }}
+              valueStyle={{ color: invoice.saldo_pendiente > 0 ? signal.negative : undefined }}
             />
             <Statistic
               title="Vencimiento"

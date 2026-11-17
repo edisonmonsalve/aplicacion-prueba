@@ -8,6 +8,9 @@ import { ConfigProvider, theme } from "antd";
  * en modo oscuro eso dejaba mezclas (fondo oscuro con texto claro). Aquí se
  * redefinen explícitamente los tokens que la app sobrescribe para que la hoja y
  * su barra de acciones se vean siempre en claro.
+ *
+ * Estos hexadecimales son intencionalmente fijos: el papel no cambia de tema y
+ * no debe depender de `--ui-*`, que sí sigue al modo claro/oscuro de la interfaz.
  */
 const printTheme = {
   algorithm: theme.defaultAlgorithm,

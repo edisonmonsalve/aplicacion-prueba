@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, message } from "antd";
 import type { TableProps } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -12,6 +12,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
 import ConfirmAction from "@/components/ConfirmAction";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import RelativeTime from "@/components/RelativeTime";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { ROLES, roleColor, roleLabel } from "@/utils/roles";
@@ -238,11 +239,8 @@ export default function UsersPage() {
         }
       />
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Buscar
-          </Typography.Text>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Buscar" width={280}>
           <Input.Search
             placeholder="Nombre o correo"
             allowClear
@@ -250,30 +248,24 @@ export default function UsersPage() {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onSearch={(q) => updateFilters({ q: q || undefined })}
-            style={{ width: 280 }}
+            style={{ width: "100%" }}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Rol
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Rol" width={140}>
           <Select
             placeholder="Todos"
             allowClear
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             value={query.rol}
             options={ROLES.map(({ value, label }) => ({ value, label }))}
             onChange={(rol) => updateFilters({ rol })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Estado
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Estado" width={140}>
           <Select
             placeholder="Todos"
             allowClear
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             value={query.activo}
             options={[
               { value: "1", label: "Activos" },
@@ -281,9 +273,8 @@ export default function UsersPage() {
             ]}
             onChange={(activo) => updateFilters({ activo })}
           />
-        </div>
-        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {firstLoad ? (
         <TableSkeleton />

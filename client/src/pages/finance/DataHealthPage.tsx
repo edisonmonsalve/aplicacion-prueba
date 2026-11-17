@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -134,7 +135,7 @@ export default function DataHealthPage() {
                     title="Con problemas"
                     value={report.resumen.con_problemas}
                     valueStyle={{
-                      color: report.resumen.con_problemas > 0 ? "#cf1322" : "#389e0d",
+                      color: report.resumen.con_problemas > 0 ? signal.negative : signal.positive,
                     }}
                   />
                 </Card>
@@ -145,7 +146,7 @@ export default function DataHealthPage() {
                     title="Hallazgos"
                     value={report.resumen.total_hallazgos}
                     valueStyle={{
-                      color: report.resumen.total_hallazgos > 0 ? "#d46b08" : "#389e0d",
+                      color: report.resumen.total_hallazgos > 0 ? signal.warning : signal.positive,
                     }}
                   />
                 </Card>
@@ -155,7 +156,7 @@ export default function DataHealthPage() {
                   <Statistic
                     title="Estado"
                     value={report.estado === "ok" ? "Sano" : "Alerta"}
-                    valueStyle={{ color: report.estado === "ok" ? "#389e0d" : "#cf1322" }}
+                    valueStyle={{ color: report.estado === "ok" ? signal.positive : signal.negative }}
                   />
                 </Card>
               </Col>

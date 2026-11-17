@@ -168,6 +168,8 @@ const reportHtml = (doc: ReportDocument): string => {
     timeStyle: "short",
   }).format(new Date());
 
+  // Paleta de papel, fija a propósito: este HTML se abre fuera de la app y no
+  // tiene acceso a los tokens Signal ni al tema claro/oscuro.
   return `<!doctype html>
 <html lang="es">
 <head>

@@ -38,7 +38,11 @@ Cada señal tiene un par `acento` + `ink`: el acento tiñe barras, iconos y glow
 el `ink` (más oscuro en claro, más claro en oscuro) tiñe la **cifra** y cumple AA.
 
 > Nota: los hex sueltos quedan centralizados en `styles/tokens.css` y replicados en
-> `ConfigProvider` para que AntD y el CSS no se desincronicen.
+> `ConfigProvider` para que AntD y el CSS no se desincronicen. Desde JavaScript se
+> usan las referencias de `styles/signal.ts` (`signal.positive`, `signal.brand`, …):
+> así cifras, SVG y gráficos siguen el mismo token sin duplicar hexadecimales.
+> La paleta de impresión (`PrintThemeProvider`, `reportExport`) es fija a propósito:
+> el papel no cambia de tema.
 
 ### Semántica de negocio en los KPI
 

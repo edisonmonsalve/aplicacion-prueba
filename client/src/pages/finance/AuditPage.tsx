@@ -18,6 +18,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { AuditEntity, AuditEntry, AuditList } from "@/types";
@@ -167,60 +168,51 @@ export default function AuditPage() {
           enPeriodoActual={enPeriodoActual}
           allowClear
           size="small"
-          style={{ marginBottom: 12 }}
         />
-        <Row gutter={[12, 12]}>
-          <Col xs={24} sm={12} lg={6}>
-            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              Entidad
-            </Typography.Text>
-            <Select
-              allowClear
-              style={{ width: "100%" }}
-              placeholder="Todas"
-              value={entidad}
-              options={ENTIDAD_OPTIONS}
-              onChange={(value) => update({ entidad: value, page: undefined })}
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              Acción
-            </Typography.Text>
-            <Select
-              allowClear
-              style={{ width: "100%" }}
-              placeholder="Todas"
-              value={accion}
-              options={ACCION_OPTIONS}
-              onChange={(value) => update({ accion: value, page: undefined })}
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-              ID de la entidad
-            </Typography.Text>
-            <Select
-              allowClear
-              showSearch
-              style={{ width: "100%" }}
-              placeholder="Cualquiera"
-              value={entidadId}
-              options={(report?.data ?? [])
-                .filter((r) => !entidad || r.entidad === entidad)
-                .map((r) => ({
-                  value: r.entidad_id,
-                  label: `#${r.entidad_id} · ${ENTIDAD_META[r.entidad]?.label ?? r.entidad}`,
-                }))
-                .filter(
-                  (option, index, all) =>
-                    all.findIndex((o) => o.value === option.value) === index
-                )}
-              onChange={(value) => update({ entidad_id: value, page: undefined })}
-            />
-          </Col>
-        </Row>
       </Card>
+
+      <FilterBar>
+        <FilterField label="Entidad" width={200}>
+          <Select
+            allowClear
+            style={{ width: "100%" }}
+            placeholder="Todas"
+            value={entidad}
+            options={ENTIDAD_OPTIONS}
+            onChange={(value) => update({ entidad: value, page: undefined })}
+          />
+        </FilterField>
+        <FilterField label="Acción" width={160}>
+          <Select
+            allowClear
+            style={{ width: "100%" }}
+            placeholder="Todas"
+            value={accion}
+            options={ACCION_OPTIONS}
+            onChange={(value) => update({ accion: value, page: undefined })}
+          />
+        </FilterField>
+        <FilterField label="ID de la entidad" width={240}>
+          <Select
+            allowClear
+            showSearch
+            style={{ width: "100%" }}
+            placeholder="Cualquiera"
+            value={entidadId}
+            options={(report?.data ?? [])
+              .filter((r) => !entidad || r.entidad === entidad)
+              .map((r) => ({
+                value: r.entidad_id,
+                label: `#${r.entidad_id} · ${ENTIDAD_META[r.entidad]?.label ?? r.entidad}`,
+              }))
+              .filter(
+                (option, index, all) =>
+                  all.findIndex((o) => o.value === option.value) === index
+              )}
+            onChange={(value) => update({ entidad_id: value, page: undefined })}
+          />
+        </FilterField>
+      </FilterBar>
 
       {loading && !report ? (
         <TableSkeleton />

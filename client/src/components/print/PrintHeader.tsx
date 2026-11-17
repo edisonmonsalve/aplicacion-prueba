@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import type { ReactNode } from "react";
 import { useCompany } from "@/context/CompanyContext";
 
@@ -22,11 +23,11 @@ function CompanyMark({ name, size = 46 }: { name: string; size?: number }) {
       aria-label={`Logotipo de ${name}`}
       className="print-brand-mark"
     >
-      <circle cx="24" cy="24" r="23" fill="#0f766e" />
-      <path d="M24 11.5 36 17.4v13.2L24 36.5l-12-5.9V17.4z" fill="#fff" />
+      <circle cx="24" cy="24" r="23" fill={signal.brandStrong} />
+      <path d="M24 11.5 36 17.4v13.2L24 36.5l-12-5.9V17.4z" fill={signal.onBrand} />
       <path
         d="M12 17.4 24 23.3l12-5.9M24 23.3v13.2"
-        stroke="#0f766e"
+        stroke={signal.brandStrong}
         strokeWidth="1.7"
         strokeLinejoin="round"
         fill="none"

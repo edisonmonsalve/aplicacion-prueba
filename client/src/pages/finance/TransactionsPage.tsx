@@ -18,6 +18,7 @@ import type {
 } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import RelativeTime from "@/components/RelativeTime";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -364,52 +365,40 @@ export default function TransactionsPage() {
         />
       </Card>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Tipo
-          </Typography.Text>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Tipo" width={140}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             options={TIPO_OPTIONS}
             value={tipo}
             onChange={(v) => update({ tipo: v, page: undefined })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Categoría
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Categoría" width={220}>
           <Select
             allowClear
             placeholder="Todas"
-            style={{ width: 220 }}
+            style={{ width: "100%" }}
             value={categoryId}
             onChange={(v) => update({ finance_category_id: v, page: undefined })}
             options={categories.map((c) => ({ value: c.id, label: `${CATEGORY_TIPO_LABEL[c.tipo]} · ${c.nombre}` }))}
             showSearch
             optionFilterProp="label"
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Cuenta
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Cuenta" width={200}>
           <Select
             allowClear
             placeholder="Todas"
-            style={{ width: 200 }}
+            style={{ width: "100%" }}
             value={accountId}
             onChange={(v) => update({ account_id: v, page: undefined })}
             options={accounts.map((a) => ({ value: a.id, label: a.nombre }))}
           />
-        </div>
-        {hasFilters && (
-          <Button onClick={clearFilters}>Limpiar filtros</Button>
-        )}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {resumen && (
         <Space size={[8, 8]} wrap style={{ marginBottom: 16 }}>

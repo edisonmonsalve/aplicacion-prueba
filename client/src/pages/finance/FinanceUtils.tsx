@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import type { ReactNode } from "react";
 import { Tag } from "antd";
 import { CheckCircleOutlined, EditOutlined, LockOutlined } from "@ant-design/icons";
@@ -39,9 +40,9 @@ export const ejecucionMeta = (estado: EjecucionEstado, tipo?: FinanceCategoryTip
 // rojo cuando un gasto excede su límite.
 export const ejecucionColor = (estado: EjecucionEstado, tipo?: FinanceCategoryTipo) => {
   if (tipo === "ingreso") {
-    return estado === "excedido" ? "#52c41a" : estado === "alerta" ? "#1677ff" : "#52c41a";
+    return estado === "excedido" ? signal.positiveAccent : estado === "alerta" ? signal.infoAccent : signal.positiveAccent;
   }
-  return estado === "excedido" ? "#ff4d4f" : estado === "alerta" ? "#fa8c16" : "#52c41a";
+  return estado === "excedido" ? signal.negativeAccent : estado === "alerta" ? signal.warningAccent : signal.positiveAccent;
 };
 
 export const BudgetEstadoTag = ({ estado }: { estado: BudgetEstado }) => (

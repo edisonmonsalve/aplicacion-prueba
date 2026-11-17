@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, App, Card, Col, Row, Statistic, Table, Tag, Typography } from "antd";
 import { RiseOutlined } from "@ant-design/icons";
@@ -76,7 +77,7 @@ const Comparativo = ({
           value={utilidad}
           precision={2}
           prefix="$"
-          valueStyle={{ color: utilidad < 0 ? "#cf1322" : "#389e0d" }}
+          valueStyle={{ color: utilidad < 0 ? signal.negative : signal.positive }}
         />
         <div style={{ marginTop: 4 }}>
           Variación: <Variacion value={variacionUtilidad} />
@@ -266,7 +267,7 @@ export default function TrendsPage() {
                   value={report.totales.ingresos}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#1677ff" }}
+                  valueStyle={{ color: signal.info }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Margen bruto {money(report.totales.margen)} ({report.totales.margen_pct.toFixed(1)} %)
@@ -280,7 +281,7 @@ export default function TrendsPage() {
                   value={report.totales.utilidad}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: report.totales.utilidad < 0 ? "#cf1322" : "#389e0d" }}
+                  valueStyle={{ color: report.totales.utilidad < 0 ? signal.negative : signal.positive }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Gastos operativos {money(report.totales.gastos)}
@@ -294,7 +295,7 @@ export default function TrendsPage() {
                   value={report.totales.neto_caja}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: report.totales.neto_caja < 0 ? "#cf1322" : "#389e0d" }}
+                  valueStyle={{ color: report.totales.neto_caja < 0 ? signal.negative : signal.positive }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Entradas {money(report.totales.entradas)} · Salidas {money(report.totales.salidas)}
@@ -308,7 +309,7 @@ export default function TrendsPage() {
                   value={report.serie.at(-1)?.saldo_caja ?? 0}
                   precision={2}
                   prefix="$"
-                  suffix={<RiseOutlined style={{ fontSize: 14, color: "#1677ff" }} />}
+                  suffix={<RiseOutlined style={{ fontSize: 14, color: signal.info }} />}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Incluye saldos iniciales de las cuentas
@@ -332,9 +333,9 @@ export default function TrendsPage() {
                   <YAxis tickFormatter={(v: number) => money(v)} width={90} />
                   <Tooltip formatter={(value) => money(Number(value))} />
                   <Legend />
-                  <Bar dataKey="Ingresos" fill="#1677ff" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="Utilidad" fill="#52c41a" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="Neto de caja" fill="#722ed1" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="Ingresos" fill={signal.infoAccent} radius={[3, 3, 0, 0]} animationDuration={850} />
+                  <Bar dataKey="Utilidad" fill={signal.positiveAccent} radius={[3, 3, 0, 0]} animationDuration={850} />
+                  <Bar dataKey="Neto de caja" fill={signal.violetAccent} radius={[3, 3, 0, 0]} animationDuration={850} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
@@ -350,8 +351,9 @@ export default function TrendsPage() {
                     type="monotone"
                     dataKey="saldo_caja"
                     name="Saldo de caja"
-                    stroke="#13c2c2"
+                    stroke={signal.brand}
                     strokeWidth={2}
+                    animationDuration={850}
                     dot
                   />
                 </ComposedChart>

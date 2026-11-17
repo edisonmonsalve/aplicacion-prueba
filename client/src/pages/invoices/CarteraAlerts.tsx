@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   App,
@@ -244,7 +245,7 @@ export default function CarteraAlerts({ tipo = "venta" }: Props) {
                 <Tooltip title={row.detalle}>
                   <div>
                     <strong>{row.titulo}</strong>
-                    <div style={{ color: "#888", fontSize: 12, maxWidth: 320 }}>{row.accion}</div>
+                    <div style={{ color: signal.muted, fontSize: 12, maxWidth: 320 }}>{row.accion}</div>
                   </div>
                 </Tooltip>
               ),
@@ -305,7 +306,7 @@ export default function CarteraAlerts({ tipo = "venta" }: Props) {
                       {row.seguimiento.vencido ? "Contacto vencido" : meta.label}
                     </Tag>
                     {row.seguimiento.proximo_contacto && (
-                      <div style={{ fontSize: 12, color: "#888" }}>
+                      <div style={{ fontSize: 12, color: signal.muted }}>
                         Próximo: {fmtDate(row.seguimiento.proximo_contacto)}
                       </div>
                     )}
@@ -347,7 +348,7 @@ export default function CarteraAlerts({ tipo = "venta" }: Props) {
               <span>
                 {selected.contraparte} · Saldo <strong>{money(selected.saldo_pendiente)}</strong>
               </span>
-              <span style={{ color: "#888" }}>{selected.detalle}</span>
+              <span style={{ color: signal.muted }}>{selected.detalle}</span>
               <Typography.Text type="warning">Sugerencia: {selected.accion}</Typography.Text>
             </Space>
 

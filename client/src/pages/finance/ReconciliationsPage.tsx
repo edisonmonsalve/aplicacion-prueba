@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -691,8 +692,8 @@ export default function ReconciliationsPage() {
                     valueStyle={{
                       color:
                         Math.abs(detail.resumen.diferencia) < 0.005
-                          ? "#389e0d"
-                          : "#cf1322",
+                          ? signal.positive
+                          : signal.negative,
                     }}
                   />
                 </Card>

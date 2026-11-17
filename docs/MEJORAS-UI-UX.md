@@ -177,9 +177,9 @@ HUD de videojuego domesticado para el ámbito empresarial. Estudio completo en
 | S2 | Alta | **Tipografía con personalidad**: `Space Grotesk Variable` para títulos y cifras, `Plus Jakarta Sans` para el cuerpo, micro-labels en mayúsculas con tracking ancho y cifras tabulares. **Implementado.** |
 | S3 | Alta | **Shell HUD**: sidebar por secciones numeradas, indicador de estado, avatar con anillo, barra de señal en `PageHeader` (28 páginas) y overlay móvil accesible con cierre por `Escape`. **Implementado.** |
 | S4 | Alta | **KPI Signal**: `StatCard` con barra de acento, escuadra, icono, delta y cifra monoespaciada; reemplaza las tarjetas duplicadas de Inicio (9 KPIs) y Finanzas (11 KPIs). Soporta `loading` con shimmer. **Implementado.** |
-| S5 | Media | **`FilterBar` + `FilterField`**: barra y micro-labels unificados para los patrones de filtros repetidos. Aplicado en Productos y Facturas; los demás listados pueden migrarse incrementales. **Implementado.** |
+| S5 | Media | **`FilterBar` + `FilterField`**: barra y micro-labels unificados para los patrones de filtros repetidos. Aplicado en Productos y Facturas, y extendido al resto de listados en la sección 17. **Implementado.** |
 | S6 | Media | **Gráficos**: paleta desde tokens, tooltips del tema y barras con degradado suave en Inicio. **Implementado.** |
-| S7 | Alta | **Accesibilidad y movimiento**: skip link, `:focus-visible` global, `aria-live` en carga y `prefers-reduced-motion` para toda la app. **Implementado.** Los KPIs migrados usan tokens; los hex sueltos que quedan en otros módulos (Tendencias, Cartera, Balance, etc.) se migran en la siguiente tanda. |
+| S7 | Alta | **Accesibilidad y movimiento**: skip link, `:focus-visible` global, `aria-live` en carga y `prefers-reduced-motion` para toda la app. **Implementado.** Los KPIs migrados usan tokens; los hex sueltos de otros módulos se centralizaron en la sección 17. |
 
 ## 16. Signal vivo: color semántico y ambiente animado
 
@@ -197,6 +197,21 @@ sienta vivo sin perder sobriedad.
 | V5 | Media | **Stock bajo más legible**: la tabla de Inicio añade una mini-barra que hace perceptible la relación stock/mínimo junto al tag. **Implementado.** |
 | V6 | Media | **Header vivo**: el indicador «Sistema operativo» pasa a «En vivo · HH:mm» con hora local que se actualiza cada 30 s. **Implementado.** |
 | V7 | Media | **KPIs como atajos**: Ingresos y Egresos abren Transacciones, Compras abre Rotación de inventario y Utilidad abre Resultados, conservando el periodo de la URL. **Implementado.** |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 17. Cierre de tanda: tokens en JS y filtros globales
+
+Última tanda de consistencia: dejar un único origen de color también fuera del CSS
+y terminar la migración de filtros que la sección 15 dejó pendiente.
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| Z1 | Alta | **`styles/signal.ts`**: referencias `var(--ui-*)` para cifras, SVG y gráficos. Los hexadecimales sueltos de ~24 módulos (Inicio, Login, Logo, reportes de Finanzas, Cartera, detalle de factura, etc.) pasan a `signal.*`, con variantes `ink` para texto y `Accent` para shapes. Cambiar un token en `tokens.css` ahora actualiza también Recharts y los SVG. **Implementado.** |
+| Z2 | Media | **Excepciones documentadas**: `ThemeContext.tsx` sigue siendo la fuente de los tokens de AntD; `PrintThemeProvider` y `reportExport` mantienen una paleta de papel fija porque el HTML impreso no participa del tema claro/oscuro. `signal.ts` conserva `onBrand` y `brandDeep` como assets intencionales del logo/login. **Documentado.** |
+| Z3 | Alta | **`FilterBar` en el resto de listados**: Cotizaciones, Terceros, Usuarios, Categorías, Movimientos, Transacciones, Presupuestos, Auditoría, Por cobrar, Flujo de caja, Rotación de inventario y Rentabilidad. Se conservaron el estado en URL, los resets de página, la búsqueda remota de productos, los selects dependientes de Auditoría y los `PeriodRangePicker` en su tarjeta. **Implementado.** |
+| Z4 | Baja | **Animación de gráficos alineada**: barras de Tendencias con 850 ms y paleta de acento coherente (azul eléctrico, verde, violeta) en lugar de tonos de texto. **Implementado.** |
 
 Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
 preexistentes de `InvoiceFormPage.tsx` se mantienen).

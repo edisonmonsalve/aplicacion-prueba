@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import {
   Avatar,
   Button,
@@ -225,7 +226,7 @@ export default function AppLayout() {
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", minHeight: 64, padding: "14px 16px 10px" }}>
-          <div style={{ color: "#fff" }}>
+          <div style={{ color: signal.onBrand }}>
             <AppLogo size={26} tone="light" showText={!collapsed} textSize={17} />
           </div>
           {!collapsed && (

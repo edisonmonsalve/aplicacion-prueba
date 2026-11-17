@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -19,6 +20,7 @@ import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
 import type {
   InventoryAbcClass,
@@ -205,18 +207,18 @@ export default function InventoryAnalyticsPage() {
           enPeriodoActual={enPeriodoActual}
           extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
         />
-        <div style={{ marginTop: 12, maxWidth: 260 }}>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Umbral de stock muerto
-          </Typography.Text>
+      </Card>
+
+      <FilterBar>
+        <FilterField label="Umbral de stock muerto" width={260}>
           <Select
             style={{ width: "100%" }}
             value={diasMuerto}
             options={DIAS_MUERTO_OPTIONS}
             onChange={(value) => update({ dias_muerto: value })}
           />
-        </div>
-      </Card>
+        </FilterField>
+      </FilterBar>
 
       {report && report.resumen.stock_muerto.productos > 0 && (
         <Alert
@@ -260,7 +262,7 @@ export default function InventoryAnalyticsPage() {
                   value={report.resumen.rotacion ?? 0}
                   precision={2}
                   suffix={report.resumen.rotacion === null ? "" : "veces"}
-                  valueStyle={{ color: "#1677ff" }}
+                  valueStyle={{ color: signal.info }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Costo de ventas {money(report.resumen.costo_ventas)}
@@ -274,7 +276,7 @@ export default function InventoryAnalyticsPage() {
                   value={report.resumen.dias_inventario ?? 0}
                   precision={report.resumen.dias_inventario === null ? 0 : 2}
                   suffix={report.resumen.dias_inventario === null ? "" : "días"}
-                  valueStyle={{ color: "#d46b08" }}
+                  valueStyle={{ color: signal.warning }}
                 />
               </Card>
             </Col>

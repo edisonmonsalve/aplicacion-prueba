@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -20,6 +21,7 @@ import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { ProfitabilityReport, ProfitabilityRow, ProfitGroup } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
@@ -165,14 +167,17 @@ export default function ProfitabilityPage() {
           enPeriodoActual={enPeriodoActual}
           extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
         />
-        <div style={{ marginTop: 12, overflowX: "auto" }}>
+      </Card>
+
+      <FilterBar style={{ overflowX: "auto" }}>
+        <FilterField label="Agrupar por">
           <Segmented
             options={GROUP_OPTIONS}
             value={grupo}
             onChange={(value) => update({ grupo: String(value) })}
           />
-        </div>
-      </Card>
+        </FilterField>
+      </FilterBar>
 
       {sinDatos && (
         <Alert
@@ -194,7 +199,7 @@ export default function ProfitabilityPage() {
                   value={report.resumen.ingresos}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#1677ff" }}
+                  valueStyle={{ color: signal.info }}
                 />
               </Card>
             </Col>
@@ -205,7 +210,7 @@ export default function ProfitabilityPage() {
                   value={report.resumen.costo}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#d46b08" }}
+                  valueStyle={{ color: signal.warning }}
                 />
               </Card>
             </Col>
@@ -219,7 +224,7 @@ export default function ProfitabilityPage() {
                   suffix={
                     <span style={{ fontSize: 13 }}>{report.resumen.margen_pct.toFixed(1)} %</span>
                   }
-                  valueStyle={{ color: report.resumen.margen < 0 ? "#cf1322" : "#389e0d" }}
+                  valueStyle={{ color: report.resumen.margen < 0 ? signal.negative : signal.positive }}
                 />
               </Card>
             </Col>

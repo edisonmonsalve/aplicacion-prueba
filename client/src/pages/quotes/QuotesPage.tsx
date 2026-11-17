@@ -30,6 +30,7 @@ import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/quoteU
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
@@ -363,49 +364,28 @@ export default function QuotesPage() {
         />
       </Card>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <Typography.Text
-            type="secondary"
-            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
-          >
-            Buscar
-          </Typography.Text>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Buscar" width={280}>
           <Input.Search
             allowClear
             placeholder="Número, cliente o documento"
             aria-label="Buscar cotizaciones"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            style={{ width: 280 }}
+            style={{ width: "100%" }}
           />
-        </div>
-        <div>
-          <Typography.Text
-            type="secondary"
-            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
-          >
-            Estado
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Estado" width={160}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 160 }}
+            style={{ width: "100%" }}
             value={estado}
             options={STATUS_OPTIONS}
             onChange={(v) => update({ estado: v })}
           />
-        </div>
-        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       <Space size={8} wrap style={{ marginBottom: 16 }}>
         <Tag color="blue" style={{ margin: 0, padding: "4px 10px" }}>

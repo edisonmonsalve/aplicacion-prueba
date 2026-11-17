@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect } from "react";
 import {
   App,
@@ -99,7 +100,7 @@ export default function PaymentModal({ open, invoice, accounts, onCancel, onSave
         <span>
           Saldo pendiente: <strong>{money(saldo)}</strong>
         </span>
-        <span style={{ color: "#888" }}>
+        <span style={{ color: signal.muted }}>
           {esVenta
             ? "El cobro entra a la cuenta elegida y no vuelve a sumar al resultado."
             : "El pago sale de la cuenta elegida y no vuelve a restar del resultado."}

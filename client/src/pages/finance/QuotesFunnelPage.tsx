@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -38,10 +39,10 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const STAGE_COLORS: Record<string, string> = {
-  creadas: "#1677ff",
-  enviadas: "#13c2c2",
-  aprobadas: "#52c41a",
-  entregadas: "#722ed1",
+  creadas: signal.infoAccent,
+  enviadas: signal.brand,
+  aprobadas: signal.positiveAccent,
+  entregadas: signal.violetAccent,
 };
 
 const ESTADO_META: Record<QuoteFunnelState, { label: string; color: string }> = {
@@ -66,7 +67,7 @@ const Tiempo = ({
       value={tiempo.promedio ?? 0}
       precision={tiempo.promedio === null ? 0 : 1}
       suffix={tiempo.promedio === null ? "" : "días"}
-      valueStyle={{ color: "#1677ff" }}
+      valueStyle={{ color: signal.info }}
     />
     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
       {tiempo.muestra === 0
@@ -281,7 +282,7 @@ export default function QuotesFunnelPage() {
                   value={report.resumen.tasa_aprobacion}
                   precision={1}
                   suffix="%"
-                  valueStyle={{ color: "#389e0d" }}
+                  valueStyle={{ color: signal.positive }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {report.resumen.aprobadas} de {report.resumen.enviadas} enviadas
@@ -295,7 +296,7 @@ export default function QuotesFunnelPage() {
                   value={report.resumen.tasa_cierre}
                   precision={1}
                   suffix="%"
-                  valueStyle={{ color: "#722ed1" }}
+                  valueStyle={{ color: signal.violet }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {report.resumen.entregadas} entregadas de {report.resumen.cotizaciones}

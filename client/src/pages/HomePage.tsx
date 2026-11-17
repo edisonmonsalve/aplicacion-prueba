@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Card, Col, Empty, Row, Skeleton, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, PercentageOutlined, RiseOutlined, SwapOutlined, WalletOutlined, WarningOutlined } from "@ant-design/icons";
@@ -85,7 +86,7 @@ export default function HomePage() {
       enviado: token.colorInfo,
       aprobado: token.colorSuccess,
       rechazado: token.colorError,
-      entregado: "#a78bfa",
+      entregado: signal.violetAccent,
       vencido: token.colorWarning,
     })[estado] ?? token.colorPrimary;
 

@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import CategoryFormModal from "@/components/CategoryFormModal";
 import ConfirmAction from "@/components/ConfirmAction";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import { useAuth } from "@/context/AuthContext";
 import { deleteCategory, getCategories } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
@@ -189,17 +190,21 @@ export default function CategoriesPage() {
             marginBottom: 16,
           }}
         >
-          <Input.Search
-            placeholder="Buscar por nombre"
-            allowClear
-            aria-label="Buscar categorías"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            style={{ width: 320, maxWidth: "100%" }}
-          />
+          <FilterBar style={{ marginBottom: 0, flex: 1 }}>
+            <FilterField label="Buscar" width={320}>
+              <Input.Search
+                placeholder="Buscar por nombre"
+                allowClear
+                aria-label="Buscar categorías"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                style={{ width: "100%" }}
+              />
+            </FilterField>
+          </FilterBar>
           <Typography.Text type="secondary">
             {hasSearch ? `${filtered.length} de ${categories.length} categorías` : `${categories.length} categorías`}
             {" · "}

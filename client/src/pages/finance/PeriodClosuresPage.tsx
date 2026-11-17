@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -580,7 +581,7 @@ export default function PeriodClosuresPage() {
                   prefix="$"
                   valueStyle={{
                     color:
-                      (preview.snapshot.resultado?.utilidad ?? 0) < 0 ? "#cf1322" : "#389e0d",
+                      (preview.snapshot.resultado?.utilidad ?? 0) < 0 ? signal.negative : signal.positive,
                   }}
                 />
               </Col>
@@ -730,7 +731,7 @@ export default function PeriodClosuresPage() {
                       precision={2}
                       prefix="$"
                       valueStyle={{
-                        color: detail.snapshot.resultado.utilidad < 0 ? "#cf1322" : "#389e0d",
+                        color: detail.snapshot.resultado.utilidad < 0 ? signal.negative : signal.positive,
                       }}
                     />
                   </Col>
@@ -810,7 +811,7 @@ export default function PeriodClosuresPage() {
                     precision={2}
                     prefix="$"
                     valueStyle={{
-                      color: detail.snapshot.resumen.utilidad < 0 ? "#cf1322" : "#389e0d",
+                      color: detail.snapshot.resumen.utilidad < 0 ? signal.negative : signal.positive,
                     }}
                   />
                 </Col>
@@ -828,7 +829,7 @@ export default function PeriodClosuresPage() {
                     value={detail.snapshot.resumen.iva_neto}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: detail.snapshot.resumen.iva_neto < 0 ? "#389e0d" : undefined }}
+                    valueStyle={{ color: detail.snapshot.resumen.iva_neto < 0 ? signal.positive : undefined }}
                   />
                 </Col>
                 <Col span={12}>

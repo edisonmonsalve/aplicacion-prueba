@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -19,6 +20,7 @@ import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { CashFlowAccountRow, CashFlowMonth, CashFlowReport, FinanceAccount } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
@@ -192,10 +194,10 @@ export default function CashFlowPage() {
           enPeriodoActual={enPeriodoActual}
           extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
         />
-        <div style={{ marginTop: 12, maxWidth: 320 }}>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Cuenta
-          </Typography.Text>
+      </Card>
+
+      <FilterBar hasFilters={!!accountId} onClear={() => update({ account_id: undefined })}>
+        <FilterField label="Cuenta" width={320}>
           <Select
             allowClear
             placeholder="Todas las cuentas"
@@ -207,8 +209,8 @@ export default function CashFlowPage() {
               label: `${a.nombre}${a.activo ? "" : " (inactiva)"}`,
             }))}
           />
-        </div>
-      </Card>
+        </FilterField>
+      </FilterBar>
 
       {sinMovimiento && (
         <Alert
@@ -240,7 +242,7 @@ export default function CashFlowPage() {
                   value={report.totales.entradas}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#389e0d" }}
+                  valueStyle={{ color: signal.positive }}
                 />
               </Card>
             </Col>
@@ -251,7 +253,7 @@ export default function CashFlowPage() {
                   value={report.totales.salidas}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#cf1322" }}
+                  valueStyle={{ color: signal.negative }}
                 />
               </Card>
             </Col>
@@ -262,7 +264,7 @@ export default function CashFlowPage() {
                   value={report.totales.saldo_final}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: report.totales.saldo_final < 0 ? "#cf1322" : "#1677ff" }}
+                  valueStyle={{ color: report.totales.saldo_final < 0 ? signal.negative : signal.info }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Neto del periodo: <Neto value={report.totales.neto} />

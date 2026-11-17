@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { App, Button, Empty, Input, Select, Space, Table, Tag, Tooltip } from "antd";
 import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -11,6 +11,7 @@ import { canWriteFinance } from "@/utils/roles";
 import type { BudgetEstado, BudgetListItem, BudgetPeriodo, BudgetSortKey } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import BudgetFormModal from "./BudgetFormModal";
@@ -231,50 +232,38 @@ export default function BudgetsPage() {
         }
       />
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Buscar
-          </Typography.Text>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Buscar" width={240}>
           <Input.Search
             allowClear
             placeholder="Nombre del presupuesto"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onSearch={(v) => update({ q: v || undefined, page: undefined })}
-            style={{ width: 240 }}
+            style={{ width: "100%" }}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Estado
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Estado" width={140}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             value={estado}
             options={STATUS_OPTIONS}
             onChange={(v) => update({ estado: v, page: undefined })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Periodo
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Periodo" width={140}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             value={tipo}
             options={PERIOD_OPTIONS}
             onChange={(v) => update({ tipo_periodo: v, page: undefined })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Filtro rápido
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Filtro rápido">
           <Tooltip title="Mostrar solo los presupuestos cuya fecha de inicio y fin incluyen hoy">
             <Button
               type={vigente ? "primary" : "default"}
@@ -284,9 +273,8 @@ export default function BudgetsPage() {
               Vigente hoy
             </Button>
           </Tooltip>
-        </div>
-        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {firstLoad ? (
         <TableSkeleton />

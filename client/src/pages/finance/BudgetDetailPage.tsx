@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -455,7 +456,7 @@ export default function BudgetDetailPage() {
       </Card>
 
       <Card size="small" style={{ marginBottom: 16 }}>
-        <Space wrap split={<span style={{ color: "#d9d9d9" }}>|</span>}>
+        <Space wrap split={<span style={{ color: signal.line }}>|</span>}>
           <Checkbox checked={soloAlertas} onChange={(e) => setSoloAlertas(e.target.checked)}>
             Solo líneas con alerta o excedidas
           </Checkbox>

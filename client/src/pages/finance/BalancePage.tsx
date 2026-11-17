@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -293,7 +294,7 @@ export default function BalancePage() {
                     value={report.activo.total}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: "#1677ff" }}
+                    valueStyle={{ color: signal.info }}
                   />
                 </Card>
               </Col>
@@ -304,7 +305,7 @@ export default function BalancePage() {
                     value={report.pasivo.total}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: "#d46b08" }}
+                    valueStyle={{ color: signal.warning }}
                   />
                 </Card>
               </Col>
@@ -315,7 +316,7 @@ export default function BalancePage() {
                     value={report.patrimonio}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: report.patrimonio < 0 ? "#cf1322" : "#389e0d" }}
+                    valueStyle={{ color: report.patrimonio < 0 ? signal.negative : signal.positive }}
                   />
                 </Card>
               </Col>
