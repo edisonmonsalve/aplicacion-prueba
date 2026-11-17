@@ -987,20 +987,12 @@ html[data-theme="dark"] .row-low-stock > td {
   pointer-events: none;
 }
 
-.ui-header-actions {
-  padding-left: 12px;
-  border-left: 1px solid var(--ui-line);
-}
-
+/* El indicador en vivo va como texto con pip, sin chip: el único borde del
+   header es el filo degradado inferior, y el Space ya separa los dos clusters. */
 .ui-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 11px;
-  border: 1px solid var(--ui-line);
-  border-radius: 999px;
-  background: var(--ui-surface-2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .ui-status__text {

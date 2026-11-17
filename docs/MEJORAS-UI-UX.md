@@ -225,7 +225,7 @@ las tablas.
 | # | Prioridad | Mejora |
 |---|---|---|
 | W1 | Media | **Sider**: halo tenue detrás del logo, índices de sección en teal legible sobre fondo oscuro (`--ui-sider-accent` con `color-mix`), barra de señal en el item activo, micro-desplazamiento del icono en hover y pie «Signal · Control / OPS» anclado abajo. **Implementado.** |
-| W2 | Media | **Header**: fondo degradado `surface → surface-2`, filo de señal teal→violeta, separador antes del cluster de acciones y el indicador «En vivo · HH:mm» convertido en chip con borde. **Implementado.** |
+| W2 | Media | **Header**: fondo degradado `surface → surface-2`, filo de señal teal→violeta y el indicador «En vivo · HH:mm» con pip. El separador antes del cluster de acciones y el chip con borde de la hora se probaron y se retiraron: desentonaban con el resto de bordes rectos. **Implementado.** |
 | W3 | Baja | **Accesibilidad**: el acento del sider se aclara en ambos temas para no perderse sobre el fondo oscuro; los hovers del avatar y del icono se anulan con `prefers-reduced-motion`. **Implementado.** |
 
 Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings

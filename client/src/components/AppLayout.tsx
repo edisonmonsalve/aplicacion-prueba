@@ -384,7 +384,7 @@ export default function AppLayout() {
             )}
           </Space>
 
-          <Space className="ui-header-actions" size={isMobile ? "small" : "middle"}>
+          <Space size={isMobile ? "small" : "middle"}>
             <Tooltip title="Cambiar entre tema claro y oscuro">
               <Switch
                 checked={mode === "dark"}
