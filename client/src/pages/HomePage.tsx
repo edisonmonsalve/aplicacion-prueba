@@ -1,4 +1,3 @@
-import { signal } from "@/styles/signal";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Card, Col, Empty, Row, Skeleton, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, PercentageOutlined, RiseOutlined, SwapOutlined, WalletOutlined, WarningOutlined } from "@ant-design/icons";
@@ -24,6 +23,8 @@ import { formatCurrency, formatNumber } from "@/utils/format";
 import { STATUS_OPTIONS } from "@/pages/quotes/quoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import useReducedMotion from "@/hooks/useReducedMotion";
+import { CHART, chartTooltipStyle } from "@/styles/chartPalette";
 import PageHeader from "@/components/PageHeader";
 import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
@@ -47,6 +48,7 @@ const greeting = () => {
 export default function HomePage() {
   const { user, canOperate } = useAuth();
   const { token } = theme.useToken();
+  const reduced = useReducedMotion();
   const navigate = useNavigate();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,13 +84,13 @@ export default function HomePage() {
   // Colores de gráficos desde tokens del tema: mismo resultado en claro y oscuro.
   const estadoColor = (estado: string) =>
     ({
-      borrador: token.colorTextSecondary,
-      enviado: token.colorInfo,
-      aprobado: token.colorSuccess,
-      rechazado: token.colorError,
-      entregado: signal.violetAccent,
-      vencido: token.colorWarning,
-    })[estado] ?? token.colorPrimary;
+      borrador: CHART.neutral,
+      enviado: CHART.cash,
+      aprobado: CHART.income,
+      rechazado: CHART.danger,
+      entregado: CHART.profit,
+      vencido: CHART.expense,
+    })[estado] ?? CHART.brand;
 
   const estados = useMemo(
     () =>
@@ -101,12 +103,7 @@ export default function HomePage() {
     [data, token]
   );
 
-  const tooltipStyle = {
-    background: token.colorBgElevated,
-    border: `1px solid ${token.colorBorderSecondary}`,
-    borderRadius: 8,
-    color: token.colorText,
-  };
+  const tooltipStyle = chartTooltipStyle(token);
 
   const stats = data
     ? [
@@ -313,12 +310,12 @@ export default function HomePage() {
                   <BarChart data={dias}>
                     <defs>
                       <linearGradient id="signalIn" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={token.colorSuccess} />
-                        <stop offset="100%" stopColor={token.colorSuccess} stopOpacity={0.35} />
+                        <stop offset="0%" stopColor={CHART.income} />
+                        <stop offset="100%" stopColor={CHART.income} stopOpacity={0.35} />
                       </linearGradient>
                       <linearGradient id="signalOut" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={token.colorWarning} />
-                        <stop offset="100%" stopColor={token.colorWarning} stopOpacity={0.35} />
+                        <stop offset="0%" stopColor={CHART.expense} />
+                        <stop offset="100%" stopColor={CHART.expense} stopOpacity={0.35} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={token.colorSplit} vertical={false} />
@@ -326,8 +323,8 @@ export default function HomePage() {
                     <YAxis allowDecimals={false} stroke={token.colorTextSecondary} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: token.colorFillTertiary }} />
                     <Legend />
-                    <Bar dataKey="Entradas" fill="url(#signalIn)" radius={[6, 6, 0, 0]} animationDuration={850} />
-                    <Bar dataKey="Salidas" fill="url(#signalOut)" radius={[6, 6, 0, 0]} animationDuration={850} />
+                    <Bar dataKey="Entradas" fill="url(#signalIn)" radius={[6, 6, 0, 0]} animationDuration={850} isAnimationActive={!reduced} />
+                    <Bar dataKey="Salidas" fill="url(#signalOut)" radius={[6, 6, 0, 0]} animationDuration={850} isAnimationActive={!reduced} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -355,6 +352,7 @@ export default function HomePage() {
                         paddingAngle={2}
                         stroke="none"
                         animationDuration={850}
+                        isAnimationActive={!reduced}
                       >
                         {estados.map((e) => (
                           <Cell key={e.name} fill={e.color} />
@@ -386,8 +384,8 @@ export default function HomePage() {
                     <BarChart data={data.topProductos} layout="vertical" margin={{ left: 16 }}>
                       <defs>
                         <linearGradient id="signalTop" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor={token.colorPrimary} stopOpacity={0.55} />
-                          <stop offset="100%" stopColor={token.colorPrimary} />
+                          <stop offset="0%" stopColor={CHART.brand} stopOpacity={0.55} />
+                          <stop offset="100%" stopColor={CHART.brand} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={token.colorSplit} horizontal={false} />
@@ -400,6 +398,7 @@ export default function HomePage() {
                         fill="url(#signalTop)"
                         radius={[0, 6, 6, 0]}
                         animationDuration={850}
+                        isAnimationActive={!reduced}
                       />
                     </BarChart>
                   </ResponsiveContainer>

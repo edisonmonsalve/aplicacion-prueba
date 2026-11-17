@@ -22,12 +22,10 @@ import {
   DashboardOutlined,
   ShoppingOutlined,
   SwapOutlined,
-  TagsOutlined,
   FileTextOutlined,
   FileDoneOutlined,
   ContactsOutlined,
   TeamOutlined,
-  DollarOutlined,
   ShopOutlined,
   MoonOutlined,
   SunOutlined,
@@ -41,7 +39,6 @@ import { useThemeMode } from "@/context/ThemeContext";
 import { CompanyProvider } from "@/context/CompanyContext";
 import { canAccessFinance } from "@/utils/roles";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import RouteBreadcrumb from "@/components/RouteBreadcrumb";
 import AppLogo from "@/components/AppLogo";
 import { roleLabel } from "@/utils/roles";
 
@@ -70,7 +67,7 @@ const MODULE_ROUTES: Array<{ prefix: string; key: string }> = [
   { prefix: "/terceros", key: "/terceros" },
   { prefix: "/products", key: "/products" },
   { prefix: "/movements", key: "/movements" },
-  { prefix: "/categories", key: "/categories" },
+  { prefix: "/categories", key: "/products" },
   { prefix: "/users", key: "/users" },
   { prefix: "/perfil", key: "/perfil" },
   { prefix: "/empresa", key: "/empresa" },
@@ -90,14 +87,12 @@ type NavItem = NonNullable<NonNullable<MenuProps["items"]>[number]>;
 const NAV_SEARCH: Record<string, string> = {
   "group-01": "operación inicio productos movimientos categorías cotizaciones facturas terceros",
   "/": "inicio dashboard panel principal",
-  "/products": "productos inventario stock bodega",
+  "/products": "productos inventario stock bodega categorías clasificación",
   "/movements": "movimientos entradas salidas inventario",
-  "/categories": "categorías clasificación",
   "/cotizaciones": "cotizaciones propuestas venta",
   "/facturas": "facturas facturación comprobantes",
   "/terceros": "terceros clientes proveedores",
-  "group-02": "finanzas análisis reportes gestión",
-  "finanzas": "módulo financiero finanzas análisis reportes gestión",
+  "group-02": "finanzas análisis reportes gestión módulo financiero",
   "fin-panel": "panel resumen salud datos",
   "fin-reportes": "reportes estados financieros análisis",
   "fin-gestion": "gestión operación financiera",
@@ -144,13 +139,6 @@ const filterNavItems = (nodes: NavItem[], term: string): NavItem[] => {
   });
 };
 
-// Con el buscador activo, todas las ramas con resultados deben estar abiertas.
-const collectBranchKeys = (nodes: NavItem[]): string[] =>
-  nodes.flatMap((node) => {
-    if (node.type === "group" || !("children" in node) || !node.children?.length) return [];
-    return [String(node.key), ...collectBranchKeys(node.children as NavItem[])];
-  });
-
 const subItem = (key: string, label: string) => ({
   key,
   label: (
@@ -170,9 +158,6 @@ export default function AppLayout() {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [openKeys, setOpenKeys] = useState<string[]>(() =>
-    pathname.startsWith("/finanzas") ? ["finanzas"] : []
-  );
   const [clock, setClock] = useState(() => new Date());
   const [navQuery, setNavQuery] = useState("");
   const siderScrollRef = useRef<HTMLDivElement>(null);
@@ -184,14 +169,8 @@ export default function AppLayout() {
     MODULE_ROUTES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.key ??
     "/";
 
-  // Al entrar en Finanzas desde otro módulo, el submenú se abre solo.
-  useEffect(() => {
-    if (!pathname.startsWith("/finanzas")) return;
-    setOpenKeys((prev) => (prev.includes("finanzas") ? prev : [...prev, "finanzas"]));
-  }, [pathname]);
-
-  // Finanzas tiene 15 entradas: al navegar, deja el item activo a la vista
-  // dentro del sider. No mueve el scroll de la página y no anima el salto.
+  // Al navegar, deja el item activo a la vista dentro del sider. No mueve el
+  // scroll de la página y no anima el salto.
   useEffect(() => {
     const container = siderScrollRef.current;
     if (!container || collapsed) return;
@@ -204,7 +183,7 @@ export default function AppLayout() {
 
     const top = item.top - box.top + container.scrollTop;
     container.scrollTop = Math.max(0, top - container.clientHeight / 2 + item.height / 2);
-  }, [pathname, openKeys, collapsed]);
+  }, [pathname, collapsed]);
 
   // "/" enfoca el buscador del menú y Escape lo limpia, como en cualquier
   // paleta de comandos. No interrumpe la escritura en otros campos.
@@ -249,7 +228,6 @@ export default function AppLayout() {
         { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
         { key: "/products", icon: <ShoppingOutlined />, label: "Productos" },
         { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
-        { key: "/categories", icon: <TagsOutlined />, label: "Categorías" },
         { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
         { key: "/facturas", icon: <FileDoneOutlined />, label: "Facturas" },
         { key: "/terceros", icon: <ContactsOutlined />, label: "Terceros" },
@@ -263,50 +241,39 @@ export default function AppLayout() {
             label: navLabel("02", "Finanzas"),
             children: [
               {
-                key: "finanzas",
-                icon: <DollarOutlined />,
-                label: (
-                  <span className="ui-nav-parent">
-                    Módulo financiero <span className="ui-nav-count">15</span>
-                  </span>
-                ),
+                type: "group" as const,
+                key: "fin-panel",
+                label: <span className="ui-nav-sublabel">Panel</span>,
                 children: [
-                  {
-                    type: "group" as const,
-                    key: "fin-panel",
-                    label: <span className="ui-nav-sublabel">Panel</span>,
-                    children: [
-                      subItem("/finanzas", "Resumen"),
-                      subItem("/finanzas/salud", "Salud de datos"),
-                    ],
-                  },
-                  {
-                    type: "group" as const,
-                    key: "fin-reportes",
-                    label: <span className="ui-nav-sublabel">Reportes</span>,
-                    children: [
-                      subItem("/finanzas/resultados", "Resultados"),
-                      subItem("/finanzas/balance", "Balance"),
-                      subItem("/finanzas/flujo-caja", "Flujo de caja"),
-                      subItem("/finanzas/rentabilidad", "Rentabilidad"),
-                      subItem("/finanzas/tendencias", "Tendencias"),
-                      subItem("/finanzas/embudo", "Embudo"),
-                      subItem("/finanzas/inventario", "Rotación"),
-                    ],
-                  },
-                  {
-                    type: "group" as const,
-                    key: "fin-gestion",
-                    label: <span className="ui-nav-sublabel">Gestión</span>,
-                    children: [
-                      subItem("/finanzas/transacciones", "Transacciones"),
-                      subItem("/finanzas/presupuestos", "Presupuestos"),
-                      subItem("/finanzas/conciliaciones", "Conciliación"),
-                      subItem("/finanzas/cierres", "Cierres"),
-                      subItem("/finanzas/cartera", "Cartera"),
-                      subItem("/finanzas/auditoria", "Auditoría"),
-                    ],
-                  },
+                  subItem("/finanzas", "Resumen"),
+                  subItem("/finanzas/salud", "Salud de datos"),
+                ],
+              },
+              {
+                type: "group" as const,
+                key: "fin-reportes",
+                label: <span className="ui-nav-sublabel">Reportes</span>,
+                children: [
+                  subItem("/finanzas/resultados", "Resultados"),
+                  subItem("/finanzas/balance", "Balance"),
+                  subItem("/finanzas/flujo-caja", "Flujo de caja"),
+                  subItem("/finanzas/rentabilidad", "Rentabilidad"),
+                  subItem("/finanzas/tendencias", "Tendencias"),
+                  subItem("/finanzas/embudo", "Embudo"),
+                  subItem("/finanzas/inventario", "Rotación"),
+                ],
+              },
+              {
+                type: "group" as const,
+                key: "fin-gestion",
+                label: <span className="ui-nav-sublabel">Gestión</span>,
+                children: [
+                  subItem("/finanzas/transacciones", "Transacciones"),
+                  subItem("/finanzas/presupuestos", "Presupuestos"),
+                  subItem("/finanzas/conciliaciones", "Conciliación"),
+                  subItem("/finanzas/cierres", "Cierres"),
+                  subItem("/finanzas/cartera", "Cartera"),
+                  subItem("/finanzas/auditoria", "Auditoría"),
                 ],
               },
             ],
@@ -330,7 +297,6 @@ export default function AppLayout() {
   ];
 
   const filteredItems = filterNavItems((items ?? []) as NavItem[], navQuery);
-  const effectiveOpenKeys = navQuery.trim() ? collectBranchKeys(filteredItems) : openKeys;
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -407,15 +373,11 @@ export default function AppLayout() {
             theme="dark"
             mode="inline"
             selectedKeys={[selected]}
-            openKeys={effectiveOpenKeys}
-            onOpenChange={(keys) => setOpenKeys(keys as string[])}
             items={filteredItems}
             aria-label="Navegación principal"
-            // Sin la animación de colapso de AntD el submenú no "crece" al abrirse.
+            // Finanzas ya no es un submenú: los grupos están siempre visibles.
             motion={{ motionName: "" }}
             inlineIndent={16}
-            subMenuOpenDelay={0}
-            subMenuCloseDelay={0}
             onClick={({ key }) => {
               if (typeof key === "string" && key.startsWith("/")) {
                 setNavQuery("");
@@ -523,7 +485,6 @@ export default function AppLayout() {
           style={{ margin: isMobile ? 12 : 24, minWidth: 0, outline: "none" }}
         >
           <CompanyProvider>
-            <RouteBreadcrumb pathname={pathname} />
             <ErrorBoundary key={pathname}>
               <div className="ui-page-enter" key={pathname}>
                 <Outlet />

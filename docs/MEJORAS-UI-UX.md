@@ -275,6 +275,54 @@ cada sección. El menú pasa de una lista plana a un panel navegable.
 Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
 preexistentes de `InvoiceFormPage.tsx` se mantienen).
 
+## 21. Breadcrumb único
+
+Problema de partida: existían **dos sistemas** que pintaban la ruta de navegación.
+`RouteBreadcrumb.tsx` construía el breadcrumb global desde la URL con un mapa
+`SECTIONS` y una cadena de `if` para cada subruta de Finanzas, mientras tres
+páginas de detalle (factura, cotización y presupuesto) pintaban su propio
+`PageBreadcrumb`. Añadir una ruta obligaba a tocar condicionales y el breadcrumb
+global se quedaba corto en las rutas nuevas.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| B1 | **Fuente única** | `PageBreadcrumb.tsx` pasa a tener un registro plano `ROUTE_LABELS` (prefijo acumulado → etiqueta) y el hook `useRouteBreadcrumb(leaf?)`. Sin cadena de `if`: cada segmento de la URL se resuelve contra el registro. Las rutas `editar` se rotulan desde `EDIT_LABELS`. |
+| B2 | **Integrado en `PageHeader`** | El breadcrumb se deriva dentro de la cabecera común, así que `AppLayout` deja de renderizarlo. Se elimina `RouteBreadcrumb.tsx`. Una sola cabecera, breadcrumb y micro-label, sin un segundo sistema en el shell. |
+| B3 | **Hojas con dato real** | Las páginas de detalle pasan `breadcrumbLeaf` (número de factura/cotización, nombre del presupuesto) y la sección padre se convierte en enlace. La rama de error de presupuesto conserva su breadcrumb local con «Detalle». |
+| B4 | **Sin efectos colaterales** | No se tocan estilos (`index.css`) ni otras pantallas. Las migajas no enlazan la página actual. |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 22. Tanda Signal: aside compacto, categorías integradas y visual con profundidad
+
+Ejecutada sobre `feature/signal-ui-ux`, encima del breadcrumb único (§21). Objetivo:
+acortar la navegación y dar un salto perceptivo al sistema visual sin tocar la lógica
+de datos de ningún reporte. Se ejecutó en este orden: A3 + B1 + B2 + B5 → A2 → A1.
+
+### UX / funcionalidad
+
+| # | Mejora | Impacto | Detalle |
+|---|---|---|---|
+| A3 | **Menú aplanado** | Medio | Desaparece el nivel «Módulo financiero» (4 → 3 niveles) y su contador `15`. Los tres grupos (Panel / Reportes / Gestión) cuelgan directamente de «Finanzas». Se eliminan `openKeys`, `collectBranchKeys`, el icono `DollarOutlined`, el CSS del submenú y sus sinónimos de búsqueda. |
+| A2 | **Categorías dentro de Productos** | Medio | Nuevo `CategoriesPanel` compartido. `ProductsPage` gana pestañas Productos/Categorías con el estado en la URL (`?view=categorias`) y recarga sus categorías al crear/editar/eliminar. `/categories` sigue enlazable como wrapper delgado (`CategoriesPage`) y sale del menú para evitar duplicidad. |
+| A1 | **Reportes con pestañas (puente)** | Alto | `FinanceReportsTabs` se monta tras el `PageHeader` de las 7 páginas de reportes y navega a las rutas existentes. No monta los 7 informes en una sola pantalla ni toca filtros, exportaciones ni permisos: se eligió esta variante sobre la conversión real por su riesgo bajo. |
+
+### Sistema visual
+
+| # | Mejora | Impacto | Detalle |
+|---|---|---|---|
+| B1 | **Fondos y profundidad** | Alto | Tokens `--ui-shadow-deep` y `--ui-inset`; clase `.ui-deep-surface` y doble sombra + filo interior en `.ui-chart-card` (Inicio y Tendencias), con halo radial de marca estático. |
+| B2 | **Tipografía** | Alto | Escala compartida `--ui-text-micro/body/kpi/display`; `body` usa `--ui-font` y `font-optical-sizing: auto`. Micro-label, títulos y KPIs dejan de tener tamaños sueltos. |
+| B5 | **Gráficos + reduced-motion** | Medio-alto | `styles/chartPalette.ts` unifica colores y tooltip; `hooks/useReducedMotion.ts` pasa `isAnimationActive={!reduced}` a barras, líneas y sectores de Recharts (antes ignoraban la preferencia). Gradientes suaves en los gráficos de Inicio y Tendencias. |
+
+Archivos nuevos: `CategoriesPanel.tsx`, `FinanceReportsTabs.tsx`, `useReducedMotion.ts` y
+`chartPalette.ts`. El estilo de las pestañas de reportes vive en `.ui-report-tabs`.
+
+Verificación: `client npm run build` (✓ 3637 módulos) y `client npm run lint` (0 errores;
+los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
+sin errores de whitespace. Sin commit ni push hasta la aprobación explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

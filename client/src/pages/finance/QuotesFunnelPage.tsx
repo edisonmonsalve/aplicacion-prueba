@@ -19,6 +19,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
+import FinanceReportsTabs from "@/components/FinanceReportsTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -241,6 +242,8 @@ export default function QuotesFunnelPage() {
         title="Embudo de cotizaciones"
         description="Conversión de cotizaciones creadas en el periodo: enviadas, aprobadas y entregadas. Incluye tiempos de aprobación, entrega y ciclo completo."
       />
+
+      <FinanceReportsTabs />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker

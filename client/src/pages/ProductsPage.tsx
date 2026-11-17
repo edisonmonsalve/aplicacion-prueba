@@ -11,6 +11,7 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -19,6 +20,7 @@ import type { MenuProps, TableProps } from "antd";
 import { DownloadOutlined, MoreOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import ProductFormModal from "@/components/ProductFormModal";
+import CategoriesPanel from "@/components/CategoriesPanel";
 import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -65,6 +67,7 @@ export default function ProductsPage() {
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
 
   const { get, getNumber, getPositiveInt, update } = useUrlFilters();
+  const view = get("view") === "categorias" ? "categorias" : "productos";
   const q = get("q") ?? "";
   const categoryId = getNumber("category_id");
   const activo = (get("activo") as ProductsQuery["activo"]) ?? undefined;
@@ -111,12 +114,14 @@ export default function ProductsPage() {
     setSearchText(q);
   }, [q]);
 
-  // Las categorías se cargan una vez: alimentan el filtro y el formulario
-  useEffect(() => {
+  // Las categorías alimentan el filtro y el formulario; se recargan al crear,
+  // editar o eliminar desde la pestaña de categorías.
+  const reloadCategories = () => {
     getCategories()
       .then(setCategories)
       .catch((err) => messageApi.error(getErrorMessage(err, "No se pudieron cargar las categorías")));
-  }, [messageApi]);
+  };
+  useEffect(reloadCategories, [messageApi]);
 
   useEffect(() => {
     let ignore = false;
@@ -408,10 +413,19 @@ export default function ProductsPage() {
         }
       />
 
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} md={6}>
-          <StatCard
-            label="Productos"
+      <Tabs
+        activeKey={view}
+        onChange={(key) => update({ view: key === "categorias" ? "categorias" : undefined })}
+        items={[
+          {
+            key: "productos",
+            label: "Productos",
+            children: (
+              <div>
+                <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+                  <Col xs={12} md={6}>
+                    <StatCard
+                      label="Productos"
             value={formatNumber(total)}
             hint={hasFilters ? "con los filtros actuales" : "en el catálogo"}
           />
@@ -614,6 +628,16 @@ export default function ProductsPage() {
           </Typography.Text>
         </div>
       )}
+              </div>
+            ),
+          },
+          {
+            key: "categorias",
+            label: "Categorías",
+            children: <CategoriesPanel onSaved={reloadCategories} />,
+          },
+        ]}
+      />
 
       {modalOpen && (
         <ProductFormModal

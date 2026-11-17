@@ -19,6 +19,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import FinanceReportsTabs from "@/components/FinanceReportsTabs";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { BalanceCuenta, BalanceReport } from "@/types";
@@ -264,6 +265,8 @@ export default function BalancePage() {
           </Space>
         }
       />
+
+      <FinanceReportsTabs />
 
       {report && (
         <Alert

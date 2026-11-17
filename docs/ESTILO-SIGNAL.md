@@ -17,7 +17,8 @@ El fondo es cálido y neutro (minimalismo cálido) y el color se reserva para lo
 3. El glow aparece **únicamente** en estados activos o interactivos.
 4. Como máximo **un degradado protagonista** por pantalla.
 5. Las texturas de cuadrícula son casi invisibles (opacidad ≤ 5 %).
-6.Todo movimiento es corto (140–220 ms) y respeta `prefers-reduced-motion`.
+6. Todo movimiento es corto (140–220 ms) y respeta `prefers-reduced-motion`,
+   incluidas las animaciones SVG de Recharts.
 
 ## 2. Paleta
 
@@ -68,6 +69,12 @@ sino el significado contable de cada indicador:
 - **Micro-label**: 10–11 px, 700, mayúsculas, `letter-spacing: .14em` (estilo HUD).
 - **Cifras**: `tabular-nums`, tracking negativo (`-.04em`) y peso 700.
 
+Los tamaños viven en una escala compartida en `tokens.css`: `--ui-text-micro`
+(10.5 px), `--ui-text-body` (14 px), `--ui-text-kpi` (26 px) y `--ui-text-display`
+(28 px). El `body` usa `--ui-font` con `font-optical-sizing: auto`; el display y
+los KPIs afinan el optical sizing para que los extremos de la variable no se
+vean ni apretados ni diluidos.
+
 Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 
 ## 4. Formas y shapes
@@ -78,6 +85,9 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 - Barras de progreso **segmentadas** (estilo barra de vida) en metas y cartera.
 - Cuadrícula de fondo de 28 px en el sidebar y en el bloque de bienvenida.
 - Sider: índice de sección monoespaciado y barra vertical de 3 px en el item activo.
+- Profundidad de datos: `--ui-shadow-deep` + `--ui-inset` (doble sombra y filo
+  interior claro) en `.ui-deep-surface` y `.ui-chart-card`, con un halo radial
+  de marca estático en `::before`. No es contenido ni añade movimiento.
 
 ## 5. Movimiento
 
@@ -92,6 +102,7 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 | Cambio de tema | 0 ms | se desactivan transiciones (anti-parpadeo) |
 | Ancho del sider / submenú inline | 0 ms | sin `scale`, sin colapso animado: el scroll no parece crecer |
 | Entrada de ruta | 380 ms | fundido + 6 px, sin `scale` |
+| Gráficos Recharts | 850 ms → 0 | `isAnimationActive={!reduced}` con `useReducedMotion` |
 
 La sensación de "vivo" se consigue con cuatro capas discretas: halos ambientales
 que respiran, KPIs que entran en cascada, cifras que cuentan al cambiar de
@@ -101,19 +112,23 @@ durante el scroll. Ninguna capa usa más del 10 % de opacidad ni interrumpe la
 lectura.
 
 `prefers-reduced-motion: reduce` anula **todas** las animaciones y transformaciones;
-`AnimatedNumber` muestra el valor final directamente.
+`AnimatedNumber` muestra el valor final directamente. Recharts anima por SVG/JS, así
+que la regla CSS no bastaba: `useReducedMotion` refleja la preferencia en React y
+pasa `isAnimationActive={!reduced}` a cada Bar/Line/Pie de Inicio y Tendencias.
 
 ## 6. Componentes
 
 | Componente | Cambio global |
 |---|---|
-| `AppLayout` | Sidebar con índices en chip monoespaciado, halo de marca, buscador (`/`, Escape, sinónimos y sin tildes), Finanzas agrupado en Panel / Reportes / Gestión, barra de señal en el item activo y en su padre, pip de subsección y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
-| `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. |
+| `AppLayout` | Sidebar con índices en chip monoespaciado, halo de marca, buscador (`/`, Escape, sinónimos y sin tildes), Finanzas aplanado en Panel / Reportes / Gestión (sin nivel intermedio ni contador) y Categorías integrado en Productos, barra de señal en el item activo, pip de subsección y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» en chip. Incluye skip link y overlay móvil accesible. |
+| `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. Breadcrumb único derivado de la ruta (`useRouteBreadcrumb`) con `breadcrumbLeaf` para el dato de la página; ya no hay breadcrumb global en el shell. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada y glow del hover con el tono del KPI. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
-| `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. |
+| `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad y halo). |
 | `Table` (AntD) | Cabecera en micro-label; hover sutil. |
-| Recharts | Paleta de tokens, tooltips del tema, barras con degradado suave. |
+| Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |
+| `FinanceReportsTabs` | Pestañas de Reportes bajo el `PageHeader` de las 7 páginas; navegan a las rutas existentes. Estilo en `.ui-report-tabs`: micro-label, filo tenue y acento de marca en la activa. |
+| `CategoriesPanel` | Cuerpo compartido de Categorías, sin cabecera ni título propios; se usa en `/categories` y en la pestaña de `ProductsPage`. |
 
 ## 7. Accesibilidad
 
@@ -126,5 +141,6 @@ lectura.
 ## 8. Verificación
 
 - `client npm run build` y `client npm run lint` tras cada fase.
+- `git diff --check` para detectar whitespace antes de commitear.
 - Revisión visual en claro/oscuro y en breakpoint móvil.
 - Sin commit ni push hasta la aprobación explícita.

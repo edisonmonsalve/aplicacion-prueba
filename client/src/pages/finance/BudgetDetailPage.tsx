@@ -254,14 +254,8 @@ export default function BudgetDetailPage() {
 
   return (
     <div>
-      <PageBreadcrumb
-        items={[
-          { label: "Finanzas", to: "/finanzas" },
-          { label: "Presupuestos", to: "/finanzas/presupuestos" },
-          { label: budget.nombre },
-        ]}
-      />
       <PageHeader
+        breadcrumbLeaf={budget.nombre}
         title={budget.nombre}
         titleExtra={<BudgetEstadoTag estado={budget.estado} />}
         description="Consulta la ejecución del presupuesto por línea, las alertas, la proyección de cierre y el cumplimiento de la meta de ingresos."

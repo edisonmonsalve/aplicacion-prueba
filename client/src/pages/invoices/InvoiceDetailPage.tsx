@@ -38,7 +38,6 @@ import type {
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import PaymentModal from "./PaymentModal";
 import InvoiceAdjustmentModal from "./InvoiceAdjustmentModal";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -282,10 +281,8 @@ export default function InvoiceDetailPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <PageBreadcrumb
-        items={[{ label: "Facturas", to: "/facturas" }, { label: invoice.numero }]}
-      />
       <PageHeader
+        breadcrumbLeaf={invoice.numero}
         title={`Factura ${invoice.numero}`}
         description={
           invoice.tipo === "venta"

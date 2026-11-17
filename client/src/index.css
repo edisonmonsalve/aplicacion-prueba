@@ -7,6 +7,9 @@ html[data-theme="dark"] {
 }
 
 body {
+  font-family: var(--ui-font);
+  font-size: var(--ui-text-body);
+  font-optical-sizing: auto;
   font-variant-numeric: tabular-nums;
   background-color: inherit;
   /* Ambiente que respira: dos halos muy tenues que se desplazan despacio.
@@ -70,7 +73,7 @@ html.theme-switching *::after {
 /* Etiqueta técnica: corta, mayúscula y espaciada, como en un panel de control. */
 .ui-eyebrow {
   display: block;
-  font-size: 10.5px;
+  font-size: var(--ui-text-micro);
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: 0.14em;
@@ -91,6 +94,26 @@ html.theme-switching *::after {
     linear-gradient(to bottom, var(--ui-grid-line) 1px, transparent 1px);
   background-size: 28px 28px;
   background-position: -1px -1px;
+}
+
+/* Profundidad para superficies de datos (gráficos, paneles). Capa estática:
+   doble sombra + filo interior claro, sin animación. El halo de color se
+   dibuja en ::before con el acento de marca ya presente en el tema. */
+.ui-deep-surface,
+.ui-chart-card {
+  position: relative;
+  box-shadow: var(--ui-shadow-deep), var(--ui-inset) !important;
+}
+
+.ui-deep-surface::before,
+.ui-chart-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 80% at 12% -20%, var(--ui-brand-soft), transparent 60%);
+  opacity: 0.7;
 }
 
 /* Punto de estado con halo: solo para estados activos. */
@@ -555,7 +578,8 @@ html[data-theme="dark"] .row-low-stock > td {
 .ui-stat__value {
   margin-top: 10px;
   font-family: var(--ui-display);
-  font-size: 26px;
+  font-size: var(--ui-text-kpi);
+  font-optical-sizing: auto;
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.045em;
@@ -766,24 +790,7 @@ html[data-theme="dark"] .row-low-stock > td {
   font-size: 11px;
 }
 
-/* Jerarquía dentro de Finanzas: grupo → submenú → sección. */
-.ui-nav-parent {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ui-nav-count {
-  min-width: 18px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--ui-sider-accent, var(--ui-brand));
-  font-family: var(--ui-mono);
-  font-size: 9px;
-  line-height: 14px;
-  text-align: center;
-}
-
+/* Jerarquía dentro de Finanzas: sub-etiqueta de grupo + pip de sección. */
 .ui-nav-sublabel {
   color: rgba(255, 255, 255, 0.38);
   font-size: 9px;
@@ -813,30 +820,8 @@ html[data-theme="dark"] .row-low-stock > td {
   opacity: 1;
 }
 
-.ui-app-sider .ant-menu-sub .ant-menu-item-group-title {
-  margin-top: 2px;
-  padding: 8px 12px 2px 18px !important;
-  line-height: 14px !important;
-}
-
-/* El padre hereda el estado activo cuando una de sus hijas está seleccionada. */
-.ui-app-sider .ant-menu-submenu:has(.ant-menu-item-selected) > .ant-menu-submenu-title {
-  color: #fff !important;
-}
-
-.ui-app-sider .ant-menu-submenu:has(.ant-menu-item-selected) > .ant-menu-submenu-title::before {
-  content: "";
-  position: absolute;
-  top: 22%;
-  bottom: 22%;
-  left: 0;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--ui-sider-accent, var(--ui-brand));
-}
-
-/* Densidad regular: los rótulos de grupo no se comen el espacio y el
-   submenú de Finanzas cabe con menos desplazamiento. */
+/* Densidad regular: los rótulos de grupo no se comen el espacio. Finanzas ya
+   no es un submenú; sus tres grupos cuelgan directamente del menú raíz. */
 .ui-app-sider .ant-menu-item-group-title {
   padding: 8px 20px 4px !important;
   margin-top: 6px;
@@ -851,11 +836,6 @@ html[data-theme="dark"] .row-low-stock > td {
 .ui-app-sider .ant-menu-submenu-title {
   position: relative;
   margin-block: 2px !important;
-}
-
-/* Los hijos del submenú no heredan el sangrado de los items de primer nivel. */
-.ui-app-sider .ant-menu-sub .ant-menu-item {
-  padding-inline-end: 12px !important;
 }
 
 /* Indicador activo: barra de señal a la izquierda del item seleccionado. */
@@ -1049,8 +1029,42 @@ html[data-theme="dark"] .row-low-stock > td {
 
 .ui-page-title {
   font-family: var(--ui-display) !important;
+  font-size: var(--ui-text-display) !important;
+  font-optical-sizing: auto;
   font-weight: 700 !important;
   letter-spacing: -0.035em !important;
+}
+
+/* Puente de Reportes: pestañas que navegan entre los 7 informes del módulo
+   financiero. Misma voz que el resto del sistema: micro-label, filo tenue y
+   acento de marca en la pestaña activa. Sin movimiento nuevo. */
+.ui-report-tabs.ant-tabs {
+  margin-bottom: 16px;
+}
+
+.ui-report-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.ui-report-tabs .ant-tabs-nav::before {
+  border-bottom-color: var(--ui-line);
+}
+
+.ui-report-tabs .ant-tabs-tab {
+  padding: 8px 6px;
+  font-size: var(--ui-text-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-report-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--ui-brand-strong);
+}
+
+.ui-report-tabs .ant-tabs-ink-bar {
+  height: 2px;
+  border-radius: 2px 2px 0 0;
 }
 
 /* Encabezados de tabla en micro-label. */

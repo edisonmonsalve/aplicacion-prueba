@@ -19,6 +19,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import FinanceReportsTabs from "@/components/FinanceReportsTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -156,6 +157,8 @@ export default function ProfitabilityPage() {
         title="Rentabilidad"
         description="Ingresos y costo de ventas por producto, categoría o cliente. Usa el costo histórico del momento de la venta y solo cuenta facturas confirmadas."
       />
+
+      <FinanceReportsTabs />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker

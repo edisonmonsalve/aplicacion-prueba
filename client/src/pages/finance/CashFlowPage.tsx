@@ -18,6 +18,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import FinanceReportsTabs from "@/components/FinanceReportsTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -183,6 +184,8 @@ export default function CashFlowPage() {
         title="Flujo de caja"
         description="Entradas y salidas reales de dinero por cuenta y por mes. Solo incluye asientos que mueven caja; el costo de ventas y el IVA informativos no aparecen."
       />
+
+      <FinanceReportsTabs />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker
