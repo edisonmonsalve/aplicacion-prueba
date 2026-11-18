@@ -11,6 +11,16 @@ import { PERIODOS, descripcionRango } from "@/hooks/useDateRange";
 
 const { RangePicker } = DatePicker;
 
+/** Opciones del atajo. «Todo» solo aparece cuando el listado permite limpiar. */
+const PERIODOS_CON_TODO = [
+  { label: "Todo", value: "todo" as const },
+  ...PERIODOS,
+];
+
+/** Valor del `Segmented`. «personalizado» no existe como opción: sirve para
+ *  dejar el control sin atajo activo cuando el rango lo eligió el usuario. */
+type PeriodoSeleccion = PeriodoCalendario | "todo" | "personalizado";
+
 interface Props {
   range: RangoFechas | null;
   periodo: PeriodoRango | null;
@@ -52,15 +62,28 @@ export default function PeriodRangePicker({
   style,
 }: Props) {
   const preset = periodo && periodo !== "personalizado" ? periodo : null;
+  // Siempre controlado: sin rango y con limpieza disponible, «Todo»; con un
+  // rango personalizado, ningún atajo. Antes, al quedar sin `value`, AntD
+  // marcaba «Día» por defecto y el clic no disparaba cambio.
+  const segmentValue: PeriodoSeleccion =
+    preset ?? (allowClear && !range ? "todo" : "personalizado");
+
+  const handleSegment = (next: PeriodoSeleccion) => {
+    if (next === "todo") {
+      onChange(null);
+      return;
+    }
+    if (next !== "personalizado") onSelectPeriodo(next);
+  };
 
   return (
     <Space direction="vertical" size={8} style={{ width: "100%", ...style }}>
       <Space wrap align="center">
-        <Segmented<PeriodoCalendario>
+        <Segmented<PeriodoSeleccion>
           size={size}
-          options={PERIODOS}
-          value={preset ?? undefined}
-          onChange={onSelectPeriodo}
+          options={allowClear ? PERIODOS_CON_TODO : PERIODOS}
+          value={segmentValue}
+          onChange={handleSegment}
         />
         {preset && (
           <Space.Compact size={size}>

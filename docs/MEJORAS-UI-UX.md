@@ -454,6 +454,27 @@ principal 169,13 → 169,21 kB) y `client npm run lint` (0 errores; los 2 warnin
 preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check` sin
 errores de whitespace. Sin commit ni push hasta la aprobación explícita.
 
+## 28. Corrección: estado neutro del selector de periodo
+
+En los listados con limpieza de rango (cotizaciones, facturas, movimientos,
+cartera y auditoría), `PeriodRangePicker` pasaba `value={undefined}` al
+`Segmented` de AntD cuando no había periodo. El control entraba en modo no
+controlado, marcaba la primera opción («Día») aunque no hubiera fechas y, al
+pulsarla, no disparaba cambio porque ya figuraba activa.
+
+Ahora el selector es siempre controlado:
+
+- **Sin rango y con limpieza** → «Todo» aparece como estado neutro explícito y
+  limpiar el rango vuelve a él.
+- **Rango personalizado** → ningún atajo queda activo; el `RangePicker` es el
+  que representa la selección.
+- **Reportes con periodo por defecto** → siguen mostrando su atajo (Mes, Año…),
+  porque el rango sí está definido.
+
+Archivo: `components/PeriodRangePicker.tsx`. Verificación: `build` ✓ 3641
+módulos (JS 169,21 kB) y `lint` ✓ 0 errores, con los mismos 2 warnings
+preexistentes.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.
