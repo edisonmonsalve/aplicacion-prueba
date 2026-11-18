@@ -66,7 +66,7 @@ const Comparativo = ({
     <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8, fontSize: 12 }}>
       {fmtDate(desde)} — {fmtDate(hasta)}
     </Typography.Text>
-    <Row gutter={12}>
+    <Row gutter={16}>
       <Col span={12}>
         <Statistic title="Ingresos" value={ingresos} precision={2} prefix="$" />
         <div style={{ marginTop: 4 }}>
@@ -264,7 +264,7 @@ export default function TrendsPage() {
             mes(es) · {report.rango.dias} días
           </Typography.Paragraph>
 
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card size="small">
                 <Statistic
@@ -380,7 +380,7 @@ export default function TrendsPage() {
               </ResponsiveContainer>
             </Card>
 
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} lg={12}>
                 <Comparativo
                   titulo="Periodo anterior de igual duración"

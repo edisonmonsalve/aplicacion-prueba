@@ -378,6 +378,27 @@ Verificación: `client npm run build` (✓ 3638 módulos) y `client npm run lint
 los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
 sin errores de whitespace. Sin commit ni push hasta la aprobación explícita.
 
+## 25. Tanda visual: botones, grillas y shapes
+
+Sexta tanda, sobre `f262a7e`. No añade decoración: corrige tres inconsistencias
+que hacían que partes del sistema no hablaran el mismo idioma. Sin dependencias
+nuevas y sin tocar la estructura de página, que ya era consistente (16 px entre
+secciones, 24 px de margen del `Content`).
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| B7 | **Jerarquía de botones** | Medio | Bajo | Los botones AntD ganan estados propios alineados con los KPIs: `hover` eleva 1 px con sombra corta, `:active` hunde 1 px y primario/peligro suman un filo del color de su señal. Solo se animan `transform` y `box-shadow`; los colores, `disabled` y `loading` siguen gobernados por AntD. Texto y enlace no se elevan. La elevación se anula con `prefers-reduced-motion`. |
+| B8 | **Un solo gutter de 16** | Medio | Bajo | Las grillas mezclaban `12` y `16` (a veces en la misma página). Todas las `Row` pasan a `16`, múltiplo de 8, conservando el formato `[x, y]`. Incluye los formularios de Empresa y Producto. |
+| B9 | **Escala de radius** | Bajo | Bajo | Los cinco radios sueltos se reducen a una progresión corta documentada: `4` etiquetas/kbd, `8` deltas, tooltips e iconos pequeños, `14` tarjetas y botones, `16` tarjetas grandes y `999` píldoras. Cambios puntuales: delta `6→8` e icono de KPI `9→8`. |
+
+Archivos: `index.css`, `ProductFormModal.tsx`, 13 páginas (CompanySettings,
+Products, Receivables y diez de Finanzas) y estos dos documentos.
+
+Verificación: `client npm run build` (✓ 3638 módulos; bundle principal 165,93 kB,
+sin cambio; CSS 27,84 → 28,82 kB por las reglas de botón) y `client npm run lint`
+(0 errores; los 2 warnings preexistentes se mantienen). `git diff --check` sin
+errores de whitespace. Sin commit ni push hasta la aprobación explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

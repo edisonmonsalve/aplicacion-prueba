@@ -167,7 +167,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
             : { stock_minimo: 0, costo: 0 }
         }
       >
-        <Row gutter={12}>
+        <Row gutter={16}>
           <Col xs={24} sm={9}>
             <Form.Item
               label="SKU"
@@ -239,7 +239,7 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
           )}
         </Flex>
 
-        <Row gutter={12}>
+        <Row gutter={16}>
           <Col xs={24} sm={verCosto ? 12 : 24}>
             <Form.Item
               label="Precio de venta"

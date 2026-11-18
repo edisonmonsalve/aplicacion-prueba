@@ -229,7 +229,7 @@ export default function AuditPage() {
           scroll={{ x: "max-content" }}
           expandable={{
             expandedRowRender: (r) => (
-              <Row gutter={[12, 0]}>
+              <Row gutter={[16, 0]}>
                 <Col xs={24} md={12}>
                   <JsonBlock title="Antes" value={r.antes} />
                 </Col>

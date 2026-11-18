@@ -308,7 +308,7 @@ export default function ReceivablesPage() {
 
       <FinanceSectionTabs section="gestion" />
 
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card size="small">
             <Statistic
@@ -361,7 +361,7 @@ export default function ReceivablesPage() {
 
       {aging && (
         <>
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} lg={14}>
               <Card
                 size="small"

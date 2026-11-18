@@ -247,7 +247,7 @@ export default function InventoryAnalyticsPage() {
 
       {report && (
         <>
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card size="small">
                 <Statistic

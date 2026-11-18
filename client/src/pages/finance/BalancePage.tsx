@@ -289,7 +289,7 @@ export default function BalancePage() {
       ) : (
         report && (
           <>
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} sm={8}>
                 <Card size="small">
                   <Statistic
@@ -325,7 +325,7 @@ export default function BalancePage() {
               </Col>
             </Row>
 
-            <Row gutter={[12, 12]}>
+            <Row gutter={[16, 16]}>
               <Col xs={24} lg={12}>
                 <Card size="small" title="Activo">
                   <Table<BalanceRow>

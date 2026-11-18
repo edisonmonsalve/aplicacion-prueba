@@ -422,7 +422,7 @@ export default function ProductsPage() {
             label: "Productos",
             children: (
               <div>
-                <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                   <Col xs={12} md={6}>
                     <StatCard
                       label="Productos"

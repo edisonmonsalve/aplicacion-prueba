@@ -597,7 +597,7 @@ export default function ReconciliationsPage() {
           >
             <DatePicker.RangePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
           </Form.Item>
-          <Row gutter={12}>
+          <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="saldo_extracto_inicial"

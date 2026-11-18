@@ -79,8 +79,10 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 
 ## 4. Formas y shapes
 
-- Radio general 14–16 px; la forma la dan el radio y las escuadras de los KPIs,
-  sin `clip-path` en índices ni chips.
+- Escala de radio corta y única: **4** etiquetas y `kbd`, **8** deltas, tooltips
+  e iconos pequeños, **14** tarjetas y botones, **16** tarjetas grandes y
+  **999** píldoras. La forma la dan el radio y las escuadras de los KPIs, sin
+  `clip-path` en índices ni chips.
 - KPI con **barra superior degradada** y **escuadra** en la esquina superior derecha.
 - `status pip`: punto de 6 px con halo suave para estados activos.
 - Barras de progreso **segmentadas** (estilo barra de vida) en metas y cartera.
@@ -133,6 +135,7 @@ apaga, por lo que solo queda la rejilla estática.
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. Breadcrumb único derivado de la ruta (`useRouteBreadcrumb`) con `breadcrumbLeaf` para el dato de la página; ya no hay breadcrumb global en el shell. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada, lavado de acento en reposo y highlight interior; `:active` hunde 1 px, foco con doble anillo y `sparkline` opcional sin espacio vacío. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
+| `Button` (AntD) | Jerarquía de estados propia: `hover` eleva 1 px con sombra corta y `:active` hunde 1 px; primario y peligro suman un filo del color de su señal. Solo animan `transform` y `box-shadow`, así que temas, `disabled` y `loading` siguen gobernados por AntD. Texto y enlace no se elevan. Sin movimiento con `prefers-reduced-motion`. |
 | `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad, halo y marco HUD de dos escuadras). |
 | `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, fondo uniforme en filas normales y color solo para estados reales (`.row-low-stock`, subtotales de resultados); `focus-within` por fila con `outline`. Efectos fuera de la impresión. |
 | Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |

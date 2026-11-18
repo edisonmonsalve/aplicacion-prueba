@@ -126,7 +126,7 @@ export default function DataHealthPage() {
               )}. Este panel informa, no corrige datos.`}
             />
 
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={12} md={6}>
                 <Card size="small">
                   <Statistic title="Comprobaciones" value={report.resumen.checks} />
@@ -165,7 +165,7 @@ export default function DataHealthPage() {
               </Col>
             </Row>
 
-            <Row gutter={[12, 12]}>
+            <Row gutter={[16, 16]}>
               {report.checks.map((check) => (
                 <Col xs={24} xl={12} key={check.codigo}>
                   <Card

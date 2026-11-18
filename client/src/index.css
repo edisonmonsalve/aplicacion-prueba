@@ -658,7 +658,7 @@ html[data-theme="dark"] .row-low-stock > td {
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--stat-accent, var(--ui-brand));
   background: color-mix(in srgb, var(--stat-accent, var(--ui-brand)) 14%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stat-accent, var(--ui-brand)) 20%, transparent);
@@ -713,7 +713,7 @@ html[data-theme="dark"] .row-low-stock > td {
   align-items: center;
   gap: 4px;
   padding: 2px 7px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: var(--ui-mono);
   font-size: 11px;
   font-weight: 700;
@@ -1201,6 +1201,46 @@ html[data-theme="dark"] .row-low-stock > td {
   padding-top: 8px;
 }
 
+/* Botones con jerarquía Signal: la misma respuesta corta que los KPIs, pero
+   sobria. Solo se animan `transform` y `box-shadow`; los colores y el estado
+   `disabled`/`loading` los sigue gobernando AntD, así que los temas quedan
+   intactos. Texto y enlace no se elevan: son acciones en línea. */
+.ant-btn {
+  transition:
+    transform var(--ui-fast) var(--ui-ease),
+    box-shadow var(--ui-fast) var(--ui-ease);
+}
+
+.ant-btn:not(.ant-btn-text, .ant-btn-link, .ant-btn-loading, :disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -12px color-mix(in srgb, var(--ui-ink) 45%, transparent);
+}
+
+.ant-btn:not(.ant-btn-text, .ant-btn-link, .ant-btn-loading, :disabled):active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* El primario y el de peligro suman un filo del color de su señal al elevarse.
+   La forma de lista de `:not()` deja al selector genérico con menos peso, así
+   que este filo gana sin necesidad de `!important`. */
+.ant-btn-primary:not(.ant-btn-loading):not(:disabled):hover {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ui-brand) 35%, transparent),
+    0 10px 22px -14px color-mix(in srgb, var(--ui-brand) 60%, transparent);
+}
+
+.ant-btn-dangerous:not(.ant-btn-loading):not(:disabled):hover {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ui-danger) 40%, transparent),
+    0 10px 22px -14px color-mix(in srgb, var(--ui-danger) 60%, transparent);
+}
+
+.ant-btn-primary:not(.ant-btn-loading):not(:disabled):active,
+.ant-btn-dangerous:not(.ant-btn-loading):not(:disabled):active {
+  box-shadow: none;
+}
+
 /* Barra de desplazamiento discreta (Chrome/Edge y Firefox). */
 * {
   scrollbar-width: thin;
@@ -1226,6 +1266,8 @@ html[data-theme="dark"] * {
   .stat-card[role="button"]:active,
   .stat-card[role="button"]:hover .ui-stat__icon,
   .ui-stat:hover .ui-stat__icon,
+  .ant-btn:hover,
+  .ant-btn:active,
   .ui-avatar:hover,
   .ui-app-sider .ant-menu-item:hover .ant-menu-item-icon {
     transform: none;

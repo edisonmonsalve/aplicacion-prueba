@@ -123,7 +123,7 @@ export default function CompanySettingsPage() {
                 <Input maxLength={MAX_LENGTH.eslogan} showCount placeholder="Gestión de inventario y finanzas" />
               </Form.Item>
 
-              <Row gutter={12}>
+              <Row gutter={16}>
                 <Col xs={24} md={12}>
                   <Form.Item name="nit" label="NIT / Identificación">
                     <Input maxLength={MAX_LENGTH.nit} placeholder="NIT 900.000.000-0" />
@@ -140,7 +140,7 @@ export default function CompanySettingsPage() {
                 <Input maxLength={MAX_LENGTH.direccion} showCount placeholder="Calle 1 # 2-3, Ciudad" />
               </Form.Item>
 
-              <Row gutter={12}>
+              <Row gutter={16}>
                 <Col xs={24} md={12}>
                   <Form.Item name="telefono" label="Teléfono">
                     <Input maxLength={MAX_LENGTH.telefono} placeholder="+57 601 000 0000" />
@@ -153,7 +153,7 @@ export default function CompanySettingsPage() {
                 </Col>
               </Row>
 
-              <Row gutter={12}>
+              <Row gutter={16}>
                 <Col xs={24} md={12}>
                   <Form.Item
                     name="email"

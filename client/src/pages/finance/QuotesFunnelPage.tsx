@@ -269,7 +269,7 @@ export default function QuotesFunnelPage() {
 
       {report && (
         <>
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card size="small">
                 <Statistic title="Cotizaciones creadas" value={report.resumen.cotizaciones} />
@@ -332,7 +332,7 @@ export default function QuotesFunnelPage() {
       ) : (
         report && (
           <>
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} lg={14}>
                 <Card size="small" title="Embudo">
                   <Space direction="vertical" size="small" style={{ width: "100%" }}>
@@ -384,7 +384,7 @@ export default function QuotesFunnelPage() {
             </Row>
 
             <Typography.Title level={5}>Tiempos de cierre</Typography.Title>
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} md={8}>
                 <Tiempo titulo="Creación → aprobación" tiempo={report.tiempos.aprobacion} />
               </Col>
