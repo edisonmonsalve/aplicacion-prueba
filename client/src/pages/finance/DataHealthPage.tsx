@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   Col,
-  Empty,
   Row,
   Statistic,
   Table,
@@ -21,6 +20,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
 import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import type { DataHealthCheck, DataHealthReport } from "@/types";
 
 const COLUMN_LABELS: Record<string, string> = {
@@ -186,11 +186,7 @@ export default function DataHealthPage() {
                       {check.descripcion}
                     </Typography.Paragraph>
                     {check.hallazgos === 0 ? (
-                      <Empty
-                        image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="Sin hallazgos"
-                        style={{ margin: "8px 0" }}
-                      />
+                      <EmptyState variant="inline" title="Sin hallazgos" />
                     ) : (
                       <DetailTable check={check} />
                     )}

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   Button,
   Card,
-  Empty,
   Input,
   Select,
   Space,
@@ -21,6 +20,7 @@ import { getMovements, type MovementSortKey, type MovementsQuery } from "@/servi
 import { getProducts } from "@/services/productsService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
+import EmptyState from "@/components/EmptyState";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
 import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
@@ -518,15 +518,17 @@ export default function MovementsPage() {
           scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Inventario"
+                title={hasFilters ? "Sin resultados" : "Aún no hay movimientos"}
                 description={
                   hasFilters
-                    ? "No hay movimientos que coincidan con los filtros"
-                    : "Aún no hay movimientos"
+                    ? "No hay movimientos que coincidan con los filtros."
+                    : "Las entradas y salidas de stock aparecerán aquí."
                 }
-              >
-                {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-              </Empty>
+                action={hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
+              />
             ),
           }}
           pagination={{

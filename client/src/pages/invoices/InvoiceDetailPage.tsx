@@ -39,6 +39,7 @@ import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils
 import PaymentModal from "./PaymentModal";
 import InvoiceAdjustmentModal from "./InvoiceAdjustmentModal";
 import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const CARTERA_META: Record<string, { label: string; color: string }> = {
@@ -531,7 +532,16 @@ export default function InvoiceDetailPage() {
             pagination={false}
             scroll={{ x: "max-content" }}
             dataSource={invoice.pagos}
-            locale={{ emptyText: "Aún no hay cobros ni pagos registrados" }}
+            locale={{
+              emptyText: (
+                <EmptyState
+                  variant="inline"
+                  eyebrow="Pagos"
+                  title="Aún no hay cobros ni pagos registrados"
+                  description="Los abonos aparecerán aquí con su fecha y cuenta."
+                />
+              ),
+            }}
             columns={[
               { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
               {

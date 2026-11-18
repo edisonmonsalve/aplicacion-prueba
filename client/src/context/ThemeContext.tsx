@@ -93,10 +93,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             },
             Card: {
               borderRadiusLG: 16,
+              // Misma escala que `--ui-elev-1`: las tarjetas descansan, no flotan.
               boxShadowTertiary:
                 mode === "dark"
-                  ? "0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.7)"
-                  : "0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -16px rgba(16, 24, 40, 0.18)",
+                  ? "0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px -18px rgba(0, 0, 0, 0.75)"
+                  : "0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -18px rgba(16, 24, 40, 0.18)",
             },
             Table: {
               headerBg: mode === "dark" ? "#16231f" : "#fbfaf8",

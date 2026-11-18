@@ -3,7 +3,6 @@ import {
   App,
   Card,
   Col,
-  Empty,
   Row,
   Select,
   Space,
@@ -22,6 +21,7 @@ import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import type { AuditEntity, AuditEntry, AuditList } from "@/types";
 
 const ENTIDAD_META: Record<AuditEntity, { label: string; color: string }> = {
@@ -220,7 +220,11 @@ export default function AuditPage() {
       {loading && !report ? (
         <TableSkeleton />
       ) : !report || report.data.length === 0 ? (
-        <Empty description="Sin registros de auditoría para los filtros elegidos" />
+        <EmptyState
+          eyebrow="Auditoría"
+          title="Sin registros"
+          description="No hay movimientos de auditoría para los filtros elegidos."
+        />
       ) : (
         <Table<AuditEntry>
           rowKey="id"

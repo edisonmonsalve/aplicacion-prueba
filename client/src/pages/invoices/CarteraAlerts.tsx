@@ -29,6 +29,7 @@ import type {
   InvoiceTipo,
 } from "@/types";
 import { fmtDate, money } from "./InvoiceUtils";
+import EmptyState from "@/components/EmptyState";
 
 const SEVERIDAD_META: Record<CarteraAlertSeveridad, { label: string; color: string }> = {
   critica: { label: "Crítica", color: "red" },
@@ -225,9 +226,18 @@ export default function CarteraAlerts({ tipo = "venta" }: Props) {
           scroll={{ x: "max-content" }}
           pagination={{ pageSize: 8, hideOnSinglePage: true, showSizeChanger: false }}
           locale={{
-            emptyText: incluirResueltos
-              ? "No hay alertas para los filtros seleccionados."
-              : "No hay alertas pendientes. Las gestiones resueltas se ocultan.",
+            emptyText: (
+              <EmptyState
+                variant="inline"
+                eyebrow="Cartera"
+                title={incluirResueltos ? "Sin alertas para estos filtros" : "No hay alertas pendientes"}
+                description={
+                  incluirResueltos
+                    ? "Prueba con otro rango o cambia los filtros."
+                    : "Las gestiones resueltas se ocultan."
+                }
+              />
+            ),
           }}
           columns={[
             {

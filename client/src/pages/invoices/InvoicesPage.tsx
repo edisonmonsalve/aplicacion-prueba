@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Card, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -11,6 +11,7 @@ import PageHeader from "@/components/PageHeader";
 import RelativeTime from "@/components/RelativeTime";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
+import EmptyState from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useAuth } from "@/context/AuthContext";
@@ -288,24 +289,34 @@ export default function InvoicesPage() {
           onRow={(r) => ({ onClick: () => navigate(`/facturas/${r.id}`), style: { cursor: "pointer" } })}
           locale={{
             emptyText: (
-              <Empty description={hasFilters ? "Ninguna factura coincide con los filtros" : "Aún no hay facturas"}>
-                {hasFilters ? (
-                  <Button
-                    onClick={() => {
-                      setText("");
-                      setSp({}, { replace: true });
-                    }}
-                  >
-                    Limpiar filtros
-                  </Button>
-                ) : (
-                  canOperate && (
-                    <Button type="primary" onClick={() => navigate("/facturas/nuevo")}>
-                      Crear la primera
+              <EmptyState
+                variant="inline"
+                eyebrow="Facturación"
+                title={hasFilters ? "Sin resultados" : "Aún no hay facturas"}
+                description={
+                  hasFilters
+                    ? "Ninguna factura coincide con los filtros."
+                    : "Emite la primera para registrar ventas, compras y su saldo."
+                }
+                action={
+                  hasFilters ? (
+                    <Button
+                      onClick={() => {
+                        setText("");
+                        setSp({}, { replace: true });
+                      }}
+                    >
+                      Limpiar filtros
                     </Button>
+                  ) : (
+                    canOperate && (
+                      <Button type="primary" onClick={() => navigate("/facturas/nuevo")}>
+                        Crear la primera
+                      </Button>
+                    )
                   )
-                )}
-              </Empty>
+                }
+              />
             ),
           }}
           pagination={{

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Empty, Input, Space, Table, Tooltip, Typography, App } from "antd";
+import { Button, Input, Space, Table, Tooltip, Typography, App } from "antd";
 import type { TableProps } from "antd";
 import { Link } from "react-router-dom";
 import CategoryFormModal from "@/components/CategoryFormModal";
 import ConfirmAction from "@/components/ConfirmAction";
+import EmptyState from "@/components/EmptyState";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import { useAuth } from "@/context/AuthContext";
 import { deleteCategory, getCategories } from "@/services/categoriesService";
@@ -235,24 +236,36 @@ export default function CategoriesPanel({ onSaved }: Props) {
           }}
           locale={{
             emptyText: hasSearch ? (
-              <Empty description={`No hay categorías que coincidan con «${search.trim()}»`}>
-                <Button
-                  onClick={() => {
-                    setSearch("");
-                    setPage(1);
-                  }}
-                >
-                  Limpiar búsqueda
-                </Button>
-              </Empty>
-            ) : (
-              <Empty description="Aún no hay categorías">
-                {isAdmin && (
-                  <Button type="primary" onClick={openCreate}>
-                    Crear la primera
+              <EmptyState
+                variant="inline"
+                eyebrow="Categorías"
+                title="Sin resultados"
+                description={`No hay categorías que coincidan con «${search.trim()}».`}
+                action={
+                  <Button
+                    onClick={() => {
+                      setSearch("");
+                      setPage(1);
+                    }}
+                  >
+                    Limpiar búsqueda
                   </Button>
-                )}
-              </Empty>
+                }
+              />
+            ) : (
+              <EmptyState
+                variant="inline"
+                eyebrow="Categorías"
+                title="Aún no hay categorías"
+                description="Crea la primera para agrupar productos y proponer sus SKUs."
+                action={
+                  isAdmin && (
+                    <Button type="primary" onClick={openCreate}>
+                      Crear la primera
+                    </Button>
+                  )
+                }
+              />
             ),
           }}
         />

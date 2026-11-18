@@ -14,6 +14,7 @@ import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import StatCard from "@/components/StatCard";
 import AnimatedNumber from "@/components/AnimatedNumber";
+import EmptyState from "@/components/EmptyState";
 import { useDateRange } from "@/hooks/useDateRange";
 import AccountFormModal from "./AccountFormModal";
 
@@ -402,7 +403,16 @@ export default function FinanceOverviewPage() {
           loading={loading}
           pagination={false}
           scroll={{ x: "max-content" }}
-          locale={{ emptyText: "Aún no hay cuentas financieras" }}
+          locale={{
+            emptyText: (
+              <EmptyState
+                variant="inline"
+                eyebrow="Finanzas"
+                title="Aún no hay cuentas financieras"
+                description="Crea una caja o banco para empezar a mover el capital."
+              />
+            ),
+          }}
           summary={() => (
             <Table.Summary.Row>
               <Table.Summary.Cell index={0}>
@@ -493,7 +503,16 @@ export default function FinanceOverviewPage() {
           dataSource={s?.por_categoria ?? []}
           pagination={false}
           scroll={{ x: "max-content" }}
-          locale={{ emptyText: "No hay movimientos en el periodo seleccionado" }}
+          locale={{
+            emptyText: (
+              <EmptyState
+                variant="inline"
+                eyebrow="Resultado"
+                title="No hay movimientos en el periodo"
+                description="Cambia el rango o registra una transacción para ver el desglose."
+              />
+            ),
+          }}
           columns={[
             {
               title: <Tooltip title="Categoría financiera">Categoría</Tooltip>,

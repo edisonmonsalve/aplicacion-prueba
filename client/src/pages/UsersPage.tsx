@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, message } from "antd";
+import { Button, Input, Select, Space, Table, Tag, Tooltip, message } from "antd";
 import type { TableProps } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -8,6 +8,7 @@ import { getUsers, setUserActivo, type UsersQuery, type UserSortKey } from "@/se
 import { getErrorMessage } from "@/utils/errors";
 import type { User } from "@/types";
 import UserFormModal from "@/components/UserFormModal";
+import EmptyState from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TableSkeleton from "@/components/TableSkeleton";
 import ConfirmAction from "@/components/ConfirmAction";
@@ -287,19 +288,25 @@ export default function UsersPage() {
           scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Sistema"
+                title={hasFilters ? "Sin resultados" : "Aún no hay usuarios"}
                 description={
-                  hasFilters ? "No hay usuarios que coincidan con los filtros" : "Aún no hay usuarios"
+                  hasFilters
+                    ? "No hay usuarios que coincidan con los filtros."
+                    : "Crea el primero y asigna un rol para controlar el acceso."
                 }
-              >
-                {hasFilters ? (
-                  <Button onClick={clearFilters}>Limpiar filtros</Button>
-                ) : (
-                  <Button type="primary" onClick={openCreate}>
-                    Crear el primero
-                  </Button>
-                )}
-              </Empty>
+                action={
+                  hasFilters ? (
+                    <Button onClick={clearFilters}>Limpiar filtros</Button>
+                  ) : (
+                    <Button type="primary" onClick={openCreate}>
+                      Crear el primero
+                    </Button>
+                  )
+                }
+              />
             ),
           }}
           pagination={{

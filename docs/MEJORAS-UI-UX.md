@@ -429,6 +429,31 @@ de los modales) y `client npm run lint` (0 errores; los 2 warnings preexistentes
 de `InvoiceFormPage.tsx` se mantienen). `git diff --check` sin errores de
 whitespace. Sin commit ni push hasta la aprobación explícita.
 
+## 27. Tanda visual: profundidad, estados vacíos y tipografía
+
+Octava tanda, sobre `c594bed`. Tres mejoras visuales sin dependencias nuevas y
+sin cambios de comportamiento. El objetivo es que el panel tenga una jerarquía
+de planos clara, que el vacío también hable el idioma Signal y que la tipografía
+se lea como un sistema y no como estilos sueltos.
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| V1 | **Estados vacíos editoriales** | Alto | Bajo | Nuevo `EmptyState` con micro-label, título display, una línea de contexto y acción opcional. Variante `inline` para celdas de tabla y gráficos, `panel` para páginas. Se migraron 26 vacíos: los 18 `<Empty>` de AntD y 8 textos de `locale`. Se conservan todas las acciones («Limpiar filtros», «Crear el primero»). La marca son escuadras HUD y un punto de señal, estáticos: sin ilustraciones ni partículas. |
+| V2 | **Profundidad en tres niveles** | Medio-alto | Bajo | `--ui-elev-0` (filo, sin sombra) para contenedores de listas y tablas; `--ui-elev-1` para tarjetas, KPIs y gráficos; `--ui-elev-2` solo para modales y superficies flotantes. Los gráficos dejan de usar la sombra larga y los contenedores de tabla se detectan con `:has()` para quedar planos. `boxShadowTertiary` de AntD queda alineado con `elev-1` en ambos temas. Si todo flota, nada flota. |
+| V3 | **Escala tipográfica y cifras** | Medio | Bajo-medio | La escala pasa a tokens completos: `micro`, `caption`, `body`, `title`, `kpi` y `display`, con `clamp()` en los tres últimos para sostener el ritmo entre 360 y 1440 px. Títulos con `text-wrap: balance`, descripciones con `pretty`, tracking por tamaño y `tabular-nums` global que ya traía el `body`. Sin fuentes nuevas: se aprovechan las variables existentes. |
+
+Archivos: `components/EmptyState.tsx` (nuevo), `styles/tokens.css`, `index.css`,
+`context/ThemeContext.tsx`, `components/CategoriesPanel.tsx` y las páginas
+`HomePage`, `ProductsPage`, `UsersPage`, `MovementsPage`, `QuotesPage`,
+`InvoicesPage`, `ReceivablesPage`, `CarteraAlerts`, `InvoiceDetailPage`,
+`FinanceOverviewPage`, `BudgetsPage`, `BudgetDetailPage`, `TransactionsPage`,
+`AuditPage`, `PeriodClosuresPage`, `DataHealthPage` y `ReconciliationsPage`.
+
+Verificación: `client npm run build` (✓ 3641 módulos; CSS 30,99 → 33,56 kB; JS
+principal 169,13 → 169,21 kB) y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check` sin
+errores de whitespace. Sin commit ni push hasta la aprobación explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

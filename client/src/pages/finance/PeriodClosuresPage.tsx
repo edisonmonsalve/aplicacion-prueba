@@ -9,7 +9,6 @@ import {
   DatePicker,
   Descriptions,
   Drawer,
-  Empty,
   Form,
   Input,
   InputNumber,
@@ -39,6 +38,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
 import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import {
   createFiscalClosure,
   createPeriodClosure,
@@ -250,7 +250,12 @@ export default function PeriodClosuresPage() {
         scroll={{ x: "max-content" }}
         locale={{
           emptyText: (
-            <Empty description="Aún no hay periodos cerrados. Cierra el mes para congelar sus totales." />
+            <EmptyState
+              variant="inline"
+              eyebrow="Cierres"
+              title="Aún no hay periodos cerrados"
+              description="Cierra el mes para congelar sus totales."
+            />
           ),
         }}
         columns={[
@@ -336,7 +341,12 @@ export default function PeriodClosuresPage() {
         scroll={{ x: "max-content" }}
         locale={{
           emptyText: (
-            <Empty description="Aún no hay ejercicios cerrados. Cierra el año para congelar su resultado y balance." />
+            <EmptyState
+              variant="inline"
+              eyebrow="Cierres"
+              title="Aún no hay ejercicios cerrados"
+              description="Cierra el año para congelar su resultado y balance."
+            />
           ),
         }}
         columns={[

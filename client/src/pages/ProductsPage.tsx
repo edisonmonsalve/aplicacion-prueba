@@ -5,7 +5,6 @@ import {
   Checkbox,
   Col,
   Dropdown,
-  Empty,
   Input,
   Row,
   Select,
@@ -21,6 +20,7 @@ import { DownloadOutlined, MoreOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import ProductFormModal from "@/components/ProductFormModal";
 import CategoriesPanel from "@/components/CategoriesPanel";
+import EmptyState from "@/components/EmptyState";
 import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -552,21 +552,27 @@ export default function ProductsPage() {
           rowClassName={(p) => (p.stock_actual < p.stock_minimo ? "row-low-stock" : "")}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Inventario"
+                title={hasFilters ? "Sin resultados" : "Aún no hay productos"}
                 description={
-                  hasFilters ? "No hay productos que coincidan con los filtros" : "Aún no hay productos"
+                  hasFilters
+                    ? "No hay productos que coincidan con los filtros."
+                    : "Crea el primero para controlar stock, costo y margen."
                 }
-              >
-                {hasFilters ? (
-                  <Button onClick={clearFilters}>Limpiar filtros</Button>
-                ) : (
-                  canOperate && (
-                    <Button type="primary" onClick={openCreate}>
-                      Crear el primero
-                    </Button>
+                action={
+                  hasFilters ? (
+                    <Button onClick={clearFilters}>Limpiar filtros</Button>
+                  ) : (
+                    canOperate && (
+                      <Button type="primary" onClick={openCreate}>
+                        Crear el primero
+                      </Button>
+                    )
                   )
-                )}
-              </Empty>
+                }
+              />
             ),
           }}
           pagination={{

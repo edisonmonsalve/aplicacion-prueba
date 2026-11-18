@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   Col,
-  Empty,
   Input,
   Row,
   Select,
@@ -34,6 +33,7 @@ import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import type {
   CarteraAging,
   CarteraEstado,
@@ -554,11 +554,14 @@ export default function ReceivablesPage() {
           })}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Cartera"
+                title={hasFilters ? "Sin resultados" : "No hay cartera pendiente"}
                 description={
                   hasFilters
-                    ? "Ninguna factura coincide con los filtros"
-                    : "No hay cartera pendiente. Las facturas a crédito aparecen aquí al confirmarse."
+                    ? "Ninguna factura coincide con los filtros."
+                    : "Las facturas a crédito aparecen aquí al confirmarse."
                 }
               />
             ),

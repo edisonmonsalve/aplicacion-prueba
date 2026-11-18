@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, App, Button, Card, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Card, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ import type {
   FinanceAccount,
 } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -429,23 +430,27 @@ export default function TransactionsPage() {
           scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Finanzas"
+                title={hasFilters ? "Sin resultados" : "Aún no hay transacciones"}
                 description={
                   hasFilters
-                    ? "No hay transacciones que coincidan con los filtros"
-                    : "Aún no hay transacciones"
+                    ? "No hay transacciones que coincidan con los filtros."
+                    : "Registra la primera para mover el capital y el resultado."
                 }
-              >
-                {hasFilters ? (
-                  <Button onClick={clearFilters}>Limpiar filtros</Button>
-                ) : (
-                  canWrite && (
-                    <Button type="primary" onClick={() => setModalOpen(true)}>
-                      Registrar la primera
-                    </Button>
+                action={
+                  hasFilters ? (
+                    <Button onClick={clearFilters}>Limpiar filtros</Button>
+                  ) : (
+                    canWrite && (
+                      <Button type="primary" onClick={() => setModalOpen(true)}>
+                        Registrar la primera
+                      </Button>
+                    )
                   )
-                )}
-              </Empty>
+                }
+              />
             ),
           }}
           pagination={{

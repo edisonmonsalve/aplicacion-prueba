@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Col, Empty, Row, Skeleton, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
+import { Alert, Button, Card, Col, Row, Skeleton, Table, Tag, Tooltip as AntTooltip, Typography, theme } from "antd";
 import { AppstoreOutlined, DollarOutlined, PercentageOutlined, RiseOutlined, SwapOutlined, WalletOutlined, WarningOutlined } from "@ant-design/icons";
 import {
   Bar,
@@ -29,6 +29,7 @@ import PageHeader from "@/components/PageHeader";
 import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
 import AnimatedNumber from "@/components/AnimatedNumber";
+import EmptyState from "@/components/EmptyState";
 
 const HOME_TOOLTIPS: Record<string, string> = {
   "Productos activos": "Productos disponibles para vender u operar. Abre el catálogo filtrado por activos.",
@@ -339,7 +340,12 @@ export default function HomePage() {
                 }
               >
                 {estados.length === 0 ? (
-                  <Empty description="Aún no hay cotizaciones" />
+                  <EmptyState
+                    variant="inline"
+                    eyebrow="Cotizaciones"
+                    title="Sin cotizaciones"
+                    description="El gráfico se llena cuando registres la primera."
+                  />
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
@@ -378,7 +384,12 @@ export default function HomePage() {
                 }
               >
                 {data.topProductos.length === 0 ? (
-                  <Empty description="Se llenará con cotizaciones aprobadas o entregadas" />
+                  <EmptyState
+                    variant="inline"
+                    eyebrow="Cotizaciones"
+                    title="Sin datos aún"
+                    description="Se llenará con cotizaciones aprobadas o entregadas."
+                  />
                 ) : (
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={data.topProductos} layout="vertical" margin={{ left: 16 }}>
@@ -419,7 +430,15 @@ export default function HomePage() {
                   rowKey="id"
                   pagination={false}
                   dataSource={data.productosStockBajo}
-                  locale={{ emptyText: "Todo el inventario está sobre su mínimo" }}
+                  locale={{
+                    emptyText: (
+                      <EmptyState
+                        variant="inline"
+                        title="Todo el inventario está sobre su mínimo"
+                        description="No hay productos que reponer por ahora."
+                      />
+                    ),
+                  }}
                   columns={[
                     { title: <AntTooltip title="Código del producto">SKU</AntTooltip>, dataIndex: "sku" },
                     { title: <AntTooltip title="Nombre del producto">Producto</AntTooltip>, dataIndex: "nombre" },
@@ -480,7 +499,15 @@ export default function HomePage() {
               rowKey="id"
               pagination={false}
               dataSource={data.ultimosMovimientos}
-              locale={{ emptyText: "Aún no hay movimientos" }}
+              locale={{
+                emptyText: (
+                  <EmptyState
+                    variant="inline"
+                    title="Aún no hay movimientos"
+                    description="Las entradas y salidas recientes aparecerán aquí."
+                  />
+                ),
+              }}
               columns={[
                 {
                   title: <AntTooltip title="Fecha del movimiento">Fecha</AntTooltip>,

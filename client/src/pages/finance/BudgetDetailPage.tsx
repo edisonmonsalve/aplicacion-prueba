@@ -42,6 +42,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
 import FinanceSectionTabs from "@/components/FinanceSectionTabs";
+import EmptyState from "@/components/EmptyState";
 import BudgetFormModal from "./BudgetFormModal";
 
 const TIPO_COLOR: Record<string, string> = {
@@ -470,9 +471,18 @@ export default function BudgetDetailPage() {
         pagination={false}
         scroll={{ x: "max-content" }}
         locale={{
-          emptyText: soloAlertas
-            ? "Todas las líneas están dentro de su monto planeado"
-            : "Este presupuesto aún no tiene líneas",
+          emptyText: (
+            <EmptyState
+              variant="inline"
+              eyebrow="Presupuesto"
+              title={soloAlertas ? "Todo dentro de lo planeado" : "Este presupuesto aún no tiene líneas"}
+              description={
+                soloAlertas
+                  ? "Todas las líneas están dentro de su monto."
+                  : "Agrega categorías para empezar a ejecutarlo."
+              }
+            />
+          ),
         }}
       />
 

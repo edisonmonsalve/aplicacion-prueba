@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, Empty, Input, Select, Space, Table, Tag, Tooltip } from "antd";
+import { App, Button, Input, Select, Space, Table, Tag, Tooltip } from "antd";
 import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -10,6 +10,7 @@ import { money, fmtDate, BudgetEstadoTag, periodLabel } from "./FinanceUtils";
 import { canWriteFinance } from "@/utils/roles";
 import type { BudgetEstado, BudgetListItem, BudgetPeriodo, BudgetSortKey } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import FilterBar, { FilterField } from "@/components/FilterBar";
@@ -291,23 +292,27 @@ export default function BudgetsPage() {
           onRow={(r) => ({ onClick: () => navigate(`/finanzas/presupuestos/${r.id}`), style: { cursor: "pointer" } })}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Finanzas"
+                title={hasFilters ? "Sin resultados" : "Aún no hay presupuestos"}
                 description={
                   hasFilters
-                    ? "No hay presupuestos que coincidan con los filtros"
-                    : "Aún no hay presupuestos"
+                    ? "No hay presupuestos que coincidan con los filtros."
+                    : "Crea el primero para planear montos por categoría y periodo."
                 }
-              >
-                {hasFilters ? (
-                  <Button onClick={clearFilters}>Limpiar filtros</Button>
-                ) : (
-                  canWrite && (
-                    <Button type="primary" onClick={() => setModalOpen(true)}>
-                      Crear el primero
-                    </Button>
+                action={
+                  hasFilters ? (
+                    <Button onClick={clearFilters}>Limpiar filtros</Button>
+                  ) : (
+                    canWrite && (
+                      <Button type="primary" onClick={() => setModalOpen(true)}>
+                        Crear el primero
+                      </Button>
+                    )
                   )
-                )}
-              </Empty>
+                }
+              />
             ),
           }}
           pagination={{

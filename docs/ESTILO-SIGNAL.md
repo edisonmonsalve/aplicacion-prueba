@@ -70,10 +70,13 @@ sino el significado contable de cada indicador:
 - **Cifras**: `tabular-nums`, tracking negativo (`-.04em`) y peso 700.
 
 Los tamaños viven en una escala compartida en `tokens.css`: `--ui-text-micro`
-(10.5 px), `--ui-text-body` (14 px), `--ui-text-kpi` (26 px) y `--ui-text-display`
-(28 px). El `body` usa `--ui-font` con `font-optical-sizing: auto`; el display y
-los KPIs afinan el optical sizing para que los extremos de la variable no se
-vean ni apretados ni diluidos.
+(10.5 px), `--ui-text-caption` (12 px), `--ui-text-body` (14 px),
+`--ui-text-title` (18–22 px), `--ui-text-kpi` (22–28 px) y `--ui-text-display`
+(24–30 px). Los tres últimos usan `clamp()` para que el ritmo se mantenga entre
+360 y 1440 px sin saltos. El `body` usa `--ui-font` con `font-optical-sizing:
+auto` y `tabular-nums`; los títulos usan `text-wrap: balance` y las descripciones
+`text-wrap: pretty`. El display y los KPIs afinan el optical sizing para que los
+extremos de la variable no se vean ni apretados ni diluidos.
 
 Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 
@@ -95,6 +98,10 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 - Profundidad de datos: `--ui-shadow-deep` + `--ui-inset` (doble sombra y filo
   interior claro) en `.ui-deep-surface` y `.ui-chart-card`, con halo radial en
   `::before` y dos escuadras HUD en `::after`. No es contenido ni añade movimiento.
+- **Profundidad en tres niveles**: `--ui-elev-0` (filo, sin sombra) para
+  contenedores de listas y tablas, `--ui-elev-1` para tarjetas, KPIs y gráficos,
+  y `--ui-elev-2` solo para modales y superficies flotantes. Si todo flota, nada
+  flota: la jerarquía se lee antes de pensar.
 - **Bento** en Inicio y Resumen: bloques `16/8` que alternan el lado grande y,
   en Finanzas, dos secciones de KPIs en columnas `12` desde `lg`. El resto de
   páginas mantiene la rejilla uniforme.
@@ -152,6 +159,7 @@ apaga, por lo que solo queda la rejilla estática.
 | `usePointerGrid` | Escribe `--ui-pointer-x/y` en `:root` con el puntero, a lo sumo una vez por frame. Ignora el tacto y se inhibe con `prefers-reduced-motion`; sin JS la rejilla conserva su posición estática. |
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. Breadcrumb único derivado de la ruta (`useRouteBreadcrumb`) con `breadcrumbLeaf` para el dato de la página; ya no hay breadcrumb global en el shell. |
 | `ModalHeading` | Cabecera editorial para diálogos de formulario: micro-label, título display, descripción de contexto y barra de señal estática. Repite el lenguaje de `PageHeader` para que el modal se sienta parte del sistema. Acompaña al cuerpo con scroll y al pie fijo definidos en `index.css`. |
+| `EmptyState` | Estado vacío editorial con micro-label, título display, descripción y acción. Variante `inline` para celdas de tabla y gráficos; `panel` para páginas. La marca son escuadras HUD y un punto de señal, estáticos: el texto y la acción son el contenido real. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada, lavado de acento en reposo y highlight interior; `:active` hunde 1 px, foco con doble anillo y `sparkline` opcional sin espacio vacío. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
 | `Button` (AntD) | Jerarquía de estados propia: `hover` eleva 1 px con sombra corta y `:active` hunde 1 px; primario y peligro suman un filo del color de su señal. Solo animan `transform` y `box-shadow`, así que temas, `disabled` y `loading` siguen gobernados por AntD. Texto y enlace no se elevan. Sin movimiento con `prefers-reduced-motion`. |

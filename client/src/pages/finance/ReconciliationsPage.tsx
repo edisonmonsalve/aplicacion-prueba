@@ -10,7 +10,6 @@ import {
   DatePicker,
   Descriptions,
   Drawer,
-  Empty,
   Form,
   Input,
   InputNumber,
@@ -45,6 +44,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
 import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import { getFinanceAccounts } from "@/services/financeService";
 import {
   addStatementLine,
@@ -467,7 +467,12 @@ export default function ReconciliationsPage() {
           scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
-              <Empty description="Aún no hay conciliaciones. Crea una y carga las líneas del extracto del banco." />
+              <EmptyState
+                variant="inline"
+                eyebrow="Conciliación"
+                title="Aún no hay conciliaciones"
+                description="Crea una y carga las líneas del extracto del banco."
+              />
             ),
           }}
           columns={[
@@ -798,7 +803,15 @@ export default function ReconciliationsPage() {
                 dataSource={detail.lineas}
                 pagination={false}
                 scroll={{ x: "max-content" }}
-                locale={{ emptyText: "Agrega las líneas del extracto del banco." }}
+                locale={{
+                  emptyText: (
+                    <EmptyState
+                      variant="inline"
+                      title="Sin líneas cargadas"
+                      description="Agrega las líneas del extracto del banco."
+                    />
+                  ),
+                }}
                 columns={[
                   { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
                   {
@@ -1117,7 +1130,11 @@ export default function ReconciliationsPage() {
               scroll={{ x: "max-content" }}
               locale={{
                 emptyText: (
-                  <Empty description="No hay movimientos del sistema con el mismo importe en la tolerancia elegida. Ajusta los días o revisa el monto de la línea." />
+                  <EmptyState
+                    variant="inline"
+                    title="Sin coincidencias"
+                    description="No hay movimientos del sistema con el mismo importe dentro de la tolerancia. Ajusta los días o revisa el monto de la línea."
+                  />
                 ),
               }}
               columns={[
