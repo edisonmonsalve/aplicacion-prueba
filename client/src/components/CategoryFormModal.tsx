@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import { createCategory, updateCategory } from "@/services/categoriesService";
 import { getErrorMessage } from "@/utils/errors";
 import type { Category } from "@/types";
+import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
   category: Category | null; // null = crear, Category = editar
@@ -56,7 +57,15 @@ export default function CategoryFormModal({ category, onClose, onSaved }: Props)
   return (
     <Modal
       open
-      title={isEdit ? "Editar categoría" : "Nueva categoría"}
+      width={560}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Inventario"
+          title={isEdit ? "Editar categoría" : "Nueva categoría"}
+          description="El código es el prefijo que se propone para los SKUs."
+        />
+      }
       okText={isEdit ? "Guardar cambios" : "Crear categoría"}
       cancelText="Cancelar"
       confirmLoading={saving}

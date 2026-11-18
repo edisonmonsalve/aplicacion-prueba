@@ -40,6 +40,7 @@ import {
   priceFromMarkup,
 } from "@/utils/margin";
 import type { Category, Product } from "@/types";
+import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
   product: Product | null; // null = crear, Product = editar
@@ -139,8 +140,15 @@ export default function ProductFormModal({ product, categories, onClose, onSaved
   return (
     <Modal
       open
-      width={640}
-      title={isEdit ? "Editar producto" : "Nuevo producto"}
+      width={680}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Inventario"
+          title={isEdit ? "Editar producto" : "Nuevo producto"}
+          description="Precio, costo y stock mínimo definen el margen y las alertas de reposición."
+        />
+      }
       okText={isEdit ? "Guardar cambios" : "Crear producto"}
       cancelText="Cancelar"
       confirmLoading={saving}

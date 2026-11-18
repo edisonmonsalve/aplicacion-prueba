@@ -14,14 +14,16 @@ import {
   theme,
   type MenuProps,
 } from "antd";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import {
   BarChartOutlined,
+  CompressOutlined,
   ContactsOutlined,
   DashboardOutlined,
+  ExpandOutlined,
   FileDoneOutlined,
   FileTextOutlined,
   FundOutlined,
@@ -42,6 +44,7 @@ import { useThemeMode } from "@/context/ThemeContext";
 import { CompanyProvider } from "@/context/CompanyContext";
 import { canAccessFinance } from "@/utils/roles";
 import usePointerGrid from "@/hooks/usePointerGrid";
+import useDensity from "@/hooks/useDensity";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppLogo from "@/components/AppLogo";
 import { roleLabel } from "@/utils/roles";
@@ -134,6 +137,7 @@ export default function AppLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const navigationType = useNavigationType();
   const { token } = theme.useToken();
   const [messageApi, contextHolder] = message.useMessage();
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -147,11 +151,15 @@ export default function AppLayout() {
   // Rejilla ambiental reactiva al puntero; el hook se inhibe con reduced-motion.
   usePointerGrid();
 
+  // Densidad del HUD persistida: el CSS compacto cuelga de `data-density`.
+  const { density, toggle: toggleDensity } = useDensity();
+
   // El menú se arma según el rol: el operador no ve "Usuarios"
   const { mode, toggle } = useThemeMode();
   const selected =
     MODULE_ROUTES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.key ??
     "/";
+  const densityLabel = density === "compact" ? "Usar densidad cómoda" : "Usar densidad compacta";
 
   // Al navegar, deja el item activo a la vista dentro del sider. No mueve el
   // scroll de la página y no anima el salto.
@@ -168,6 +176,16 @@ export default function AppLayout() {
     const top = item.top - box.top + container.scrollTop;
     container.scrollTop = Math.max(0, top - container.clientHeight / 2 + item.height / 2);
   }, [pathname, collapsed]);
+
+  // SPA sin saltos: cada ruta nueva empieza arriba y el foco pasa al contenido.
+  // En POP (Atrás/Adelante) se respeta la posición que restaura el navegador.
+  // Se hace en layout effect para que el cambio ocurra antes del pintado.
+  useLayoutEffect(() => {
+    if (navigationType !== "POP") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+  }, [pathname, navigationType]);
 
   // "/" enfoca el buscador del menú y Escape lo limpia, como en cualquier
   // paleta de comandos. No interrumpe la escritura en otros campos.
@@ -385,6 +403,15 @@ export default function AppLayout() {
           </Space>
 
           <Space size={isMobile ? "small" : "middle"}>
+            <Tooltip title={densityLabel}>
+              <Button
+                type="text"
+                icon={density === "compact" ? <ExpandOutlined /> : <CompressOutlined />}
+                onClick={toggleDensity}
+                aria-label="Densidad compacta"
+                aria-pressed={density === "compact"}
+              />
+            </Tooltip>
             <Tooltip title="Cambiar entre tema claro y oscuro">
               <Switch
                 checked={mode === "dark"}

@@ -4,6 +4,7 @@ import { createFinanceAccount, updateFinanceAccount } from "@/services/financeSe
 import { getErrorMessage } from "@/utils/errors";
 import { currencyInputProps } from "@/utils/format";
 import type { FinanceAccount, FinanceAccountInput } from "@/types";
+import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
   open: boolean;
@@ -69,7 +70,15 @@ export default function AccountFormModal({ open, account, onClose, onSaved }: Pr
   return (
     <Modal
       open={open}
-      title={account ? "Editar cuenta" : "Nueva cuenta"}
+      width={560}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Finanzas"
+          title={account ? "Editar cuenta" : "Nueva cuenta"}
+          description="Caja o banco; el saldo inicial se conserva en el histórico."
+        />
+      }
       okText={account ? "Guardar" : "Crear"}
       cancelText="Cancelar"
       confirmLoading={saving}

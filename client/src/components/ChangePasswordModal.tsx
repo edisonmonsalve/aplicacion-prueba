@@ -3,6 +3,7 @@ import { Form, Input, Modal, message } from "antd";
 import { isAxiosError } from "axios";
 import { changePassword } from "@/services/authService";
 import { getErrorMessage } from "@/utils/errors";
+import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
   onClose: () => void;
@@ -42,7 +43,15 @@ export default function ChangePasswordModal({ onClose, onSaved }: Props) {
   return (
     <Modal
       open
-      title="Cambiar contraseña"
+      width={560}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Cuenta"
+          title="Cambiar contraseña"
+          description="Confirma la nueva contraseña; se aplica de inmediato."
+        />
+      }
       okText="Guardar"
       cancelText="Cancelar"
       confirmLoading={saving}

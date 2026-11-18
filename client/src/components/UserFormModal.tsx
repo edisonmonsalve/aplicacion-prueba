@@ -5,6 +5,7 @@ import { createUser, updateUser } from "@/services/usersService";
 import { getErrorMessage } from "@/utils/errors";
 import type { Rol, User } from "@/types";
 import { ROLES } from "@/utils/roles";
+import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
   user: User | null; // null = crear, User = editar
@@ -55,7 +56,15 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
   return (
     <Modal
       open
-      title={isEdit ? "Editar usuario" : "Nuevo usuario"}
+      width={560}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Sistema"
+          title={isEdit ? "Editar usuario" : "Nuevo usuario"}
+          description="El rol define qué módulos y acciones puede usar."
+        />
+      }
       okText={isEdit ? "Guardar cambios" : "Crear usuario"}
       cancelText="Cancelar"
       confirmLoading={saving}

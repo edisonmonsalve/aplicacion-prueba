@@ -1,4 +1,3 @@
-import { signal } from "@/styles/signal";
 import { useEffect } from "react";
 import {
   App,
@@ -16,6 +15,7 @@ import { currencyInputProps } from "@/utils/format";
 import { getErrorMessage } from "@/utils/errors";
 import type { FinanceAccount, InvoiceDetail, PaymentInput, PaymentMetodo } from "@/types";
 import { money } from "./InvoiceUtils";
+import ModalHeading from "@/components/ModalHeading";
 
 const METODO_OPTIONS: { value: PaymentMetodo; label: string }[] = [
   { value: "transferencia", label: "Transferencia" },
@@ -88,8 +88,20 @@ export default function PaymentModal({ open, invoice, accounts, onCancel, onSave
 
   return (
     <Modal
-      title={esVenta ? `Registrar cobro · ${invoice.numero}` : `Registrar pago · ${invoice.numero}`}
+      title={
+        <ModalHeading
+          eyebrow="Facturación"
+          title={esVenta ? `Registrar cobro · ${invoice.numero}` : `Registrar pago · ${invoice.numero}`}
+          description={
+            esVenta
+              ? "El cobro entra a la cuenta elegida y no vuelve a sumar al resultado."
+              : "El pago sale de la cuenta elegida y no vuelve a restar del resultado."
+          }
+        />
+      }
       open={open}
+      width={560}
+      className="ui-form-modal"
       onCancel={onCancel}
       onOk={save}
       okText={esVenta ? "Registrar cobro" : "Registrar pago"}
@@ -99,11 +111,6 @@ export default function PaymentModal({ open, invoice, accounts, onCancel, onSave
       <Space direction="vertical" size={2} style={{ marginBottom: 12 }}>
         <span>
           Saldo pendiente: <strong>{money(saldo)}</strong>
-        </span>
-        <span style={{ color: signal.muted }}>
-          {esVenta
-            ? "El cobro entra a la cuenta elegida y no vuelve a sumar al resultado."
-            : "El pago sale de la cuenta elegida y no vuelve a restar del resultado."}
         </span>
       </Space>
 

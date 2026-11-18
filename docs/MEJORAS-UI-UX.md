@@ -399,6 +399,36 @@ sin cambio; CSS 27,84 → 28,82 kB por las reglas de botón) y `client npm run l
 (0 errores; los 2 warnings preexistentes se mantienen). `git diff --check` sin
 errores de whitespace. Sin commit ni push hasta la aprobación explícita.
 
+## 26. Tanda HUD: bento, densidad, glass y navegación
+
+Séptima tanda, sobre `7249c58`. Cinco mejoras visuales y de navegación, sin
+dependencias nuevas y sin tocar la estructura de página. El objetivo es que el
+panel se lea como un HUD: bloques con jerarquía, densidad ajustable, superficies
+flotantes que se separan del contenido sin ensuciarlo y formularios modales con
+la misma voz editorial que las páginas. La paleta de comandos y el feedback de
+sistema quedan fuera de esta tanda, como se acordó.
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| B10 | **Bento en Inicio y Resumen** | Medio-alto | Medio | Inicio pasa de dos filas simétricas a bloques `16/8` que alternan el lado grande: movimientos + cotizaciones, luego top productos + stock bajo. En Resumen, Liquidez y Resultado comparten fila en dos columnas `12` desde `lg`, cada una con sus cuatro KPIs en `2×2`; Fiscal queda a ancho completo con tres KPIs en `lg={8}` (antes dejaban un hueco de 6 columnas). Por debajo de `lg` todo se apila y los KPIs conservan dos columnas. |
+| B11 | **Densidad HUD** | Medio | Bajo | Control Cómoda/Compacta en el header, con icono `Compress`/`Expand` y `aria-pressed`. Se guarda en `localStorage` (`ui-density`) y se aplica en `data-density` antes del primer pintado desde `index.html`. La versión compacta recorta relleno de tarjetas, cabeceras, filas de tabla y listas; tipografía y controles no cambian. Sin transición de layout. |
+| B12 | **Glass quirúrgico** | Bajo-medio | Bajo | Vidrio solo donde hay contenido reconocible detrás: dropdown, popover, select, calendario y tooltip, con `blur(6px) saturate(1.15)` sobre un 62 % de superficie (66 % en el tooltip oscuro). Los modales quedan fuera a propósito: su mask a pantalla completa ya oscurece la página y el efecto no se percibe. La flecha del tooltip y del popover se oculta porque no comparte el `backdrop-filter` y se veía de otro tono. Todo dentro de `@supports`. El contenido y las tarjetas siguen opacos. |
+| B13 | **Navegación sin saltos** | Medio | Muy bajo | Al cambiar de ruta (PUSH/REPLACE) la ventana vuelve arriba y el foco pasa a `#main-content` sin desplazarlo. En Atrás/Adelante (POP) se respeta la restauración del navegador. Corrige el caso de abrir una página a media altura tras hacer scroll. |
+| B14 | **Modales premium** | Medio | Bajo | Los formularios en modal estrenan cabecera editorial: micro-label de módulo, título display, una línea de contexto y barra de señal estática. El cuerpo tiene scroll propio y el pie queda fijo, así que las acciones no se pierden en formularios largos. Anchos unificados (560 de base, 680 en Producto y 820 en Ajuste), cabecera con degradado tenue y borde de separación. El estilo se acota a `.ui-form-modal`, de modo que los demás diálogos (Terceros, Cartera, Cierres y Conciliaciones) conservan el aspecto de AntD. El modal sigue opaco y sin `backdrop-filter`: el mask ya oscurece la página. Es solo presentación; validación, teclado y cierre no cambian. |
+
+Archivos: `AppLayout.tsx`, `HomePage.tsx`, `FinanceOverviewPage.tsx`, `index.css`,
+`index.html`, `hooks/useDensity.ts` y `components/ModalHeading.tsx` (nuevos), los
+nueve modales de formulario (`ProductFormModal`, `MovementFormModal`,
+`UserFormModal`, `CategoryFormModal`, `ChangePasswordModal`, `AccountFormModal`,
+`TransactionFormModal`, `PaymentModal` e `InvoiceAdjustmentModal`) y estos dos
+documentos.
+
+Verificación: `client npm run build` (✓ 3640 módulos; CSS 28,82 → 30,99 kB; JS
+principal 165,93 → 169,13 kB por el control de densidad, los iconos y la cabecera
+de los modales) y `client npm run lint` (0 errores; los 2 warnings preexistentes
+de `InvoiceFormPage.tsx` se mantienen). `git diff --check` sin errores de
+whitespace. Sin commit ni push hasta la aprobación explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

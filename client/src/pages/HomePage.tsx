@@ -184,12 +184,12 @@ export default function HomePage() {
                 </Card>
               </Col>
             ))}
-            <Col xs={24} lg={14}>
+            <Col xs={24} lg={14} xl={16}>
               <Card className="ui-scan">
                 <Skeleton active paragraph={{ rows: 6 }} />
               </Card>
             </Col>
-            <Col xs={24} lg={10}>
+            <Col xs={24} lg={10} xl={8}>
               <Card className="ui-scan">
                 <Skeleton active paragraph={{ rows: 6 }} />
               </Card>
@@ -297,7 +297,7 @@ export default function HomePage() {
           )}
 
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col xs={24} lg={14}>
+            <Col xs={24} lg={14} xl={16}>
               <Card
                 className="ui-chart-card"
                 title={
@@ -329,7 +329,7 @@ export default function HomePage() {
                 </ResponsiveContainer>
               </Card>
             </Col>
-            <Col xs={24} lg={10}>
+            <Col xs={24} lg={10} xl={8}>
               <Card
                 className="ui-chart-card"
                 title={
@@ -368,7 +368,7 @@ export default function HomePage() {
           </Row>
 
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col xs={24} lg={12}>
+            <Col xs={24} lg={12} xl={8}>
               <Card
                 className="ui-chart-card"
                 title={
@@ -405,7 +405,7 @@ export default function HomePage() {
                 )}
               </Card>
             </Col>
-            <Col xs={24} lg={12}>
+            <Col xs={24} lg={12} xl={16}>
               <Card
                 title={
                   <AntTooltip title="Productos cuyo stock está por debajo del mínimo">

@@ -17,6 +17,7 @@ import { createInvoiceAdjustment } from "@/services/invoicesService";
 import { currencyInputProps } from "@/utils/format";
 import type { InvoiceDetail, InvoiceItem } from "@/types";
 import { money } from "./InvoiceUtils";
+import ModalHeading from "@/components/ModalHeading";
 
 interface RowState {
   invoice_item_id: number;
@@ -125,7 +126,14 @@ export default function InvoiceAdjustmentModal({ open, invoice, onCancel, onSave
   return (
     <Modal
       open={open}
-      title={tipo === "credito" ? "Nueva nota crédito" : "Nueva nota débito"}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Facturación"
+          title={tipo === "credito" ? "Nueva nota crédito" : "Nueva nota débito"}
+          description="El ajuste modifica el saldo; si afecta stock, devuelve o descuenta unidades."
+        />
+      }
       onCancel={onCancel}
       onOk={handleSave}
       okText="Crear"

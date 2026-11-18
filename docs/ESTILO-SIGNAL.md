@@ -95,6 +95,22 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 - Profundidad de datos: `--ui-shadow-deep` + `--ui-inset` (doble sombra y filo
   interior claro) en `.ui-deep-surface` y `.ui-chart-card`, con halo radial en
   `::before` y dos escuadras HUD en `::after`. No es contenido ni añade movimiento.
+- **Bento** en Inicio y Resumen: bloques `16/8` que alternan el lado grande y,
+  en Finanzas, dos secciones de KPIs en columnas `12` desde `lg`. El resto de
+  páginas mantiene la rejilla uniforme.
+- **Glass quirúrgico** solo en superficies que flotan sobre contenido (dropdowns,
+  popovers, selects, calendarios y tooltips): `backdrop-filter: blur(6px)
+  saturate(1.15)` sobre un 62 % de superficie (66 % en el tooltip oscuro). Los
+  modales quedan fuera: su mask a pantalla completa ya oscurece la página y no
+  hay fondo reconocible que difuminar. Tooltips y popovers ocultan la flecha,
+  que no comparte el desenfoque. El contenido y las tarjetas siguen opacos.
+- **Modales de formulario** con cabecera editorial: micro-label, título display
+  y una línea de contexto, precedidos por una barra de señal estática (no late
+  dentro de un diálogo). El cuerpo tiene scroll propio y el pie queda fijo, de
+  modo que las acciones no se pierden en formularios largos. Anchos unificados:
+  560 para formularios de una o dos columnas, 680 cuando hay panel lateral y 820
+  para el ajuste de factura. Todo se acota a `.ui-form-modal`, así que los demás
+  diálogos conservan el estilo de AntD. El modal sigue opaco.
 
 ## 5. Movimiento
 
@@ -109,6 +125,7 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
 | Cambio de tema | 0 ms | se desactivan transiciones (anti-parpadeo) |
 | Ancho del sider / submenú inline | 0 ms | sin `scale`, sin colapso animado: el scroll no parece crecer |
 | Entrada de ruta | 380 ms | fundido + 6 px, sin `scale` |
+| Cambio de densidad | 0 ms | sin transición: el layout no crece ni salta |
 | Gráficos Recharts | 850 ms → 0 | `isAnimationActive={!reduced}` con `useReducedMotion` |
 
 La sensación de "vivo" se consigue con cinco capas discretas: halos ambientales
@@ -130,14 +147,16 @@ apaga, por lo que solo queda la rejilla estática.
 
 | Componente | Cambio global |
 |---|---|
-| `AppLayout` | Sidebar con índices monoespaciados, halo de marca y buscador (`/`, Escape, sinónimos y sin tildes); Finanzas reducido a 3 hojas iconadas (Resumen, Reportes y Gestión), sin subgrupos, contador ni pips, con las 13 rutas resaltando su sección. Categorías integrado en Productos, barra de señal en el item activo y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Capa ambiental detrás del shell; header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» como texto con pip, sin chip ni separador. Incluye skip link y overlay móvil accesible. |
+| `AppLayout` | Sidebar con índices monoespaciados, halo de marca y buscador (`/`, Escape, sinónimos y sin tildes); Finanzas reducido a 3 hojas iconadas (Resumen, Reportes y Gestión), sin subgrupos, contador ni pips, con las 13 rutas resaltando su sección. Categorías integrado en Productos, barra de señal en el item activo y pie `Signal · Control`. Scroll aislado y sin animaciones de apertura. Capa ambiental detrás del shell; header con degradado de superficie, filo teal→violeta y «En vivo · HH:mm» como texto con pip, sin chip ni separador. Incluye skip link y overlay móvil accesible. Control de densidad (Cómoda/Compacta) en el header; al cambiar de ruta el contenido vuelve arriba y recibe el foco, mientras Atrás/Adelante conservan la posición. |
+| `useDensity` | Densidad del HUD persistida en `localStorage` (`ui-density`) y reflejada en `data-density`. `index.html` la aplica antes del primer pintado. La versión compacta recorta el relleno de tarjetas, filas y listas sin tocar tipografía ni controles. |
 | `usePointerGrid` | Escribe `--ui-pointer-x/y` en `:root` con el puntero, a lo sumo una vez por frame. Ignora el tacto y se inhibe con `prefers-reduced-motion`; sin JS la rejilla conserva su posición estática. |
 | `PageHeader` | Micro-label `eyebrow`, título en Space Grotesk, barra de señal lateral. Breadcrumb único derivado de la ruta (`useRouteBreadcrumb`) con `breadcrumbLeaf` para el dato de la página; ya no hay breadcrumb global en el shell. |
+| `ModalHeading` | Cabecera editorial para diálogos de formulario: micro-label, título display, descripción de contexto y barra de señal estática. Repite el lenguaje de `PageHeader` para que el modal se sienta parte del sistema. Acompaña al cuerpo con scroll y al pie fijo definidos en `index.css`. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada, lavado de acento en reposo y highlight interior; `:active` hunde 1 px, foco con doble anillo y `sparkline` opcional sin espacio vacío. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
 | `Button` (AntD) | Jerarquía de estados propia: `hover` eleva 1 px con sombra corta y `:active` hunde 1 px; primario y peligro suman un filo del color de su señal. Solo animan `transform` y `box-shadow`, así que temas, `disabled` y `loading` siguen gobernados por AntD. Texto y enlace no se elevan. Sin movimiento con `prefers-reduced-motion`. |
-| `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad, halo y marco HUD de dos escuadras). |
-| `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, fondo uniforme en filas normales y color solo para estados reales (`.row-low-stock`, subtotales de resultados); `focus-within` por fila con `outline`. Efectos fuera de la impresión. |
+| `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad, halo y marco HUD de dos escuadras). En densidad compacta reduce relleno y altura de cabecera. |
+| `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, fondo uniforme en filas normales y color solo para estados reales (`.row-low-stock`, subtotales de resultados); `focus-within` por fila con `outline`. La densidad compacta reduce el relleno vertical de las filas. Efectos fuera de la impresión. |
 | Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |
 | `FinanceSectionTabs` | Pestañas contextuales bajo el `PageHeader` de las 16 páginas de Finanzas: Resumen (2 hojas), Reportes (7) y Gestión (7, con el detalle de presupuesto). Navegan a rutas existentes conservando la query de periodo y filtros, y resaltan la pestaña padre en rutas anidadas. Estilo en `.ui-finance-tabs`: micro-label, filo tenue y acento de marca en la activa. |
 | `CategoriesPanel` | Cuerpo compartido de Categorías, sin cabecera ni título propios; se usa en `/categories` y en la pestaña de `ProductsPage`. |
