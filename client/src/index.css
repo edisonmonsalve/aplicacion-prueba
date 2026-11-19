@@ -698,6 +698,29 @@ html[data-theme="dark"] .row-low-stock > td {
   height: 100%;
 }
 
+/* Serie mínima: el color lo hereda del tono de la tarjeta y la línea no se
+   deforma al estirar el SVG. Sin animación: la lectura es instantánea. */
+.ui-sparkline {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ui-sparkline__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ui-sparkline__area {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.12;
+}
+
 .ui-stat__foot {
   display: flex;
   flex-wrap: wrap;
@@ -1473,6 +1496,61 @@ html[data-theme="dark"] .row-low-stock > td {
 
 .ui-empty--inline .ui-empty__action {
   margin-top: 8px;
+}
+
+/* Favoritos del selector de periodo: lista compacta dentro de un popover.
+   Cada fila aplica un rango; el botón de basura lo quita sin cerrar. */
+.ui-favorites {
+  display: grid;
+  gap: 8px;
+  width: 264px;
+}
+
+.ui-favorites__list {
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.ui-favorites__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-favorites__apply {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ui-ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-favorites__apply:hover {
+  background: var(--ui-surface-2);
+}
+
+.ui-favorites__apply:focus-visible {
+  outline: 2px solid var(--ui-brand);
+  outline-offset: 1px;
+}
+
+.ui-favorites__empty {
+  margin: 0;
+  color: var(--ui-ink-2);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 /* Densidad HUD: la versión compacta recorta aire en tablas y tarjetas sin

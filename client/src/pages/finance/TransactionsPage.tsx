@@ -91,6 +91,8 @@ export default function TransactionsPage() {
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const tipo = (get("tipo") as FinanceTransaction["tipo"]) ?? undefined;
+  const rawFlujo = get("flujo");
+  const flujo = rawFlujo === "entrada" || rawFlujo === "salida" ? rawFlujo : undefined;
   const categoryId = getNumber("finance_category_id");
   const accountId = getNumber("account_id");
   const rawSort = get("sort");
@@ -104,6 +106,7 @@ export default function TransactionsPage() {
       page,
       pageSize,
       tipo,
+      flujo,
       desde,
       hasta,
       finance_category_id: categoryId,
@@ -111,7 +114,7 @@ export default function TransactionsPage() {
       sort,
       order: sort ? order : undefined,
     }),
-    [page, pageSize, tipo, desde, hasta, categoryId, accountId, sort, order]
+    [page, pageSize, tipo, flujo, desde, hasta, categoryId, accountId, sort, order]
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [reversing, setReversing] = useState<number | null>(null);
@@ -313,11 +316,12 @@ export default function TransactionsPage() {
     },
   ];
 
-  const hasFilters = Boolean(tipo || categoryId || accountId || !enPeriodoActual);
+  const hasFilters = Boolean(tipo || flujo || categoryId || accountId || !enPeriodoActual);
 
   const clearFilters = () => {
     update({
       tipo: undefined,
+      flujo: undefined,
       finance_category_id: undefined,
       account_id: undefined,
       desde: undefined,
@@ -380,6 +384,19 @@ export default function TransactionsPage() {
             onChange={(v) => update({ tipo: v, page: undefined })}
           />
         </FilterField>
+        <FilterField label="Flujo de caja" width={170}>
+          <Select
+            allowClear
+            placeholder="Todo"
+            style={{ width: "100%" }}
+            value={flujo}
+            onChange={(v) => update({ flujo: v, page: undefined })}
+            options={[
+              { value: "entrada", label: "Entradas de caja" },
+              { value: "salida", label: "Salidas de caja" },
+            ]}
+          />
+        </FilterField>
         <FilterField label="Categoría" width={220}>
           <Select
             allowClear
@@ -407,13 +424,31 @@ export default function TransactionsPage() {
       {resumen && (
         <Space size={[8, 8]} wrap style={{ marginBottom: 16 }}>
           <Typography.Text type="secondary">Totales del filtro (sin anuladas):</Typography.Text>
-          <Tooltip title="Suma de los asientos de tipo ingreso">
+          <Tooltip
+            title={
+              flujo
+                ? "Entradas reales de caja del filtro actual"
+                : "Suma de los asientos de tipo ingreso"
+            }
+          >
             <Tag color="green">Ingresos: {money(resumen.ingresos)}</Tag>
           </Tooltip>
-          <Tooltip title="Suma de los asientos de tipo gasto">
+          <Tooltip
+            title={
+              flujo
+                ? "Salidas reales de caja del filtro actual; incluye compras de inventario"
+                : "Suma de los asientos de tipo gasto"
+            }
+          >
             <Tag color="red">Egresos: {money(resumen.egresos)}</Tag>
           </Tooltip>
-          <Tooltip title="Ingresos menos egresos del filtro actual">
+          <Tooltip
+            title={
+              flujo
+                ? "Entradas menos salidas reales de caja del filtro actual"
+                : "Ingresos menos egresos del filtro actual"
+            }
+          >
             <Tag color={resumen.neto < 0 ? "red" : "blue"}>Neto: {money(resumen.neto)}</Tag>
           </Tooltip>
         </Space>

@@ -26,6 +26,16 @@ export async function listTransactions(query: TransactionListQuery) {
     where.push("t.tipo = ?");
     params.push(query.tipo);
   }
+  if (query.flujo) {
+    // Entradas y salidas reales de caja, no la naturaleza contable del asiento:
+    // una compra de inventario es `activo` y aun así sale de caja.
+    const afectaCaja = "COALESCE(t.afecta_caja, fc.afecta_caja) = 1";
+    where.push(
+      query.flujo === "entrada"
+        ? `${afectaCaja} AND t.tipo IN ('ingreso', 'pasivo')`
+        : `${afectaCaja} AND t.tipo IN ('gasto', 'activo')`
+    );
+  }
   if (query.desde) {
     where.push("t.fecha >= ?");
     params.push(query.desde);
@@ -76,11 +86,24 @@ export async function listTransactions(query: TransactionListQuery) {
     ? `WHERE ${where.join(" AND ")} AND ${VALID_TRANSACTION}`
     : `WHERE ${VALID_TRANSACTION}`;
 
+  // Con un filtro de flujo, el resumen debe hablar el mismo idioma que las
+  // tarjetas: una compra de inventario (`activo`) es una salida de caja aunque
+  // no sea un gasto contable. Sin flujo se conserva el resumen por naturaleza.
+  const resumenIngresos = query.flujo
+    ? "COALESCE(SUM(CASE WHEN COALESCE(t.afecta_caja, fc.afecta_caja) = 1 AND t.tipo IN ('ingreso', 'pasivo') THEN t.monto ELSE 0 END), 0)"
+    : "COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0)";
+  const resumenEgresos = query.flujo
+    ? "COALESCE(SUM(CASE WHEN COALESCE(t.afecta_caja, fc.afecta_caja) = 1 AND t.tipo IN ('gasto', 'activo') THEN t.monto ELSE 0 END), 0)"
+    : "COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0)";
+
   // Las tres consultas son independientes: se lanzan en paralelo para no sumar
   // tres viajes secuenciales a la base.
   const [countResult, dataResult, totalsResult] = await Promise.all([
     pool.query<RowDataPacket[]>(
-      `SELECT COUNT(*) AS total FROM transactions t ${clause}`,
+      `SELECT COUNT(*) AS total
+         FROM transactions t
+         JOIN finance_categories fc ON fc.id = t.finance_category_id
+         ${clause}`,
       params
     ),
     pool.query<RowDataPacket[]>(
@@ -105,9 +128,11 @@ export async function listTransactions(query: TransactionListQuery) {
     ),
     pool.query<RowDataPacket[]>(
       `SELECT
-         COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0) AS ingresos,
-         COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0) AS egresos
-       FROM transactions t ${resumenClause}`,
+         ${resumenIngresos} AS ingresos,
+         ${resumenEgresos} AS egresos
+       FROM transactions t
+       JOIN finance_categories fc ON fc.id = t.finance_category_id
+       ${resumenClause}`,
       params
     ),
   ]);

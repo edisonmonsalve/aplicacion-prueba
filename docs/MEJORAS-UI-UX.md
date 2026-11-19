@@ -475,6 +475,32 @@ Archivo: `components/PeriodRangePicker.tsx`. Verificación: `build` ✓ 3641
 módulos (JS 169,21 kB) y `lint` ✓ 0 errores, con los mismos 2 warnings
 preexistentes.
 
+## 29. Finanzas y reportes: seis propuestas
+
+Última tanda sobre `f0667ab`. Se revisaron las seis propuestas contra el estado
+real del código antes de implementar: la primera ya estaba hecha y la quinta
+estaba casi completa. El resto se completó sin dependencias nuevas.
+
+| # | Propuesta | Estado | Detalle |
+|---|---|---|---|
+| 1 | `PeriodRangePicker` compartido | Ya estaba | Presente en 13 páginas. No se tocó. |
+| 2 | Rangos favoritos | Nuevo | `PeriodFavorites` guarda hasta 8 rangos exactos en `localStorage` por usuario (`ui-period-favorites:<id>`), como el tema y la densidad. Popover con aplicar, quitar y «Guardar rango actual». Aplicar un favorito crea un rango personalizado. |
+| 3 | Drill-down desde tarjetas | Completo | Ingresos y Egresos abren Transacciones con `flujo=entrada` / `flujo=salida`. El filtro es de caja real: incluye compras de inventario (`activo`) y excluye asientos informativos (`afecta_caja = 0`). Se añadió el parámetro al endpoint y un control «Flujo de caja» en la barra de filtros. |
+| 4 | Sparkline de 6 periodos | Nuevo | `Sparkline` dibuja una serie mínima en SVG, teñida por el tono de la tarjeta. Resumen pide `getTrends` para los 6 meses que cierran en el periodo elegido y lo muestra en Ingresos, Egresos, Capital, Utilidad, Costo de ventas y Margen bruto. Compras de inventario no tiene serie mensual y se dejó sin sparkline. |
+| 5 | Exportar Resumen | Completo | `ReportExport` en Resumen con CSV/PDF de indicadores, cuentas (con totales) y desglose por categoría. Ya estaba en las otras 7 páginas de Finanzas. |
+| 6 | Comparación opcional | Completo | Selector en Resumen: periodo anterior (por defecto), año anterior o sin comparación. Se guarda en la URL como `comparar=anio|ninguno`; el año anterior se calcula en cliente y no requiere backend. Tendencias ya mostraba ambas comparaciones. |
+
+Archivos: `components/PeriodFavorites.tsx` y `components/Sparkline.tsx` (nuevos),
+`components/PeriodRangePicker.tsx`, `pages/finance/FinanceOverviewPage.tsx`,
+`pages/finance/TransactionsPage.tsx`, `types/index.ts`, `index.css`, y en el
+servidor `finance.schema.ts`, `transactions.service.ts` y la prueba de
+`tests/finance.test.ts`.
+
+Verificación: `client npm run build` (✓ 3643 módulos; CSS 33,56 → 34,43 kB; JS
+169,21 → 169,28 kB), `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen) y `server npm run typecheck`
+sin errores. Sin commit ni push hasta la aprobación explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

@@ -8,6 +8,7 @@ import type {
   RangoFechas,
 } from "@/hooks/useDateRange";
 import { PERIODOS, descripcionRango } from "@/hooks/useDateRange";
+import PeriodFavorites from "@/components/PeriodFavorites";
 
 const { RangePicker } = DatePicker;
 
@@ -117,6 +118,7 @@ export default function PeriodRangePicker({
           allowClear={allowClear}
           placeholder={["Desde", "Hasta"]}
         />
+        <PeriodFavorites range={range} periodo={periodo} onChange={onChange} size={size} />
         {extra}
       </Space>
       {showLabel && (
