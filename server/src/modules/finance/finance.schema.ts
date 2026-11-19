@@ -84,6 +84,8 @@ export const listTransactionsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   tipo: z.enum(["ingreso", "gasto", "activo", "pasivo"]).optional(),
+  /** Flujo de caja: entradas (ingreso/pasivo) o salidas (gasto/activo). */
+  flujo: z.enum(["entrada", "salida"]).optional(),
   desde: isoDate.optional(),
   hasta: isoDate.optional(),
   finance_category_id: z.coerce.number().int().positive().optional(),

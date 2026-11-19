@@ -7,21 +7,35 @@ const KEY = "theme-mode";
 const SWITCHING_CLASS = "theme-switching";
 const Ctx = createContext<{ mode: Mode; toggle: () => void }>({ mode: "light", toggle: () => {} });
 
+// Signal: misma paleta que styles/tokens.css. Mantener ambas en sincronía.
 const palette = {
   light: {
     colorPrimary: "#0d9488",
-    colorInfo: "#0ea5e9",
+    colorInfo: "#38bdf8",
     colorSuccess: "#10b981",
     colorWarning: "#f59e0b",
-    colorBgLayout: "#f1f7f6",
+    colorError: "#fb7185",
+    colorBgLayout: "#f6f5f2",
+    colorText: "#16201e",
+    colorTextSecondary: "#5b6b67",
+    colorBorderSecondary: "#e6e9e5",
   },
   dark: {
     colorPrimary: "#2dd4bf",
-    colorBgLayout: "#0b1412",
-    colorBgContainer: "#111c1a",
+    colorInfo: "#38bdf8",
+    colorSuccess: "#34d399",
+    colorWarning: "#fbbf24",
+    colorError: "#fb7185",
+    colorBgLayout: "#0d1413",
+    colorBgContainer: "#131e1c",
     colorBgElevated: "#16231f",
+    colorText: "#e8f1ef",
+    colorTextSecondary: "#9db3ae",
+    colorBorderSecondary: "#243631",
   },
 };
+
+const MONO_STACK = 'ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace';
 
 export const useThemeMode = () => useContext(Ctx);
 
@@ -62,7 +76,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           algorithm: mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
           token: {
             fontFamily: "'Plus Jakarta Sans Variable', system-ui, sans-serif",
-            borderRadius: 12,
+            fontFamilyCode: MONO_STACK,
+            borderRadius: 14,
             borderRadiusLG: 16,
             controlHeight: 38,
             fontSize: 14,
@@ -70,7 +85,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             ...palette[mode],
           },
           components: {
-            Layout: { siderBg: mode === "dark" ? "#0b1412" : "#0f3d38" },
+            Layout: { siderBg: mode === "dark" ? "#0a1110" : "#0c2e2a" },
             Menu: {
               darkItemBg: "transparent",
               darkItemSelectedBg: palette[mode].colorPrimary,
@@ -78,17 +93,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             },
             Card: {
               borderRadiusLG: 16,
+              // Misma escala que `--ui-elev-1`: las tarjetas descansan, no flotan.
               boxShadowTertiary:
                 mode === "dark"
-                  ? "0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.7)"
-                  : "0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -16px rgba(16, 24, 40, 0.18)",
+                  ? "0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px -18px rgba(0, 0, 0, 0.75)"
+                  : "0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -18px rgba(16, 24, 40, 0.18)",
             },
             Table: {
-              headerBg: mode === "dark" ? "#16231f" : "#f7fafa",
-              headerColor: mode === "dark" ? "#cfe7e2" : "#475569",
+              headerBg: mode === "dark" ? "#16231f" : "#fbfaf8",
+              headerColor: mode === "dark" ? "#9db3ae" : "#5b6b67",
               headerSplitColor: "transparent",
               rowHoverBg: mode === "dark" ? "#132a26" : "#f2fbf9",
-              borderColor: mode === "dark" ? "#1e2f2b" : "#eef2f1",
+              borderColor: mode === "dark" ? "#243631" : "#e6e9e5",
               cellPaddingBlock: 12,
             },
             Button: { fontWeight: 600 },

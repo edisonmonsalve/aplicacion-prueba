@@ -30,7 +30,6 @@ import {
 } from "../../services/quotesService";
 import type { QuoteDetail, QuoteInvoice, QuoteLine, QuoteStatus, StockFailure } from "../../types";
 import { StatusTag, money, fmtDate, fmtDateTime } from "@/pages/quotes/quoteUtils";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -169,10 +168,8 @@ export default function QuoteDetailPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <PageBreadcrumb
-        items={[{ label: "Cotizaciones", to: "/cotizaciones" }, { label: quote.numero }]}
-      />
       <PageHeader
+        breadcrumbLeaf={quote.numero}
         title={`Cotización ${quote.numero}`}
         description="Consulta el detalle, avanza el estado y revisa el historial de cambios."
         style={{ marginBottom: 0 }}

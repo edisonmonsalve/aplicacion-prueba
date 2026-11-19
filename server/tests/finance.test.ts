@@ -401,6 +401,30 @@ describe("Finanzas: API", () => {
       .get("/api/finance/transactions?tipo=gasto")
       .set(bearer(admin.token));
     expect(gastos.body.data[0]).toMatchObject({ categoria: "Costo de ventas", afecta_caja: 0 });
+
+    // El drill-down de Resumen pide flujo real de caja: la compra de inventario
+    // es una salida aunque su naturaleza contable sea `activo`, y el costo de
+    // ventas no aparece porque no mueve caja.
+    const entradas = await request(app)
+      .get("/api/finance/transactions?flujo=entrada")
+      .set(bearer(admin.token));
+    expect(entradas.body.data.map((t: { tipo: string }) => t.tipo)).toEqual(["ingreso"]);
+    expect(entradas.body.resumen).toMatchObject({ ingresos: 1_000_000, egresos: 0 });
+
+    const salidas = await request(app)
+      .get("/api/finance/transactions?flujo=salida")
+      .set(bearer(admin.token));
+    expect(salidas.body.total).toBe(1);
+    expect(salidas.body.data[0]).toMatchObject({
+      tipo: "activo",
+      afecta_caja: 1,
+      monto: 300_000,
+    });
+    expect(salidas.body.resumen).toMatchObject({
+      ingresos: 0,
+      egresos: 300_000,
+      neto: -300_000,
+    });
   });
 
   it("el capital es un saldo acumulado hasta la fecha final, sin asientos posteriores", async () => {

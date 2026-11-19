@@ -1121,6 +1121,8 @@ export interface TransactionsQuery {
   page: number;
   pageSize: number;
   tipo?: FinanceCategoryTipo;
+  /** Entradas o salidas reales de caja (afecta_caja + tipo). */
+  flujo?: "entrada" | "salida";
   desde?: string;
   hasta?: string;
   finance_category_id?: number;

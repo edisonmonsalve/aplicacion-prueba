@@ -15,6 +15,8 @@ import {
 } from "antd";
 import type { TableProps } from "antd";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
+import { signal } from "@/styles/signal";
 import { useAuth } from "@/context/AuthContext";
 import {
   createThirdParty,
@@ -82,6 +84,8 @@ export default function ThirdPartiesPage() {
   const [editing, setEditing] = useState<ThirdParty | null>(null);
   const [saving, setSaving] = useState(false);
   const condicion = Form.useWatch("condicion_pago", form);
+
+  const hasFilters = Boolean(search || tipo || activo);
 
   useDocumentTitle("Terceros");
 
@@ -179,7 +183,7 @@ export default function ThirdPartiesPage() {
         <Space direction="vertical" size={0}>
           <span>{p.nombre}</span>
           <Tooltip title={p.tipo_documento}>
-            <span style={{ fontSize: 12, color: "#888" }}>{p.documento ?? "Sin documento"}</span>
+            <span style={{ fontSize: 12, color: signal.muted }}>{p.documento ?? "Sin documento"}</span>
           </Tooltip>
         </Space>
       ),
@@ -196,7 +200,7 @@ export default function ThirdPartiesPage() {
       render: (_, p) => (
         <Space direction="vertical" size={0}>
           <span>{p.email ?? "—"}</span>
-          <span style={{ fontSize: 12, color: "#888" }}>{p.telefono ?? "Sin teléfono"}</span>
+          <span style={{ fontSize: 12, color: signal.muted }}>{p.telefono ?? "Sin teléfono"}</span>
         </Space>
       ),
     },
@@ -272,51 +276,56 @@ export default function ThirdPartiesPage() {
         }
       />
 
-      <Space wrap style={{ marginBottom: 16 }}>
-        <Input.Search
-          placeholder="Buscar por nombre, documento o email"
-          allowClear
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          style={{ width: 340, maxWidth: "100%" }}
-        />
-        <Select
-          allowClear
-          placeholder="Tipo"
-          style={{ width: 190 }}
-          value={tipo}
-          onChange={(v) => {
-            setTipo(v);
-            setPage(1);
-          }}
-          options={TIPO_OPTIONS}
-        />
-        <Select
-          style={{ width: 150 }}
-          value={activo}
-          onChange={(v) => {
-            setActivo(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 1, label: "Activos" },
-            { value: 0, label: "Inactivos" },
-          ]}
-        />
-        <Button
-          onClick={() => {
-            setSearch("");
-            setTipo(undefined);
-            setActivo(undefined);
-            setPage(1);
-          }}
-        >
-          Ver todos
-        </Button>
-      </Space>
+      <FilterBar
+        hasFilters={hasFilters}
+        clearLabel="Ver todos"
+        onClear={() => {
+          setSearch("");
+          setTipo(undefined);
+          setActivo(undefined);
+          setPage(1);
+        }}
+      >
+        <FilterField label="Buscar" width={340}>
+          <Input.Search
+            placeholder="Buscar por nombre, documento o email"
+            allowClear
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            style={{ width: "100%" }}
+          />
+        </FilterField>
+        <FilterField label="Tipo" width={190}>
+          <Select
+            allowClear
+            placeholder="Tipo"
+            style={{ width: "100%" }}
+            value={tipo}
+            onChange={(v) => {
+              setTipo(v);
+              setPage(1);
+            }}
+            options={TIPO_OPTIONS}
+          />
+        </FilterField>
+        <FilterField label="Estado" width={150}>
+          <Select
+            style={{ width: "100%" }}
+            value={activo}
+            onChange={(v) => {
+              setActivo(v);
+              setPage(1);
+            }}
+            options={[
+              { value: 1, label: "Activos" },
+              { value: 0, label: "Inactivos" },
+            ]}
+          />
+        </FilterField>
+      </FilterBar>
 
       <Table<ThirdParty>
         rowKey="id"

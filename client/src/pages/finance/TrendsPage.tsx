@@ -17,8 +17,11 @@ import {
 import { getTrends } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import useReducedMotion from "@/hooks/useReducedMotion";
+import { CHART } from "@/styles/chartPalette";
 import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -63,7 +66,7 @@ const Comparativo = ({
     <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8, fontSize: 12 }}>
       {fmtDate(desde)} — {fmtDate(hasta)}
     </Typography.Text>
-    <Row gutter={12}>
+    <Row gutter={16}>
       <Col span={12}>
         <Statistic title="Ingresos" value={ingresos} precision={2} prefix="$" />
         <div style={{ marginTop: 4 }}>
@@ -76,7 +79,7 @@ const Comparativo = ({
           value={utilidad}
           precision={2}
           prefix="$"
-          valueStyle={{ color: utilidad < 0 ? "#cf1322" : "#389e0d" }}
+          valueStyle={{ color: utilidad < 0 ? CHART.inkNegative : CHART.inkPositive }}
         />
         <div style={{ marginTop: 4 }}>
           Variación: <Variacion value={variacionUtilidad} />
@@ -173,6 +176,7 @@ function buildReportDoc(r: TrendsReport): ReportDocument {
 
 export default function TrendsPage() {
   const { message } = App.useApp();
+  const reduced = useReducedMotion();
   const [report, setReport] = useState<TrendsReport | null>(null);
   const [loading, setLoading] = useState(true);
   // Por defecto, la serie de los últimos seis meses.
@@ -229,6 +233,8 @@ export default function TrendsPage() {
         description="Evolución mensual del resultado (devengo) y de la caja real, con comparación contra el periodo anterior de igual duración y el mismo rango del año anterior."
       />
 
+      <FinanceSectionTabs section="reportes" />
+
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker
           range={range}
@@ -258,7 +264,7 @@ export default function TrendsPage() {
             mes(es) · {report.rango.dias} días
           </Typography.Paragraph>
 
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card size="small">
                 <Statistic
@@ -266,7 +272,7 @@ export default function TrendsPage() {
                   value={report.totales.ingresos}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#1677ff" }}
+                  valueStyle={{ color: CHART.inkCash }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Margen bruto {money(report.totales.margen)} ({report.totales.margen_pct.toFixed(1)} %)
@@ -280,7 +286,7 @@ export default function TrendsPage() {
                   value={report.totales.utilidad}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: report.totales.utilidad < 0 ? "#cf1322" : "#389e0d" }}
+                  valueStyle={{ color: report.totales.utilidad < 0 ? CHART.inkNegative : CHART.inkPositive }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Gastos operativos {money(report.totales.gastos)}
@@ -294,7 +300,7 @@ export default function TrendsPage() {
                   value={report.totales.neto_caja}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: report.totales.neto_caja < 0 ? "#cf1322" : "#389e0d" }}
+                  valueStyle={{ color: report.totales.neto_caja < 0 ? CHART.inkNegative : CHART.inkPositive }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Entradas {money(report.totales.entradas)} · Salidas {money(report.totales.salidas)}
@@ -308,7 +314,7 @@ export default function TrendsPage() {
                   value={report.serie.at(-1)?.saldo_caja ?? 0}
                   precision={2}
                   prefix="$"
-                  suffix={<RiseOutlined style={{ fontSize: 14, color: "#1677ff" }} />}
+                  suffix={<RiseOutlined style={{ fontSize: 14, color: CHART.inkCash }} />}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Incluye saldos iniciales de las cuentas
@@ -324,22 +330,36 @@ export default function TrendsPage() {
       ) : (
         report && (
           <>
-            <Card size="small" title="Resultado y caja por mes" style={{ marginBottom: 16 }}>
+            <Card className="ui-chart-card" size="small" title="Resultado y caja por mes" style={{ marginBottom: 16 }}>
               <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="trendIngresos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CHART.cash} />
+                      <stop offset="100%" stopColor={CHART.cash} stopOpacity={0.4} />
+                    </linearGradient>
+                    <linearGradient id="trendUtilidad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CHART.income} />
+                      <stop offset="100%" stopColor={CHART.income} stopOpacity={0.4} />
+                    </linearGradient>
+                    <linearGradient id="trendCaja" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CHART.profit} />
+                      <stop offset="100%" stopColor={CHART.profit} stopOpacity={0.4} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" />
                   <YAxis tickFormatter={(v: number) => money(v)} width={90} />
                   <Tooltip formatter={(value) => money(Number(value))} />
                   <Legend />
-                  <Bar dataKey="Ingresos" fill="#1677ff" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="Utilidad" fill="#52c41a" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="Neto de caja" fill="#722ed1" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="Ingresos" fill="url(#trendIngresos)" radius={[3, 3, 0, 0]} animationDuration={850} isAnimationActive={!reduced} />
+                  <Bar dataKey="Utilidad" fill="url(#trendUtilidad)" radius={[3, 3, 0, 0]} animationDuration={850} isAnimationActive={!reduced} />
+                  <Bar dataKey="Neto de caja" fill="url(#trendCaja)" radius={[3, 3, 0, 0]} animationDuration={850} isAnimationActive={!reduced} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
 
-            <Card size="small" title="Saldo de caja acumulado" style={{ marginBottom: 16 }}>
+            <Card className="ui-chart-card" size="small" title="Saldo de caja acumulado" style={{ marginBottom: 16 }}>
               <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -350,15 +370,17 @@ export default function TrendsPage() {
                     type="monotone"
                     dataKey="saldo_caja"
                     name="Saldo de caja"
-                    stroke="#13c2c2"
+                    stroke={CHART.brand}
                     strokeWidth={2}
+                    animationDuration={850}
+                    isAnimationActive={!reduced}
                     dot
                   />
                 </ComposedChart>
               </ResponsiveContainer>
             </Card>
 
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} lg={12}>
                 <Comparativo
                   titulo="Periodo anterior de igual duración"

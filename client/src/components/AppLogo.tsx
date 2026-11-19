@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useId } from "react";
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
  */
 export default function AppLogo({ size = 28, tone = "dark", showText = true, textSize }: Props) {
   const gradientId = useId();
-  const color = tone === "light" ? "#fff" : "currentColor";
+  const color = tone === "light" ? signal.onBrand : "currentColor";
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: Math.round(size * 0.34), color }}>
@@ -29,15 +30,15 @@ export default function AppLogo({ size = 28, tone = "dark", showText = true, tex
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#14b8a6" />
-            <stop offset="100%" stopColor="#0f766e" />
+            <stop offset="0%" stopColor={signal.brand} />
+            <stop offset="100%" stopColor={signal.brandStrong} />
           </linearGradient>
         </defs>
         <rect width="32" height="32" rx="9" fill={`url(#${gradientId})`} />
-        <rect x="8" y="8" width="7" height="7" rx="2" fill="#fff" />
-        <rect x="17" y="8" width="7" height="7" rx="2" fill="#fff" fillOpacity=".82" />
-        <rect x="8" y="17" width="7" height="7" rx="2" fill="#fff" fillOpacity=".82" />
-        <rect x="17" y="17" width="7" height="7" rx="2" fill="#fff" />
+        <rect x="8" y="8" width="7" height="7" rx="2" fill={signal.onBrand} />
+        <rect x="17" y="8" width="7" height="7" rx="2" fill={signal.onBrand} fillOpacity=".82" />
+        <rect x="8" y="17" width="7" height="7" rx="2" fill={signal.onBrand} fillOpacity=".82" />
+        <rect x="17" y="17" width="7" height="7" rx="2" fill={signal.onBrand} />
       </svg>
       {showText && (
         <span

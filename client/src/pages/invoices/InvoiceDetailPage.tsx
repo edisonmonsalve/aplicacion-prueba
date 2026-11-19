@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -37,8 +38,8 @@ import type {
 import { InvoiceEstadoTag, InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import PaymentModal from "./PaymentModal";
 import InvoiceAdjustmentModal from "./InvoiceAdjustmentModal";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const CARTERA_META: Record<string, { label: string; color: string }> = {
@@ -281,10 +282,8 @@ export default function InvoiceDetailPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <PageBreadcrumb
-        items={[{ label: "Facturas", to: "/facturas" }, { label: invoice.numero }]}
-      />
       <PageHeader
+        breadcrumbLeaf={invoice.numero}
         title={`Factura ${invoice.numero}`}
         description={
           invoice.tipo === "venta"
@@ -513,14 +512,14 @@ export default function InvoiceDetailPage() {
               value={invoice.pagado}
               precision={2}
               prefix="$"
-              valueStyle={{ color: "#389e0d" }}
+              valueStyle={{ color: signal.positive }}
             />
             <Statistic
               title="Saldo pendiente"
               value={invoice.saldo_pendiente}
               precision={2}
               prefix="$"
-              valueStyle={{ color: invoice.saldo_pendiente > 0 ? "#cf1322" : undefined }}
+              valueStyle={{ color: invoice.saldo_pendiente > 0 ? signal.negative : undefined }}
             />
             <Statistic
               title="Vencimiento"
@@ -533,7 +532,16 @@ export default function InvoiceDetailPage() {
             pagination={false}
             scroll={{ x: "max-content" }}
             dataSource={invoice.pagos}
-            locale={{ emptyText: "Aún no hay cobros ni pagos registrados" }}
+            locale={{
+              emptyText: (
+                <EmptyState
+                  variant="inline"
+                  eyebrow="Pagos"
+                  title="Aún no hay cobros ni pagos registrados"
+                  description="Los abonos aparecerán aquí con su fecha y cuenta."
+                />
+              ),
+            }}
             columns={[
               { title: "Fecha", dataIndex: "fecha", render: (v: string) => fmtDate(v) },
               {

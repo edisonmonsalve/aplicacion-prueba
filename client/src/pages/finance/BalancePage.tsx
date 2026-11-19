@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -18,6 +19,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { BalanceCuenta, BalanceReport } from "@/types";
@@ -264,6 +266,8 @@ export default function BalancePage() {
         }
       />
 
+      <FinanceSectionTabs section="reportes" />
+
       {report && (
         <Alert
           type={report.ecuacion.cuadra ? "success" : "error"}
@@ -285,7 +289,7 @@ export default function BalancePage() {
       ) : (
         report && (
           <>
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} sm={8}>
                 <Card size="small">
                   <Statistic
@@ -293,7 +297,7 @@ export default function BalancePage() {
                     value={report.activo.total}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: "#1677ff" }}
+                    valueStyle={{ color: signal.info }}
                   />
                 </Card>
               </Col>
@@ -304,7 +308,7 @@ export default function BalancePage() {
                     value={report.pasivo.total}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: "#d46b08" }}
+                    valueStyle={{ color: signal.warning }}
                   />
                 </Card>
               </Col>
@@ -315,13 +319,13 @@ export default function BalancePage() {
                     value={report.patrimonio}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: report.patrimonio < 0 ? "#cf1322" : "#389e0d" }}
+                    valueStyle={{ color: report.patrimonio < 0 ? signal.negative : signal.positive }}
                   />
                 </Card>
               </Col>
             </Row>
 
-            <Row gutter={[12, 12]}>
+            <Row gutter={[16, 16]}>
               <Col xs={24} lg={12}>
                 <Card size="small" title="Activo">
                   <Table<BalanceRow>

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   Button,
   Card,
-  Empty,
   Input,
   Select,
   Space,
@@ -21,6 +20,7 @@ import { getMovements, type MovementSortKey, type MovementsQuery } from "@/servi
 import { getProducts } from "@/services/productsService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
+import EmptyState from "@/components/EmptyState";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
 import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
@@ -29,6 +29,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import RelativeTime from "@/components/RelativeTime";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
@@ -435,24 +436,18 @@ export default function MovementsPage() {
         />
       </Card>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Buscar
-          </Typography.Text>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Buscar" width={300}>
           <Input.Search
             allowClear
             placeholder="SKU, producto, motivo o usuario"
             aria-label="Buscar movimientos"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            style={{ width: 300, maxWidth: "100%" }}
+            style={{ width: "100%" }}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Producto
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Producto" width={300}>
           <Select
             placeholder="Buscar por SKU o nombre"
             allowClear
@@ -461,20 +456,17 @@ export default function MovementsPage() {
             onSearch={setProductSearch}
             loading={productLoading}
             notFoundContent={productLoading ? <Spin size="small" /> : undefined}
-            style={{ width: 300, maxWidth: "100%" }}
+            style={{ width: "100%" }}
             value={query.product_id}
             options={productSelectOptions}
             onChange={(product_id) => updateFilters({ product_id })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Tipo de movimiento
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Tipo de movimiento" width={160}>
           <Select
             placeholder="Todos"
             allowClear
-            style={{ width: 160 }}
+            style={{ width: "100%" }}
             value={query.tipo}
             options={[
               { value: "entrada", label: "Entradas" },
@@ -482,15 +474,12 @@ export default function MovementsPage() {
             ]}
             onChange={(tipo) => updateFilters({ tipo })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Origen
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Origen" width={160}>
           <Select
             placeholder="Todos"
             allowClear
-            style={{ width: 160 }}
+            style={{ width: "100%" }}
             value={query.origen}
             options={(Object.keys(ORIGEN_META) as StockMovement["origen"][]).map((o) => ({
               value: o,
@@ -498,14 +487,13 @@ export default function MovementsPage() {
             }))}
             onChange={(origen) => updateFilters({ origen })}
           />
-        </div>
+        </FilterField>
         {(query.invoice_id !== undefined || query.quote_id !== undefined) && (
           <Tag color="processing" style={{ marginBottom: 6 }}>
             {query.invoice_id ? `Factura #${query.invoice_id}` : `Cotización #${query.quote_id}`}
           </Tag>
         )}
-        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-      </div>
+      </FilterBar>
 
       <Space size={8} wrap style={{ marginBottom: 16 }}>
         <Tag color="green" style={{ margin: 0, padding: "4px 10px" }}>
@@ -530,15 +518,17 @@ export default function MovementsPage() {
           scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Inventario"
+                title={hasFilters ? "Sin resultados" : "Aún no hay movimientos"}
                 description={
                   hasFilters
-                    ? "No hay movimientos que coincidan con los filtros"
-                    : "Aún no hay movimientos"
+                    ? "No hay movimientos que coincidan con los filtros."
+                    : "Las entradas y salidas de stock aparecerán aquí."
                 }
-              >
-                {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-              </Empty>
+                action={hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
+              />
             ),
           }}
           pagination={{

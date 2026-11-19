@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -8,7 +9,6 @@ import {
   DatePicker,
   Descriptions,
   Drawer,
-  Empty,
   Form,
   Input,
   InputNumber,
@@ -36,7 +36,9 @@ import { canWriteFinance } from "@/utils/roles";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import {
   createFiscalClosure,
   createPeriodClosure,
@@ -248,7 +250,12 @@ export default function PeriodClosuresPage() {
         scroll={{ x: "max-content" }}
         locale={{
           emptyText: (
-            <Empty description="Aún no hay periodos cerrados. Cierra el mes para congelar sus totales." />
+            <EmptyState
+              variant="inline"
+              eyebrow="Cierres"
+              title="Aún no hay periodos cerrados"
+              description="Cierra el mes para congelar sus totales."
+            />
           ),
         }}
         columns={[
@@ -334,7 +341,12 @@ export default function PeriodClosuresPage() {
         scroll={{ x: "max-content" }}
         locale={{
           emptyText: (
-            <Empty description="Aún no hay ejercicios cerrados. Cierra el año para congelar su resultado y balance." />
+            <EmptyState
+              variant="inline"
+              eyebrow="Cierres"
+              title="Aún no hay ejercicios cerrados"
+              description="Cierra el año para congelar su resultado y balance."
+            />
           ),
         }}
         columns={[
@@ -451,6 +463,8 @@ export default function PeriodClosuresPage() {
           ) : undefined
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       <Tabs
         activeKey={tab}
@@ -580,7 +594,7 @@ export default function PeriodClosuresPage() {
                   prefix="$"
                   valueStyle={{
                     color:
-                      (preview.snapshot.resultado?.utilidad ?? 0) < 0 ? "#cf1322" : "#389e0d",
+                      (preview.snapshot.resultado?.utilidad ?? 0) < 0 ? signal.negative : signal.positive,
                   }}
                 />
               </Col>
@@ -730,7 +744,7 @@ export default function PeriodClosuresPage() {
                       precision={2}
                       prefix="$"
                       valueStyle={{
-                        color: detail.snapshot.resultado.utilidad < 0 ? "#cf1322" : "#389e0d",
+                        color: detail.snapshot.resultado.utilidad < 0 ? signal.negative : signal.positive,
                       }}
                     />
                   </Col>
@@ -810,7 +824,7 @@ export default function PeriodClosuresPage() {
                     precision={2}
                     prefix="$"
                     valueStyle={{
-                      color: detail.snapshot.resumen.utilidad < 0 ? "#cf1322" : "#389e0d",
+                      color: detail.snapshot.resumen.utilidad < 0 ? signal.negative : signal.positive,
                     }}
                   />
                 </Col>
@@ -828,7 +842,7 @@ export default function PeriodClosuresPage() {
                     value={detail.snapshot.resumen.iva_neto}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: detail.snapshot.resumen.iva_neto < 0 ? "#389e0d" : undefined }}
+                    valueStyle={{ color: detail.snapshot.resumen.iva_neto < 0 ? signal.positive : undefined }}
                   />
                 </Col>
                 <Col span={12}>

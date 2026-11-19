@@ -165,6 +165,342 @@ Pase transversal sobre cómo se **escriben** y se **leen** los números y las fe
 | Y3 | Media | Las columnas **Fecha** de Facturas y Transacciones usan `RelativeTime` (`hoy`, `ayer`, `hace 4 días`) con la fecha exacta en el tooltip, igual que Productos, Movimientos y Usuarios. `RelativeTime` acepta `dateOnlyRelative` para que las columnas `DATE` (`AAAA-MM-DD`, que antes se mostraban siempre como `dd/mm/aaaa`) se comparen por días en hora local; el resto de pantallas conserva la fecha absoluta. **Implementado.** |
 | Y4 | Media | Prueba de servidor que verifica que `/api/products?q=` encuentra productos por nombre, por nombre sin acentos y por SKU. **Implementada** (`server/tests/products-search.test.ts`). |
 
+## 15. Sistema visual Signal (mejora global)
+
+Dirección aprobada: **dashboard vibrante con influencia minimalista cálida** y lenguaje de
+HUD de videojuego domesticado para el ámbito empresarial. Estudio completo en
+[`ESTILO-SIGNAL.md`](./ESTILO-SIGNAL.md).
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| S1 | Alta | **Tokens de diseño** (`styles/tokens.css`) sincronizados con `ConfigProvider`: paleta cálida/vibrante, superficies, tinta, líneas, radios, sombras y movimiento. AntD y el CSS usan los mismos valores. **Implementado.** |
+| S2 | Alta | **Tipografía con personalidad**: `Space Grotesk Variable` para títulos y cifras, `Plus Jakarta Sans` para el cuerpo, micro-labels en mayúsculas con tracking ancho y cifras tabulares. **Implementado.** |
+| S3 | Alta | **Shell HUD**: sidebar por secciones numeradas, indicador de estado, avatar con anillo, barra de señal en `PageHeader` (28 páginas) y overlay móvil accesible con cierre por `Escape`. **Implementado.** |
+| S4 | Alta | **KPI Signal**: `StatCard` con barra de acento, escuadra, icono, delta y cifra monoespaciada; reemplaza las tarjetas duplicadas de Inicio (9 KPIs) y Finanzas (11 KPIs). Soporta `loading` con shimmer. **Implementado.** |
+| S5 | Media | **`FilterBar` + `FilterField`**: barra y micro-labels unificados para los patrones de filtros repetidos. Aplicado en Productos y Facturas, y extendido al resto de listados en la sección 17. **Implementado.** |
+| S6 | Media | **Gráficos**: paleta desde tokens, tooltips del tema y barras con degradado suave en Inicio. **Implementado.** |
+| S7 | Alta | **Accesibilidad y movimiento**: skip link, `:focus-visible` global, `aria-live` en carga y `prefers-reduced-motion` para toda la app. **Implementado.** Los KPIs migrados usan tokens; los hex sueltos de otros módulos se centralizaron en la sección 17. |
+
+## 16. Signal vivo: color semántico y ambiente animado
+
+Tras la primera tanda Signal los KPIs se veían monotónicos: el color había quedado
+reducido a un icono pequeño y una barra de 3 px, mientras la cifra era tinta neutra
+en todos los casos. Esta tanda devuelve la señal al dato y hace que el panel se
+sienta vivo sin perder sobriedad.
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| V1 | Alta | **Color semántico en la cifra**. `StatCard` incorpora tonos de negocio (`income`, `expense`, `outflow`, `violet`) y pinta el valor con una variante `ink` legible en claro y oscuro: ingreso verde, egreso coral, salida de caja ámbar, capital teal, valoración violeta. Inicio y Resumen financiero usan la semántica correcta en sus 20 KPIs. **Implementado.** |
+| V2 | Alta | **Ambiente que respira**: dos halos tenues en el lienzo (marca + violeta al 7 %) con un ciclo de 26 s, `status pip` con pulso de 2,6 s y barrado casi invisible en la cuadrícula del sidebar. **Implementado.** |
+| V3 | Alta | **Movimiento con propósito**: entrada escalonada de KPIs (60 ms por columna), entrada de cabecera y de página al cambiar de ruta, glow del hover con el color del tono y barras de gráficos con animación de 850 ms. **Implementado.** |
+| V4 | Media | **`AnimatedNumber`**: las cifras financieras cuentan hasta su valor al cargar o al cambiar de periodo (620 ms, `ease-out` cúbico). Respeta `prefers-reduced-motion` mostrando el valor final. **Implementado.** |
+| V5 | Media | **Stock bajo más legible**: la tabla de Inicio añade una mini-barra que hace perceptible la relación stock/mínimo junto al tag. **Implementado.** |
+| V6 | Media | **Header vivo**: el indicador «Sistema operativo» pasa a «En vivo · HH:mm» con hora local que se actualiza cada 30 s. **Implementado.** |
+| V7 | Media | **KPIs como atajos**: Ingresos y Egresos abren Transacciones, Compras abre Rotación de inventario y Utilidad abre Resultados, conservando el periodo de la URL. **Implementado.** |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 17. Cierre de tanda: tokens en JS y filtros globales
+
+Última tanda de consistencia: dejar un único origen de color también fuera del CSS
+y terminar la migración de filtros que la sección 15 dejó pendiente.
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| Z1 | Alta | **`styles/signal.ts`**: referencias `var(--ui-*)` para cifras, SVG y gráficos. Los hexadecimales sueltos de ~24 módulos (Inicio, Login, Logo, reportes de Finanzas, Cartera, detalle de factura, etc.) pasan a `signal.*`, con variantes `ink` para texto y `Accent` para shapes. Cambiar un token en `tokens.css` ahora actualiza también Recharts y los SVG. **Implementado.** |
+| Z2 | Media | **Excepciones documentadas**: `ThemeContext.tsx` sigue siendo la fuente de los tokens de AntD; `PrintThemeProvider` y `reportExport` mantienen una paleta de papel fija porque el HTML impreso no participa del tema claro/oscuro. `signal.ts` conserva `onBrand` y `brandDeep` como assets intencionales del logo/login. **Documentado.** |
+| Z3 | Alta | **`FilterBar` en el resto de listados**: Cotizaciones, Terceros, Usuarios, Categorías, Movimientos, Transacciones, Presupuestos, Auditoría, Por cobrar, Flujo de caja, Rotación de inventario y Rentabilidad. Se conservaron el estado en URL, los resets de página, la búsqueda remota de productos, los selects dependientes de Auditoría y los `PeriodRangePicker` en su tarjeta. **Implementado.** |
+| Z4 | Baja | **Animación de gráficos alineada**: barras de Tendencias con 850 ms y paleta de acento coherente (azul eléctrico, verde, violeta) en lugar de tonos de texto. **Implementado.** |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 18. Shell Signal: sider y header terminados
+
+Pase final de diseño al contenedor de la aplicación. No cambia rutas ni
+comportamiento; hace que el shell se lea con el mismo lenguaje que los KPIs y
+las tablas.
+
+| # | Prioridad | Mejora |
+|---|---|---|
+| W1 | Media | **Sider**: halo tenue detrás del logo, índices de sección en teal legible sobre fondo oscuro (`--ui-sider-accent` con `color-mix`), barra de señal en el item activo, micro-desplazamiento del icono en hover y pie «Signal · Control / OPS» anclado abajo. **Implementado.** |
+| W2 | Media | **Header**: fondo degradado `surface → surface-2`, filo de señal teal→violeta y el indicador «En vivo · HH:mm» con pip. El separador antes del cluster de acciones y el chip con borde de la hora se probaron y se retiraron: desentonaban con el resto de bordes rectos. **Implementado.** |
+| W3 | Baja | **Accesibilidad**: el acento del sider se aclara en ambos temas para no perderse sobre el fondo oscuro; los hovers del avatar y del icono se anulan con `prefers-reduced-motion`. **Implementado.** |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 19. Sider estable: fin del “crecimiento” al scrollear
+
+Corrección centrada en el comportamiento del aside. El usuario reportó que el
+scroll parecía agrandar el panel y que el submenú de Finanzas era incómodo.
+Se atacaron las cuatro causas reales en vez de añadir más animación:
+
+| Causa | Corrección |
+|---|---|
+| `motion` inline de AntD animaba la altura del submenú (`initCollapseMotion`). | `motion={{ motionName: "" }}` en el `Menu`: abrir Finanzas es instantáneo, sin efecto de “crecer”. |
+| El barrido animado `::before` de `.ui-grid-bg` recorría todo el sider cada 14 s. | Se eliminó; queda solo la cuadrícula estática. Tampoco se referencia en la hoja de impresión. |
+| `ui-rise` incluía `scale(0.985)` y se aplicaba en cada cambio de ruta. | Se quitó el `scale`; la entrada es solo fundido + 6 px de desplazamiento. |
+| El scroll estaba en el propio `.ant-layout-sider`, sin gutter, y su ancho animaba al contraer. | Scroll aislado en `.ui-sider-scroll` con `scrollbar-gutter: stable` y `overscroll-behavior: contain`; `transition: none` en el sider. |
+
+Distribución y Finanzas:
+
+- Ancho 228 px (72 px contraído, 0 en móvil) e `inlineIndent={16}` para que las
+  15 entradas financieras no queden apretadas.
+- Rótulos de grupo y márgenes de item compactos; marca y pie más delgados;
+  el pie queda fuera del área desplazable.
+- Al navegar, un `useEffect` centra el `.ant-menu-item-selected` **dentro del
+  contenedor del sider** (nunca mueve el scroll de la página, sin `behavior:
+  smooth`). Así, entrar en «Transacciones» o «Presupuestos» deja visible la
+  selección aunque esté al final del submenú.
+- Los delays de apertura/cierre del submenú bajan a 0: el hover responde de
+  inmediato y no encadena estados intermedios.
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 20. Navegación del sider: búsqueda y jerarquía
+
+Sobre la base estable del punto 19, se mejora cómo se encuentra y se entiende
+cada sección. El menú pasa de una lista plana a un panel navegable.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| N1 | **Buscador de menú** | Input arriba del listado con `/` para enfocar y `Escape` para limpiar. Filtra de forma recursiva grupos, submenús y hojas; abre automáticamente las ramas con coincidencias y muestra un estado vacío. El índice `NAV_SEARCH` incluye sinónimos (`stock`, `facturación`, `clientes`) y se normaliza sin tildes, así «operacion» encuentra «Operación». Al elegir un resultado se limpia la búsqueda. |
+| N2 | **Finanzas reagrupado** | Las 15 entradas dejan de ser una lista larga: se dividen en `Panel` (2), `Reportes` (7) y `Gestión` (6), con micro-etiquetas en el submenú. El padre se rotula «Módulo financiero» y muestra un contador `15`. |
+| N3 | **Jerarquía visible** | Índice de sección en chip monoespaciado, pip en cada entrada financiera, barra de señal también en el padre cuando alguna hija está activa (`:has`) y sub-etiquetas más tenues que los rótulos de grupo. Los tooltips del modo contraído siguen funcionando porque AntD usa la etiqueta como título. |
+| N4 | **Diseño** | Buscador con superficie translúcida y atajo `/` en `kbd` cuando está vacío; el estado activo del submenú hereda el color del item seleccionado. Sin nuevas animaciones: la navegación sigue siendo instantánea. |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 21. Breadcrumb único
+
+Problema de partida: existían **dos sistemas** que pintaban la ruta de navegación.
+`RouteBreadcrumb.tsx` construía el breadcrumb global desde la URL con un mapa
+`SECTIONS` y una cadena de `if` para cada subruta de Finanzas, mientras tres
+páginas de detalle (factura, cotización y presupuesto) pintaban su propio
+`PageBreadcrumb`. Añadir una ruta obligaba a tocar condicionales y el breadcrumb
+global se quedaba corto en las rutas nuevas.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| B1 | **Fuente única** | `PageBreadcrumb.tsx` pasa a tener un registro plano `ROUTE_LABELS` (prefijo acumulado → etiqueta) y el hook `useRouteBreadcrumb(leaf?)`. Sin cadena de `if`: cada segmento de la URL se resuelve contra el registro. Las rutas `editar` se rotulan desde `EDIT_LABELS`. |
+| B2 | **Integrado en `PageHeader`** | El breadcrumb se deriva dentro de la cabecera común, así que `AppLayout` deja de renderizarlo. Se elimina `RouteBreadcrumb.tsx`. Una sola cabecera, breadcrumb y micro-label, sin un segundo sistema en el shell. |
+| B3 | **Hojas con dato real** | Las páginas de detalle pasan `breadcrumbLeaf` (número de factura/cotización, nombre del presupuesto) y la sección padre se convierte en enlace. La rama de error de presupuesto conserva su breadcrumb local con «Detalle». |
+| B4 | **Sin efectos colaterales** | No se tocan estilos (`index.css`) ni otras pantallas. Las migajas no enlazan la página actual. |
+
+Verificación: `client npm run build` y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 22. Tanda Signal: aside compacto, categorías integradas y visual con profundidad
+
+Ejecutada sobre `feature/signal-ui-ux`, encima del breadcrumb único (§21). Objetivo:
+acortar la navegación y dar un salto perceptivo al sistema visual sin tocar la lógica
+de datos de ningún reporte. Se ejecutó en este orden: A3 + B1 + B2 + B5 → A2 → A1.
+
+### UX / funcionalidad
+
+| # | Mejora | Impacto | Detalle |
+|---|---|---|---|
+| A3 | **Menú aplanado** | Medio | Desaparece el nivel «Módulo financiero» (4 → 3 niveles) y su contador `15`. Los tres grupos (Panel / Reportes / Gestión) cuelgan directamente de «Finanzas». Se eliminan `openKeys`, `collectBranchKeys`, el icono `DollarOutlined`, el CSS del submenú y sus sinónimos de búsqueda. |
+| A2 | **Categorías dentro de Productos** | Medio | Nuevo `CategoriesPanel` compartido. `ProductsPage` gana pestañas Productos/Categorías con el estado en la URL (`?view=categorias`) y recarga sus categorías al crear/editar/eliminar. `/categories` sigue enlazable como wrapper delgado (`CategoriesPage`) y sale del menú para evitar duplicidad. |
+| A1 | **Reportes con pestañas (puente)** | Alto | `FinanceSectionTabs` (entonces `FinanceReportsTabs`) se monta tras el `PageHeader` de las 7 páginas de reportes y navega a las rutas existentes. No monta los 7 informes en una sola pantalla ni toca filtros, exportaciones ni permisos: se eligió esta variante sobre la conversión real por su riesgo bajo. Generalizado a las 3 secciones en la tanda 24. |
+
+### Sistema visual
+
+| # | Mejora | Impacto | Detalle |
+|---|---|---|---|
+| B1 | **Fondos y profundidad** | Alto | Tokens `--ui-shadow-deep` y `--ui-inset`; clase `.ui-deep-surface` y doble sombra + filo interior en `.ui-chart-card` (Inicio y Tendencias), con halo radial de marca estático. |
+| B2 | **Tipografía** | Alto | Escala compartida `--ui-text-micro/body/kpi/display`; `body` usa `--ui-font` y `font-optical-sizing: auto`. Micro-label, títulos y KPIs dejan de tener tamaños sueltos. |
+| B5 | **Gráficos + reduced-motion** | Medio-alto | `styles/chartPalette.ts` unifica colores y tooltip; `hooks/useReducedMotion.ts` pasa `isAnimationActive={!reduced}` a barras, líneas y sectores de Recharts (antes ignoraban la preferencia). Gradientes suaves en los gráficos de Inicio y Tendencias. |
+
+Archivos nuevos: `CategoriesPanel.tsx`, `FinanceSectionTabs.tsx` (antes
+`FinanceReportsTabs`), `useReducedMotion.ts` y `chartPalette.ts`. El estilo de
+las pestañas de Finanzas vive en `.ui-finance-tabs`.
+
+Verificación: `client npm run build` (✓ 3637 módulos) y `client npm run lint` (0 errores;
+los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
+sin errores de whitespace. Commit: `2b28c52`.
+
+## 23. Tanda Signal: KPIs con cuerpo y tablas data-terminal
+
+Tercera tanda visual, ejecutada encima de `2b28c52` y aprobada para commit en
+esta rama. Alcance: `StatCard.tsx`, `index.css` y estos dos documentos; ninguna
+pantalla ni el sider se tocan.
+
+| # | Mejora | Impacto | Detalle |
+|---|---|---|---|
+| B3 | **Tarjetas / KPIs** | Medio-alto | Lavado de acento en reposo (radial del 7 % en la esquina de la cifra) y highlight interior con `--ui-inset`. Estado `:active` que hunde 1 px al pulsar, foco reforzado con doble anillo y prop `sparkline` opcional que solo reserva espacio si se aporta una serie. |
+| B4 | **Tablas data-terminal** | Medio | Numéricos monoespaciados vía `.num` y celdas alineadas a la derecha; cabecera con fondo opaco; rail semántico en la primera celda de `.row-low-stock`; `focus-within` por fila con `outline` para no pisar el rail. Efectos desactivados en impresión. El banding inicial del 2,5 % se retiró en la tanda 24: solo conservan color las filas con estado. |
+
+Nota: AntD 6 no expone clases de color por tag en CSS, así que el rail no intenta
+adivinar el color del tag: se apoya en la clase semántica que ya existe
+(`.row-low-stock`). El foco usa `outline` precisamente para no sobrescribirlo.
+
+Verificación: `client npm run build` (✓ 3637 módulos) y `client npm run lint` (0 errores;
+los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
+sin errores de whitespace. Commit aprobado: `feat(ui): dar cuerpo a los KPIs y pulir
+tablas data-terminal`. Sin PR.
+
+## 24. Tanda Signal: consola de Finanzas y atmósfera reactiva
+
+Cuarta tanda, ejecutada sobre `96f6054`. Objetivo: simplificar el menú, no
+recargarlo, y que el fondo se sienta vivo sin partículas ni shaders. Sin nuevas
+dependencias. El rail de grupo y las cabeceras fijas se probaron y se retiraron
+dentro de la propia tanda: añadían señales donde ya existían la barra del item
+activo y las pestañas contextuales. A4 (una sola entrada de Reportes) quedó como
+estado intermedio y se sustituyó por F1: Finanzas es una consola de 3 secciones
+con la navegación dentro del contenido.
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| F1 | **Consola de Finanzas por secciones** | Alto | Medio | Finanzas pasa de 9 entradas a 3 hojas planas e iconadas: **Resumen**, **Reportes** y **Gestión**. Las 13 rutas se mapean a esas 3 claves en `MODULE_ROUTES` y `NAV_SEARCH` se reduce a 3 entradas con sinónimos. `FinanceSectionTabs` sustituye a `FinanceReportsTabs` y se monta en las 16 páginas: 7 de reportes, 7 de gestión (incluido el detalle de presupuesto) y 2 de resumen. Conserva la `search` al cambiar de pestaña para no perder periodo ni filtros, y resuelve la pestaña padre en rutas anidadas como `/finanzas/presupuestos/:id`. «Salud de datos» deja de ser hoja del sider y entra como pestaña de Resumen. |
+| V1 | **Grid reactivo al puntero** | Alto | Bajo-medio | `.ui-ambient-layer` concentra dos rejillas y una viñeta; la fina lleva una máscara radial en `--ui-pointer-x/y`. `usePointerGrid` actualiza las coordenadas a lo sumo una vez por frame, ignora punteros táctiles y no escribe nada con `prefers-reduced-motion`. Sin JS, la máscara conserva una posición estática. |
+| V2 | **Marcos HUD en gráficos** | Medio | Bajo | `.ui-chart-card` y `.ui-deep-surface` ganan dos escuadras en `::after`. Se descartó el `clip-path` en índices y en el atajo `/`: no aportaba y, llevado a tarjetas, recortaría la sombra de profundidad de la tanda anterior. |
+| V3 | **Rejilla por capas + viñeta** | Medio | Bajo | Celda ancha de 56 px enmascarada hacia el centro, celda fina de 28 px para el foco y viñeta del 5 % de la tinta. Colores ≤ 5 % en ambos temas; la capa desaparece en impresión. |
+| B6 | **Tablas sin cebrado** | Medio | Bajo | Corrección sobre B4: se elimina `:nth-child(even)` y su excepción de impresión. Las filas normales comparten fondo; el color queda reservado a estados reales (`.row-low-stock`, `.pnl-subtotal` / `.pnl-section`), al hover de AntD y al `focus-within`. El cebrado además tapaba el fondo de los subtotales en filas pares. El export `reportExport.ts` mantiene su estilo y no se toca. |
+
+Nota: `M1` (rail de grupo, cabeceras `sticky` y tinte del índice activo) y la
+esquina recortada de los índices se implementaron y se retiraron tras la revisión
+visual. Tampoco queda rastro de `ui-nav-sublabel`, `ui-nav-pip`, `subItem` ni de
+`FinanceReportsTabs.tsx`: F1 los sustituyó por hojas iconadas y pestañas
+contextuales. El cebrado de `reportExport.ts` sigue fuera del alcance de B6.
+
+Archivos: `usePointerGrid.ts` y `FinanceSectionTabs.tsx` (nuevos),
+`FinanceReportsTabs.tsx` (eliminado), `AppLayout.tsx`, `index.css`, `tokens.css`,
+16 páginas de Finanzas y estos dos documentos. El shell queda en
+`position: relative` y el contenido en `z-index: 1` para que la atmósfera nunca
+se cruce con el texto.
+
+Verificación: `client npm run build` (✓ 3638 módulos) y `client npm run lint` (0 errores;
+los 2 warnings preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check`
+sin errores de whitespace. Sin commit ni push hasta la aprobación explícita.
+
+## 25. Tanda visual: botones, grillas y shapes
+
+Sexta tanda, sobre `f262a7e`. No añade decoración: corrige tres inconsistencias
+que hacían que partes del sistema no hablaran el mismo idioma. Sin dependencias
+nuevas y sin tocar la estructura de página, que ya era consistente (16 px entre
+secciones, 24 px de margen del `Content`).
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| B7 | **Jerarquía de botones** | Medio | Bajo | Los botones AntD ganan estados propios alineados con los KPIs: `hover` eleva 1 px con sombra corta, `:active` hunde 1 px y primario/peligro suman un filo del color de su señal. Solo se animan `transform` y `box-shadow`; los colores, `disabled` y `loading` siguen gobernados por AntD. Texto y enlace no se elevan. La elevación se anula con `prefers-reduced-motion`. |
+| B8 | **Un solo gutter de 16** | Medio | Bajo | Las grillas mezclaban `12` y `16` (a veces en la misma página). Todas las `Row` pasan a `16`, múltiplo de 8, conservando el formato `[x, y]`. Incluye los formularios de Empresa y Producto. |
+| B9 | **Escala de radius** | Bajo | Bajo | Los cinco radios sueltos se reducen a una progresión corta documentada: `4` etiquetas/kbd, `8` deltas, tooltips e iconos pequeños, `14` tarjetas y botones, `16` tarjetas grandes y `999` píldoras. Cambios puntuales: delta `6→8` e icono de KPI `9→8`. |
+
+Archivos: `index.css`, `ProductFormModal.tsx`, 13 páginas (CompanySettings,
+Products, Receivables y diez de Finanzas) y estos dos documentos.
+
+Verificación: `client npm run build` (✓ 3638 módulos; bundle principal 165,93 kB,
+sin cambio; CSS 27,84 → 28,82 kB por las reglas de botón) y `client npm run lint`
+(0 errores; los 2 warnings preexistentes se mantienen). `git diff --check` sin
+errores de whitespace. Sin commit ni push hasta la aprobación explícita.
+
+## 26. Tanda HUD: bento, densidad, glass y navegación
+
+Séptima tanda, sobre `7249c58`. Cinco mejoras visuales y de navegación, sin
+dependencias nuevas y sin tocar la estructura de página. El objetivo es que el
+panel se lea como un HUD: bloques con jerarquía, densidad ajustable, superficies
+flotantes que se separan del contenido sin ensuciarlo y formularios modales con
+la misma voz editorial que las páginas. La paleta de comandos y el feedback de
+sistema quedan fuera de esta tanda, como se acordó.
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| B10 | **Bento en Inicio y Resumen** | Medio-alto | Medio | Inicio pasa de dos filas simétricas a bloques `16/8` que alternan el lado grande: movimientos + cotizaciones, luego top productos + stock bajo. En Resumen, Liquidez y Resultado comparten fila en dos columnas `12` desde `lg`, cada una con sus cuatro KPIs en `2×2`; Fiscal queda a ancho completo con tres KPIs en `lg={8}` (antes dejaban un hueco de 6 columnas). Por debajo de `lg` todo se apila y los KPIs conservan dos columnas. |
+| B11 | **Densidad HUD** | Medio | Bajo | Control Cómoda/Compacta en el header, con icono `Compress`/`Expand` y `aria-pressed`. Se guarda en `localStorage` (`ui-density`) y se aplica en `data-density` antes del primer pintado desde `index.html`. La versión compacta recorta relleno de tarjetas, cabeceras, filas de tabla y listas; tipografía y controles no cambian. Sin transición de layout. |
+| B12 | **Glass quirúrgico** | Bajo-medio | Bajo | Vidrio solo donde hay contenido reconocible detrás: dropdown, popover, select, calendario y tooltip, con `blur(6px) saturate(1.15)` sobre un 62 % de superficie (66 % en el tooltip oscuro). Los modales quedan fuera a propósito: su mask a pantalla completa ya oscurece la página y el efecto no se percibe. La flecha del tooltip y del popover se oculta porque no comparte el `backdrop-filter` y se veía de otro tono. Todo dentro de `@supports`. El contenido y las tarjetas siguen opacos. |
+| B13 | **Navegación sin saltos** | Medio | Muy bajo | Al cambiar de ruta (PUSH/REPLACE) la ventana vuelve arriba y el foco pasa a `#main-content` sin desplazarlo. En Atrás/Adelante (POP) se respeta la restauración del navegador. Corrige el caso de abrir una página a media altura tras hacer scroll. |
+| B14 | **Modales premium** | Medio | Bajo | Los formularios en modal estrenan cabecera editorial: micro-label de módulo, título display, una línea de contexto y barra de señal estática. El cuerpo tiene scroll propio y el pie queda fijo, así que las acciones no se pierden en formularios largos. Anchos unificados (560 de base, 680 en Producto y 820 en Ajuste), cabecera con degradado tenue y borde de separación. El estilo se acota a `.ui-form-modal`, de modo que los demás diálogos (Terceros, Cartera, Cierres y Conciliaciones) conservan el aspecto de AntD. El modal sigue opaco y sin `backdrop-filter`: el mask ya oscurece la página. Es solo presentación; validación, teclado y cierre no cambian. |
+
+Archivos: `AppLayout.tsx`, `HomePage.tsx`, `FinanceOverviewPage.tsx`, `index.css`,
+`index.html`, `hooks/useDensity.ts` y `components/ModalHeading.tsx` (nuevos), los
+nueve modales de formulario (`ProductFormModal`, `MovementFormModal`,
+`UserFormModal`, `CategoryFormModal`, `ChangePasswordModal`, `AccountFormModal`,
+`TransactionFormModal`, `PaymentModal` e `InvoiceAdjustmentModal`) y estos dos
+documentos.
+
+Verificación: `client npm run build` (✓ 3640 módulos; CSS 28,82 → 30,99 kB; JS
+principal 165,93 → 169,13 kB por el control de densidad, los iconos y la cabecera
+de los modales) y `client npm run lint` (0 errores; los 2 warnings preexistentes
+de `InvoiceFormPage.tsx` se mantienen). `git diff --check` sin errores de
+whitespace. Sin commit ni push hasta la aprobación explícita.
+
+## 27. Tanda visual: profundidad, estados vacíos y tipografía
+
+Octava tanda, sobre `c594bed`. Tres mejoras visuales sin dependencias nuevas y
+sin cambios de comportamiento. El objetivo es que el panel tenga una jerarquía
+de planos clara, que el vacío también hable el idioma Signal y que la tipografía
+se lea como un sistema y no como estilos sueltos.
+
+| # | Mejora | Impacto | Riesgo | Detalle |
+|---|---|---|---|---|
+| V1 | **Estados vacíos editoriales** | Alto | Bajo | Nuevo `EmptyState` con micro-label, título display, una línea de contexto y acción opcional. Variante `inline` para celdas de tabla y gráficos, `panel` para páginas. Se migraron 26 vacíos: los 18 `<Empty>` de AntD y 8 textos de `locale`. Se conservan todas las acciones («Limpiar filtros», «Crear el primero»). La marca son escuadras HUD y un punto de señal, estáticos: sin ilustraciones ni partículas. |
+| V2 | **Profundidad en tres niveles** | Medio-alto | Bajo | `--ui-elev-0` (filo, sin sombra) para contenedores de listas y tablas; `--ui-elev-1` para tarjetas, KPIs y gráficos; `--ui-elev-2` solo para modales y superficies flotantes. Los gráficos dejan de usar la sombra larga y los contenedores de tabla se detectan con `:has()` para quedar planos. `boxShadowTertiary` de AntD queda alineado con `elev-1` en ambos temas. Si todo flota, nada flota. |
+| V3 | **Escala tipográfica y cifras** | Medio | Bajo-medio | La escala pasa a tokens completos: `micro`, `caption`, `body`, `title`, `kpi` y `display`, con `clamp()` en los tres últimos para sostener el ritmo entre 360 y 1440 px. Títulos con `text-wrap: balance`, descripciones con `pretty`, tracking por tamaño y `tabular-nums` global que ya traía el `body`. Sin fuentes nuevas: se aprovechan las variables existentes. |
+
+Archivos: `components/EmptyState.tsx` (nuevo), `styles/tokens.css`, `index.css`,
+`context/ThemeContext.tsx`, `components/CategoriesPanel.tsx` y las páginas
+`HomePage`, `ProductsPage`, `UsersPage`, `MovementsPage`, `QuotesPage`,
+`InvoicesPage`, `ReceivablesPage`, `CarteraAlerts`, `InvoiceDetailPage`,
+`FinanceOverviewPage`, `BudgetsPage`, `BudgetDetailPage`, `TransactionsPage`,
+`AuditPage`, `PeriodClosuresPage`, `DataHealthPage` y `ReconciliationsPage`.
+
+Verificación: `client npm run build` (✓ 3641 módulos; CSS 30,99 → 33,56 kB; JS
+principal 169,13 → 169,21 kB) y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen). `git diff --check` sin
+errores de whitespace. Sin commit ni push hasta la aprobación explícita.
+
+## 28. Corrección: estado neutro del selector de periodo
+
+En los listados con limpieza de rango (cotizaciones, facturas, movimientos,
+cartera y auditoría), `PeriodRangePicker` pasaba `value={undefined}` al
+`Segmented` de AntD cuando no había periodo. El control entraba en modo no
+controlado, marcaba la primera opción («Día») aunque no hubiera fechas y, al
+pulsarla, no disparaba cambio porque ya figuraba activa.
+
+Ahora el selector es siempre controlado:
+
+- **Sin rango y con limpieza** → «Todo» aparece como estado neutro explícito y
+  limpiar el rango vuelve a él.
+- **Rango personalizado** → ningún atajo queda activo; el `RangePicker` es el
+  que representa la selección.
+- **Reportes con periodo por defecto** → siguen mostrando su atajo (Mes, Año…),
+  porque el rango sí está definido.
+
+Archivo: `components/PeriodRangePicker.tsx`. Verificación: `build` ✓ 3641
+módulos (JS 169,21 kB) y `lint` ✓ 0 errores, con los mismos 2 warnings
+preexistentes.
+
+## 29. Finanzas y reportes: seis propuestas
+
+Última tanda sobre `f0667ab`. Se revisaron las seis propuestas contra el estado
+real del código antes de implementar: la primera ya estaba hecha y la quinta
+estaba casi completa. El resto se completó sin dependencias nuevas.
+
+| # | Propuesta | Estado | Detalle |
+|---|---|---|---|
+| 1 | `PeriodRangePicker` compartido | Ya estaba | Presente en 13 páginas. No se tocó. |
+| 2 | Rangos favoritos | Nuevo | `PeriodFavorites` guarda hasta 8 rangos exactos en `localStorage` por usuario (`ui-period-favorites:<id>`), como el tema y la densidad. Popover con aplicar, quitar y «Guardar rango actual». Aplicar un favorito crea un rango personalizado. |
+| 3 | Drill-down desde tarjetas | Completo | Ingresos y Egresos abren Transacciones con `flujo=entrada` / `flujo=salida`. El filtro es de caja real: incluye compras de inventario (`activo`) y excluye asientos informativos (`afecta_caja = 0`). Se añadió el parámetro al endpoint y un control «Flujo de caja» en la barra de filtros. |
+| 4 | Sparkline de 6 periodos | Nuevo | `Sparkline` dibuja una serie mínima en SVG, teñida por el tono de la tarjeta. Resumen pide `getTrends` para los 6 meses que cierran en el periodo elegido y lo muestra en Ingresos, Egresos, Capital, Utilidad, Costo de ventas y Margen bruto. Compras de inventario no tiene serie mensual y se dejó sin sparkline. |
+| 5 | Exportar Resumen | Completo | `ReportExport` en Resumen con CSV/PDF de indicadores, cuentas (con totales) y desglose por categoría. Ya estaba en las otras 7 páginas de Finanzas. |
+| 6 | Comparación opcional | Completo | Selector en Resumen: periodo anterior (por defecto), año anterior o sin comparación. Se guarda en la URL como `comparar=anio|ninguno`; el año anterior se calcula en cliente y no requiere backend. Tendencias ya mostraba ambas comparaciones. |
+
+Archivos: `components/PeriodFavorites.tsx` y `components/Sparkline.tsx` (nuevos),
+`components/PeriodRangePicker.tsx`, `pages/finance/FinanceOverviewPage.tsx`,
+`pages/finance/TransactionsPage.tsx`, `types/index.ts`, `index.css`, y en el
+servidor `finance.schema.ts`, `transactions.service.ts` y la prueba de
+`tests/finance.test.ts`.
+
+Verificación: `client npm run build` (✓ 3643 módulos; CSS 33,56 → 34,43 kB; JS
+169,21 → 169,28 kB), `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen) y `server npm run typecheck`
+sin errores. Sin commit ni push hasta la aprobación explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

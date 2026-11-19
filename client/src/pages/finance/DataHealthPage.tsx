@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -5,7 +6,6 @@ import {
   Button,
   Card,
   Col,
-  Empty,
   Row,
   Statistic,
   Table,
@@ -18,7 +18,9 @@ import { getDataHealth } from "@/services/financeService";
 import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import type { DataHealthCheck, DataHealthReport } from "@/types";
 
 const COLUMN_LABELS: Record<string, string> = {
@@ -102,6 +104,8 @@ export default function DataHealthPage() {
         }
       />
 
+      <FinanceSectionTabs section="resumen" />
+
       {loading && !report ? (
         <TableSkeleton />
       ) : (
@@ -122,7 +126,7 @@ export default function DataHealthPage() {
               )}. Este panel informa, no corrige datos.`}
             />
 
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={12} md={6}>
                 <Card size="small">
                   <Statistic title="Comprobaciones" value={report.resumen.checks} />
@@ -134,7 +138,7 @@ export default function DataHealthPage() {
                     title="Con problemas"
                     value={report.resumen.con_problemas}
                     valueStyle={{
-                      color: report.resumen.con_problemas > 0 ? "#cf1322" : "#389e0d",
+                      color: report.resumen.con_problemas > 0 ? signal.negative : signal.positive,
                     }}
                   />
                 </Card>
@@ -145,7 +149,7 @@ export default function DataHealthPage() {
                     title="Hallazgos"
                     value={report.resumen.total_hallazgos}
                     valueStyle={{
-                      color: report.resumen.total_hallazgos > 0 ? "#d46b08" : "#389e0d",
+                      color: report.resumen.total_hallazgos > 0 ? signal.warning : signal.positive,
                     }}
                   />
                 </Card>
@@ -155,13 +159,13 @@ export default function DataHealthPage() {
                   <Statistic
                     title="Estado"
                     value={report.estado === "ok" ? "Sano" : "Alerta"}
-                    valueStyle={{ color: report.estado === "ok" ? "#389e0d" : "#cf1322" }}
+                    valueStyle={{ color: report.estado === "ok" ? signal.positive : signal.negative }}
                   />
                 </Card>
               </Col>
             </Row>
 
-            <Row gutter={[12, 12]}>
+            <Row gutter={[16, 16]}>
               {report.checks.map((check) => (
                 <Col xs={24} xl={12} key={check.codigo}>
                   <Card
@@ -182,11 +186,7 @@ export default function DataHealthPage() {
                       {check.descripcion}
                     </Typography.Paragraph>
                     {check.hallazgos === 0 ? (
-                      <Empty
-                        image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="Sin hallazgos"
-                        style={{ margin: "8px 0" }}
-                      />
+                      <EmptyState variant="inline" title="Sin hallazgos" />
                     ) : (
                       <DetailTable check={check} />
                     )}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, App, Button, Card, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Card, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +17,10 @@ import type {
   FinanceAccount,
 } from "@/types";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import RelativeTime from "@/components/RelativeTime";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -88,6 +91,8 @@ export default function TransactionsPage() {
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", 10);
   const tipo = (get("tipo") as FinanceTransaction["tipo"]) ?? undefined;
+  const rawFlujo = get("flujo");
+  const flujo = rawFlujo === "entrada" || rawFlujo === "salida" ? rawFlujo : undefined;
   const categoryId = getNumber("finance_category_id");
   const accountId = getNumber("account_id");
   const rawSort = get("sort");
@@ -101,6 +106,7 @@ export default function TransactionsPage() {
       page,
       pageSize,
       tipo,
+      flujo,
       desde,
       hasta,
       finance_category_id: categoryId,
@@ -108,7 +114,7 @@ export default function TransactionsPage() {
       sort,
       order: sort ? order : undefined,
     }),
-    [page, pageSize, tipo, desde, hasta, categoryId, accountId, sort, order]
+    [page, pageSize, tipo, flujo, desde, hasta, categoryId, accountId, sort, order]
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [reversing, setReversing] = useState<number | null>(null);
@@ -310,11 +316,12 @@ export default function TransactionsPage() {
     },
   ];
 
-  const hasFilters = Boolean(tipo || categoryId || accountId || !enPeriodoActual);
+  const hasFilters = Boolean(tipo || flujo || categoryId || accountId || !enPeriodoActual);
 
   const clearFilters = () => {
     update({
       tipo: undefined,
+      flujo: undefined,
       finance_category_id: undefined,
       account_id: undefined,
       desde: undefined,
@@ -344,6 +351,8 @@ export default function TransactionsPage() {
         }
       />
 
+      <FinanceSectionTabs section="gestion" />
+
       <Alert
         type="info"
         showIcon
@@ -364,63 +373,82 @@ export default function TransactionsPage() {
         />
       </Card>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Tipo
-          </Typography.Text>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Tipo" width={140}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             options={TIPO_OPTIONS}
             value={tipo}
             onChange={(v) => update({ tipo: v, page: undefined })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Categoría
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Flujo de caja" width={170}>
+          <Select
+            allowClear
+            placeholder="Todo"
+            style={{ width: "100%" }}
+            value={flujo}
+            onChange={(v) => update({ flujo: v, page: undefined })}
+            options={[
+              { value: "entrada", label: "Entradas de caja" },
+              { value: "salida", label: "Salidas de caja" },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="Categoría" width={220}>
           <Select
             allowClear
             placeholder="Todas"
-            style={{ width: 220 }}
+            style={{ width: "100%" }}
             value={categoryId}
             onChange={(v) => update({ finance_category_id: v, page: undefined })}
             options={categories.map((c) => ({ value: c.id, label: `${CATEGORY_TIPO_LABEL[c.tipo]} · ${c.nombre}` }))}
             showSearch
             optionFilterProp="label"
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Cuenta
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Cuenta" width={200}>
           <Select
             allowClear
             placeholder="Todas"
-            style={{ width: 200 }}
+            style={{ width: "100%" }}
             value={accountId}
             onChange={(v) => update({ account_id: v, page: undefined })}
             options={accounts.map((a) => ({ value: a.id, label: a.nombre }))}
           />
-        </div>
-        {hasFilters && (
-          <Button onClick={clearFilters}>Limpiar filtros</Button>
-        )}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {resumen && (
         <Space size={[8, 8]} wrap style={{ marginBottom: 16 }}>
           <Typography.Text type="secondary">Totales del filtro (sin anuladas):</Typography.Text>
-          <Tooltip title="Suma de los asientos de tipo ingreso">
+          <Tooltip
+            title={
+              flujo
+                ? "Entradas reales de caja del filtro actual"
+                : "Suma de los asientos de tipo ingreso"
+            }
+          >
             <Tag color="green">Ingresos: {money(resumen.ingresos)}</Tag>
           </Tooltip>
-          <Tooltip title="Suma de los asientos de tipo gasto">
+          <Tooltip
+            title={
+              flujo
+                ? "Salidas reales de caja del filtro actual; incluye compras de inventario"
+                : "Suma de los asientos de tipo gasto"
+            }
+          >
             <Tag color="red">Egresos: {money(resumen.egresos)}</Tag>
           </Tooltip>
-          <Tooltip title="Ingresos menos egresos del filtro actual">
+          <Tooltip
+            title={
+              flujo
+                ? "Entradas menos salidas reales de caja del filtro actual"
+                : "Ingresos menos egresos del filtro actual"
+            }
+          >
             <Tag color={resumen.neto < 0 ? "red" : "blue"}>Neto: {money(resumen.neto)}</Tag>
           </Tooltip>
         </Space>
@@ -437,23 +465,27 @@ export default function TransactionsPage() {
           scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Finanzas"
+                title={hasFilters ? "Sin resultados" : "Aún no hay transacciones"}
                 description={
                   hasFilters
-                    ? "No hay transacciones que coincidan con los filtros"
-                    : "Aún no hay transacciones"
+                    ? "No hay transacciones que coincidan con los filtros."
+                    : "Registra la primera para mover el capital y el resultado."
                 }
-              >
-                {hasFilters ? (
-                  <Button onClick={clearFilters}>Limpiar filtros</Button>
-                ) : (
-                  canWrite && (
-                    <Button type="primary" onClick={() => setModalOpen(true)}>
-                      Registrar la primera
-                    </Button>
+                action={
+                  hasFilters ? (
+                    <Button onClick={clearFilters}>Limpiar filtros</Button>
+                  ) : (
+                    canWrite && (
+                      <Button type="primary" onClick={() => setModalOpen(true)}>
+                        Registrar la primera
+                      </Button>
+                    )
                   )
-                )}
-              </Empty>
+                }
+              />
             ),
           }}
           pagination={{

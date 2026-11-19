@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -17,8 +18,10 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
 import type { CashFlowAccountRow, CashFlowMonth, CashFlowReport, FinanceAccount } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
@@ -182,6 +185,8 @@ export default function CashFlowPage() {
         description="Entradas y salidas reales de dinero por cuenta y por mes. Solo incluye asientos que mueven caja; el costo de ventas y el IVA informativos no aparecen."
       />
 
+      <FinanceSectionTabs section="reportes" />
+
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker
           range={range}
@@ -192,10 +197,10 @@ export default function CashFlowPage() {
           enPeriodoActual={enPeriodoActual}
           extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
         />
-        <div style={{ marginTop: 12, maxWidth: 320 }}>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Cuenta
-          </Typography.Text>
+      </Card>
+
+      <FilterBar hasFilters={!!accountId} onClear={() => update({ account_id: undefined })}>
+        <FilterField label="Cuenta" width={320}>
           <Select
             allowClear
             placeholder="Todas las cuentas"
@@ -207,8 +212,8 @@ export default function CashFlowPage() {
               label: `${a.nombre}${a.activo ? "" : " (inactiva)"}`,
             }))}
           />
-        </div>
-      </Card>
+        </FilterField>
+      </FilterBar>
 
       {sinMovimiento && (
         <Alert
@@ -222,7 +227,7 @@ export default function CashFlowPage() {
 
       {report && (
         <>
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card size="small">
                 <Statistic
@@ -240,7 +245,7 @@ export default function CashFlowPage() {
                   value={report.totales.entradas}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#389e0d" }}
+                  valueStyle={{ color: signal.positive }}
                 />
               </Card>
             </Col>
@@ -251,7 +256,7 @@ export default function CashFlowPage() {
                   value={report.totales.salidas}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: "#cf1322" }}
+                  valueStyle={{ color: signal.negative }}
                 />
               </Card>
             </Col>
@@ -262,7 +267,7 @@ export default function CashFlowPage() {
                   value={report.totales.saldo_final}
                   precision={2}
                   prefix="$"
-                  valueStyle={{ color: report.totales.saldo_final < 0 ? "#cf1322" : "#1677ff" }}
+                  valueStyle={{ color: report.totales.saldo_final < 0 ? signal.negative : signal.info }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Neto del periodo: <Neto value={report.totales.neto} />

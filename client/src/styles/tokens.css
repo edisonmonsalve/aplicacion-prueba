@@ -1,0 +1,116 @@
+/* Signal: tokens de diseño compartidos por CSS y ConfigProvider.
+   Los mismos valores se declaran en ThemeContext.tsx para AntD. */
+
+:root {
+  color-scheme: light;
+
+  /* Superficies y tinta */
+  --ui-canvas: #f6f5f2;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #fbfaf8;
+  --ui-ink: #16201e;
+  --ui-ink-2: #5b6b67;
+  --ui-line: #e6e9e5;
+  --ui-grid-line: rgba(22, 32, 30, 0.045);
+
+  /* Rejilla ambiental: celda fina, celda ancha y radio del foco del puntero.
+     El color sigue siendo --ui-grid-line (≤ 5 % en ambos temas). */
+  --ui-grid-cell: 28px;
+  --ui-grid-cell-wide: 56px;
+  --ui-grid-focus: 320px;
+
+  /* Señales. Cada tono tiene una versión `ink`, más oscura, para cifras:
+     el acento ilumina shapes y el ink garantiza contraste AA sobre superficie. */
+  --ui-brand: #0d9488;
+  --ui-brand-strong: #0f766e;
+  --ui-brand-soft: rgba(13, 148, 136, 0.1);
+  --ui-success: #10b981;
+  --ui-success-ink: #047857;
+  --ui-danger: #fb7185;
+  --ui-danger-ink: #be123c;
+  --ui-warning: #f59e0b;
+  --ui-warning-ink: #b45309;
+  --ui-info: #38bdf8;
+  --ui-info-ink: #0369a1;
+  --ui-violet: #a78bfa;
+  --ui-violet-ink: #6d28d9;
+
+  /* Alias usados por componentes genéricos (delta, gráficos). */
+  --ui-citrus: var(--ui-warning);
+  --ui-coral: var(--ui-danger);
+  --ui-electric: var(--ui-info);
+
+  /* Forma */
+  --ui-radius: 14px;
+  --ui-radius-lg: 16px;
+  /* Profundidad en tres niveles: el contenido descansa, las tarjetas se
+     separan apenas y solo lo flotante (modales, menús) proyecta sombra larga. */
+  --ui-elev-0: 0 0 0 1px color-mix(in srgb, var(--ui-line) 70%, transparent);
+  --ui-elev-1: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -18px rgba(16, 24, 40, 0.18);
+  --ui-elev-2: 0 2px 4px rgba(16, 24, 40, 0.05), 0 22px 48px -24px rgba(16, 24, 40, 0.3);
+  --ui-shadow: var(--ui-elev-1);
+  --ui-shadow-deep: var(--ui-elev-2);
+  --ui-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --ui-glow: 0 0 0 1px var(--ui-brand-soft), 0 0 18px -6px var(--ui-brand);
+
+  /* Duración extendida solo para ambientes y contadores (micro-interacciones
+     de lectura). Las interacciones siguen en --ui-fast / --ui-normal. */
+  --ui-count-duration: 620ms;
+
+  /* Tipografía: escala compartida para que cuerpo, micro-label, título y KPI
+     hablen el mismo idioma. `optical-sizing` afina el display en extremos. */
+  --ui-font: "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  --ui-display: "Space Grotesk Variable", "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  --ui-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+  --ui-text-micro: 10.5px;
+  --ui-text-caption: 12px;
+  --ui-text-body: 14px;
+  --ui-text-title: clamp(18px, 1.4vw, 22px);
+  --ui-text-kpi: clamp(22px, 1.8vw, 28px);
+  --ui-text-display: clamp(24px, 2.2vw, 30px);
+  --ui-tracking-tight: -0.035em;
+  --ui-tracking-label: 0.14em;
+
+  /* Movimiento */
+  --ui-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ui-fast: 140ms;
+  --ui-normal: 220ms;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ui-canvas: #0d1413;
+  --ui-surface: #131e1c;
+  --ui-surface-2: #16231f;
+  --ui-ink: #e8f1ef;
+  --ui-ink-2: #9db3ae;
+  --ui-line: #243631;
+  --ui-grid-line: rgba(232, 241, 239, 0.045);
+
+  --ui-brand: #2dd4bf;
+  --ui-brand-strong: #5eead4;
+  --ui-brand-soft: rgba(45, 212, 191, 0.12);
+  --ui-success: #34d399;
+  --ui-success-ink: #6ee7b7;
+  --ui-danger: #fb7185;
+  --ui-danger-ink: #fda4af;
+  --ui-warning: #fbbf24;
+  --ui-warning-ink: #fcd34d;
+  --ui-info: #38bdf8;
+  --ui-info-ink: #7dd3fc;
+  --ui-violet: #a78bfa;
+  --ui-violet-ink: #c4b5fd;
+
+  --ui-citrus: var(--ui-warning);
+  --ui-coral: var(--ui-danger);
+  --ui-electric: var(--ui-info);
+
+  --ui-elev-0: 0 0 0 1px color-mix(in srgb, var(--ui-line) 82%, transparent);
+  --ui-elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px -18px rgba(0, 0, 0, 0.75);
+  --ui-elev-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 26px 56px -28px rgba(0, 0, 0, 0.9);
+  --ui-shadow: var(--ui-elev-1);
+  --ui-shadow-deep: var(--ui-elev-2);
+  --ui-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --ui-glow: 0 0 0 1px var(--ui-brand-soft), 0 0 22px -8px var(--ui-brand);
+}

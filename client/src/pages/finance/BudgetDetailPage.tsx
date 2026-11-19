@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -40,6 +41,8 @@ import type { BudgetDetail, BudgetLine, EjecucionEstado, FinanceCategoryTipo } f
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
+import EmptyState from "@/components/EmptyState";
 import BudgetFormModal from "./BudgetFormModal";
 
 const TIPO_COLOR: Record<string, string> = {
@@ -253,14 +256,8 @@ export default function BudgetDetailPage() {
 
   return (
     <div>
-      <PageBreadcrumb
-        items={[
-          { label: "Finanzas", to: "/finanzas" },
-          { label: "Presupuestos", to: "/finanzas/presupuestos" },
-          { label: budget.nombre },
-        ]}
-      />
       <PageHeader
+        breadcrumbLeaf={budget.nombre}
         title={budget.nombre}
         titleExtra={<BudgetEstadoTag estado={budget.estado} />}
         description="Consulta la ejecución del presupuesto por línea, las alertas, la proyección de cierre y el cumplimiento de la meta de ingresos."
@@ -315,6 +312,8 @@ export default function BudgetDetailPage() {
           </Space>
         }
       />
+
+      <FinanceSectionTabs section="gestion" />
 
       {budget.estado === "borrador" && (
         <Alert
@@ -455,7 +454,7 @@ export default function BudgetDetailPage() {
       </Card>
 
       <Card size="small" style={{ marginBottom: 16 }}>
-        <Space wrap split={<span style={{ color: "#d9d9d9" }}>|</span>}>
+        <Space wrap split={<span style={{ color: signal.line }}>|</span>}>
           <Checkbox checked={soloAlertas} onChange={(e) => setSoloAlertas(e.target.checked)}>
             Solo líneas con alerta o excedidas
           </Checkbox>
@@ -472,9 +471,18 @@ export default function BudgetDetailPage() {
         pagination={false}
         scroll={{ x: "max-content" }}
         locale={{
-          emptyText: soloAlertas
-            ? "Todas las líneas están dentro de su monto planeado"
-            : "Este presupuesto aún no tiene líneas",
+          emptyText: (
+            <EmptyState
+              variant="inline"
+              eyebrow="Presupuesto"
+              title={soloAlertas ? "Todo dentro de lo planeado" : "Este presupuesto aún no tiene líneas"}
+              description={
+                soloAlertas
+                  ? "Todas las líneas están dentro de su monto."
+                  : "Agrega categorías para empezar a ejecutarlo."
+              }
+            />
+          ),
         }}
       />
 

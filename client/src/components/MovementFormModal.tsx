@@ -9,6 +9,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { canEditCosts } from "@/utils/roles";
 import { formatCurrency, currencyInputProps, integerInputProps, formatNumber } from "@/utils/format";
 import type { BudgetAvailability, BudgetListItem, Product } from "@/types";
+import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
   product: Product;
@@ -130,7 +131,15 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
   return (
     <Modal
       open
-      title="Registrar movimiento"
+      width={560}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Inventario"
+          title="Registrar movimiento"
+          description="La entrada suma stock y la salida lo descuenta; ambas quedan registradas."
+        />
+      }
       okText="Registrar"
       cancelText="Cancelar"
       confirmLoading={saving}

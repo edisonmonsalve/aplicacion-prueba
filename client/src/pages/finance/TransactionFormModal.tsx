@@ -13,6 +13,7 @@ import { currencyInputProps } from "@/utils/format";
 import { money } from "./FinanceUtils";
 import type { BudgetListItem, FinanceAccount, FinanceCategory, TransactionInput } from "@/types";
 import type { Product } from "@/types";
+import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
   open: boolean;
@@ -111,7 +112,15 @@ export default function TransactionFormModal({ open, onClose, onSaved }: Props) 
   return (
     <Modal
       open={open}
-      title="Nueva transacción"
+      width={560}
+      className="ui-form-modal"
+      title={
+        <ModalHeading
+          eyebrow="Finanzas"
+          title="Nueva transacción"
+          description="Los asientos de caja mueven el capital; los informativos solo afectan el resultado."
+        />
+      }
       okText="Registrar"
       cancelText="Cancelar"
       confirmLoading={saving}

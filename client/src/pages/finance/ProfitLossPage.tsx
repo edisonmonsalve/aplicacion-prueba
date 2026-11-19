@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -14,6 +15,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -169,7 +171,7 @@ function Variation({ value, gasto }: { value: number | null; gasto?: boolean }) 
   const positive = value >= 0;
   // En ingresos/utilidad una subida es buena; en costos y gastos, mala.
   const good = gasto ? !positive : positive;
-  const color = value === 0 ? undefined : good ? "#389e0d" : "#cf1322";
+  const color = value === 0 ? undefined : good ? signal.positive : signal.negative;
   return (
     <Typography.Text style={{ color }}>
       {positive ? "+" : ""}
@@ -238,6 +240,8 @@ export default function ProfitLossPage() {
         description="Resultado por devengo: incluye ventas a crédito y excluye cobros de cartera, que solo mueven caja. Comparado con el periodo anterior de igual duración."
       />
 
+      <FinanceSectionTabs section="reportes" />
+
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker
           range={range}
@@ -269,7 +273,7 @@ export default function ProfitLossPage() {
       )}
 
       {report && (
-        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={12} lg={6}>
             <Card size="small">
               <Statistic
@@ -277,7 +281,7 @@ export default function ProfitLossPage() {
                 value={report.ingresos.total}
                 precision={2}
                 prefix="$"
-                valueStyle={{ color: "#1677ff" }}
+                valueStyle={{ color: signal.info }}
               />
               <Variation value={report.variaciones.ingresos} />
             </Card>
@@ -290,7 +294,7 @@ export default function ProfitLossPage() {
                 precision={2}
                 prefix="$"
                 suffix={<span style={{ fontSize: 13 }}>{report.margen_bruto_pct.toFixed(1)} %</span>}
-                valueStyle={{ color: "#389e0d" }}
+                valueStyle={{ color: signal.positive }}
               />
               <Variation value={report.variaciones.margen_bruto} />
             </Card>
@@ -302,7 +306,7 @@ export default function ProfitLossPage() {
                 value={report.gastos.total}
                 precision={2}
                 prefix="$"
-                valueStyle={{ color: "#d46b08" }}
+                valueStyle={{ color: signal.warning }}
               />
               <Variation value={report.variaciones.gastos} gasto />
             </Card>
@@ -315,7 +319,7 @@ export default function ProfitLossPage() {
                 precision={2}
                 prefix="$"
                 suffix={<span style={{ fontSize: 13 }}>{report.utilidad_pct.toFixed(1)} %</span>}
-                valueStyle={{ color: report.utilidad < 0 ? "#cf1322" : "#389e0d" }}
+                valueStyle={{ color: report.utilidad < 0 ? signal.negative : signal.positive }}
               />
               <Variation value={report.variaciones.utilidad} />
             </Card>
@@ -346,7 +350,7 @@ export default function ProfitLossPage() {
               render: (texto: string, r) => {
                 if (r.tipo === "line") {
                   return (
-                    <span style={{ paddingLeft: 20, color: "#666" }}>{texto}</span>
+                    <span style={{ paddingLeft: 20, color: signal.muted }}>{texto}</span>
                   );
                 }
                 return <strong>{texto}</strong>;
@@ -382,8 +386,8 @@ export default function ProfitLossPage() {
       )}
 
       <style>{`
-        .pnl-section td { border-top: 1px solid #f0f0f0; }
-        .pnl-subtotal td { background: #fafafa; }
+        .pnl-section td { border-top: 1px solid var(--ui-line); }
+        .pnl-subtotal td { background: var(--ui-surface-2); }
       `}</style>
     </>
   );

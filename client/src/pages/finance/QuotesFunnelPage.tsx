@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -18,6 +19,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -38,10 +40,10 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const STAGE_COLORS: Record<string, string> = {
-  creadas: "#1677ff",
-  enviadas: "#13c2c2",
-  aprobadas: "#52c41a",
-  entregadas: "#722ed1",
+  creadas: signal.infoAccent,
+  enviadas: signal.brand,
+  aprobadas: signal.positiveAccent,
+  entregadas: signal.violetAccent,
 };
 
 const ESTADO_META: Record<QuoteFunnelState, { label: string; color: string }> = {
@@ -66,7 +68,7 @@ const Tiempo = ({
       value={tiempo.promedio ?? 0}
       precision={tiempo.promedio === null ? 0 : 1}
       suffix={tiempo.promedio === null ? "" : "días"}
-      valueStyle={{ color: "#1677ff" }}
+      valueStyle={{ color: signal.info }}
     />
     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
       {tiempo.muestra === 0
@@ -241,6 +243,8 @@ export default function QuotesFunnelPage() {
         description="Conversión de cotizaciones creadas en el periodo: enviadas, aprobadas y entregadas. Incluye tiempos de aprobación, entrega y ciclo completo."
       />
 
+      <FinanceSectionTabs section="reportes" />
+
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker
           range={range}
@@ -265,7 +269,7 @@ export default function QuotesFunnelPage() {
 
       {report && (
         <>
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card size="small">
                 <Statistic title="Cotizaciones creadas" value={report.resumen.cotizaciones} />
@@ -281,7 +285,7 @@ export default function QuotesFunnelPage() {
                   value={report.resumen.tasa_aprobacion}
                   precision={1}
                   suffix="%"
-                  valueStyle={{ color: "#389e0d" }}
+                  valueStyle={{ color: signal.positive }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {report.resumen.aprobadas} de {report.resumen.enviadas} enviadas
@@ -295,7 +299,7 @@ export default function QuotesFunnelPage() {
                   value={report.resumen.tasa_cierre}
                   precision={1}
                   suffix="%"
-                  valueStyle={{ color: "#722ed1" }}
+                  valueStyle={{ color: signal.violet }}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {report.resumen.entregadas} entregadas de {report.resumen.cotizaciones}
@@ -328,7 +332,7 @@ export default function QuotesFunnelPage() {
       ) : (
         report && (
           <>
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} lg={14}>
                 <Card size="small" title="Embudo">
                   <Space direction="vertical" size="small" style={{ width: "100%" }}>
@@ -380,7 +384,7 @@ export default function QuotesFunnelPage() {
             </Row>
 
             <Typography.Title level={5}>Tiempos de cierre</Typography.Title>
-            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} md={8}>
                 <Tiempo titulo="Creación → aprobación" tiempo={report.tiempos.aprobacion} />
               </Col>

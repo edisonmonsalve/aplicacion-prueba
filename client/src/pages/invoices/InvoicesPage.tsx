@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Card, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -9,7 +9,9 @@ import { ESTADO_OPTIONS, InvoiceEstadoTag, InvoiceTipoTag, TIPO_OPTIONS, money }
 import TableSkeleton from "@/components/TableSkeleton";
 import PageHeader from "@/components/PageHeader";
 import RelativeTime from "@/components/RelativeTime";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
+import EmptyState from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useAuth } from "@/context/AuthContext";
@@ -222,56 +224,43 @@ export default function InvoicesPage() {
         />
       </Card>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Buscar
-          </Typography.Text>
+      <FilterBar
+        hasFilters={hasFilters}
+        onClear={() => {
+          setText("");
+          setSp({}, { replace: true });
+        }}
+      >
+        <FilterField label="Buscar" width={240}>
           <Input.Search
             allowClear
             placeholder="Número o contraparte"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            style={{ width: 240 }}
+            style={{ width: "100%" }}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Tipo
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Tipo" width={140}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             value={tipo}
             options={TIPO_OPTIONS}
             onChange={(v) => update({ tipo: v })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Estado
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Estado" width={150}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 150 }}
+            style={{ width: "100%" }}
             value={estado}
             options={ESTADO_OPTIONS}
             onChange={(v) => update({ estado: v })}
           />
-        </div>
-        {hasFilters && (
-          <Button
-            onClick={() => {
-              setText("");
-              setSp({}, { replace: true });
-            }}
-          >
-            Limpiar filtros
-          </Button>
-        )}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {resumen && (resumen.por_tipo.length > 0 || resumen.por_estado.length > 0) && (
         <Space size={[8, 8]} wrap style={{ marginBottom: 16 }}>
@@ -300,24 +289,34 @@ export default function InvoicesPage() {
           onRow={(r) => ({ onClick: () => navigate(`/facturas/${r.id}`), style: { cursor: "pointer" } })}
           locale={{
             emptyText: (
-              <Empty description={hasFilters ? "Ninguna factura coincide con los filtros" : "Aún no hay facturas"}>
-                {hasFilters ? (
-                  <Button
-                    onClick={() => {
-                      setText("");
-                      setSp({}, { replace: true });
-                    }}
-                  >
-                    Limpiar filtros
-                  </Button>
-                ) : (
-                  canOperate && (
-                    <Button type="primary" onClick={() => navigate("/facturas/nuevo")}>
-                      Crear la primera
+              <EmptyState
+                variant="inline"
+                eyebrow="Facturación"
+                title={hasFilters ? "Sin resultados" : "Aún no hay facturas"}
+                description={
+                  hasFilters
+                    ? "Ninguna factura coincide con los filtros."
+                    : "Emite la primera para registrar ventas, compras y su saldo."
+                }
+                action={
+                  hasFilters ? (
+                    <Button
+                      onClick={() => {
+                        setText("");
+                        setSp({}, { replace: true });
+                      }}
+                    >
+                      Limpiar filtros
                     </Button>
+                  ) : (
+                    canOperate && (
+                      <Button type="primary" onClick={() => navigate("/facturas/nuevo")}>
+                        Crear la primera
+                      </Button>
+                    )
                   )
-                )}
-              </Empty>
+                }
+              />
             ),
           }}
           pagination={{

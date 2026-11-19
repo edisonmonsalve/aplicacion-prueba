@@ -1,17 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { App, Button, Card, Col, Row, Space, Statistic, Table, Tag, Tooltip, Typography, Alert, List } from "antd";
+import { App, Button, Card, Col, Row, Select, Space, Table, Tag, Tooltip, Typography, Alert, List } from "antd";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
-import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggestions } from "@/services/financeService";
+import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggestions, getTrends } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { canWriteFinance } from "@/utils/roles";
 import { getErrorMessage } from "@/utils/errors";
-import { money } from "./FinanceUtils";
-import type { FinanceAccount, FinanceCategoryTipo, FinanceSummary, Suggestion } from "@/types";
+import { fmtDate, fmtPct, money } from "./FinanceUtils";
+import type {
+  FinanceAccount,
+  FinanceCategoryTipo,
+  FinanceSummary,
+  Suggestion,
+  TrendMonth,
+  TrendsReport,
+} from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
-import { useDateRange } from "@/hooks/useDateRange";
+import StatCard from "@/components/StatCard";
+import AnimatedNumber from "@/components/AnimatedNumber";
+import EmptyState from "@/components/EmptyState";
+import ReportExport from "@/components/ReportExport";
+import Sparkline from "@/components/Sparkline";
+import { useDateRange, type RangoFechas } from "@/hooks/useDateRange";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import AccountFormModal from "./AccountFormModal";
 
 const TIPO_LABEL: Record<FinanceCategoryTipo, string> = {
@@ -32,11 +47,14 @@ function Variacion({
   actual,
   anterior,
   inverso = false,
+  comparacion = "Periodo anterior",
 }: {
   actual: number | undefined;
   anterior: number | undefined | null;
   /** En egresos/compras, subir no es buena noticia. */
   inverso?: boolean;
+  /** Etiqueta del periodo de referencia: anterior o año anterior. */
+  comparacion?: string;
 }) {
   const pct = variacion(actual, anterior);
   if (pct === null) {
@@ -49,12 +67,104 @@ function Variacion({
   const sube = pct >= 0;
   const bueno = inverso ? !sube : sube;
   return (
-    <Tooltip title={`Periodo anterior: ${money(Number(anterior))}`}>
-      <Typography.Text style={{ fontSize: 12, color: bueno ? "#389e0d" : "#cf1322" }}>
-        {sube ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% vs. periodo anterior
-      </Typography.Text>
+    <Tooltip title={`${comparacion}: ${money(Number(anterior))} · ${bueno ? "evolución favorable" : "evolución desfavorable"}`}>
+      <span
+        className={`ui-delta ${bueno ? "ui-delta--up" : "ui-delta--down"}`}
+        style={{ cursor: "help" }}
+      >
+        {sube ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%
+      </span>
     </Tooltip>
   );
+}
+
+interface CuentasTotales {
+  saldo_inicial: number;
+  ingresos: number;
+  egresos: number;
+  saldo_actual: number;
+}
+
+function buildReportDoc(
+  s: FinanceSummary,
+  cuentas: FinanceAccount[],
+  totales: CuentasTotales,
+  comparacion: string
+): ReportDocument {
+  return {
+    title: "Resumen financiero",
+    subtitle: `Periodo: ${fmtDate(s.desde)} — ${fmtDate(s.hasta)}`,
+    meta: [
+      { label: "Ingresos de caja", value: money(s.ingresos) },
+      { label: "Egresos de caja", value: money(s.egresos) },
+      { label: "Capital disponible", value: money(s.capital_disponible) },
+      { label: "Utilidad", value: money(s.utilidad) },
+    ],
+    sections: [
+      {
+        title: "Indicadores",
+        columns: [{ header: "Concepto" }, { header: "Valor", format: "money" }],
+        rows: [
+          ["Ingresos de caja", s.ingresos],
+          ["Egresos de caja", s.egresos],
+          ["Compras de inventario", s.compras_inventario],
+          ["Capital disponible", s.capital_disponible],
+          ["Utilidad", s.utilidad],
+          ["Costo de ventas", s.costo_ventas],
+          ["Margen bruto", s.margen_bruto],
+          ["Margen bruto %", `${s.margen_bruto_pct} %`],
+          ["IVA por pagar", s.iva_por_pagar],
+          ["IVA descontable", s.iva_descontable],
+          ["IVA neto", s.iva_neto],
+        ],
+      },
+      {
+        title: "Cuentas",
+        columns: [
+          { header: "Cuenta" },
+          { header: "Tipo" },
+          { header: "Saldo inicial", format: "money" },
+          { header: "Ingresos", format: "money" },
+          { header: "Egresos", format: "money" },
+          { header: "Saldo actual", format: "money" },
+        ],
+        rows: [
+          ...cuentas.map((c) => [
+            c.nombre,
+            c.tipo === "banco" ? "Banco" : "Caja",
+            c.saldo_inicial,
+            c.ingresos,
+            c.egresos,
+            c.saldo_actual,
+          ]),
+          [
+            "Totales",
+            "",
+            totales.saldo_inicial,
+            totales.ingresos,
+            totales.egresos,
+            totales.saldo_actual,
+          ],
+        ],
+      },
+      {
+        title: "Por categoría",
+        columns: [
+          { header: "Categoría" },
+          { header: "Tipo" },
+          { header: "Afecta caja" },
+          { header: "Total", format: "money" },
+        ],
+        rows: s.por_categoria.map((c) => [
+          c.nombre,
+          TIPO_LABEL[c.tipo],
+          c.afecta_caja === 1 ? "Sí" : "No",
+          c.total,
+        ]),
+      },
+    ],
+    notes: [comparacion],
+  };
 }
 
 export default function FinanceOverviewPage() {
@@ -81,6 +191,28 @@ export default function FinanceOverviewPage() {
     shiftPeriodo,
     enPeriodoActual,
   } = useDateRange();
+  const { get, update } = useUrlFilters();
+  const rawComparar = get("comparar");
+  const comparar: "anterior" | "anio" | "ninguno" =
+    rawComparar === "anio" || rawComparar === "ninguno" ? rawComparar : "anterior";
+  const comparacionLabel = comparar === "anio" ? "Año anterior" : "Periodo anterior";
+  const [trends, setTrends] = useState<TrendsReport | null>(null);
+  const comparisonRange = useMemo<RangoFechas | null>(() => {
+    if (comparar === "ninguno") return null;
+    if (comparar === "anio") {
+      return [range[0].subtract(1, "year"), range[1].subtract(1, "year")];
+    }
+    return previousRange;
+  }, [comparar, previousRange, range]);
+  // Los últimos 6 periodos cierran en el mes del rango elegido, no siempre en
+  // hoy: así la tendencia acompaña al periodo que se está leyendo.
+  const sparkRange = useMemo(() => {
+    const fin = range[1].endOf("month");
+    return {
+      desde: fin.subtract(5, "month").startOf("month").format("YYYY-MM-DD"),
+      hasta: fin.format("YYYY-MM-DD"),
+    };
+  }, [range]);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FinanceAccount | undefined>();
 
@@ -90,20 +222,25 @@ export default function FinanceOverviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const [prevDesde, prevHasta] = previousRange ?? [range[0], range[1]];
-      const [s, a, sg, prev] = await Promise.all([
+      const prevRequest = comparisonRange
+        ? getFinanceSummary({
+            desde: comparisonRange[0].format("YYYY-MM-DD"),
+            hasta: comparisonRange[1].format("YYYY-MM-DD"),
+          }).catch(() => null)
+        : Promise.resolve(null);
+      const trendRequest = getTrends(sparkRange).catch(() => null);
+      const [s, a, sg, prev, tr] = await Promise.all([
         getFinanceSummary({ desde, hasta }),
         getFinanceAccounts(),
         getSuggestions(),
-        getFinanceSummary({
-          desde: prevDesde.format("YYYY-MM-DD"),
-          hasta: prevHasta.format("YYYY-MM-DD"),
-        }).catch(() => null),
+        prevRequest,
+        trendRequest,
       ]);
       setSummary(s);
       setAccounts(a);
       setSuggestions(sg);
       setPreviousSummary(prev);
+      setTrends(tr);
     } catch (err) {
       setError(getErrorMessage(err, "No se pudo cargar el resumen financiero"));
     } finally {
@@ -114,7 +251,7 @@ export default function FinanceOverviewPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, periodo]);
+  }, [range, periodo, comparar]);
 
   const openNewAccount = () => {
     setEditingAccount(undefined);
@@ -156,12 +293,64 @@ export default function FinanceOverviewPage() {
     { saldo_inicial: 0, ingresos: 0, egresos: 0, saldo_actual: 0 }
   );
 
+  const serie = trends?.serie ?? [];
+  const sparkFor = (pick: (mes: TrendMonth) => number) =>
+    serie.length > 1 ? (
+      <Tooltip title="Últimos 6 meses hasta el cierre del periodo">
+        <span>
+          <Sparkline values={serie.map(pick)} />
+        </span>
+      </Tooltip>
+    ) : undefined;
+
+  const deltaFor = (
+    actual: number | undefined,
+    anterior: number | undefined | null,
+    inverso = false
+  ) =>
+    comparar === "ninguno" ? undefined : (
+      <Variacion
+        actual={actual}
+        anterior={anterior}
+        inverso={inverso}
+        comparacion={comparacionLabel}
+      />
+    );
+
+  const reportDoc = (): ReportDocument | null => {
+    if (!s) return null;
+    const nota =
+      comparar === "ninguno"
+        ? "Sin comparación: solo se muestran los valores del periodo."
+        : `Comparación contra ${comparacionLabel.toLowerCase()}: ${
+            comparisonRange
+              ? `${comparisonRange[0].format("DD/MM/YYYY")} — ${comparisonRange[1].format("DD/MM/YYYY")}`
+              : "sin rango"
+          }.`;
+    return buildReportDoc(s, accounts, totalesCuentas, nota);
+  };
+
+  const exportCsv = () => {
+    const doc = reportDoc();
+    if (!doc || !s) return;
+    exportReportCsv(`resumen-financiero-${s.desde}-a-${s.hasta}.csv`, doc);
+  };
+
+  const exportPdf = (target?: Window | null) => {
+    const doc = reportDoc();
+    if (!doc) return;
+    printReport(doc, target);
+  };
+
   return (
     <div>
       <PageHeader
+        eyebrow="02 / Finanzas"
         title="Resumen financiero"
-        description="Consulta ingresos, egresos, utilidad y capital por día, semana, mes o año, con comparación contra el periodo anterior."
+        description="Consulta ingresos, egresos, utilidad y capital por día, semana, mes o año, con comparación contra el periodo anterior o el año anterior."
       />
+
+      <FinanceSectionTabs section="resumen" />
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <PeriodRangePicker
@@ -171,6 +360,27 @@ export default function FinanceOverviewPage() {
           onSelectPeriodo={selectPeriodo}
           onShift={shiftPeriodo}
           enPeriodoActual={enPeriodoActual}
+          extra={
+            <Space wrap size={8}>
+              <Tooltip title="Elige contra qué periodo se calculan las variaciones">
+                <Select
+                  size="small"
+                  aria-label="Comparación de periodos"
+                  value={comparar}
+                  onChange={(value) =>
+                    update({ comparar: value === "anterior" ? undefined : value })
+                  }
+                  style={{ minWidth: 178 }}
+                  options={[
+                    { value: "anterior", label: "Comparar: anterior" },
+                    { value: "anio", label: "Comparar: año anterior" },
+                    { value: "ninguno", label: "Sin comparación" },
+                  ]}
+                />
+              </Tooltip>
+              <ReportExport disabled={!s || loading} onCsv={exportCsv} onPdf={exportPdf} />
+            </Space>
+          }
           footer={
             <Space wrap size={4}>
               <Typography.Text type="secondary">Ver en:</Typography.Text>
@@ -214,92 +424,143 @@ export default function FinanceOverviewPage() {
         />
       )}
 
-      <Typography.Title level={5} style={{ marginTop: 0 }}>
-        Caja y bancos
-      </Typography.Title>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos que entran a caja o bancos en el periodo">Ingresos</Tooltip>} value={s?.ingresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#52c41a" }} />
-            <Variacion actual={s?.ingresos} anterior={previousSummary?.ingresos} />
-          </Card>
+        <Col xs={24} lg={12}>
+          <div style={{ marginBottom: 12 }}>
+            <span className="ui-eyebrow">03 / Liquidez</span>
+            <Typography.Title level={5} style={{ margin: "2px 0 0" }}>
+              Caja y bancos
+            </Typography.Title>
+          </div>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Ingresos que entran a caja o bancos en el periodo">Ingresos</Tooltip>}
+                value={<AnimatedNumber value={s?.ingresos ?? 0} format={money} />}
+                tone="income"
+                delta={deltaFor(s?.ingresos, previousSummary?.ingresos)}
+                sparkline={sparkFor((m) => m.entradas)}
+                onClick={() => navigate(`/finanzas/transacciones?${reportQuery}&flujo=entrada`)}
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Salidas reales de caja o bancos: gastos de operación y compras de inventario. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>}
+                value={<AnimatedNumber value={s?.egresos ?? 0} format={money} />}
+                tone="expense"
+                delta={deltaFor(s?.egresos, previousSummary?.egresos, true)}
+                sparkline={sparkFor((m) => m.salidas)}
+                onClick={() => navigate(`/finanzas/transacciones?${reportQuery}&flujo=salida`)}
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>}
+                value={<AnimatedNumber value={s?.capital_disponible ?? 0} format={money} />}
+                tone="primary"
+                hint="Acumulado a la fecha final"
+                sparkline={sparkFor((m) => m.saldo_caja)}
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>}
+                value={<AnimatedNumber value={s?.compras_inventario ?? 0} format={money} />}
+                tone="outflow"
+                delta={deltaFor(s?.compras_inventario, previousSummary?.compras_inventario, true)}
+                onClick={() => navigate(`/finanzas/inventario?${reportQuery}`)}
+              />
+            </Col>
+          </Row>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Salidas reales de caja o bancos: gastos de operación y compras de inventario. No incluye asientos informativos como el costo de ventas.">Egresos de caja</Tooltip>} value={s?.egresos ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#ff4d4f" }} />
-            <Variacion actual={s?.egresos} anterior={previousSummary?.egresos} inverso />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Saldo acumulado de caja y bancos hasta la fecha final: saldo inicial + ingresos de caja - egresos de caja. No incluye costo de ventas ni IVA.">Capital disponible</Tooltip>} value={s?.capital_disponible ?? 0} formatter={(v) => money(Number(v))} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Acumulado a la fecha final
-            </Typography.Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Compras de inventario del periodo: salen de caja y quedan como activo. No reducen la utilidad.">Compras de inventario</Tooltip>} value={s?.compras_inventario ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#fa8c16" }} />
-            <Variacion actual={s?.compras_inventario} anterior={previousSummary?.compras_inventario} inverso />
-          </Card>
+
+        <Col xs={24} lg={12}>
+          <div style={{ marginBottom: 12 }}>
+            <span className="ui-eyebrow">04 / Rentabilidad</span>
+            <Typography.Title level={5} style={{ margin: "2px 0 0" }}>
+              Resultado
+            </Typography.Title>
+          </div>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>}
+                value={<AnimatedNumber value={s?.utilidad ?? 0} format={money} />}
+                tone={(s?.utilidad ?? 0) >= 0 ? "income" : "expense"}
+                delta={deltaFor(s?.utilidad, previousSummary?.utilidad)}
+                sparkline={sparkFor((m) => m.utilidad)}
+                onClick={() => navigate(`/finanzas/resultados?${reportQuery}`)}
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>}
+                value={<AnimatedNumber value={s?.costo_ventas ?? 0} format={money} />}
+                tone="expense"
+                delta={deltaFor(s?.costo_ventas, previousSummary?.costo_ventas, true)}
+                sparkline={sparkFor((m) => m.costo_ventas)}
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Ingresos menos costo de ventas">Margen bruto</Tooltip>}
+                value={<AnimatedNumber value={s?.margen_bruto ?? 0} format={money} />}
+                tone="primary"
+                delta={deltaFor(s?.margen_bruto, previousSummary?.margen_bruto)}
+                sparkline={sparkFor((m) => m.margen)}
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <StatCard
+                loading={loading}
+                label={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>}
+                value={<AnimatedNumber value={s?.margen_bruto_pct ?? 0} format={fmtPct} />}
+                tone="info"
+                hint="Sobre ingresos del periodo"
+              />
+            </Col>
+          </Row>
         </Col>
       </Row>
 
-      <Typography.Title level={5}>Resultado</Typography.Title>
+      <div style={{ marginBottom: 12 }}>
+        <span className="ui-eyebrow">05 / Fiscal</span>
+        <Typography.Title level={5} style={{ margin: "2px 0 0" }}>
+          Impuestos
+        </Typography.Title>
+      </div>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad</Tooltip>} value={s?.utilidad ?? 0} formatter={(v) => money(Number(v))} />
-            <Variacion actual={s?.utilidad} anterior={previousSummary?.utilidad} />
-          </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="IVA generado en ventas (pasivo). No es dinero disponible.">IVA por pagar</Tooltip>}
+            value={<AnimatedNumber value={s?.iva_por_pagar ?? 0} format={money} />}
+            tone="primary"
+          />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Costo de los productos vendidos. Asiento informativo: reduce utilidad y margen, no afecta caja.">Costo de ventas</Tooltip>} value={s?.costo_ventas ?? 0} formatter={(v) => money(Number(v))} />
-            <Variacion actual={s?.costo_ventas} anterior={previousSummary?.costo_ventas} inverso />
-          </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="IVA pagado en compras (activo). No es dinero disponible.">IVA descontable</Tooltip>}
+            value={<AnimatedNumber value={s?.iva_descontable ?? 0} format={money} />}
+            tone="info"
+          />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Ingresos menos costo de ventas">Margen bruto</Tooltip>} value={s?.margen_bruto ?? 0} formatter={(v) => money(Number(v))} />
-            <Variacion actual={s?.margen_bruto} anterior={previousSummary?.margen_bruto} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="Margen bruto como porcentaje de los ingresos">Margen bruto %</Tooltip>} value={s?.margen_bruto_pct ?? 0} suffix="%" precision={0} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Sobre ingresos del periodo
-            </Typography.Text>
-          </Card>
-        </Col>
-      </Row>
-
-      <Typography.Title level={5}>Impuestos</Typography.Title>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="IVA generado en ventas (pasivo). No es dinero disponible.">IVA por pagar</Tooltip>} value={s?.iva_por_pagar ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#722ed1" }} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title={<Tooltip title="IVA pagado en compras (activo). No es dinero disponible.">IVA descontable</Tooltip>} value={s?.iva_descontable ?? 0} formatter={(v) => money(Number(v))} valueStyle={{ color: "#1677ff" }} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic
-              title={<Tooltip title="IVA por pagar menos IVA descontable del periodo. Un valor negativo es saldo a favor.">IVA neto</Tooltip>}
-              value={s?.iva_neto ?? 0}
-              formatter={(v) => money(Number(v))}
-              valueStyle={{ color: (s?.iva_neto ?? 0) > 0 ? "#fa8c16" : "#52c41a" }}
-            />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {(s?.iva_neto ?? 0) < 0 ? "Saldo a favor" : "A cargo del periodo"}
-            </Typography.Text>
-          </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <StatCard
+            loading={loading}
+            label={<Tooltip title="IVA por pagar menos IVA descontable del periodo. Un valor negativo es saldo a favor.">IVA neto</Tooltip>}
+            value={<AnimatedNumber value={s?.iva_neto ?? 0} format={money} />}
+            tone={(s?.iva_neto ?? 0) > 0 ? "outflow" : "income"}
+            hint={(s?.iva_neto ?? 0) < 0 ? "Saldo a favor" : "A cargo del periodo"}
+          />
         </Col>
       </Row>
 
@@ -348,7 +609,16 @@ export default function FinanceOverviewPage() {
           loading={loading}
           pagination={false}
           scroll={{ x: "max-content" }}
-          locale={{ emptyText: "Aún no hay cuentas financieras" }}
+          locale={{
+            emptyText: (
+              <EmptyState
+                variant="inline"
+                eyebrow="Finanzas"
+                title="Aún no hay cuentas financieras"
+                description="Crea una caja o banco para empezar a mover el capital."
+              />
+            ),
+          }}
           summary={() => (
             <Table.Summary.Row>
               <Table.Summary.Cell index={0}>
@@ -439,7 +709,16 @@ export default function FinanceOverviewPage() {
           dataSource={s?.por_categoria ?? []}
           pagination={false}
           scroll={{ x: "max-content" }}
-          locale={{ emptyText: "No hay movimientos en el periodo seleccionado" }}
+          locale={{
+            emptyText: (
+              <EmptyState
+                variant="inline"
+                eyebrow="Resultado"
+                title="No hay movimientos en el periodo"
+                description="Cambia el rango o registra una transacción para ver el desglose."
+              />
+            ),
+          }}
           columns={[
             {
               title: <Tooltip title="Categoría financiera">Categoría</Tooltip>,

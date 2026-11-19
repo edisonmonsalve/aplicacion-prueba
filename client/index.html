@@ -11,8 +11,12 @@
           document.documentElement.dataset.theme = "dark";
           document.documentElement.style.colorScheme = "dark";
         }
+        // La densidad compacta se aplica antes del primer pintado.
+        if (localStorage.getItem("ui-density") === "compact") {
+          document.documentElement.dataset.density = "compact";
+        }
       } catch (error) {
-        /* sin acceso a localStorage: se usa el tema claro */
+        /* sin acceso a localStorage: se usa el tema claro y la densidad cómoda */
       }
     </script>
     <title>Inventario</title>

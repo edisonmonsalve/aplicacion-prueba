@@ -1,18 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  App,
-  Button,
-  Card,
-  Dropdown,
-  Empty,
-  Input,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-} from "antd";
+import { App, Button, Card, Dropdown, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableProps } from "antd";
 import {
   CopyOutlined,
@@ -29,7 +16,9 @@ import type { Quote, QuoteSortKey, QuoteStatus } from "@/types";
 import { StatusTag, STATUS_OPTIONS, money, fmtDate } from "@/pages/quotes/quoteUtils";
 import { downloadCsv, fetchAllPages } from "@/utils/csv";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
@@ -55,18 +44,12 @@ export default function QuotesPage() {
   const estado = (sp.get("estado") as QuoteStatus | null) ?? undefined;
   const desde = sp.get("desde") ?? undefined;
   const hasta = sp.get("hasta") ?? undefined;
-  const {
-    range,
-    periodo,
-    changeRange,
-    selectPeriodo,
-    shiftPeriodo,
-    enPeriodoActual,
-  } = useDateRange({ allowClear: true, resetPage: true });
+  const { range, periodo, changeRange, selectPeriodo, shiftPeriodo, enPeriodoActual } = useDateRange({
+    allowClear: true,
+    resetPage: true,
+  });
   const rawSort = sp.get("sort");
-  const sort = SORT_KEYS.includes(rawSort as QuoteSortKey)
-    ? (rawSort as QuoteSortKey)
-    : undefined;
+  const sort = SORT_KEYS.includes(rawSort as QuoteSortKey) ? (rawSort as QuoteSortKey) : undefined;
   const rawOrder = sp.get("order");
   const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = Number(sp.get("page") ?? 1);
@@ -250,11 +233,7 @@ export default function QuotesPage() {
       dataIndex: "pendiente_facturar",
       responsive: ["md"],
       render: (v: boolean) =>
-        v === true ? (
-          <Tag color="orange">Pendiente de facturar</Tag>
-        ) : (
-          <Tag color="default">—</Tag>
-        ),
+        v === true ? <Tag color="orange">Pendiente de facturar</Tag> : <Tag color="default">—</Tag>,
     },
     {
       title: <Tooltip title="Total de la cotización con descuentos e impuestos">Total</Tooltip>,
@@ -271,8 +250,7 @@ export default function QuotesPage() {
       sorter: true,
       sortOrder: sortOrderFor("fecha_validez"),
       render: (v: string, r) => {
-        const late =
-          (r.estado === "borrador" || r.estado === "enviado") && dayjs(v).isBefore(dayjs(), "day");
+        const late = (r.estado === "borrador" || r.estado === "enviado") && dayjs(v).isBefore(dayjs(), "day");
         return <Typography.Text type={late ? "danger" : undefined}>{fmtDate(v)}</Typography.Text>;
       },
     },
@@ -338,11 +316,7 @@ export default function QuotesPage() {
               Exportar CSV
             </Button>
             {canOperate && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => navigate("/cotizaciones/nuevo")}
-              >
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/cotizaciones/nuevo")}>
                 Nuevo
               </Button>
             )}
@@ -363,49 +337,28 @@ export default function QuotesPage() {
         />
       </Card>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <Typography.Text
-            type="secondary"
-            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
-          >
-            Buscar
-          </Typography.Text>
+      <FilterBar hasFilters={hasFilters} onClear={clearFilters}>
+        <FilterField label="Buscar" width={280}>
           <Input.Search
             allowClear
             placeholder="Número, cliente o documento"
             aria-label="Buscar cotizaciones"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            style={{ width: 280 }}
+            style={{ width: "100%" }}
           />
-        </div>
-        <div>
-          <Typography.Text
-            type="secondary"
-            style={{ display: "block", marginBottom: 4, fontSize: 12 }}
-          >
-            Estado
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Estado" width={160}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 160 }}
+            style={{ width: "100%" }}
             value={estado}
             options={STATUS_OPTIONS}
             onChange={(v) => update({ estado: v })}
           />
-        </div>
-        {hasFilters && <Button onClick={clearFilters}>Limpiar filtros</Button>}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       <Space size={8} wrap style={{ marginBottom: 16 }}>
         <Tag color="blue" style={{ margin: 0, padding: "4px 10px" }}>
@@ -427,23 +380,27 @@ export default function QuotesPage() {
           columns={columns}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Cotizaciones"
+                title={hasFilters ? "Sin resultados" : "Aún no hay cotizaciones"}
                 description={
                   hasFilters
-                    ? "Ninguna cotización coincide con los filtros"
-                    : "Aún no hay cotizaciones"
+                    ? "Ninguna cotización coincide con los filtros."
+                    : "Crea la primera para preparar una propuesta y su validez."
                 }
-              >
-                {hasFilters ? (
-                  <Button onClick={clearFilters}>Limpiar filtros</Button>
-                ) : (
-                  canOperate && (
-                    <Button type="primary" onClick={() => navigate("/cotizaciones/nuevo")}>
-                      Crear el primero
-                    </Button>
+                action={
+                  hasFilters ? (
+                    <Button onClick={clearFilters}>Limpiar filtros</Button>
+                  ) : (
+                    canOperate && (
+                      <Button type="primary" onClick={() => navigate("/cotizaciones/nuevo")}>
+                        Crear la primera
+                      </Button>
+                    )
                   )
-                )}
-              </Empty>
+                }
+              />
             ),
           }}
           pagination={{
@@ -461,11 +418,7 @@ export default function QuotesPage() {
                 page: undefined,
                 pageSize: String(pagination.pageSize ?? pageSize),
                 sort: nextSort,
-                order: nextSort
-                  ? s?.order === "descend"
-                    ? "desc"
-                    : "asc"
-                  : undefined,
+                order: nextSort ? (s?.order === "descend" ? "desc" : "asc") : undefined,
               });
               return;
             }

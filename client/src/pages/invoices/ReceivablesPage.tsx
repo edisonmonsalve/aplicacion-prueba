@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -5,7 +6,6 @@ import {
   Button,
   Card,
   Col,
-  Empty,
   Input,
   Row,
   Select,
@@ -28,9 +28,12 @@ import { useDateRange } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { useAuth } from "@/context/AuthContext";
 import PageHeader from "@/components/PageHeader";
+import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
+import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import type {
   CarteraAging,
   CarteraEstado,
@@ -303,7 +306,9 @@ export default function ReceivablesPage() {
         }
       />
 
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <FinanceSectionTabs section="gestion" />
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card size="small">
             <Statistic
@@ -311,7 +316,7 @@ export default function ReceivablesPage() {
               value={cobrar}
               precision={2}
               prefix="$"
-              valueStyle={{ color: "#1677ff" }}
+              valueStyle={{ color: signal.info }}
             />
           </Card>
         </Col>
@@ -322,7 +327,7 @@ export default function ReceivablesPage() {
               value={pagar}
               precision={2}
               prefix="$"
-              valueStyle={{ color: "#d46b08" }}
+              valueStyle={{ color: signal.warning }}
             />
           </Card>
         </Col>
@@ -333,7 +338,7 @@ export default function ReceivablesPage() {
               value={neto}
               precision={2}
               prefix="$"
-              valueStyle={{ color: neto >= 0 ? "#389e0d" : "#cf1322" }}
+              valueStyle={{ color: neto >= 0 ? signal.positive : signal.negative }}
             />
           </Card>
         </Col>
@@ -345,7 +350,7 @@ export default function ReceivablesPage() {
                 value={data.resumen.vencido}
                 precision={2}
                 prefix="$"
-                valueStyle={{ color: data.resumen.vencido > 0 ? "#cf1322" : undefined }}
+                valueStyle={{ color: data.resumen.vencido > 0 ? signal.negative : undefined }}
               />
             </Tooltip>
           </Card>
@@ -356,7 +361,7 @@ export default function ReceivablesPage() {
 
       {aging && (
         <>
-          <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} lg={14}>
               <Card
                 size="small"
@@ -369,11 +374,11 @@ export default function ReceivablesPage() {
               >
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
                   {[
-                    { label: "Corriente", value: aging.aging.venta.corriente, color: "#389e0d" },
-                    { label: "1-30 días", value: aging.aging.venta.d1_30, color: "#d48806" },
-                    { label: "31-60 días", value: aging.aging.venta.d31_60, color: "#d46b08" },
-                    { label: "61-90 días", value: aging.aging.venta.d61_90, color: "#cf1322" },
-                    { label: "+90 días", value: aging.aging.venta.d90_mas, color: "#a8071a" },
+                    { label: "Corriente", value: aging.aging.venta.corriente, color: signal.positive },
+                    { label: "1-30 días", value: aging.aging.venta.d1_30, color: signal.warning },
+                    { label: "31-60 días", value: aging.aging.venta.d31_60, color: signal.warningAccent },
+                    { label: "61-90 días", value: aging.aging.venta.d61_90, color: signal.negativeAccent },
+                    { label: "+90 días", value: aging.aging.venta.d90_mas, color: signal.negative },
                   ].map((b) => (
                     <div key={b.label} style={{ minWidth: 130 }}>
                       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -401,7 +406,7 @@ export default function ReceivablesPage() {
                     value={aging.totales.vencido_cobrar}
                     precision={2}
                     prefix="$"
-                    valueStyle={{ color: aging.totales.vencido_cobrar > 0 ? "#cf1322" : undefined }}
+                    valueStyle={{ color: aging.totales.vencido_cobrar > 0 ? signal.negative : undefined }}
                   />
                   <Statistic
                     title="Por vencer (7 días)"
@@ -489,35 +494,26 @@ export default function ReceivablesPage() {
         />
       </Card>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          marginBottom: 16,
+      <FilterBar
+        hasFilters={hasFilters}
+        onClear={() => {
+          setText("");
+          update({ q: undefined, tipo: undefined, estado: undefined, desde: undefined, hasta: undefined }, { resetPage: true });
         }}
       >
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Buscar
-          </Typography.Text>
+        <FilterField label="Buscar" width={240}>
           <Input.Search
             allowClear
             placeholder="Número o contraparte"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            style={{ width: 240 }}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Tipo
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Tipo" width={140}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 140 }}
+            style={{ width: "100%" }}
             value={tipo}
             options={[
               { value: "venta", label: "Por cobrar" },
@@ -525,31 +521,18 @@ export default function ReceivablesPage() {
             ]}
             onChange={(v) => update({ tipo: v }, { resetPage: true })}
           />
-        </div>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4, fontSize: 12 }}>
-            Estado
-          </Typography.Text>
+        </FilterField>
+        <FilterField label="Estado" width={150}>
           <Select
             allowClear
             placeholder="Todos"
-            style={{ width: 150 }}
+            style={{ width: "100%" }}
             value={estado}
             options={ESTADO_OPTIONS}
             onChange={(v) => update({ estado: v }, { resetPage: true })}
           />
-        </div>
-        {hasFilters && (
-          <Button
-            onClick={() => {
-              setText("");
-              update({ q: undefined, tipo: undefined, estado: undefined, desde: undefined, hasta: undefined }, { resetPage: true });
-            }}
-          >
-            Limpiar filtros
-          </Button>
-        )}
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {accounts.length === 0 && user?.rol !== "consulta" && data.data.some((r) => r.saldo_pendiente > 0) && (
         <Typography.Text type="warning" style={{ display: "block", marginBottom: 12 }}>
@@ -571,11 +554,14 @@ export default function ReceivablesPage() {
           })}
           locale={{
             emptyText: (
-              <Empty
+              <EmptyState
+                variant="inline"
+                eyebrow="Cartera"
+                title={hasFilters ? "Sin resultados" : "No hay cartera pendiente"}
                 description={
                   hasFilters
-                    ? "Ninguna factura coincide con los filtros"
-                    : "No hay cartera pendiente. Las facturas a crédito aparecen aquí al confirmarse."
+                    ? "Ninguna factura coincide con los filtros."
+                    : "Las facturas a crédito aparecen aquí al confirmarse."
                 }
               />
             ),

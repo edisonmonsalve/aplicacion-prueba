@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import type { ReactNode } from "react";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { Popconfirm } from "antd";
@@ -38,7 +39,7 @@ export default function ConfirmAction({
       okText={okText}
       cancelText="Cancelar"
       okButtonProps={{ danger }}
-      icon={<ExclamationCircleOutlined style={{ color: danger ? "#ff4d4f" : "#faad14" }} />}
+      icon={<ExclamationCircleOutlined style={{ color: danger ? signal.negativeAccent : signal.warningAccent }} />}
       onConfirm={onConfirm}
       disabled={disabled}
     >

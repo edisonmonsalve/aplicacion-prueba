@@ -1,3 +1,4 @@
+import { signal } from "@/styles/signal";
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Alert, Button, Form, Grid, Input, Switch, Tooltip, Typography, theme } from "antd";
@@ -45,8 +46,8 @@ export default function LoginPage() {
       {screens.lg && (
         <div
           style={{
-            background: "linear-gradient(135deg, #0f3d38 0%, #0d9488 100%)",
-            color: "#fff",
+            background: `linear-gradient(135deg, ${signal.brandDeep} 0%, ${signal.brand} 100%)`,
+            color: signal.onBrand,
             padding: 64,
             display: "flex",
             flexDirection: "column",
@@ -55,7 +56,7 @@ export default function LoginPage() {
         >
           <AppLogo size={44} tone="light" textSize={26} />
           <div>
-            <Typography.Title style={{ color: "#fff", marginTop: 0 }}>
+            <Typography.Title style={{ color: signal.onBrand, marginTop: 0 }}>
               Tu stock y tus presupuestos, en un solo lugar.
             </Typography.Title>
             <Typography.Paragraph style={{ color: "rgba(255,255,255,.8)", fontSize: 16 }}>
