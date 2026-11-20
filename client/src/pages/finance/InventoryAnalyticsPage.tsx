@@ -1,8 +1,7 @@
 import { signal } from "@/styles/signal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  App,
   Card,
   Col,
   Row,
@@ -10,6 +9,7 @@ import {
   Statistic,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import { getInventoryAnalytics } from "@/services/financeService";
@@ -23,6 +23,8 @@ import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type {
   InventoryAbcClass,
   InventoryAbcGroup,
@@ -53,6 +55,15 @@ const Numero = ({ value, suffix }: { value: number | null; suffix?: string }) =>
   );
 };
 
+/** Cabecera con ayuda: la columna se explica sin ocupar una nota al pie. */
+const ColumnTitle = ({ children, hint }: { children: string; hint: string }) => (
+  <Tooltip title={hint}>
+    <span className="ui-column-help" tabIndex={0}>
+      {children}
+    </span>
+  </Tooltip>
+);
+
 function buildReportDoc(r: InventoryAnalyticsReport): ReportDocument {
   return {
     title: "Rotación de inventario",
@@ -70,8 +81,8 @@ function buildReportDoc(r: InventoryAnalyticsReport): ReportDocument {
         value: r.resumen.dias_inventario === null ? "—" : `${r.resumen.dias_inventario.toFixed(2)} días`,
       },
       {
-        label: "Productos vendidos",
-        value: `${r.resumen.productos_vendidos} de ${r.resumen.productos}`,
+        label: "Productos con venta",
+        value: `${r.resumen.productos_vendidos} de ${r.data.length} analizados`,
       },
       {
         label: "Stock muerto",
@@ -134,17 +145,18 @@ function buildReportDoc(r: InventoryAnalyticsReport): ReportDocument {
             .filter(Boolean)
             .join(" · "),
         ]),
-        note: "La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo.",
+        note: "La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo. Los días de inventario usan los días transcurridos del periodo ÷ rotación.",
       },
     ],
   };
 }
 
 export default function InventoryAnalyticsPage() {
-  const { message } = App.useApp();
   const { getPositiveInt, update } = useUrlFilters();
   const [report, setReport] = useState<InventoryAnalyticsReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
 
   const diasMuerto = getPositiveInt("dias_muerto", 90);
   const {
@@ -160,23 +172,28 @@ export default function InventoryAnalyticsPage() {
 
   useDocumentTitle("Rotación de inventario");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getInventoryAnalytics({ desde, hasta, dias_muerto: diasMuerto })
       .then((r) => {
-        if (!cancelled) setReport(r);
+        if (isCurrent(requestId)) setReport(r);
       })
-      .catch((err) =>
-        message.error(getErrorMessage(err, "No se pudo cargar la rotación de inventario"))
-      )
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setReport(null);
+          setError(getErrorMessage(err, "No se pudo cargar la rotación de inventario"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [desde, hasta, diasMuerto, message]);
+  }, [desde, hasta, diasMuerto, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const exportCsv = () => {
     if (!report) return;
@@ -195,7 +212,7 @@ export default function InventoryAnalyticsPage() {
     <>
       <PageHeader
         title="Rotación de inventario"
-        description="Rotación, días de inventario, stock muerto y clasificación ABC. La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo."
+        description="Rotación, días de inventario, stock muerto y clasificación ABC. La rotación usa el costo de ventas del periodo y el inventario actual valorizado al costo. Los días de inventario usan los días transcurridos del periodo; la última venta se cuenta hasta hoy o hasta el cierre del periodo si ya terminó."
       />
 
       <FinanceSectionTabs section="reportes" />
@@ -208,7 +225,13 @@ export default function InventoryAnalyticsPage() {
           onSelectPeriodo={selectPeriodo}
           onShift={shiftPeriodo}
           enPeriodoActual={enPeriodoActual}
-          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+          extra={
+            <ReportExport
+              disabled={!report || loading || !!error}
+              onCsv={exportCsv}
+              onPdf={exportPdf}
+            />
+          }
         />
       </Card>
 
@@ -222,6 +245,14 @@ export default function InventoryAnalyticsPage() {
           />
         </FilterField>
       </FilterBar>
+
+      {error && (
+        <LoadError
+          message="No se pudo cargar la rotación de inventario"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       {report && report.resumen.stock_muerto.productos > 0 && (
         <Alert
@@ -286,12 +317,12 @@ export default function InventoryAnalyticsPage() {
             <Col xs={24} sm={12} lg={6}>
               <Card size="small">
                 <Statistic
-                  title="Productos vendidos"
+                  title="Productos con venta"
                   value={report.resumen.productos_vendidos}
-                  suffix={`/ ${report.resumen.productos}`}
                 />
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {report.resumen.productos - report.resumen.productos_vendidos} sin venta en el periodo
+                  {report.data.length} analizados ·{" "}
+                  {report.data.length - report.resumen.productos_vendidos} sin venta en el periodo
                 </Typography.Text>
               </Card>
             </Col>
@@ -393,7 +424,7 @@ export default function InventoryAnalyticsPage() {
                   render: (v: number) => money(v),
                 },
                 {
-                  title: "Unidades",
+                  title: <ColumnTitle hint="Unidades vendidas en el periodo seleccionado.">Unidades</ColumnTitle>,
                   dataIndex: "unidades_vendidas",
                   align: "right",
                   sorter: (a, b) => a.unidades_vendidas - b.unidades_vendidas,
@@ -424,21 +455,33 @@ export default function InventoryAnalyticsPage() {
                   ),
                 },
                 {
-                  title: "Rotación",
+                  title: (
+                    <ColumnTitle hint="Costo de ventas del periodo ÷ valor del inventario actual. Mide cuántas veces se repone el inventario con las ventas del periodo.">
+                      Rotación
+                    </ColumnTitle>
+                  ),
                   dataIndex: "rotacion",
                   align: "right",
                   sorter: (a, b) => (a.rotacion ?? -1) - (b.rotacion ?? -1),
                   render: (v: number | null) => <Numero value={v} suffix="x" />,
                 },
                 {
-                  title: "Días inv.",
+                  title: (
+                    <ColumnTitle hint="Días que tardaría el inventario actual en venderse al ritmo del periodo: días transcurridos ÷ rotación. Si el periodo sigue abierto se cuentan solo los días vividos. Un valor alto indica stock de más o ventas lentas.">
+                      Días inv.
+                    </ColumnTitle>
+                  ),
                   dataIndex: "dias_inventario",
                   align: "right",
                   sorter: (a, b) => (a.dias_inventario ?? -1) - (b.dias_inventario ?? -1),
                   render: (v: number | null) => <Numero value={v} />,
                 },
                 {
-                  title: "Última venta",
+                  title: (
+                    <ColumnTitle hint="Última venta confirmada del producto. «Hace X días» se cuenta hasta hoy; si el periodo ya cerró, hasta su fecha final.">
+                      Última venta
+                    </ColumnTitle>
+                  ),
                   dataIndex: "ultima_venta",
                   render: (v: string | null, r) =>
                     v ? (

@@ -1,8 +1,7 @@
 import { signal } from "@/styles/signal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  App,
   Button,
   Card,
   Col,
@@ -34,6 +33,8 @@ import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
 import EmptyState from "@/components/EmptyState";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type {
   CarteraAging,
   CarteraEstado,
@@ -47,6 +48,15 @@ import { InvoiceTipoTag, fmtDate, money } from "./InvoiceUtils";
 import CarteraAlerts from "./CarteraAlerts";
 
 const DEFAULT_PAGE_SIZE = 20;
+
+/** Estado vacío para no dejar filas del filtro anterior cuando falla la carga. */
+const EMPTY_RECEIVABLES: PaginatedReceivables = {
+  data: [],
+  total: 0,
+  page: 1,
+  pageSize: DEFAULT_PAGE_SIZE,
+  resumen: { por_cobrar: 0, por_pagar: 0, vencido: 0 },
+};
 
 const ESTADO_META: Record<CarteraEstado, { label: string; color: string }> = {
   pendiente: { label: "Pendiente", color: "blue" },
@@ -184,9 +194,9 @@ function buildReportDoc(
 
 export default function ReceivablesPage() {
   const navigate = useNavigate();
-  const { message } = App.useApp();
   const { user } = useAuth();
   const { get, getPositiveInt, update } = useUrlFilters();
+  const { start, isCurrent } = useLatestRequest();
 
   const q = get("q") ?? "";
   const tipo = (get("tipo") as InvoiceTipo | undefined) ?? undefined;
@@ -204,16 +214,11 @@ export default function ReceivablesPage() {
   const page = getPositiveInt("page", 1);
   const pageSize = getPositiveInt("pageSize", DEFAULT_PAGE_SIZE);
 
-  const [data, setData] = useState<PaginatedReceivables>({
-    data: [],
-    total: 0,
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
-    resumen: { por_cobrar: 0, por_pagar: 0, vencido: 0 },
-  });
+  const [data, setData] = useState<PaginatedReceivables>(EMPTY_RECEIVABLES);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [aging, setAging] = useState<CarteraAging | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState(q);
 
   useDocumentTitle("Cartera");
@@ -226,9 +231,10 @@ export default function ReceivablesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     listReceivables({
       page,
       pageSize,
@@ -239,23 +245,30 @@ export default function ReceivablesPage() {
       hasta,
     })
       .then((r) => {
-        if (!cancelled) setData(r);
+        if (isCurrent(requestId)) setData(r);
       })
-      .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar la cartera")))
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setData(EMPTY_RECEIVABLES);
+          setAging(null);
+          setError(getErrorMessage(err, "No se pudo cargar la cartera"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
     getCarteraAging({ desde, hasta })
       .then((a) => {
-        if (!cancelled) setAging(a);
+        if (isCurrent(requestId)) setAging(a);
       })
       .catch(() => {
         // El aging es complementario: la lista sigue funcionando sin él.
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [page, pageSize, q, tipo, estado, desde, hasta, message]);
+  }, [page, pageSize, q, tipo, estado, desde, hasta, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Solo se usa para el acceso rápido al detalle; no se muestra aquí.
   useEffect(() => {
@@ -301,12 +314,20 @@ export default function ReceivablesPage() {
         extra={
           <Space wrap>
             <Button onClick={() => navigate("/facturas")}>Ir a facturas</Button>
-            <ReportExport onCsv={exportCsv} onPdf={exportPdf} />
+            <ReportExport disabled={loading || !!error} onCsv={exportCsv} onPdf={exportPdf} />
           </Space>
         }
       />
 
       <FinanceSectionTabs section="gestion" />
+
+      {error && (
+        <LoadError
+          message="No se pudo cargar la cartera"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
@@ -540,7 +561,7 @@ export default function ReceivablesPage() {
         </Typography.Text>
       )}
 
-      {firstLoad ? (
+      {error ? null : firstLoad ? (
         <TableSkeleton />
       ) : (
         <Table<InvoiceReceivable>

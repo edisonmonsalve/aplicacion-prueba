@@ -200,6 +200,30 @@ describe("Rotación y ABC de inventario", () => {
     });
   });
 
+  it("no cuenta días futuros cuando el periodo sigue abierto", async () => {
+    await seed();
+
+    // Venta de hoy y rango que termina más adelante: la referencia debe ser
+    // hoy, no el cierre del mes, para que "hace X días" no sume días futuros.
+    const hoy = new Date().toLocaleDateString("en-CA");
+    const fin = new Date(`${hoy}T12:00:00`);
+    fin.setDate(fin.getDate() + 10);
+    const hastaFuturo = fin.toLocaleDateString("en-CA");
+
+    await sale(hoy, [{ product_id: a.id, cantidad: 1, precio_unitario: 100 }]);
+
+    const res = await request(app)
+      .get(
+        `/api/finance/inventory-analytics?desde=${hoy.slice(0, 7)}-01&hasta=${hastaFuturo}`
+      )
+      .set(bearer(consulta.token));
+
+    expect(res.status).toBe(200);
+    const arroz = res.body.data.find((r: { nombre: string }) => r.nombre === "Arroz");
+    expect(arroz.ultima_venta).toBe(hoy);
+    expect(arroz.dias_sin_venta).toBe(0);
+  });
+
   it("ajusta el umbral de stock muerto y respeta periodos sin ventas", async () => {
     await seed();
 

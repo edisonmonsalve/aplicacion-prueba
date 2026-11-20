@@ -1553,6 +1553,129 @@ html[data-theme="dark"] .row-low-stock > td {
   line-height: 1.45;
 }
 
+/* Ayuda en cabeceras de tabla: el subrayado punteado anuncia que hay detalle
+   y el foco por teclado mantiene la explicación disponible sin ratón. */
+.ui-column-help {
+  border-bottom: 1px dotted color-mix(in srgb, var(--ui-ink-2) 55%, transparent);
+  cursor: help;
+}
+
+/* Alertas Signal: rail de acento, icono en chip y lectura sobria. El color
+   solo tiñe el filo, el icono y el fondo; el texto mantiene su contraste. */
+.ant-alert {
+  --alert-accent: var(--ui-info);
+  padding: 11px 14px;
+  border: 1px solid color-mix(in srgb, var(--alert-accent) 26%, var(--ui-line)) !important;
+  border-radius: var(--ui-radius) !important;
+  background: color-mix(in srgb, var(--alert-accent) 6%, var(--ui-surface)) !important;
+  box-shadow: inset 3px 0 0 var(--alert-accent), var(--ui-elev-0);
+}
+
+.ant-alert.ant-alert-info { --alert-accent: var(--ui-info); }
+.ant-alert.ant-alert-success { --alert-accent: var(--ui-success); }
+.ant-alert.ant-alert-warning { --alert-accent: var(--ui-warning); }
+.ant-alert.ant-alert-error { --alert-accent: var(--ui-danger); }
+
+.ant-alert .ant-alert-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-inline-end: 10px;
+  border-radius: 8px;
+  color: var(--alert-accent) !important;
+  background: color-mix(in srgb, var(--alert-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--alert-accent) 24%, transparent);
+  font-size: 15px;
+}
+
+.ant-alert .ant-alert-message {
+  color: var(--ui-ink) !important;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ant-alert .ant-alert-description {
+  color: var(--ui-ink-2) !important;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.ant-alert .ant-alert-action {
+  align-self: center;
+}
+
+.ant-alert .ant-alert-close-icon {
+  color: var(--ui-ink-2);
+}
+
+/* Sugerencias: tarjetas de lectura con el mismo rail que las alertas, pero
+   sin el peso de un aviso bloqueante. */
+.ui-suggestions {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-suggestion {
+  --suggestion-accent: var(--ui-info);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--suggestion-accent) 24%, var(--ui-line));
+  border-radius: var(--ui-radius);
+  background: color-mix(in srgb, var(--suggestion-accent) 5%, var(--ui-surface));
+  box-shadow: inset 3px 0 0 var(--suggestion-accent);
+}
+
+.ui-suggestion--danger { --suggestion-accent: var(--ui-danger); }
+.ui-suggestion--warning { --suggestion-accent: var(--ui-warning); }
+.ui-suggestion--info { --suggestion-accent: var(--ui-info); }
+
+.ui-suggestion__icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  color: var(--suggestion-accent);
+  background: color-mix(in srgb, var(--suggestion-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--suggestion-accent) 24%, transparent);
+  font-size: 16px;
+}
+
+.ui-suggestion__body {
+  min-width: 0;
+}
+
+.ui-suggestion__body .ui-eyebrow {
+  color: var(--suggestion-accent);
+}
+
+.ui-suggestion__text {
+  margin: 2px 0 0;
+  color: var(--ui-ink);
+  font-size: 13px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.ui-suggestion__ref {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ui-surface-2);
+  color: var(--ui-ink-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 /* Densidad HUD: la versión compacta recorta aire en tablas y tarjetas sin
    tocar tipografía ni controles. La preferencia vive en `ui-density`. */
 html[data-density="compact"] .ant-card:not(.ant-card-small) > .ant-card-head {

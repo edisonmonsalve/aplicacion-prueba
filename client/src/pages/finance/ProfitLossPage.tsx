@@ -1,8 +1,7 @@
 import { signal } from "@/styles/signal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  App,
   Card,
   Col,
   Row,
@@ -19,6 +18,8 @@ import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type { PnlReport } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
@@ -181,9 +182,10 @@ function Variation({ value, gasto }: { value: number | null; gasto?: boolean }) 
 }
 
 export default function ProfitLossPage() {
-  const { message } = App.useApp();
   const [report, setReport] = useState<PnlReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
   const {
     range,
     periodo,
@@ -197,21 +199,28 @@ export default function ProfitLossPage() {
 
   useDocumentTitle("Estado de resultados");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getPnl({ desde, hasta })
       .then((r) => {
-        if (!cancelled) setReport(r);
+        if (isCurrent(requestId)) setReport(r);
       })
-      .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar el estado de resultados")))
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setReport(null);
+          setError(getErrorMessage(err, "No se pudo cargar el estado de resultados"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [desde, hasta, message]);
+  }, [desde, hasta, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const rows = report ? buildRows(report) : [];
   const sinMovimiento =
@@ -250,9 +259,23 @@ export default function ProfitLossPage() {
           onSelectPeriodo={selectPeriodo}
           onShift={shiftPeriodo}
           enPeriodoActual={enPeriodoActual}
-          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+          extra={
+            <ReportExport
+              disabled={!report || loading || !!error}
+              onCsv={exportCsv}
+              onPdf={exportPdf}
+            />
+          }
         />
       </Card>
+
+      {error && (
+        <LoadError
+          message="No se pudo cargar el estado de resultados"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       {report && (
         <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
@@ -327,7 +350,7 @@ export default function ProfitLossPage() {
         </Row>
       )}
 
-      {loading && !report ? (
+      {error ? null : loading && !report ? (
         <TableSkeleton />
       ) : (
         <Table<PnlRow>

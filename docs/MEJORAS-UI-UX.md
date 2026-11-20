@@ -501,6 +501,58 @@ Verificación: `client npm run build` (✓ 3643 módulos; CSS 33,56 → 34,43 kB
 preexistentes de `InvoiceFormPage.tsx` se mantienen) y `server npm run typecheck`
 sin errores. Sin commit ni push hasta la aprobación explícita.
 
+## 30. Reportes: error persistente y reintento
+
+Los reportes de Finanzas y Cartera solo avisaban del fallo con un `message.error`
+temporal. Si la petición fallaba, el aviso desaparecía en segundos, no había forma
+de reintentar sin recargar y la tabla o el gráfico podían seguir mostrando los datos
+del rango anterior mientras el selector ya mostraba el nuevo. Resumen, además, no
+descartaba respuestas obsoletas al cambiar de periodo rápido.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| R1 | **`LoadError` compartido** | Alerta persistente con título, detalle devuelto por la API y botón `Reintentar`. Sustituye los toasts de carga en Resumen, Resultados, Flujo de caja, Balance, Tendencias, Rentabilidad, Rotación de inventario, Embudo de cotizaciones y Cartera. |
+| R2 | **Sin datos del rango anterior** | Al fallar se limpia el reporte (`null`); en Cartera se vacían la lista y el aging. El error queda visible y explica que lo mostrado no corresponde al filtro actual. |
+| R3 | **`useLatestRequest`** | Secuencia de peticiones: cada carga invalida la anterior y solo la última puede escribir estado; al desmontar invalida lo que siga en vuelo. Resumen lo estrena y las demás páginas sustituyen `let cancelled` por el mismo hook. |
+| R4 | **Exportación coherente** | CSV y PDF quedan deshabilitados mientras carga o hay error. Antes solo Resumen lo comprobaba; el resto dependía únicamente de que existiera `report`. |
+| R5 | **Reintento sin recargar** | El botón vuelve a pedir el mismo rango y limpia el error al iniciar la carga; en Resumen reutiliza `load`, así que también refresca después de crear o eliminar una cuenta. |
+
+Archivos: `components/LoadError.tsx` y `hooks/useLatestRequest.ts` (nuevos),
+`pages/finance/FinanceOverviewPage.tsx`, `ProfitLossPage.tsx`, `CashFlowPage.tsx`,
+`BalancePage.tsx`, `TrendsPage.tsx`, `ProfitabilityPage.tsx`,
+`InventoryAnalyticsPage.tsx`, `QuotesFunnelPage.tsx` y
+`pages/invoices/ReceivablesPage.tsx`. Sin backend ni migraciones.
+
+Verificación: `client npm run build` (✓ 3645 módulos; CSS 34,43 kB sin cambio; JS
+principal 169,28 → 169,35 kB) y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
+## 31. Rotación, breadcrumb y alertas
+
+Revisión de la pantalla de Rotación y del Resumen financiero tras la tanda de
+robustez. El cálculo de días tenía dos referencias mezcladas: usaba el cierre
+del rango (`hasta`) incluso cuando el mes seguía abierto, así que una venta del
+14 se mostraba como «hace 16 días» el día 20 de un mes que termina el 30.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| R6 | **Corte de días correcto** | `dias_sin_venta` y el stock muerto se miden contra hoy si el periodo sigue abierto, o contra el cierre del rango si ya terminó. La última venta también se filtra por esa fecha de corte para no tomar ventas posteriores al periodo consultado. |
+| R7 | **«Productos con venta»** | La tarjeta ya no muestra una fracción confusa como `30 / 20`. Ahora el número grande es la cantidad de productos con venta y debajo se lee `45 analizados · 15 sin venta en el periodo`. |
+| R8 | **Días de inventario explicados** | La columna `Días inv.` y `Rotación` tienen ayuda emergente y foco por teclado. Los días de inventario usan los días transcurridos del periodo, no el mes completo, para no inflar el resultado de un mes en curso. |
+| R9 | **Un solo breadcrumb** | Se retiró el micro-label `02 / Finanzas` del Resumen: duplicaba el breadcrumb `Inicio / Finanzas` que ya genera `PageHeader`. |
+| R10 | **Alertas y sugerencias** | Las alertas de AntD reciben el lenguaje Signal: rail de acento, icono en chip, fondo teñido y texto con contraste. Las sugerencias del presupuesto dejan la lista de `Alert` y pasan a `SuggestionList`, con severidad, icono y referencia de la línea. |
+
+Archivos: `server/src/modules/finance/reports.service.ts`,
+`server/tests/inventory-analytics.test.ts`,
+`pages/finance/InventoryAnalyticsPage.tsx`, `pages/finance/FinanceOverviewPage.tsx`,
+`components/SuggestionList.tsx` (nuevo) e `index.css`. Sin migraciones.
+
+Verificación: `client npm run build` (✓ 3646 módulos; CSS 34,43 → 37,05 kB por
+los estilos de alertas y sugerencias; JS principal 169,35 kB), `client npm run lint`
+(0 errores), `server npm run typecheck`, `server npm run lint` y
+`server npm test -- inventory-analytics.test.ts` (4 pruebas, incluida la de un
+periodo abierto que no debe sumar días futuros).
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

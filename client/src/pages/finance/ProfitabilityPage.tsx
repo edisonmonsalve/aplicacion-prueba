@@ -1,8 +1,7 @@
 import { signal } from "@/styles/signal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  App,
   Card,
   Col,
   Progress,
@@ -24,6 +23,8 @@ import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type { ProfitabilityReport, ProfitabilityRow, ProfitGroup } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
@@ -100,10 +101,11 @@ function buildReportDoc(r: ProfitabilityReport): ReportDocument {
 }
 
 export default function ProfitabilityPage() {
-  const { message } = App.useApp();
   const { get, update } = useUrlFilters();
   const [report, setReport] = useState<ProfitabilityReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
 
   const rawGroup = get("grupo");
   const grupo: ProfitGroup = isGroup(rawGroup) ? rawGroup : "producto";
@@ -120,21 +122,28 @@ export default function ProfitabilityPage() {
 
   useDocumentTitle("Rentabilidad");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getProfitability({ desde, hasta, grupo })
       .then((r) => {
-        if (!cancelled) setReport(r);
+        if (isCurrent(requestId)) setReport(r);
       })
-      .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar la rentabilidad")))
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setReport(null);
+          setError(getErrorMessage(err, "No se pudo cargar la rentabilidad"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [desde, hasta, grupo, message]);
+  }, [desde, hasta, grupo, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const sinDatos = report && report.data.length === 0;
 
@@ -168,7 +177,13 @@ export default function ProfitabilityPage() {
           onSelectPeriodo={selectPeriodo}
           onShift={shiftPeriodo}
           enPeriodoActual={enPeriodoActual}
-          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+          extra={
+            <ReportExport
+              disabled={!report || loading || !!error}
+              onCsv={exportCsv}
+              onPdf={exportPdf}
+            />
+          }
         />
       </Card>
 
@@ -181,6 +196,14 @@ export default function ProfitabilityPage() {
           />
         </FilterField>
       </FilterBar>
+
+      {error && (
+        <LoadError
+          message="No se pudo cargar la rentabilidad"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       {sinDatos && (
         <Alert
@@ -248,7 +271,7 @@ export default function ProfitabilityPage() {
         </>
       )}
 
-      {loading && !report ? (
+      {error ? null : loading && !report ? (
         <TableSkeleton />
       ) : (
         <Table<ProfitabilityRow>

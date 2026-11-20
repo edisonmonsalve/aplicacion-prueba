@@ -1,5 +1,5 @@
 import { signal } from "@/styles/signal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   App,
@@ -23,6 +23,8 @@ import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import TableSkeleton from "@/components/TableSkeleton";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type { CashFlowAccountRow, CashFlowMonth, CashFlowReport, FinanceAccount } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
@@ -121,6 +123,8 @@ export default function CashFlowPage() {
   const [report, setReport] = useState<CashFlowReport | null>(null);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
 
   const accountId = getPositiveInt("account_id", 0) || undefined;
   const {
@@ -142,25 +146,32 @@ export default function CashFlowPage() {
       .catch(() => message.error("No se pudieron cargar las cuentas"));
   }, [message]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getCashFlow({
       desde,
       hasta,
       account_id: accountId,
     })
       .then((r) => {
-        if (!cancelled) setReport(r);
+        if (isCurrent(requestId)) setReport(r);
       })
-      .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar el flujo de caja")))
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setReport(null);
+          setError(getErrorMessage(err, "No se pudo cargar el flujo de caja"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [desde, hasta, accountId, message]);
+  }, [desde, hasta, accountId, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const sinMovimiento =
     report && report.totales.entradas === 0 && report.totales.salidas === 0;
@@ -195,7 +206,13 @@ export default function CashFlowPage() {
           onSelectPeriodo={selectPeriodo}
           onShift={shiftPeriodo}
           enPeriodoActual={enPeriodoActual}
-          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+          extra={
+            <ReportExport
+              disabled={!report || loading || !!error}
+              onCsv={exportCsv}
+              onPdf={exportPdf}
+            />
+          }
         />
       </Card>
 
@@ -214,6 +231,14 @@ export default function CashFlowPage() {
           />
         </FilterField>
       </FilterBar>
+
+      {error && (
+        <LoadError
+          message="No se pudo cargar el flujo de caja"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       {sinMovimiento && (
         <Alert
@@ -283,7 +308,7 @@ export default function CashFlowPage() {
         </>
       )}
 
-      {loading && !report ? (
+      {error ? null : loading && !report ? (
         <TableSkeleton />
       ) : (
         <>

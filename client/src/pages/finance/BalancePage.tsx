@@ -1,8 +1,7 @@
 import { signal } from "@/styles/signal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  App,
   Card,
   Col,
   DatePicker,
@@ -22,6 +21,8 @@ import PageHeader from "@/components/PageHeader";
 import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type { BalanceCuenta, BalanceReport } from "@/types";
 import { exportReportCsv, printReport, type ReportCell, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
@@ -177,10 +178,11 @@ function buildReportDoc(report: BalanceReport): ReportDocument {
 }
 
 export default function BalancePage() {
-  const { message } = App.useApp();
   const { get, update } = useUrlFilters();
   const [report, setReport] = useState<BalanceReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
 
   const [asOf, setAsOf] = useState<dayjs.Dayjs>(() => {
     const raw = get("hasta");
@@ -189,21 +191,28 @@ export default function BalancePage() {
 
   useDocumentTitle("Balance");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getBalance({ hasta: asOf.format(FMT) })
       .then((r) => {
-        if (!cancelled) setReport(r);
+        if (isCurrent(requestId)) setReport(r);
       })
-      .catch((err) => message.error(getErrorMessage(err, "No se pudo cargar el balance")))
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setReport(null);
+          setError(getErrorMessage(err, "No se pudo cargar el balance"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [asOf, message]);
+  }, [asOf, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const activoRows: BalanceRow[] = report ? buildActivoRows(report) : [];
   const pasivoRows: BalanceRow[] = report ? buildPasivoRows(report) : [];
@@ -261,12 +270,24 @@ export default function BalancePage() {
                 update({ hasta: d.format(FMT) });
               }}
             />
-            <ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />
+            <ReportExport
+              disabled={!report || loading || !!error}
+              onCsv={exportCsv}
+              onPdf={exportPdf}
+            />
           </Space>
         }
       />
 
       <FinanceSectionTabs section="reportes" />
+
+      {error && (
+        <LoadError
+          message="No se pudo cargar el balance"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       {report && (
         <Alert

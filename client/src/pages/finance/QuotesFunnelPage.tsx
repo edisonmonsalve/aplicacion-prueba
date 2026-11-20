@@ -1,8 +1,7 @@
 import { signal } from "@/styles/signal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  App,
   Card,
   Col,
   Progress,
@@ -23,6 +22,8 @@ import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type {
   QuoteFunnelDetail,
   QuoteFunnelReport,
@@ -187,9 +188,10 @@ function buildReportDoc(r: QuoteFunnelReport): ReportDocument {
 }
 
 export default function QuotesFunnelPage() {
-  const { message } = App.useApp();
   const [report, setReport] = useState<QuoteFunnelReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
   const {
     range,
     periodo,
@@ -203,23 +205,28 @@ export default function QuotesFunnelPage() {
 
   useDocumentTitle("Embudo de cotizaciones");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getQuoteFunnel({ desde, hasta })
       .then((r) => {
-        if (!cancelled) setReport(r);
+        if (isCurrent(requestId)) setReport(r);
       })
-      .catch((err) =>
-        message.error(getErrorMessage(err, "No se pudo cargar el embudo de cotizaciones"))
-      )
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setReport(null);
+          setError(getErrorMessage(err, "No se pudo cargar el embudo de cotizaciones"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [desde, hasta, message]);
+  }, [desde, hasta, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const creadas = report?.embudo.find((e) => e.etapa === "creadas")?.cotizaciones ?? 0;
 
@@ -253,9 +260,23 @@ export default function QuotesFunnelPage() {
           onSelectPeriodo={selectPeriodo}
           onShift={shiftPeriodo}
           enPeriodoActual={enPeriodoActual}
-          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+          extra={
+            <ReportExport
+              disabled={!report || loading || !!error}
+              onCsv={exportCsv}
+              onPdf={exportPdf}
+            />
+          }
         />
       </Card>
+
+      {error && (
+        <LoadError
+          message="No se pudo cargar el embudo de cotizaciones"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       {report && report.resumen.cotizaciones === 0 && (
         <Alert

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, App, Card, Col, Row, Statistic, Table, Tag, Typography } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, Card, Col, Row, Statistic, Table, Tag, Typography } from "antd";
 import { RiseOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
@@ -25,6 +25,8 @@ import FinanceSectionTabs from "@/components/FinanceSectionTabs";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
 import ReportExport from "@/components/ReportExport";
 import TableSkeleton from "@/components/TableSkeleton";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import type { TrendMonth, TrendsReport } from "@/types";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import { fmtDate, money } from "./FinanceUtils";
@@ -175,10 +177,11 @@ function buildReportDoc(r: TrendsReport): ReportDocument {
 }
 
 export default function TrendsPage() {
-  const { message } = App.useApp();
   const reduced = useReducedMotion();
   const [report, setReport] = useState<TrendsReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
   // Por defecto, la serie de los últimos seis meses.
   const { range, periodo, desde, hasta, changeRange, selectPeriodo, shiftPeriodo, enPeriodoActual } =
     useDateRange({
@@ -188,21 +191,28 @@ export default function TrendsPage() {
 
   useDocumentTitle("Tendencias");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getTrends({ desde, hasta })
       .then((r) => {
-        if (!cancelled) setReport(r);
+        if (isCurrent(requestId)) setReport(r);
       })
-      .catch((err) => message.error(getErrorMessage(err, "No se pudieron cargar las tendencias")))
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          setReport(null);
+          setError(getErrorMessage(err, "No se pudieron cargar las tendencias"));
+        }
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [desde, hasta, message]);
+  }, [desde, hasta, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const chartData = useMemo(
     () =>
@@ -243,9 +253,23 @@ export default function TrendsPage() {
           onSelectPeriodo={selectPeriodo}
           onShift={shiftPeriodo}
           enPeriodoActual={enPeriodoActual}
-          extra={<ReportExport disabled={!report} onCsv={exportCsv} onPdf={exportPdf} />}
+          extra={
+            <ReportExport
+              disabled={!report || loading || !!error}
+              onCsv={exportCsv}
+              onPdf={exportPdf}
+            />
+          }
         />
       </Card>
+
+      {error && (
+        <LoadError
+          message="No se pudieron cargar las tendencias"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
       {report && report.serie.every((m) => m.ingresos === 0 && m.gastos === 0) && (
         <Alert
