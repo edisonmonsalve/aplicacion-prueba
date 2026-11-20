@@ -553,6 +553,32 @@ los estilos de alertas y sugerencias; JS principal 169,35 kB), `client npm run l
 `server npm test -- inventory-analytics.test.ts` (4 pruebas, incluida la de un
 periodo abierto que no debe sumar días futuros).
 
+## 32. Movimientos: robustez y avisos del modal
+
+El historial conservaba un patrón de carga propio con `let ignore`: el fallo solo
+dejaba un toast de tres segundos, la tabla y los totales seguían mostrando el
+filtro anterior y el botón de exportación permanecía activo durante la carga. En
+el modal, dos problemas reales: el confirm de presupuesto se reabría porque el
+flag se leía del render anterior, y el operador nunca veía avisos financieros
+porque esas rutas son de admin/contador/consulta y los `.catch(() => {})` lo
+ocultaban.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| M1 | **Carga como los reportes** | `MovementsPage` usa `useLatestRequest` en lugar de su flag local. Al fallar se vacían filas, total y resumen, se muestra `LoadError` con `Reintentar` y la tabla se oculta; no quedan cifras huérfanas de otro filtro. |
+| M2 | **Exportación coherente** | El botón propio de CSV se sustituye por `ReportExport`: CSV y PDF desde un mismo `ReportDocument`, deshabilitado mientras carga, con error o sin resultados. Los importes se omiten para roles sin acceso a costos. |
+| M3 | **Ayuda accesible** | Las once cabeceras usan `ColumnTitle` con `.ui-column-help` y `tabIndex={0}`, igual que Rotación. Los `Select` tienen nombre accesible y el resumen es `role="status" aria-live="polite"`. El tooltip de `Costo unitario` ya no promete un histórico que la consulta obtiene con `COALESCE`. |
+| M4 | **Confirm sin recursión** | `submit(confirmed, confirmedGasto)` recibe el flag y el monto como argumentos; el `onOk` del confirm ya no depende del closure ni puede reabrirse. Si el monto cambia mientras el diálogo está abierto, vuelve a pedir confirmación. |
+| M5 | **Avisos honestos según el rol** | El operador ve una nota que explica que las validaciones financieras se aplican al guardar, en lugar de una llamada 403 silenciosa. Para roles con acceso financiero, un fallo al consultar presupuesto/periodo muestra una alerta con reintento en vez de ocultarse. No se ampliaron permisos ni se expusieron importes al operador. |
+
+Archivos: `pages/MovementsPage.tsx` y `components/MovementFormModal.tsx`. Sin
+backend, sin dependencias nuevas y sin migraciones.
+
+Verificación: `client npm run build` (✓ 3646 módulos; CSS 37,05 kB sin cambio;
+JS principal 169,35 → 169,37 kB y chunk de Movimientos 11,64 kB por el
+documento de exportación) y `client npm run lint` (0 errores; los 2 warnings
+preexistentes de `InvoiceFormPage.tsx` se mantienen).
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

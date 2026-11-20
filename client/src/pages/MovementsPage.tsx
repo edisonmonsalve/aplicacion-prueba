@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Button,
@@ -14,7 +14,6 @@ import {
   message,
 } from "antd";
 import type { TableProps } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getMovements, type MovementSortKey, type MovementsQuery } from "@/services/movementsService";
 import { getProducts } from "@/services/productsService";
@@ -23,7 +22,8 @@ import { getErrorMessage } from "@/utils/errors";
 import EmptyState from "@/components/EmptyState";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { canSeeCosts } from "@/utils/roles";
-import { downloadCsv, fetchAllPages, type CsvColumn } from "@/utils/csv";
+import { fetchAllPages } from "@/utils/csv";
+import { exportReportCsv, printReport, type ReportColumn, type ReportDocument } from "@/utils/reportExport";
 import type { StockMovement } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDateRange } from "@/hooks/useDateRange";
@@ -32,6 +32,9 @@ import PageHeader from "@/components/PageHeader";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import RelativeTime from "@/components/RelativeTime";
 import PeriodRangePicker from "@/components/PeriodRangePicker";
+import ReportExport from "@/components/ReportExport";
+import LoadError from "@/components/LoadError";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const SORT_KEYS: MovementSortKey[] = [
@@ -65,6 +68,98 @@ const ORIGEN_META: Record<StockMovement["origen"], { color: string; label: strin
 interface ProductOption {
   value: number;
   label: string;
+}
+
+type MovementSummary = {
+  entradas: number;
+  salidas: number;
+  unidades_entrada: number;
+  unidades_salida: number;
+};
+
+const EMPTY_SUMMARY: MovementSummary = {
+  entradas: 0,
+  salidas: 0,
+  unidades_entrada: 0,
+  unidades_salida: 0,
+};
+
+/** Cabecera con ayuda: el subrayado punteado invita a enfocarla con el teclado. */
+const ColumnTitle = ({ children, hint }: { children: string; hint: string }) => (
+  <Tooltip title={hint}>
+    <span className="ui-column-help" tabIndex={0}>
+      {children}
+    </span>
+  </Tooltip>
+);
+
+/** Un mismo documento alimenta el CSV y la vista imprimible en PDF. */
+function buildReportDoc(
+  rows: StockMovement[],
+  summary: MovementSummary,
+  verCosto: boolean,
+  desde?: string,
+  hasta?: string
+): ReportDocument {
+  const columns: ReportColumn[] = [
+    { header: "Fecha", format: "date" },
+    { header: "SKU" },
+    { header: "Producto" },
+    { header: "Tipo" },
+    { header: "Origen" },
+    { header: "Cantidad", format: "number", align: "right" },
+    ...(verCosto
+      ? [
+          { header: "Costo unitario", format: "money" as const, align: "right" as const },
+          { header: "Costo total", format: "money" as const, align: "right" as const },
+          { header: "Precio unitario", format: "money" as const, align: "right" as const },
+        ]
+      : []),
+    { header: "Documento" },
+    { header: "Motivo" },
+    { header: "Usuario" },
+  ];
+
+  return {
+    title: "Movimientos de stock",
+    subtitle: `Periodo: ${desde ?? "todo"} — ${hasta ?? "todo"} · ${rows.length} movimiento(s)`,
+    meta: [
+      { label: "Entradas", value: `${summary.entradas} mov. · ${summary.unidades_entrada} uds` },
+      { label: "Salidas", value: `${summary.salidas} mov. · ${summary.unidades_salida} uds` },
+      { label: "Total", value: `${rows.length} movimientos` },
+    ],
+    sections: [
+      {
+        title: "Historial",
+        columns,
+        rows: rows.map((m) => [
+          m.created_at,
+          m.sku,
+          m.producto,
+          m.tipo === "entrada" ? "Entrada" : "Salida",
+          ORIGEN_META[m.origen]?.label ?? m.origen,
+          m.cantidad,
+          ...(verCosto
+            ? [
+                m.costo_unitario,
+                m.costo_unitario === null ? null : m.costo_unitario * m.cantidad,
+                m.precio_unitario,
+              ]
+            : []),
+          m.invoice_id
+            ? `Factura #${m.invoice_id}`
+            : m.quote_id
+              ? `Cotización #${m.quote_id}`
+              : "",
+          m.motivo ?? "",
+          m.usuario,
+        ]),
+      },
+    ],
+    notes: verCosto
+      ? undefined
+      : ["Los importes se omiten porque el rol no tiene acceso a costos."],
+  };
 }
 
 export default function MovementsPage() {
@@ -121,16 +216,12 @@ export default function MovementsPage() {
   );
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [summary, setSummary] = useState({
-    entradas: 0,
-    salidas: 0,
-    unidades_entrada: 0,
-    unidades_salida: 0,
-  });
+  const [summary, setSummary] = useState<MovementSummary>(EMPTY_SUMMARY);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState(q);
+  const { start, isCurrent } = useLatestRequest();
 
   // M2: búsqueda remota del producto, sin limitarse a los primeros 100.
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
@@ -160,24 +251,36 @@ export default function MovementsPage() {
     return () => clearTimeout(timer);
   }, [text, q, update]);
 
-  useEffect(() => {
-    let ignore = false;
+  const load = useCallback(() => {
+    const requestId = start();
     setLoading(true);
+    setError(null);
     getMovements(query)
       .then((res) => {
-        if (ignore) return;
-        setMovements(res.data);
-        setTotal(res.total);
-        setSummary(res.summary);
+        if (isCurrent(requestId)) {
+          setMovements(res.data);
+          setTotal(res.total);
+          setSummary(res.summary);
+        }
       })
-      .catch((err) => messageApi.error(getErrorMessage(err, "No se pudo cargar el historial")))
+      .catch((err) => {
+        if (isCurrent(requestId)) {
+          // Sin datos huérfanos del filtro anterior: el error explica por qué
+          // la tabla está vacía y el botón Reintentar repite la misma consulta.
+          setMovements([]);
+          setTotal(0);
+          setSummary(EMPTY_SUMMARY);
+          setError(getErrorMessage(err, "No se pudo cargar el historial"));
+        }
+      })
       .finally(() => {
-        if (!ignore) setLoading(false);
+        if (isCurrent(requestId)) setLoading(false);
       });
-    return () => {
-      ignore = true;
-    };
-  }, [query, messageApi]);
+  }, [query, start, isCurrent]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Opciones del selector: búsqueda remota por SKU o nombre.
   useEffect(() => {
@@ -259,56 +362,42 @@ export default function MovementsPage() {
     });
   };
 
+  const fetchExportRows = () =>
+    fetchAllPages<StockMovement>((p) =>
+      getMovements({ ...query, page: p, pageSize: 100 })
+    );
+
   const exportCsv = async () => {
-    setExporting(true);
-    try {
-      const all = await fetchAllPages<StockMovement>((p) =>
-        getMovements({ ...query, page: p, pageSize: 100 })
-      );
-      const columns: CsvColumn<StockMovement>[] = [
-        { header: "Fecha", value: (m) => dayjs(m.created_at).format("DD/MM/YYYY HH:mm") },
-        { header: "SKU", value: (m) => m.sku },
-        { header: "Producto", value: (m) => m.producto },
-        { header: "Tipo", value: (m) => (m.tipo === "entrada" ? "Entrada" : "Salida") },
-        { header: "Origen", value: (m) => ORIGEN_META[m.origen]?.label ?? m.origen },
-        { header: "Cantidad", value: (m) => m.cantidad },
-        ...(verCosto
-          ? [
-              { header: "Costo unitario", value: (m: StockMovement) => m.costo_unitario ?? "" },
-              {
-                header: "Costo total",
-                value: (m: StockMovement) =>
-                  m.costo_unitario === null ? "" : m.costo_unitario * m.cantidad,
-              },
-              { header: "Precio unitario", value: (m: StockMovement) => m.precio_unitario ?? "" },
-            ]
-          : []),
-        {
-          header: "Documento",
-          value: (m) => (m.invoice_id ? `Factura #${m.invoice_id}` : m.quote_id ? `Cotización #${m.quote_id}` : ""),
-        },
-        { header: "Motivo", value: (m) => m.motivo ?? "" },
-        { header: "Usuario", value: (m) => m.usuario },
-      ];
-      downloadCsv(`movimientos-${dayjs().format("YYYY-MM-DD")}.csv`, columns, all);
-      messageApi.success(`${all.length} movimiento(s) exportado(s)`);
-    } catch (err) {
-      messageApi.error(getErrorMessage(err, "No se pudo exportar"));
-    } finally {
-      setExporting(false);
-    }
+    const rows = await fetchExportRows();
+    exportReportCsv(
+      `movimientos-${dayjs().format("YYYY-MM-DD")}.csv`,
+      buildReportDoc(rows, summary, verCosto, desde, hasta)
+    );
+  };
+
+  const exportPdf = async (target?: Window | null) => {
+    const rows = await fetchExportRows();
+    printReport(buildReportDoc(rows, summary, verCosto, desde, hasta), target);
   };
 
   const columns: TableProps<StockMovement>["columns"] = [
     {
-      title: <Tooltip title="Fecha y hora en que se registró el movimiento">Fecha</Tooltip>,
+      title: (
+        <ColumnTitle hint="Fecha y hora en que se registró el movimiento">
+          Fecha
+        </ColumnTitle>
+      ),
       dataIndex: "created_at",
       sorter: true,
       sortOrder: sortOrderFor("fecha"),
       render: (value: string) => <RelativeTime value={value} />,
     },
     {
-      title: <Tooltip title="Producto afectado por el movimiento">Producto</Tooltip>,
+      title: (
+        <ColumnTitle hint="Producto afectado; el enlace abre su ficha en el catálogo">
+          Producto
+        </ColumnTitle>
+      ),
       dataIndex: "producto",
       sorter: true,
       sortOrder: sortOrderFor("producto"),
@@ -321,7 +410,11 @@ export default function MovementsPage() {
       ),
     },
     {
-      title: <Tooltip title="Entrada (suma stock) o salida (resta stock)">Tipo</Tooltip>,
+      title: (
+        <ColumnTitle hint="Entrada suma stock; salida lo descuenta">
+          Tipo
+        </ColumnTitle>
+      ),
       dataIndex: "tipo",
       sorter: true,
       sortOrder: sortOrderFor("tipo"),
@@ -329,7 +422,11 @@ export default function MovementsPage() {
         tipo === "entrada" ? <Tag color="green">Entrada</Tag> : <Tag color="orange">Salida</Tag>,
     },
     {
-      title: <Tooltip title="Documento que originó el movimiento">Origen</Tooltip>,
+      title: (
+        <ColumnTitle hint="Documento o motivo que originó el movimiento">
+          Origen
+        </ColumnTitle>
+      ),
       dataIndex: "origen",
       sorter: true,
       sortOrder: sortOrderFor("origen"),
@@ -339,7 +436,11 @@ export default function MovementsPage() {
       },
     },
     {
-      title: <Tooltip title="Unidades del movimiento">Cantidad</Tooltip>,
+      title: (
+        <ColumnTitle hint="Unidades del movimiento: las entradas van con + y las salidas con −">
+          Cantidad
+        </ColumnTitle>
+      ),
       dataIndex: "cantidad",
       sorter: true,
       sortOrder: sortOrderFor("cantidad"),
@@ -351,9 +452,9 @@ export default function MovementsPage() {
       ? ([
           {
             title: (
-              <Tooltip title="Costo histórico por unidad: en entradas es el costo de compra; en salidas, el costo del producto al momento de la salida (base del costo de ventas)">
+              <ColumnTitle hint="Costo por unidad guardado en la entrada; si la salida no tiene uno histórico se usa el costo actual del producto. Base del costo de ventas">
                 Costo unitario
-              </Tooltip>
+              </ColumnTitle>
             ),
             dataIndex: "costo_unitario",
             align: "right",
@@ -367,7 +468,11 @@ export default function MovementsPage() {
               ),
           },
           {
-            title: <Tooltip title="Costo histórico por unidad multiplicado por la cantidad">Costo total</Tooltip>,
+            title: (
+              <ColumnTitle hint="Costo unitario multiplicado por la cantidad">
+                Costo total
+              </ColumnTitle>
+            ),
             align: "right",
             render: (_: unknown, m: StockMovement) =>
               m.costo_unitario === null ? (
@@ -378,9 +483,9 @@ export default function MovementsPage() {
           },
           {
             title: (
-              <Tooltip title="Precio comercial de la venta (no es costo). Solo se muestra en salidas con precio registrado">
+              <ColumnTitle hint="Precio comercial de la venta (no es costo). Solo se muestra en salidas con precio registrado">
                 Precio unitario
-              </Tooltip>
+              </ColumnTitle>
             ),
             dataIndex: "precio_unitario",
             align: "right",
@@ -396,7 +501,11 @@ export default function MovementsPage() {
         ] as NonNullable<TableProps<StockMovement>["columns"]>)
       : []),
     {
-      title: <Tooltip title="Factura o cotización vinculada">Documento</Tooltip>,
+      title: (
+        <ColumnTitle hint="Factura o cotización vinculada al movimiento">
+          Documento
+        </ColumnTitle>
+      ),
       render: (_, m) =>
         m.invoice_id ? (
           <Link to={`/facturas/${m.invoice_id}`}>Factura #{m.invoice_id}</Link>
@@ -406,8 +515,15 @@ export default function MovementsPage() {
           "—"
         ),
     },
-    { title: <Tooltip title="Motivo o referencia del movimiento">Motivo</Tooltip>, dataIndex: "motivo", render: (v: string | null) => v ?? "—" },
-    { title: <Tooltip title="Usuario que registró el movimiento">Usuario</Tooltip>, dataIndex: "usuario" },
+    {
+      title: <ColumnTitle hint="Motivo o referencia libre del movimiento">Motivo</ColumnTitle>,
+      dataIndex: "motivo",
+      render: (v: string | null) => v ?? "—",
+    },
+    {
+      title: <ColumnTitle hint="Persona que registró el movimiento">Usuario</ColumnTitle>,
+      dataIndex: "usuario",
+    },
   ];
 
   return (
@@ -417,9 +533,11 @@ export default function MovementsPage() {
         title="Movimientos de stock"
         description="Consulta el historial de entradas y salidas. El stock solo cambia registrando movimientos."
         extra={
-          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportCsv}>
-            Exportar CSV
-          </Button>
+          <ReportExport
+            disabled={loading || !!error || total === 0}
+            onCsv={exportCsv}
+            onPdf={exportPdf}
+          />
         }
       />
 
@@ -449,6 +567,7 @@ export default function MovementsPage() {
         </FilterField>
         <FilterField label="Producto" width={300}>
           <Select
+            aria-label="Producto"
             placeholder="Buscar por SKU o nombre"
             allowClear
             showSearch
@@ -464,6 +583,7 @@ export default function MovementsPage() {
         </FilterField>
         <FilterField label="Tipo de movimiento" width={160}>
           <Select
+            aria-label="Tipo de movimiento"
             placeholder="Todos"
             allowClear
             style={{ width: "100%" }}
@@ -477,6 +597,7 @@ export default function MovementsPage() {
         </FilterField>
         <FilterField label="Origen" width={160}>
           <Select
+            aria-label="Origen"
             placeholder="Todos"
             allowClear
             style={{ width: "100%" }}
@@ -495,19 +616,29 @@ export default function MovementsPage() {
         )}
       </FilterBar>
 
-      <Space size={8} wrap style={{ marginBottom: 16 }}>
-        <Tag color="green" style={{ margin: 0, padding: "4px 10px" }}>
-          Entradas: <strong>{summary.entradas}</strong> mov. · <strong>{summary.unidades_entrada}</strong> uds
-        </Tag>
-        <Tag color="orange" style={{ margin: 0, padding: "4px 10px" }}>
-          Salidas: <strong>{summary.salidas}</strong> mov. · <strong>{summary.unidades_salida}</strong> uds
-        </Tag>
-        <Tag color="blue" style={{ margin: 0, padding: "4px 10px" }}>
-          Total: <strong>{total}</strong> movimientos
-        </Tag>
-      </Space>
+      {error && (
+        <LoadError
+          message="No se pudo cargar el historial de movimientos"
+          description={error}
+          onRetry={load}
+        />
+      )}
 
-      {firstLoad ? (
+      {!error && (
+        <Space size={8} wrap style={{ marginBottom: 16 }} role="status" aria-live="polite">
+          <Tag color="green" style={{ margin: 0, padding: "4px 10px" }}>
+            Entradas: <strong>{summary.entradas}</strong> mov. · <strong>{summary.unidades_entrada}</strong> uds
+          </Tag>
+          <Tag color="orange" style={{ margin: 0, padding: "4px 10px" }}>
+            Salidas: <strong>{summary.salidas}</strong> mov. · <strong>{summary.unidades_salida}</strong> uds
+          </Tag>
+          <Tag color="blue" style={{ margin: 0, padding: "4px 10px" }}>
+            Total: <strong>{total}</strong> movimientos
+          </Tag>
+        </Space>
+      )}
+
+      {error ? null : firstLoad ? (
         <TableSkeleton />
       ) : (
         <Table<StockMovement>
