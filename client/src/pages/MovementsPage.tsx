@@ -196,7 +196,9 @@ export default function MovementsPage() {
   const rawOrder = get("order");
   const order = rawOrder === "asc" || rawOrder === "desc" ? rawOrder : undefined;
   const page = getPositiveInt("page", 1);
-  const pageSize = getPositiveInt("pageSize", 10);
+  // El esquema del servidor admite como máximo 100 por página: acotar aquí
+  // evita un 400 si la URL se comparte con un tamaño mayor.
+  const pageSize = getPositiveInt("pageSize", 10, 100);
   const query = useMemo<MovementsQuery>(
     () => ({
       page,

@@ -1020,7 +1020,8 @@ export type AuditEntity =
   | "invoice_adjustment"
   | "bank_reconciliation"
   | "receivable_followup"
-  | "company_settings";
+  | "company_settings"
+  | "stock_movement";
 
 export interface AuditEntry {
   id: number;

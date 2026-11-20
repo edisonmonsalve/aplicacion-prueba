@@ -579,6 +579,32 @@ JS principal 169,35 → 169,37 kB y chunk de Movimientos 11,64 kB por el
 documento de exportación) y `client npm run lint` (0 errores; los 2 warnings
 preexistentes de `InvoiceFormPage.tsx` se mantienen).
 
+## 33. Movimientos: búsqueda literal, límites y trazabilidad
+
+Cierre de la deuda de fondo del módulo. La búsqueda trataba `%` y `_` como
+comodines, un `pageSize` compartido por URL podía superar el máximo del esquema
+y los movimientos eran la única operación de stock que no dejaba rastro en la
+bitácora append-only.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| M6 | **`pageSize` acotado** | `getPositiveInt` acepta un máximo opcional y Movimientos lo usa con 100, el mismo límite del esquema del servidor. Un enlace compartido con `pageSize=500` ya no provoca un 400. |
+| M7 | **Comodines literales** | Nuevo `escapeLike` en `utils/sql.ts`: escapa `\`, `%` y `_`, y la consulta usa `LIKE ? ESCAPE '\\'`. Buscar `50%` ya no devuelve todo el historial. |
+| M8 | **Trazabilidad de stock** | Cada movimiento escribe `audit_log` con entidad `stock_movement`, acción `crear`, stock anterior/posterior, tipo, origen, cantidad y documento. Se registra dentro de la misma transacción, así que un rollback por periodo cerrado no deja auditoría huérfana. El visor de auditoría ya etiqueta la entidad como «Movimiento». |
+| M9 | **Pruebas de regresión** | Seis pruebas nuevas: paginación con `total` y rechazo de `pageSize` inválido, combinación de filtro+rango+orden, ocultamiento de importes e ignorar `sort=costo` para el operador, búsqueda con `%`/`_` literales, rollback con periodo cerrado y rastro de auditoría. |
+
+Archivos: `server/src/utils/sql.ts`, `server/src/modules/movements/movements.service.ts`,
+`server/src/modules/finance/finance.shared.ts`, `server/src/modules/audit/audit.schema.ts`,
+`server/tests/movements.test.ts`, `client/src/hooks/useUrlFilters.ts`,
+`client/src/pages/MovementsPage.tsx`, `client/src/types/index.ts` y
+`client/src/pages/finance/AuditPage.tsx`. Sin migraciones: `audit_log` ya admite
+la entidad nueva.
+
+Verificación: `server npm run typecheck`, `server npm run lint`,
+`server npm test` (38 archivos, 241 pruebas; antes 235), `client npm run build`
+(✓ 3646 módulos; CSS 37,05 kB sin cambio; JS principal 169,37 kB) y
+`client npm run lint` (0 errores; los 2 warnings preexistentes se mantienen).
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

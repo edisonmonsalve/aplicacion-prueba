@@ -177,6 +177,7 @@ apaga, por lo que solo queda la rejilla estática.
 | Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |
 | `FinanceSectionTabs` | Pestañas contextuales bajo el `PageHeader` de las 16 páginas de Finanzas: Resumen (2 hojas), Reportes (7) y Gestión (7, con el detalle de presupuesto). Navegan a rutas existentes conservando la query de periodo y filtros, y resaltan la pestaña padre en rutas anidadas. Estilo en `.ui-finance-tabs`: micro-label, filo tenue y acento de marca en la activa. |
 | `CategoriesPanel` | Cuerpo compartido de Categorías, sin cabecera ni título propios; se usa en `/categories` y en la pestaña de `ProductsPage`. |
+| `AuditPage` | Visor append-only de `audit_log`: entidad, acción, usuario y estados antes/después. La entidad `stock_movement` aparece como «Movimiento» para seguir el rastro de cada entrada o salida de stock, con el mismo lenguaje de tags que el resto. |
 
 ## 7. Accesibilidad
 

@@ -34,6 +34,7 @@ const ENTIDAD_META: Record<AuditEntity, { label: string; color: string }> = {
   bank_reconciliation: { label: "Conciliación", color: "magenta" },
   receivable_followup: { label: "Seguimiento cartera", color: "lime" },
   company_settings: { label: "Empresa", color: "blue" },
+  stock_movement: { label: "Movimiento", color: "gold" },
 };
 
 const ENTIDAD_OPTIONS = (Object.keys(ENTIDAD_META) as AuditEntity[]).map((value) => ({
