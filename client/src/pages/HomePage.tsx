@@ -28,6 +28,7 @@ import { CHART, chartTooltipStyle } from "@/styles/chartPalette";
 import PageHeader from "@/components/PageHeader";
 import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
+import Sparkline from "@/components/Sparkline";
 import AnimatedNumber from "@/components/AnimatedNumber";
 import EmptyState from "@/components/EmptyState";
 
@@ -39,6 +40,15 @@ const HOME_TOOLTIPS: Record<string, string> = {
     "Suma del precio de venta × stock actual de los productos activos. No es la utilidad ni el capital disponible.",
   "Inventario al costo":
     "Suma del costo × stock actual. Es el valor contable del activo y la base para calcular rotación y margen.",
+};
+
+/** Celda del bento de inventario: el pulso ocupa dos filas y el resto va en parejas. */
+const KPI_AREA: Record<string, string> = {
+  "Productos activos": "active",
+  "Con stock bajo": "low",
+  "Movimientos hoy": "pulse",
+  "Valor del inventario": "value",
+  "Inventario al costo": "cost",
 };
 
 const greeting = () => {
@@ -81,6 +91,13 @@ export default function HomePage() {
       return { dia: d.format("DD/MM"), Entradas: get("entrada"), Salidas: get("salida") };
     });
   }, [data]);
+
+  // La serie del pulso sale del mismo payload del gráfico: entradas + salidas
+  // por día, sin una petición extra ni un dato inventado.
+  const movimientosSerie = useMemo(
+    () => dias.map((dia) => dia.Entradas + dia.Salidas),
+    [dias]
+  );
 
   // Colores de gráficos desde tokens del tema: mismo resultado en claro y oscuro.
   const estadoColor = (estado: string) =>
@@ -226,9 +243,12 @@ export default function HomePage() {
             />
           )}
 
-          <Row gutter={[16, 16]} aria-live="polite">
+          <div className="ui-bento ui-bento--kpi" aria-live="polite">
             {stats.map((s) => (
-              <Col key={s.title} xs={24} sm={12} lg={6}>
+              <div
+                key={s.title}
+                className={`ui-bento__cell ui-bento__cell--${KPI_AREA[s.title] ?? "wide"}`}
+              >
                 <StatCard
                   label={
                     <AntTooltip title={`${HOME_TOOLTIPS[s.title] ?? s.title} ${s.hint}.`}>
@@ -239,11 +259,16 @@ export default function HomePage() {
                   icon={s.icon}
                   tone={s.tone}
                   hint={"sub" in s ? s.sub : undefined}
+                  sparkline={
+                    s.title === "Movimientos hoy" ? (
+                      <Sparkline values={movimientosSerie} height={30} />
+                    ) : undefined
+                  }
                   onClick={() => navigate(s.to)}
                 />
-              </Col>
+              </div>
             ))}
-          </Row>
+          </div>
 
           {fin && (
             <>
@@ -256,8 +281,8 @@ export default function HomePage() {
                   </Typography.Text>
                 </Typography.Title>
               </div>
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12} lg={6}>
+              <div className="ui-bento ui-bento--finance">
+                <div className="ui-bento__cell">
                   <StatCard
                     label={<AntTooltip title="Ingresos de resultado del mes (incluye ventas a crédito)">Ingresos del mes</AntTooltip>}
                     value={<AnimatedNumber value={fin.ingresos} format={formatCurrency} />}
@@ -265,8 +290,8 @@ export default function HomePage() {
                     tone="income"
                     delta={variacion(fin.variacion_ingresos_pct)}
                   />
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
+                </div>
+                <div className="ui-bento__cell">
                   <StatCard
                     label={<AntTooltip title="Salidas reales de caja y bancos del mes">Egresos de caja</AntTooltip>}
                     value={<AnimatedNumber value={fin.egresos} format={formatCurrency} />}
@@ -274,8 +299,8 @@ export default function HomePage() {
                     tone="expense"
                     delta={variacion(fin.variacion_egresos_pct)}
                   />
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
+                </div>
+                <div className="ui-bento__cell">
                   <StatCard
                     label={<AntTooltip title="Ingresos menos todos los gastos, incluido el costo de ventas">Utilidad del mes</AntTooltip>}
                     value={<AnimatedNumber value={fin.utilidad} format={formatCurrency} />}
@@ -283,8 +308,8 @@ export default function HomePage() {
                     tone={fin.utilidad >= 0 ? "income" : "expense"}
                     delta={variacion(fin.variacion_utilidad_pct)}
                   />
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
+                </div>
+                <div className="ui-bento__cell">
                   <StatCard
                     label={<AntTooltip title="IVA por pagar menos IVA descontable. Negativo = saldo a favor.">IVA neto</AntTooltip>}
                     value={<AnimatedNumber value={fin.iva_neto} format={formatCurrency} />}
@@ -292,13 +317,13 @@ export default function HomePage() {
                     tone={fin.iva_neto > 0 ? "outflow" : "income"}
                     hint={`Margen bruto ${fin.margen_bruto_pct.toFixed(0)}% · Capital ${formatCurrency(fin.capital_disponible)}`}
                   />
-                </Col>
-              </Row>
+                </div>
+              </div>
             </>
           )}
 
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col xs={24} lg={14} xl={16}>
+          <div className="ui-bento ui-bento--charts">
+            <div className="ui-bento__cell ui-bento__cell--flow">
               <Card
                 className="ui-chart-card"
                 title={
@@ -329,8 +354,8 @@ export default function HomePage() {
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
-            </Col>
-            <Col xs={24} lg={10} xl={8}>
+            </div>
+            <div className="ui-bento__cell ui-bento__cell--states">
               <Card
                 className="ui-chart-card"
                 title={
@@ -370,11 +395,8 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </Card>
-            </Col>
-          </Row>
-
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col xs={24} lg={12} xl={8}>
+            </div>
+            <div className="ui-bento__cell ui-bento__cell--top">
               <Card
                 className="ui-chart-card"
                 title={
@@ -415,8 +437,8 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </Card>
-            </Col>
-            <Col xs={24} lg={12} xl={16}>
+            </div>
+            <div className="ui-bento__cell ui-bento__cell--stock">
               <Card
                 title={
                   <AntTooltip title="Productos cuyo stock está por debajo del mínimo">
@@ -482,51 +504,52 @@ export default function HomePage() {
                   ]}
                 />
               </Card>
-            </Col>
-          </Row>
+            </div>
 
-          <Card
-            title={
-              <AntTooltip title="Últimos movimientos de stock registrados">
-                <span>Últimos movimientos</span>
-              </AntTooltip>
-            }
-            extra={<Link to="/movements">Ver todos</Link>}
-            style={{ marginTop: 16 }}
-          >
-            <Table
-              size="small"
-              rowKey="id"
-              pagination={false}
-              dataSource={data.ultimosMovimientos}
-              locale={{
-                emptyText: (
-                  <EmptyState
-                    variant="inline"
-                    title="Aún no hay movimientos"
-                    description="Las entradas y salidas recientes aparecerán aquí."
-                  />
-                ),
-              }}
-              columns={[
-                {
-                  title: <AntTooltip title="Fecha del movimiento">Fecha</AntTooltip>,
-                  dataIndex: "created_at",
-                  render: (v: string) => <RelativeTime value={v} />,
-                },
-                { title: <AntTooltip title="Producto">Producto</AntTooltip>, dataIndex: "producto" },
-                {
-                  title: <AntTooltip title="Cantidad del movimiento">Movimiento</AntTooltip>,
-                  render: (_, m) =>
-                    m.tipo === "entrada" ? (
-                      <Tag color="green">{`+${m.cantidad}`}</Tag>
-                    ) : (
-                      <Tag color="orange">{`-${m.cantidad}`}</Tag>
+            <div className="ui-bento__cell ui-bento__cell--activity">
+              <Card
+                title={
+                  <AntTooltip title="Últimos movimientos de stock registrados">
+                    <span>Últimos movimientos</span>
+                  </AntTooltip>
+                }
+                extra={<Link to="/movements">Ver todos</Link>}
+              >
+                <Table
+                  size="small"
+                  rowKey="id"
+                  pagination={false}
+                  dataSource={data.ultimosMovimientos}
+                  locale={{
+                    emptyText: (
+                      <EmptyState
+                        variant="inline"
+                        title="Aún no hay movimientos"
+                        description="Las entradas y salidas recientes aparecerán aquí."
+                      />
                     ),
-                },
-              ]}
-            />
-          </Card>
+                  }}
+                  columns={[
+                    {
+                      title: <AntTooltip title="Fecha del movimiento">Fecha</AntTooltip>,
+                      dataIndex: "created_at",
+                      render: (v: string) => <RelativeTime value={v} />,
+                    },
+                    { title: <AntTooltip title="Producto">Producto</AntTooltip>, dataIndex: "producto" },
+                    {
+                      title: <AntTooltip title="Cantidad del movimiento">Movimiento</AntTooltip>,
+                      render: (_, m) =>
+                        m.tipo === "entrada" ? (
+                          <Tag color="green">{`+${m.cantidad}`}</Tag>
+                        ) : (
+                          <Tag color="orange">{`-${m.cantidad}`}</Tag>
+                        ),
+                    },
+                  ]}
+                />
+              </Card>
+            </div>
+          </div>
         </>
       )}
     </div>

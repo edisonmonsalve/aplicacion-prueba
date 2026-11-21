@@ -1,23 +1,7 @@
 import { useEffect, useState } from "react";
-// import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Space, Typography, message } from "antd";
-import {
-  App,
-  Button,
-  Card,
-  DatePicker,
-  Form,
-  Grid,
-  Input,
-  InputNumber,
-  Select,
-  Space,
-  Tooltip,
-  Typography,
-  theme,
-} from "antd";
+import { Alert, App, Button, DatePicker, Form, Input, InputNumber, Select, Tooltip } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
-import { isAxiosError } from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { createQuote, getQuote, updateQuote } from "@/services/quotesService";
 import { listThirdParties } from "@/services/thirdPartiesService";
@@ -26,6 +10,11 @@ import { currencyInputProps } from "@/utils/format";
 import { useProductSearch } from "@/hooks/useProductSearch";
 import ProductSelect from "@/components/ProductSelect";
 import StockTag from "@/components/StockTag";
+import PageHeader from "@/components/PageHeader";
+import FormSection from "@/components/form/FormSection";
+import DocumentTotals from "@/components/form/DocumentTotals";
+import DocumentFormFooter from "@/components/form/DocumentFormFooter";
+import { applyApiErrors, clearFormErrors } from "@/utils/formErrors";
 import type { QuoteLineForm, ThirdParty } from "@/types";
 import { money } from "./quoteUtils";
 
@@ -68,14 +57,11 @@ export default function QuoteFormPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const { message, modal } = App.useApp();
-  const screens = Grid.useBreakpoint();
-  const isMobile = screens.md === false;
   const { products, addProducts, resultIds, loading, search } = useProductSearch();
   const [parties, setParties] = useState<ThirdParty[]>([]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const lineas = Form.useWatch("lineas", form) ?? [];
-  const { token } = theme.useToken();
   const t = totals(lineas);
 
   // Clientes activos del maestro de terceros, para autollenar la cotización.
@@ -173,6 +159,7 @@ export default function QuoteFormPage() {
   };
 
   const onFinish = async (v: FormValues) => {
+    clearFormErrors(form);
     const payload = {
       party_id: v.party_id ?? null,
       cliente_nombre: v.cliente_nombre.trim(),
@@ -195,10 +182,8 @@ export default function QuoteFormPage() {
       message.success(editId ? "Cotización actualizada" : "Borrador creado");
       navigate(`/cotizaciones/${r.id ?? editId}`);
     } catch (e) {
-      const msg = isAxiosError(e)
-        ? (e.response?.data as { message?: string } | undefined)?.message
-        : undefined;
-      message.error(msg ?? "No se pudo guardar");
+      const { message: msg } = applyApiErrors(e, form, "No se pudo guardar");
+      message.error(msg);
     } finally {
       setSaving(false);
     }
@@ -221,7 +206,21 @@ export default function QuoteFormPage() {
   };
 
   return (
-    <Card title={editId ? "Editar cotización" : "Nueva cotización"}>
+    <div className="ui-document-form">
+      <PageHeader
+        eyebrow="Cotizaciones"
+        title={editId ? "Editar cotización" : "Nueva cotización"}
+        description="Precio del catálogo; descuento e IVA por línea."
+      />
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Guardar crea un borrador"
+        description="Podrás revisarla y enviarla desde el detalle. Hasta entonces la cotización no compromete al cliente."
+      />
+
       <Form<FormValues>
         form={form}
         layout="vertical"
@@ -229,333 +228,250 @@ export default function QuoteFormPage() {
         onValuesChange={() => setDirty(true)}
         initialValues={{ fecha_validez: dayjs().add(15, "day"), lineas: [{}] }}
       >
-        <Space wrap align="start">
-          <Form.Item
-            name="party_id"
-            label="Cliente registrado"
-            tooltip="Opcional. Al elegirlo se cargan nombre, documento y email desde Terceros. La cotización guarda una copia editable de esos datos."
-          >
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              placeholder="Sin tercero (escribir manualmente)"
-              style={{ width: 320 }}
-              onChange={onPartyChange}
-              options={parties.map((p) => ({
-                value: p.id,
-                label: `${p.nombre}${p.documento ? ` · ${p.documento}` : ""}`,
-              }))}
-            />
+        <FormSection
+          index="01"
+          title="Cliente y vigencia"
+          description="Tercero o datos manuales."
+        >
+          <div className="ui-doc-fields">
+            <Form.Item
+              className="ui-doc-field__lg"
+              name="party_id"
+              label={
+                <>
+                  Cliente registrado <span className="ui-optional">opcional</span>
+                </>
+              }
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="Sin tercero (escribir manualmente)"
+                onChange={onPartyChange}
+                options={parties.map((p) => ({
+                  value: p.id,
+                  label: `${p.nombre}${p.documento ? ` · ${p.documento}` : ""}`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item
+              className="ui-doc-field__md"
+              name="cliente_nombre"
+              label="Cliente"
+              rules={[
+                { required: true, message: "Requerido" },
+                { min: 2, message: "Mínimo 2 caracteres" },
+              ]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              className="ui-doc-field__sm"
+              name="cliente_documento"
+              label={
+                <>
+                  Documento <span className="ui-optional">opcional</span>
+                </>
+              }
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              className="ui-doc-field__md"
+              name="cliente_email"
+              label={
+                <>
+                  Email <span className="ui-optional">opcional</span>
+                </>
+              }
+              rules={[{ type: "email", message: "Email inválido" }, { max: 150 }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              className="ui-doc-field__sm"
+              name="fecha_validez"
+              label="Válido hasta"
+              rules={[{ required: true, message: "Requerido" }]}
+            >
+              <DatePicker format="DD/MM/YYYY" />
+            </Form.Item>
+          </div>
+        </FormSection>
+
+        <FormSection
+          index="02"
+          title="Notas"
+          description="Opcional."
+        >
+          <Form.Item name="notas" rules={[{ max: 2000 }]}>
+            <Input.TextArea rows={3} maxLength={2000} showCount placeholder="Ej.: entrega estimada, vigencia de precios, forma de pago…" />
           </Form.Item>
-          <Form.Item
-            name="cliente_nombre"
-            label="Cliente"
-            tooltip="Nombre del cliente para la cotización."
+        </FormSection>
+
+        <FormSection
+          index="03"
+          title="Ítems"
+          description="Descuento e IVA por línea."
+          extra={<span className="ui-eyebrow">{lineas.length} línea(s)</span>}
+        >
+          <Form.List
+            name="lineas"
             rules={[
-              { required: true, message: "Requerido" },
-              { min: 2, message: "Mínimo 2 caracteres" },
+              {
+                validator: async (_, v: Partial<QuoteLineForm>[] | undefined) => {
+                  if (!v?.length) throw new Error("Agrega al menos una línea");
+                  const ids = v
+                    .map((l) => l?.product_id)
+                    .filter((id): id is number => typeof id === "number");
+                  if (new Set(ids).size !== ids.length) {
+                    throw new Error(
+                      "Un producto no puede repetirse: ajusta las líneas marcadas como «ya agregado»"
+                    );
+                  }
+                },
+              },
             ]}
           >
-            <Input style={{ width: 280 }} />
-          </Form.Item>
-          <Form.Item
-            name="cliente_documento"
-            label="Documento"
-            tooltip="Documento de identidad o NIT del cliente (opcional)."
-          >
-            <Input style={{ width: 180 }} />
-          </Form.Item>
-          <Form.Item
-            name="cliente_email"
-            label="Email"
-            tooltip="Correo de contacto del cliente (opcional)."
-            rules={[{ type: "email", message: "Email inválido" }, { max: 150 }]}
-          >
-            <Input style={{ width: 280 }} />
-          </Form.Item>
-
-          <Form.Item
-            name="fecha_validez"
-            label="Válido hasta"
-            tooltip="Fecha hasta la que la cotización es válida."
-            rules={[{ required: true, message: "Requerido" }]}
-          >
-            <DatePicker format="DD/MM/YYYY" />
-          </Form.Item>
-        </Space>
-
-        <Form.Item
-          name="notas"
-          label="Notas"
-          tooltip="Observaciones o condiciones adicionales para el cliente."
-          rules={[{ max: 2000 }]}
-        >
-          <Input.TextArea rows={3} maxLength={2000} showCount />
-        </Form.Item>
-
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-          Agrega productos a la cotización. El precio se toma del catálogo y no es editable. Descuento e impuesto se
-          aplican por línea.
-        </Typography.Paragraph>
-        <Form.List
-          name="lineas"
-          rules={[
-            {
-              validator: async (_, v: Partial<QuoteLineForm>[] | undefined) => {
-                if (!v?.length) throw new Error("Agrega al menos una línea");
-                const ids = v
-                  .map((l) => l?.product_id)
-                  .filter((id): id is number => typeof id === "number");
-                if (new Set(ids).size !== ids.length) {
-                  throw new Error(
-                    "Un producto no puede repetirse: ajusta las líneas marcadas como «ya agregado»"
-                  );
-                }
-              },
-            },
-          ]}
-        >
-          {(fields, { add, remove }, { errors }) => (
-            <>
-              {fields.map(({ key, name }) => {
-                const line = lineas[name];
-                const product = line?.product_id ? products[line.product_id] : undefined;
-                const stockTag =
-                  product && product.stock_actual !== undefined ? (
-                    <StockTag
-                      stockActual={product.stock_actual}
-                      stockMinimo={product.stock_minimo}
-                      solicitado={line?.cantidad}
-                    />
-                  ) : null;
-                const removeButton = (
-                  <Tooltip title="Quitar esta línea">
-                    <Button
-                      type="text"
-                      danger
-                      aria-label={`Quitar línea ${name + 1}`}
-                      icon={<MinusCircleOutlined />}
-                      onClick={() => remove(name)}
-                      style={isMobile ? undefined : { marginTop: 30 }}
-                    />
-                  </Tooltip>
-                );
-                const productField = (
-                  <Form.Item
-                    name={[name, "product_id"]}
-                    label="Producto"
-                    rules={[{ required: true, message: "Producto" }]}
-                    tooltip="Producto cotizado."
-                  >
-                    <ProductSelect
-                      products={products}
-                      resultIds={resultIds}
-                      loading={loading}
-                      onSearch={search}
-                      onChange={(pid) => onProductChange(name, pid!)}
-                      style={{ width: isMobile ? "100%" : 280 }}
-                      // Un producto ya elegido en otra línea no se puede repetir:
-                      // el servidor rechazaría el documento (RN-P03).
-                      takenIds={
-                        new Set(
-                          lineas
-                            .filter((_, i) => i !== name)
-                            .map((l) => l?.product_id)
-                            .filter((id): id is number => typeof id === "number")
-                        )
-                      }
-                    />
-                  </Form.Item>
-                );
-                const numericFields = (
-                  <>
-                    <Form.Item
-                      name={[name, "cantidad"]}
-                      label="Cantidad"
-                      rules={[{ required: true, message: "Cant." }]}
-                      tooltip="Cantidad de unidades."
-                    >
-                      <InputNumber
-                        min={1}
-                        placeholder="Cant."
-                        style={isMobile ? { width: "100%" } : undefined}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      name={[name, "precio_unitario"]}
-                      label="Precio unit."
-                      rules={[{ required: true, message: "Precio" }]}
-                      extra="Tomado del catálogo"
-                      tooltip="Precio unitario del catálogo (solo lectura)."
-                    >
-                      <InputNumber
-                        {...currencyInputProps}
-                        placeholder="$ 0"
-                        style={{ width: isMobile ? "100%" : 130 }}
-                        disabled
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      name={[name, "descuento_pct"]}
-                      label="Descuento"
-                      initialValue={0}
-                      tooltip="Descuento porcentual de la línea."
-                    >
-                      <InputNumber
-                        min={0}
-                        max={100}
-                        addonAfter="% desc."
-                        style={isMobile ? { width: "100%" } : undefined}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      name={[name, "impuesto_pct"]}
-                      label="IVA"
-                      initialValue={19}
-                      tooltip="Porcentaje de IVA de la línea (19 % por defecto, editable)."
-                    >
-                      <InputNumber
-                        min={0}
-                        max={100}
-                        addonAfter="% imp."
-                        style={isMobile ? { width: "100%" } : undefined}
-                      />
-                    </Form.Item>
-                  </>
-                );
-
-                // Q2: en móvil cada línea es una tarjeta apilada; en escritorio
-                // se mantiene la fila compacta.
-                if (isMobile) {
-                  return (
-                    <Card
-                      key={key}
-                      size="small"
-                      title={`Línea ${name + 1}`}
-                      extra={removeButton}
-                      style={{ marginBottom: 12 }}
-                    >
-                      {productField}
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          columnGap: 12,
-                        }}
-                      >
-                        {numericFields}
+            {(fields, { add, remove }, { errors }) => (
+              <>
+                <div className="ui-doc-lines">
+                  <div className="ui-doc-lines__head" aria-hidden="true">
+                    <span>Producto</span>
+                    <span>Cantidad</span>
+                    <span>Precio unit.</span>
+                    <span>Descuento</span>
+                    <span>IVA</span>
+                    <span>Total línea</span>
+                    <span>Stock</span>
+                    <span />
+                  </div>
+                  {fields.map(({ key, name }) => {
+                    const line = lineas[name];
+                    const product = line?.product_id ? products[line.product_id] : undefined;
+                    const stockTag =
+                      product && product.stock_actual !== undefined ? (
+                        <StockTag
+                          stockActual={product.stock_actual}
+                          stockMinimo={product.stock_minimo}
+                          solicitado={line?.cantidad}
+                        />
+                      ) : null;
+                    return (
+                      <div className="ui-doc-line" key={key}>
+                        <Form.Item
+                          className="ui-doc-line__product"
+                          name={[name, "product_id"]}
+                          label="Producto"
+                          rules={[{ required: true, message: "Producto" }]}
+                        >
+                          <ProductSelect
+                            products={products}
+                            resultIds={resultIds}
+                            loading={loading}
+                            onSearch={search}
+                            onChange={(pid) => onProductChange(name, pid!)}
+                            style={{ width: "100%" }}
+                            // Un producto ya elegido en otra línea no se puede repetir:
+                            // el servidor rechazaría el documento (RN-P03).
+                            takenIds={
+                              new Set(
+                                lineas
+                                  .filter((_, i) => i !== name)
+                                  .map((l) => l?.product_id)
+                                  .filter((id): id is number => typeof id === "number")
+                              )
+                            }
+                          />
+                        </Form.Item>
+                        <Form.Item
+                          name={[name, "cantidad"]}
+                          label="Cantidad"
+                          rules={[{ required: true, message: "Cant." }]}
+                        >
+                          <InputNumber min={1} placeholder="Cant." />
+                        </Form.Item>
+                        <Form.Item
+                          name={[name, "precio_unitario"]}
+                          label="Precio unit."
+                          rules={[{ required: true, message: "Precio" }]}
+                        >
+                          <InputNumber {...currencyInputProps} placeholder="$ 0" disabled />
+                        </Form.Item>
+                        <Form.Item
+                          name={[name, "descuento_pct"]}
+                          label="Descuento"
+                          initialValue={0}
+                        >
+                          <InputNumber min={0} max={100} addonAfter="%" />
+                        </Form.Item>
+                        <Form.Item
+                          name={[name, "impuesto_pct"]}
+                          label="IVA"
+                          initialValue={19}
+                        >
+                          <InputNumber min={0} max={100} addonAfter="%" />
+                        </Form.Item>
+                        <div className="ui-doc-line__total">
+                          <span>Total línea</span>
+                          <strong className="num">{money(lineTotal(line ?? {}))}</strong>
+                        </div>
+                        <div className="ui-doc-line__flag">{stockTag}</div>
+                        <div className="ui-doc-line__remove">
+                          <Tooltip title="Quitar esta línea">
+                            <Button
+                              type="text"
+                              danger
+                              aria-label={`Quitar línea ${name + 1}`}
+                              icon={<MinusCircleOutlined />}
+                              onClick={() => remove(name)}
+                            />
+                          </Tooltip>
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <Typography.Text>
-                          Total línea: <strong>{money(lineTotal(line ?? {}))}</strong>
-                        </Typography.Text>
-                        {stockTag}
-                      </div>
-                    </Card>
-                  );
-                }
-
-                return (
-                  <Space key={key} align="start" wrap>
-                    {productField}
-                    {numericFields}
-                    <div style={{ minWidth: 110, textAlign: "right" }}>
-                      <Typography.Text
-                        type="secondary"
-                        style={{ display: "block", marginBottom: 8, fontSize: 12 }}
-                      >
-                        Total línea
-                      </Typography.Text>
-                      <Typography.Text strong style={{ lineHeight: "32px" }}>
-                        {money(lineTotal(line ?? {}))}
-                      </Typography.Text>
-                    </div>
-                    {stockTag && <div style={{ marginTop: 30 }}>{stockTag}</div>}
-                    {removeButton}
-                  </Space>
-                );
-              })}
-              <Form.ErrorList errors={errors} />
-              <Form.Item>
+                    );
+                  })}
+                </div>
+                <Form.ErrorList errors={errors} />
                 <Button
-                  type="dashed"
+                  type="link"
                   icon={<PlusOutlined />}
                   onClick={() => add({ descuento_pct: 0, impuesto_pct: 19 })}
                 >
                   Agregar línea
                 </Button>
-              </Form.Item>
-            </>
-          )}
-        </Form.List>
+              </>
+            )}
+          </Form.List>
+        </FormSection>
 
-        <Card size="small" style={{ maxWidth: 360, marginLeft: "auto", marginBottom: 16 }}>
-          {[
-            { label: "Subtotal", value: t.subtotal, hint: "Suma de cantidad × precio de cada línea" },
-            { label: "Descuento", value: -t.descuento, hint: "Descuentos aplicados por línea" },
-            { label: "IVA", value: t.impuesto, hint: "IVA aplicado por línea" },
-          ].map(({ label, value, hint }) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
-              <Tooltip title={hint}>
-                <span>{label}</span>
-              </Tooltip>
-              <span>{money(value)}</span>
-            </div>
-          ))}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 8,
-              paddingTop: 8,
-              borderTop: `1px solid ${token.colorBorderSecondary}`,
-              fontWeight: 600,
-              fontSize: 18,
-            }}
-          >
-            <Tooltip title="Total final de la cotización">
-              <span>Total</span>
-            </Tooltip>
-            <span>{money(t.total)}</span>
-          </div>
-        </Card>
-
-        <div
-          style={{
-            position: "sticky",
-            bottom: 0,
-            zIndex: 10,
-            padding: "12px 0",
-            background: token.colorBgContainer,
-            borderTop: `1px solid ${token.colorBorderSecondary}`,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
+        <FormSection
+          index="04"
+          title="Resumen"
+          description="Importes en vivo."
         >
-          <Space>
-            <Button type="primary" htmlType="submit" loading={saving}>
-              Guardar
-            </Button>
-            <Button onClick={cancel}>Cancelar</Button>
-          </Space>
-          {/* Q2: el total queda siempre visible mientras se editan las líneas. */}
-          <Typography.Text strong style={{ fontSize: 18 }}>
-            Total: {money(t.total)}
-          </Typography.Text>
-        </div>
+          <DocumentTotals
+            rows={[
+              { label: "Subtotal", value: money(t.subtotal), hint: "Suma de cantidad × precio de cada línea" },
+              { label: "Descuento", value: money(-t.descuento), hint: "Descuentos aplicados por línea" },
+              { label: "IVA", value: money(t.impuesto), hint: "IVA aplicado por línea" },
+            ]}
+            totalLabel="Total"
+            totalValue={money(t.total)}
+            totalHint="Total final de la cotización"
+          />
+        </FormSection>
+
+        <DocumentFormFooter
+          saving={saving}
+          dirty={dirty}
+          onCancel={cancel}
+          submitLabel="Guardar"
+          totalLabel="Total"
+          totalValue={money(t.total)}
+        />
       </Form>
-    </Card>
+    </div>
   );
 }

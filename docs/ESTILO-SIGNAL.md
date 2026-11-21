@@ -102,9 +102,12 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
   contenedores de listas y tablas, `--ui-elev-1` para tarjetas, KPIs y gráficos,
   y `--ui-elev-2` solo para modales y superficies flotantes. Si todo flota, nada
   flota: la jerarquía se lee antes de pensar.
-- **Bento** en Inicio y Resumen: bloques `16/8` que alternan el lado grande y,
-  en Finanzas, dos secciones de KPIs en columnas `12` desde `lg`. El resto de
-  páginas mantiene la rejilla uniforme.
+- **Bento** en Inicio y Resumen: en Inicio, una sola rejilla de seis columnas
+  con el KPI de pulso ocupando dos filas y sparkline, los otros cuatro en
+  parejas, y los paneles alternando `7/5` y `5/7` con el historial a todo el
+  ancho; a 1200 px pasa a 2+2+2 y en móvil se apila. Finanzas mantiene sus dos
+  secciones de KPIs en columnas `12` desde `lg`. El resto de páginas conserva
+  la rejilla uniforme.
 - **Glass quirúrgico** solo en superficies que flotan sobre contenido (dropdowns,
   popovers, selects, calendarios y tooltips): `backdrop-filter: blur(6px)
   saturate(1.15)` sobre un 62 % de superficie (66 % en el tooltip oscuro). Los
@@ -178,6 +181,17 @@ apaga, por lo que solo queda la rejilla estática.
 | `FinanceSectionTabs` | Pestañas contextuales bajo el `PageHeader` de las 16 páginas de Finanzas: Resumen (2 hojas), Reportes (7) y Gestión (7, con el detalle de presupuesto). Navegan a rutas existentes conservando la query de periodo y filtros, y resaltan la pestaña padre en rutas anidadas. Estilo en `.ui-finance-tabs`: micro-label, filo tenue y acento de marca en la activa. |
 | `CategoriesPanel` | Cuerpo compartido de Categorías, sin cabecera ni título propios; se usa en `/categories` y en la pestaña de `ProductsPage`. |
 | `AuditPage` | Visor append-only de `audit_log`: entidad, acción, usuario y estados antes/después. La entidad `stock_movement` aparece como «Movimiento» para seguir el rastro de cada entrada o salida de stock, con el mismo lenguaje de tags que el resto. |
+| `PrintHeader` | Cabecera compartida de cotizaciones y facturas. Identidad a la izquierda, número en forma de ticket a la derecha y cinta opcional de tres métricas con `role="group"`. El papel es siempre claro y los acentos fijos, independientes del tema de la app. |
+| `PrintSection` | Bloque numerado de la plantilla impresa: índice monoespaciado sobre fondo de acento suave, micro-label en mayúsculas y filo lateral. Da el mismo ritmo a Cliente, Ítems, Totales, Condiciones y Firmas en ambos documentos. |
+| `FormSection` | Bloque de documento, no tarjeta: regla superior, número plano en mono, título `h2` en display y descripción de una línea. Cotización y factura comparten el mismo ritmo; el índice sigue siendo decorativo. |
+| `DocumentTotals` | Lista de importes alineada a la derecha de la sección: filas con tooltip opcional, total con filo fuerte y neto en caja de acento suave. Sin borde ni fondo propios: hereda el lienzo. Es un `group` con nombre y usa la misma fuente display que los KPI. |
+| `DocumentFormFooter` | Barra pegajosa al fondo con guardar/cancelar, estado de cambios sin guardar y total siempre visible. Tres niveles de botón: primario «Guardar», secundario «Cancelar» y texto para «Borrador». El estado se anuncia con `role="status"`; el importe se actualiza con `aria-live="polite"`. Acepta opcionalmente `onSaveDraft`/`draftSavedAt`: la hora del último guardado vive en el tooltip. |
+| `formErrors` | Puente entre los `issues` de Zod del servidor y los campos de AntD: limpia errores previos, marca la ruta afectada con `form.setFields` y devuelve el mensaje del toast. Evita que el usuario tenga que adivinar qué línea rechazó el servidor. |
+| Opciones plegadas | En la cotización, `.ui-more-options` concentra los campos que no se usan en cada captura tras un botón con `aria-expanded`. La factura ya no las pliega: resolución, cuenta y retenciones van como filas de la grilla; el aviso fiscal dice cuántos datos faltan y `openFiscal()` enfoca el primer campo con `scrollToField`. |
+| Etiquetas y botones de formulario | El asterisco de AntD marca lo obligatorio; `.ui-optional` añade «opcional» en tinta secundaria solo donde hace falta. Los números se alinean a la derecha y los importes comparten un solo `$`. «Agregar línea» es un botón de enlace con `+`: las acciones en línea nunca compiten con «Guardar». |
+| Factura editable | `.ui-invoice-head` concentra emisor, título, número y fecha/hora en una cabecera compacta de 3 px de acento. «Facturar a» y «Condiciones» son filas con rótulo y una retícula interna de dos columnas; los campos llevan etiqueta a la izquierda y línea inferior, a 30 px de alto. La tabla numera las líneas, usa valores de 13 px con cifras tabulares y el resumen muestra subtotal y total. Los controles son `borderless` y los vacíos muestran placeholders. Las acciones viven en el `DocumentFormFooter` compartido con cotizaciones: barra flotante `sticky` abajo, redondeada y translúcida, con filo degradado, sombra, número/estado/aviso fiscal a la izquierda y total a la derecha; sigue dentro del `<form>`. La hoja usa el ancho útil (1180 px con 8 px de margen en esta ruta), toda acción en línea es un `Button` de AntD a 32 px, los valores de la tabla van a 14 px y el total final a 24 px. La tabla no usa zebra: fondo uniforme y acento teal solo en la fila señalada; los numéricos ocultan sus flechas y alinean las cifras a la derecha. «Detalle» es una pastilla con chevron giratorio y punto ámbar si hay datos ocultos; su panel es una retícula de seis columnas con acento izquierdo. «Agregar línea» es una banda `dashed` de 40 px con icono y el número de la fila nueva. Los campos llevan sufijo de unidad (`%`, `días`), borrado rápido en opcionales y contador en textos largos; el foco añade halo de marca, el error tiñe el campo y muestra una insignia, y los obligatorios se marcan con un punto en las filas de documento. El espaciado sale de tres tokens compartidos por cabecera, filas, tabla, cierre y pie; la cabecera de la tabla queda fija a 78 px y la celda con foco se marca con un filo inferior. El semáforo de stock vive en la fila y «Agregar línea» admite `Alt + Enter`, con foco automático en el buscador de producto. Los botones de la barra y del header responden al hover con elevate y al active con presión, mantienen foco visible y anuncian el guardado con un barrido; el punto de «Sin guardar» late. |
+| Línea fiscal | `.ui-doc-lines--fiscal` reduce la rejilla a Producto · Cantidad · Precio · Total. El producto apila el select y un botón «Detalles» con `aria-expanded`; ahí aparecen descripción snapshot, descuento, IVA, unidad, INC, otro tributo y semáforo de stock. Las cuatro acciones se agrupan en un `Dropdown` con `aria-label` numerado. Bajo 1200 px la cabecera se oculta y la línea pasa a dos columnas. |
+| Plantilla de factura | `PrintHeader` muestra fecha, hora de Bogotá (UTC-5) y número; `PrintSection` añade un bloque de datos fiscales con resolución, rango y medio de pago. La tabla imprime la descripción facturada y las tasas `IVA/INC/Otro`, y Totales discrimina los tres tributos antes del neto. El editor comparte esa lectura: en impresión oculta menú, header, barra y controles, convierte los campos en texto sin borde, despliega el panel de detalle aunque esté plegado en pantalla y usa `@page { size: auto }` para carta o A4 en una sola hoja. |
 
 ## 7. Accesibilidad
 
@@ -186,10 +200,28 @@ apaga, por lo que solo queda la rejilla estática.
 - `aria-live="polite"` en estados de carga y error del panel.
 - Overlay móvil con `role`, `aria-label` y cierre con `Escape`.
 - Contraste: la tinta secundaria cumple AA sobre superficie en ambos temas.
+- El bento conserva el orden de lectura del DOM; el sparkline es decorativo y
+  queda fuera del árbol de accesibilidad. Las secciones impresas usan `h2` real
+  y la cinta de métricas es un `group` con nombre, no una lista de divs sin rol.
+- En los formularios de documento los índices de sección son `aria-hidden`; cada
+  botón de eliminar línea nombra su posición («Quitar línea 3»). Los totales son
+  un `group` con nombre, el estado de guardado se anuncia y los errores del
+  servidor se asocian al campo correspondiente en lugar de vivir solo en un
+  toast. La rejilla de líneas se convierte en tarjetas antes de los 1200 px.
+- En la factura, el aviso fiscal expresa cuántos datos faltan con texto, no solo
+  con color; «Completar datos» abre el panel y enfoca el primer campo.
+  «Detalles» y «Más opciones» exponen su estado con `aria-expanded`, y el menú
+  de línea nombra su posición en `aria-label`. Los atajos `Ctrl+Enter` y `Ctrl+S`
+  no secuestran otras combinaciones; el primer error recibe el foco mediante
+  `scrollToField`. En la hoja editable, las etiquetas de la tabla siguen en el
+  DOM (ocultas visualmente) para que cada control conserve su nombre accesible; la
+  cabecera de columnas es decorativa.
 
 ## 8. Verificación
 
 - `client npm run build` y `client npm run lint` tras cada fase.
+- En tandas con servidor: `server npm run typecheck`, `server npm run lint` y
+  `server npm test`; la migración `V031` se valida con `server npm run test:db`.
 - `git diff --check` para detectar whitespace antes de commitear.
 - Revisión visual en claro/oscuro y en breakpoint móvil.
 - Sin commit ni push hasta la aprobación explícita.

@@ -331,6 +331,92 @@ describe("Módulo de Facturación — RF-XX", () => {
     expect(com1.body.numero).toMatch(/^COM-\d{4}$/);
   });
 
+  it("RF-08b: guarda el snapshot fiscal y discrimina los tributos", async () => {
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-02-01",
+        hora_expedicion: "09:35",
+        contraparte: "Cliente DIAN",
+        tipo_documento_adquirente: "CC",
+        documento: "123456789",
+        prefijo: "FED",
+        resolucion_numero: "RES-2024-7",
+        resolucion_fecha: "2024-01-20",
+        rango_desde: 10,
+        rango_hasta: 20,
+        medio_pago: "transferencia",
+        items: [
+          {
+            product_id: productId,
+            cantidad: 2,
+            precio_unitario: 1000,
+            descripcion: "Servicio de prueba",
+            unidad_medida: "SERV",
+            descuento_pct: 10,
+            impuesto_pct: 19,
+            inc_pct: 8,
+            otro_impuesto_nombre: "ICA",
+            otro_impuesto_pct: 2,
+          },
+        ],
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.numero).toBe("FED-0010");
+
+    const detail = await request(app)
+      .get(`/api/invoices/${created.body.id}`)
+      .set(bearer(admin.token));
+    expect(detail.status).toBe(200);
+    expect(String(detail.body.hora_expedicion)).toContain("09:35");
+    expect(detail.body.tipo_documento_adquirente).toBe("CC");
+    expect(detail.body.prefijo).toBe("FED");
+    expect(detail.body.resolucion_numero).toBe("RES-2024-7");
+    expect(Number(detail.body.rango_desde)).toBe(10);
+    expect(detail.body.medio_pago).toBe("transferencia");
+    // Base 1800 -> IVA 342 + INC 144 + ICA 36 = 522; total 2322.
+    expect(Number(detail.body.impuesto_total)).toBe(342);
+    expect(Number(detail.body.inc_total)).toBe(144);
+    expect(Number(detail.body.otros_impuestos_total)).toBe(36);
+    expect(Number(detail.body.total)).toBe(2322);
+    expect(detail.body.items[0]).toMatchObject({
+      descripcion: "Servicio de prueba",
+      unidad_medida: "SERV",
+      otro_impuesto_nombre: "ICA",
+    });
+    expect(Number(detail.body.items[0].base_imponible)).toBe(1800);
+    expect(Number(detail.body.items[0].impuesto_valor)).toBe(522);
+  });
+
+  it("RF-08c: el consecutivo no supera el rango autorizado", async () => {
+    const payload = {
+      tipo: "venta" as const,
+      fecha: "2024-03-01",
+      contraparte: "Cliente Rango",
+      prefijo: "LIM",
+      resolucion_numero: "RES-LIM",
+      resolucion_fecha: "2024-02-28",
+      rango_desde: 1,
+      rango_hasta: 1,
+      items: [{ product_id: productId, cantidad: 1, precio_unitario: 100 }],
+    };
+    const first = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send(payload);
+    expect(first.status).toBe(201);
+    expect(first.body.numero).toBe("LIM-0001");
+
+    const second = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send(payload);
+    expect(second.status).toBe(409);
+    expect(second.body.message).toMatch(/rango autorizado/);
+  });
+
   it("RF-09: No se puede confirmar factura ya confirmada", async () => {
     const created = await request(app)
       .post("/api/invoices")

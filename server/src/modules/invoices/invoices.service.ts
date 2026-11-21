@@ -79,20 +79,100 @@ function resolvePaymentTerms(params: {
   return { condicion_pago: condicion, dias_credito: dias, fecha_vencimiento };
 }
 
-async function nextNumber(conn: PoolConnection, tipo: "venta" | "compra") {
+type FiscalInput = {
+  tipo: "venta" | "compra";
+  fecha: string;
+  hora_expedicion?: string | null;
+  tipo_documento_adquirente?: string | null;
+  prefijo?: string | null;
+  resolucion_numero?: string | null;
+  resolucion_fecha?: string | null;
+  rango_desde?: number | string | null;
+  rango_hasta?: number | string | null;
+  medio_pago?: string | null;
+};
+
+/**
+ * Completa los datos fiscales con valores de referencia cuando la API no los
+ * envía. La interfaz los exige para facturas de venta; este fallback mantiene
+ * compatibles los borradores creados por integraciones y las pruebas antiguas.
+ */
+function resolveFiscal(inv: FiscalInput) {
+  const prefijo = inv.prefijo?.trim() || (inv.tipo === "venta" ? "FAC" : "COM");
+  const desde = Number(inv.rango_desde ?? 1);
+  const hasta = Number(inv.rango_hasta ?? 9999);
+  if (
+    !Number.isInteger(desde) ||
+    !Number.isInteger(hasta) ||
+    desde < 1 ||
+    desde > hasta
+  ) {
+    throw new HttpError(400, "El rango autorizado de la resolución no es válido");
+  }
+  return {
+    hora_expedicion: inv.hora_expedicion || "12:00",
+    tipo_documento_adquirente: inv.tipo_documento_adquirente || "NIT",
+    prefijo,
+    resolucion_numero: inv.resolucion_numero?.trim() || "RES-0001",
+    resolucion_fecha: inv.resolucion_fecha || inv.fecha,
+    rango_desde: desde,
+    rango_hasta: hasta,
+    medio_pago: inv.medio_pago || "efectivo",
+  };
+}
+
+/** Art. 617: una venta confirmada no puede salir sin identificación fiscal. */
+function assertFiscalComplete(inv: RowDataPacket) {
+  if (inv.tipo !== "venta") return;
+  const requeridos = [
+    inv.hora_expedicion,
+    inv.tipo_documento_adquirente,
+    inv.prefijo,
+    inv.resolucion_numero,
+    inv.resolucion_fecha,
+    inv.rango_desde,
+    inv.rango_hasta,
+    inv.medio_pago,
+  ];
+  if (requeridos.some((v) => v === null || v === undefined || v === "")) {
+    throw new HttpError(
+      409,
+      "Faltan datos fiscales obligatorios de la factura (Art. 617 del ET)"
+    );
+  }
+}
+
+/** Serie por resolución: cada prefijo tiene su propio consecutivo y rango. */
+async function nextNumber(
+  conn: PoolConnection,
+  tipo: "venta" | "compra",
+  fiscal: ReturnType<typeof resolveFiscal>
+) {
   await conn.query(
-    "INSERT IGNORE INTO invoice_counters (tipo, last_number) VALUES (?, 0)",
-    [tipo]
+    "INSERT IGNORE INTO invoice_counters (tipo, prefijo, last_number) VALUES (?, ?, ?)",
+    [tipo, fiscal.prefijo, fiscal.rango_desde - 1]
   );
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT last_number FROM invoice_counters WHERE tipo = ? FOR UPDATE",
-    [tipo]
+    "SELECT last_number FROM invoice_counters WHERE tipo = ? AND prefijo = ? FOR UPDATE",
+    [tipo, fiscal.prefijo]
   );
-  const last = rows[0]?.last_number ?? 0;
-  const next = last + 1;
-  await conn.query("UPDATE invoice_counters SET last_number = ? WHERE tipo = ?", [next, tipo]);
-  const prefix = tipo === "venta" ? "FAC" : "COM";
-  return `${prefix}-${String(next).padStart(4, "0")}`;
+  // Si la resolución cambia de rango, el consecutivo salta al nuevo inicio en
+  // vez de quedarse por debajo del número autorizado.
+  const next = Math.max(
+    Number(rows[0]?.last_number ?? fiscal.rango_desde - 1) + 1,
+    fiscal.rango_desde
+  );
+  if (next > fiscal.rango_hasta) {
+    throw new HttpError(
+      409,
+      `El consecutivo ${next} supera el rango autorizado hasta ${fiscal.rango_hasta}`
+    );
+  }
+  await conn.query(
+    "UPDATE invoice_counters SET last_number = ? WHERE tipo = ? AND prefijo = ?",
+    [next, tipo, fiscal.prefijo]
+  );
+  return `${fiscal.prefijo}-${String(next).padStart(4, "0")}`;
 }
 
 export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
@@ -127,10 +207,12 @@ export async function listInvoices(query: z.infer<typeof listQuerySchema>) {
   // `por_tipo`, así evitamos un cuarto recorrido del mismo filtro.
   const [dataResult, porTipoResult, porEstadoResult] = await Promise.all([
     pool.query<RowDataPacket[]>(
-      `SELECT i.id, i.tipo, i.numero, i.fecha, i.contraparte, i.documento,
+      `SELECT i.id, i.tipo, i.numero, i.prefijo, i.fecha, i.hora_expedicion,
+              i.contraparte, i.tipo_documento_adquirente, i.documento,
               i.orden_compra, i.estado, i.subtotal, i.descuento_total,
-              i.impuesto_total, i.total, i.total_neto, i.quote_id, i.party_id,
-              i.condicion_pago, i.dias_credito, i.fecha_vencimiento,
+              i.impuesto_total, i.inc_total, i.otros_impuestos_total,
+              i.total, i.total_neto, i.quote_id, i.party_id,
+              i.condicion_pago, i.medio_pago, i.dias_credito, i.fecha_vencimiento,
               i.account_id, i.created_at,
               u.nombre AS creador
        FROM invoices i JOIN users u ON u.id = i.created_by
@@ -189,8 +271,12 @@ export async function getInvoice(id: number) {
   if (!rows[0]) throw new HttpError(404, "Factura no encontrada");
   const quoteNumero = rows[0].quote_id ? formatQuoteNumber(Number(rows[0].quote_id)) : null;
   const [items] = await pool.query<RowDataPacket[]>(
-    `SELECT ii.id, ii.product_id, p.sku, p.nombre AS producto, ii.cantidad,
-            ii.precio_unitario, ii.descuento_pct, ii.impuesto_pct, ii.total_linea,
+    `SELECT ii.id, ii.product_id, p.sku, p.nombre AS producto,
+            COALESCE(ii.descripcion, p.nombre) AS descripcion,
+            ii.unidad_medida, ii.cantidad, ii.base_imponible,
+            ii.precio_unitario, ii.descuento_pct, ii.impuesto_pct,
+            ii.inc_pct, ii.otro_impuesto_nombre, ii.otro_impuesto_pct,
+            ii.impuesto_valor, ii.total_linea,
             ii.costo_anterior,
             COALESCE(ac.cantidad_acreditada, 0) AS cantidad_acreditada,
             ii.cantidad - COALESCE(ac.cantidad_acreditada, 0) AS cantidad_disponible
@@ -254,7 +340,8 @@ export async function getInvoice(id: number) {
 
 export async function createInvoice(input: InvoiceInput, actor: { id: number }) {
   return withTransaction(async (conn) => {
-    const numero = await nextNumber(conn, input.tipo);
+    const fiscal = resolveFiscal(input);
+    const numero = await nextNumber(conn, input.tipo, fiscal);
     const totals = calcTotals(input.items);
     const retenciones = totalRetenciones(input);
     assertRetentions(retenciones, totals.total);
@@ -275,22 +362,36 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
 
     const [res] = await conn.query<ResultSetHeader>(
       `INSERT INTO invoices
-         (tipo, numero, fecha, contraparte, documento, orden_compra, email,
-          subtotal, descuento_total, impuesto_total, total, retencion_fuente,
-          retencion_iva, retencion_ica, total_neto, notas, quote_id, party_id,
-          condicion_pago, dias_credito, fecha_vencimiento, account_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (tipo, numero, prefijo, resolucion_numero, resolucion_fecha,
+          rango_desde, rango_hasta, fecha, hora_expedicion, contraparte,
+          tipo_documento_adquirente, documento, orden_compra, email,
+          subtotal, descuento_total, impuesto_total, inc_total,
+          otros_impuestos_total, total, retencion_fuente, retencion_iva,
+          retencion_ica, total_neto, notas, quote_id, party_id,
+          condicion_pago, medio_pago, dias_credito, fecha_vencimiento,
+          account_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.tipo,
         numero,
+        fiscal.prefijo,
+        fiscal.resolucion_numero,
+        fiscal.resolucion_fecha,
+        fiscal.rango_desde,
+        fiscal.rango_hasta,
         input.fecha,
+        fiscal.hora_expedicion,
         input.contraparte,
+        fiscal.tipo_documento_adquirente,
         input.documento ?? null,
         input.orden_compra ?? null,
         input.email ?? null,
         totals.subtotal,
         totals.descuento_total,
         totals.impuesto_total,
+        totals.inc_total,
+        totals.otros_impuestos_total,
         totals.total,
         input.retencion_fuente ?? 0,
         input.retencion_iva ?? 0,
@@ -300,6 +401,7 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
         input.quote_id ?? null,
         partyId,
         terms.condicion_pago,
+        fiscal.medio_pago,
         terms.dias_credito,
         terms.fecha_vencimiento,
         input.account_id ?? null,
@@ -308,20 +410,38 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
     );
     const invoiceId = res.insertId;
 
+    // Snapshot de la descripción: reimprimir una factura antigua no debe cambiar
+    // porque el producto haya sido renombrado en el catálogo.
+    const ids = input.items.map((it) => it.product_id);
+    const [products] = await conn.query<RowDataPacket[]>(
+      "SELECT id, nombre FROM products WHERE id IN (?)",
+      [ids]
+    );
+    const nombreById = new Map(products.map((p) => [Number(p.id), String(p.nombre)]));
+
     for (const it of input.items) {
       const l = calcLine(it);
       await conn.query(
         `INSERT INTO invoice_items
-           (invoice_id, product_id, cantidad, precio_unitario, costo_anterior,
-            descuento_pct, impuesto_pct, total_linea)
-         VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
+           (invoice_id, product_id, descripcion, unidad_medida, cantidad,
+            base_imponible, precio_unitario, costo_anterior, descuento_pct,
+            impuesto_pct, inc_pct, otro_impuesto_nombre, otro_impuesto_pct,
+            impuesto_valor, total_linea)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
         [
           invoiceId,
           it.product_id,
+          it.descripcion?.trim() || nombreById.get(it.product_id) || `Producto ${it.product_id}`,
+          it.unidad_medida ?? "UND",
           it.cantidad,
+          l.base,
           it.precio_unitario,
           it.descuento_pct,
           it.impuesto_pct,
+          it.inc_pct,
+          it.otro_impuesto_nombre ?? null,
+          it.otro_impuesto_pct,
+          l.impuesto,
           l.total,
         ]
       );
@@ -344,6 +464,8 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
       subtotal: Number(current.subtotal),
       descuento_total: Number(current.descuento_total),
       impuesto_total: Number(current.impuesto_total),
+      inc_total: Number(current.inc_total ?? 0),
+      otros_impuestos_total: Number(current.otros_impuestos_total ?? 0),
       total: Number(current.total),
     };
     const retenciones = totalRetenciones({
@@ -359,6 +481,19 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
     if (party) assertPartyType(party, tipo);
 
     const fecha = input.fecha ?? current.fecha;
+    const fiscal = resolveFiscal({
+      tipo,
+      fecha,
+      hora_expedicion: input.hora_expedicion ?? current.hora_expedicion,
+      tipo_documento_adquirente:
+        input.tipo_documento_adquirente ?? current.tipo_documento_adquirente,
+      prefijo: input.prefijo ?? current.prefijo,
+      resolucion_numero: input.resolucion_numero ?? current.resolucion_numero,
+      resolucion_fecha: input.resolucion_fecha ?? current.resolucion_fecha,
+      rango_desde: input.rango_desde ?? current.rango_desde,
+      rango_hasta: input.rango_hasta ?? current.rango_hasta,
+      medio_pago: input.medio_pago ?? current.medio_pago,
+    });
     const partyChanged = input.party_id !== undefined && input.party_id !== current.party_id;
     const condicion = (input.condicion_pago ??
       (partyChanged && party ? party.condicion_pago : current.condicion_pago) ??
@@ -376,29 +511,42 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
 
     await conn.query(
       `UPDATE invoices SET
-         tipo = ?, fecha = ?, contraparte = ?, documento = ?, orden_compra = ?,
-         email = ?, notas = ?, quote_id = ?, party_id = ?, condicion_pago = ?,
-         dias_credito = ?, fecha_vencimiento = ?, account_id = ?, subtotal = ?,
-         descuento_total = ?, impuesto_total = ?, total = ?, retencion_fuente = ?,
-         retencion_iva = ?, retencion_ica = ?, total_neto = ?
+         tipo = ?, fecha = ?, hora_expedicion = ?, contraparte = ?,
+         tipo_documento_adquirente = ?, documento = ?, prefijo = ?,
+         resolucion_numero = ?, resolucion_fecha = ?, rango_desde = ?,
+         rango_hasta = ?, orden_compra = ?, email = ?, notas = ?, quote_id = ?,
+         party_id = ?, condicion_pago = ?, medio_pago = ?, dias_credito = ?,
+         fecha_vencimiento = ?, account_id = ?, subtotal = ?, descuento_total = ?,
+         impuesto_total = ?, inc_total = ?, otros_impuestos_total = ?, total = ?,
+         retencion_fuente = ?, retencion_iva = ?, retencion_ica = ?, total_neto = ?
        WHERE id = ?`,
       [
         tipo,
         fecha,
+        fiscal.hora_expedicion,
         input.contraparte ?? current.contraparte,
+        fiscal.tipo_documento_adquirente,
         input.documento !== undefined ? input.documento : current.documento,
+        fiscal.prefijo,
+        fiscal.resolucion_numero,
+        fiscal.resolucion_fecha,
+        fiscal.rango_desde,
+        fiscal.rango_hasta,
         input.orden_compra !== undefined ? input.orden_compra : current.orden_compra,
         input.email !== undefined ? input.email : current.email,
         input.notas !== undefined ? input.notas : current.notas,
         input.quote_id !== undefined ? input.quote_id : current.quote_id,
         partyId,
         terms.condicion_pago,
+        fiscal.medio_pago,
         terms.dias_credito,
         terms.fecha_vencimiento,
         input.account_id !== undefined ? input.account_id : current.account_id,
         totals.subtotal,
         totals.descuento_total,
         totals.impuesto_total,
+        totals.inc_total,
+        totals.otros_impuestos_total,
         totals.total,
         input.retencion_fuente ?? current.retencion_fuente,
         input.retencion_iva ?? current.retencion_iva,
@@ -410,20 +558,35 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
 
     if (input.items) {
       await conn.query("DELETE FROM invoice_items WHERE invoice_id = ?", [id]);
+      const ids = input.items.map((it) => it.product_id);
+      const [products] = await conn.query<RowDataPacket[]>(
+        "SELECT id, nombre FROM products WHERE id IN (?)",
+        [ids]
+      );
+      const nombreById = new Map(products.map((p) => [Number(p.id), String(p.nombre)]));
       for (const it of input.items) {
         const l = calcLine(it);
         await conn.query(
           `INSERT INTO invoice_items
-             (invoice_id, product_id, cantidad, precio_unitario, costo_anterior,
-              descuento_pct, impuesto_pct, total_linea)
-           VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
+             (invoice_id, product_id, descripcion, unidad_medida, cantidad,
+              base_imponible, precio_unitario, costo_anterior, descuento_pct,
+              impuesto_pct, inc_pct, otro_impuesto_nombre, otro_impuesto_pct,
+              impuesto_valor, total_linea)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             it.product_id,
+            it.descripcion?.trim() || nombreById.get(it.product_id) || `Producto ${it.product_id}`,
+            it.unidad_medida ?? "UND",
             it.cantidad,
+            l.base,
             it.precio_unitario,
             it.descuento_pct,
             it.impuesto_pct,
+            it.inc_pct,
+            it.otro_impuesto_nombre ?? null,
+            it.otro_impuesto_pct,
+            l.impuesto,
             l.total,
           ]
         );
@@ -606,6 +769,7 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
     const inv = rows[0];
     if (!inv) throw new HttpError(404, "Factura no encontrada");
     if (inv.estado !== "borrador") throw new HttpError(409, "Solo se confirman facturas en borrador");
+    assertFiscalComplete(inv);
 
     const [items] = await conn.query<RowDataPacket[]>(
       "SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id",
@@ -993,9 +1157,17 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
 
     await conn.query(
       `UPDATE invoices SET estado = 'confirmada', subtotal = ?, descuento_total = ?,
-        impuesto_total = ?, total = ?
+        impuesto_total = ?, inc_total = ?, otros_impuestos_total = ?, total = ?
        WHERE id = ?`,
-      [totals.subtotal, totals.descuento_total, totals.impuesto_total, totals.total, id]
+      [
+        totals.subtotal,
+        totals.descuento_total,
+        totals.impuesto_total,
+        totals.inc_total,
+        totals.otros_impuestos_total,
+        totals.total,
+        id,
+      ]
     );
     return { id, estado: "confirmada" };
   });

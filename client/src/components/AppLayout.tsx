@@ -442,7 +442,7 @@ export default function AppLayout() {
                 ],
               }}
             >
-              <Space style={{ cursor: "pointer" }}>
+              <Space className="ui-user-menu" style={{ cursor: "pointer" }}>
                 <Avatar className="ui-avatar" style={{ background: token.colorPrimary }}>
                   {user?.nombre?.[0]?.toUpperCase()}
                 </Avatar>

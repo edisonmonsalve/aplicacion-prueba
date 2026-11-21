@@ -15,6 +15,8 @@ interface Props {
   placeholder?: string;
   style?: CSSProperties;
   disabled?: boolean;
+  /** `borderless` lo integra en una tabla o documento editable. */
+  variant?: "outlined" | "borderless";
 }
 
 /** Select de producto con búsqueda remota por nombre o SKU. */
@@ -29,6 +31,7 @@ export default function ProductSelect({
   placeholder = "Buscar por nombre o SKU",
   style,
   disabled,
+  variant = "outlined",
 }: Props) {
   const ids = [...new Set([...resultIds, ...(value ? [value] : [])])];
   const options = ids
@@ -56,6 +59,7 @@ export default function ProductSelect({
       options={options}
       style={style}
       disabled={disabled}
+      variant={variant}
     />
   );
 }

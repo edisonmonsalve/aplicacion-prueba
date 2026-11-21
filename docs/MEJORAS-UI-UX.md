@@ -605,6 +605,264 @@ Verificación: `server npm run typecheck`, `server npm run lint`,
 (✓ 3646 módulos; CSS 37,05 kB sin cambio; JS principal 169,37 kB) y
 `client npm run lint` (0 errores; los 2 warnings preexistentes se mantienen).
 
+## 34. Bento de Inicio y formato de cotización/factura
+
+El Inicio repetía filas uniformes de cuatro KPIs y dos bloques de gráficos con
+el mismo peso visual. Las hojas de cotización y factura ya compartían cabecera,
+pero el contenido era una sucesión de bloques sin jerarquía: cliente, tabla y
+total parecían piezas sueltas. Se pidió un grid innovador y un formato de
+documento más distintivo, sin perder impresión en A4 ni accesibilidad.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| D1 | **Bento de KPIs** | Nueva rejilla `.ui-bento`: «Movimientos hoy» pasa a ser tarjeta de pulso de dos filas con sparkline de los últimos 7 días (serie ya presente en el payload), mientras los otros cuatro KPIs se reparten en parejas. La cascada de entrada y el foco se mantienen. |
+| D2 | **Paneles en 7/5** | Los gráficos ya no usan `Row`/`Col` de doce columnas: un único bento alterna flujo `7` / estados `5` y top productos `5` / stock bajo `7`, con el historial a todo el ancho. A partir de 1200 px el bento de KPIs pasa a 2+2+2 y en móvil todo se apila. |
+| D3 | **Cabecera de documento** | `PrintHeader` acepta un `summary` opcional y dibuja una cinta de tres métricas (ítems, unidades y vigencia/referencia) con `role="group"`. El número de documento toma forma de ticket con dos muescas, sin degradados ni imágenes nuevas. |
+| D4 | **Secciones numeradas** | Nuevo `PrintSection`: índice monoespaciado, micro-label y un filo que agota el ancho. Cliente, Ítems, Totales, Condiciones y Firmas comparten el mismo ritmo en cotización y factura; las notas quedan como calle lateral. |
+| D5 | **Totales y papel** | El neto a pagar se separa en una caja con fondo propio, los viñetas de condiciones toman el acento y `.print-document` fija `print-color-adjust: exact`. La hoja sigue siendo clara en modo oscuro, respeta `@page A4` y evita cortar secciones, totales y filas. |
+
+Archivos: `pages/HomePage.tsx`, `components/print/PrintHeader.tsx`,
+`components/print/PrintSection.tsx`, `pages/quotes/QuotePrintPage.tsx`,
+`pages/invoices/InvoicePrintPage.tsx` e `index.css`. Sin dependencias nuevas,
+sin backend y sin migraciones.
+
+Verificación: `client npm run build` (✓ 3647 módulos; CSS 37,05 → 41,20 kB;
+JS principal 169,37 → 169,41 kB; chunks de impresión 5,12 y 6,04 kB) y
+`client npm run lint` (0 errores; los 2 warnings preexistentes de
+`InvoiceFormPage.tsx` se mantienen). No se tocaron las pruebas del servidor.
+
+## 35. Formularios de cotización y factura
+
+Los dos formularios eran pilas de `Card` con `Space` que se reordenaban solo
+según el ancho: en factura, las líneas se volvían ingobernables en móvil, los
+totales quedaban lejos de los botones y los errores del servidor solo aparecían
+en un toast. Se pidió un patrón compartido para ambos y correcciones de UI/UX.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| E1 | **Cabecera y secciones** | `PageHeader` con eyebrow y descripción, más `FormSection` numerado: «Cliente y vigencia / Notas / Ítems / Resumen» en cotización y «Datos generales / Notas / Cuenta / Ítems / Retenciones y totales» en factura. Cada bloque tiene título `h2`, índice decorativo y una línea de contexto; las ayudas existentes de cada campo se conservan. |
+| E2 | **Líneas como tarjetas** | `.ui-doc-lines` sustituye al `Space` de cada fila: cabecera de columnas en escritorio y tarjeta de dos columnas bajo 1200 px, con el producto y el total a todo el ancho. El botón de quitar línea tiene `aria-label` numerado y el indicador de stock/entrega sigue en su propia celda. |
+| E3 | **Totales y barra fija** | `DocumentTotals` agrupa subtotal, descuento, IVA, retenciones y neto con `role="group"`; `DocumentFormFooter` mantiene guardar/cancelar y el importe visible al hacer scroll. El estado «Cambios sin guardar / Sin cambios pendientes» se anuncia con `role="status"`, sin depender solo del color. |
+| E4 | **Errores junto al campo** | `utils/formErrors.ts` traduce los `issues` de Zod del middleware (`{ message, errors: [{ path, message }] }`) a `form.setFields` y limpia los anteriores antes de enviar. El toast conserva el mensaje general; el campo afectado queda marcado. |
+| E5 | **Limpieza** | Se eliminaron estilos en línea y el `theme.useToken()` de la factura, se movió `DEFAULT_RETENCIONES` a ámbito de módulo y se añadió `message` a las dependencias del efecto de cuentas: desaparecen los 2 warnings de `react-hooks/exhaustive-deps`. La lógica de precios, stock, cotizaciones vinculadas, retenciones y borradores queda intacta. |
+
+Archivos: `components/form/FormSection.tsx`, `components/form/DocumentTotals.tsx`,
+`components/form/DocumentFormFooter.tsx`, `utils/formErrors.ts`,
+`pages/quotes/QuoteFormPage.tsx`, `pages/invoices/InvoiceFormPage.tsx` e
+`index.css`. Sin dependencias nuevas, sin backend y sin migraciones.
+
+Verificación: `client npm run build` (✓ 3651 módulos; CSS 41,20 → 45,95 kB;
+JS principal 169,41 → 169,22 kB) y `client npm run lint` (0 errores y 0
+warnings: los 2 preexistentes de `InvoiceFormPage.tsx` quedan resueltos). No se
+tocaron las pruebas del servidor.
+
+## 36. Factura empresarial, legible y con datos fiscales (Art. 617)
+
+El formulario cumplía la contabilidad, pero no se leía como una factura: seis
+secciones desplegadas, cuatro avisos, una tabla de siete columnas y un panel
+lateral con tres tarjetas que repetían datos. Se pidió una captura sencilla y
+legible, sin perder los datos obligatorios del Art. 617. La solución fue **quitar**
+información, no agregarla.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| F1 | **Tres bloques en vez de seis secciones** | `01 Encabezado` (tipo, fecha/hora, adquirente, forma y medio de pago), `02 Productos` y `03 Totales`. Notas, orden de compra, email, cuenta, retenciones y resolución pasan a «Más opciones», plegado por defecto. Desaparecen el aviso de borrador y las explicaciones largas de descuento y cotización. |
+| F2 | **Líneas de cuatro columnas** | Producto, Cantidad, Precio y Total línea. Descripción facturada, descuento, IVA, unidad, INC y otro tributo se abren con «Detalles» por línea (`aria-expanded`); las cuatro acciones se resumen en un menú `⋯`. El semáforo de stock y el estado de cotización entregada se muestran dentro del detalle. |
+| F3 | **Un solo resumen** | `DocumentTotals` muestra Subtotal y solo las filas con valor (descuento, IVA, INC, otros, retenciones), más Total y Neto cuando aplica. Se eliminan el rail lateral, su resumen tributario y el total duplicado en el footer. |
+| F4 | **Datos fiscales sin estorbar** | Hora actual de Bogotá (UTC-5) e IVA 19 % precargados; resolución y rango reutilizados de la última factura del mismo tipo guardada en este navegador. Un único aviso discreto indica `Faltan N datos fiscales para poder confirmar`, abre «Más opciones» y lleva el foco al primer campo. El cumplimiento sigue garantizado en el snapshot y en `assertFiscalComplete`. |
+| F5 | **Borrador y atajos sin panel** | `Ctrl+S` guarda en `localStorage` y `Ctrl+Enter` envía; el acceso ahora es un botón «Borrador local» en el footer, con la hora del último guardado en el tooltip. Se mantienen `onFinishFailed` con foco al primer error y el mapeo de errores de Zod. |
+| F6 | **Captura y papel consistentes** | `InvoicePrintPage` incorpora hora, resolución, rango, condición/medio de pago, vencimiento, descripción por línea y desglose IVA/INC/otros; las secciones impresas se numeran 01–06. |
+| F7 | **Persistencia con snapshot** | Migración `V031__datos_fiscales_factura.sql`: campos nuevos en cabecera e ítems, contador por `(tipo, prefijo)`, backfill de facturas antiguas e índice por prefijo. `invoices.shared.ts` separa IVA/INC/otros sin alterar los asientos de IVA; `resolveFiscal` completa integraciones antiguas y `assertFiscalComplete` bloquea confirmar sin datos fiscales. |
+
+Archivos: `migrations/V031__datos_fiscales_factura.sql`,
+`modules/invoices/{invoices.schema,invoices.shared,invoices.service}.ts`,
+`tests/invoices.test.ts`, `types/index.ts`,
+`components/form/DocumentFormFooter.tsx`, `pages/invoices/InvoiceFormPage.tsx`,
+`pages/invoices/InvoicePrintPage.tsx`, `index.css` y estos documentos. Sin
+dependencias nuevas, sin CUFE/firma/transmisión a la DIAN: el alcance es captura
+y representación gráfica de los datos exigidos por el Art. 617.
+
+Verificación: `server npm run typecheck` y `server npm run lint` sin errores;
+`server npm test` (243 pruebas, 38 archivos, en verde: RF-08b valida el snapshot
+fiscal y RF-08c el límite del rango); `client npm run build` (✓ 3651 módulos;
+CSS 49,03 → 47,50 kB; JS principal 169,27 kB sin cambio; bundle de la factura
+34,18 → 28,68 kB) y `client npm run lint` (0 errores y 0 warnings). Sin commit
+ni push hasta la aprobación explícita.
+
+## 37. Controles sobrios en los formularios de documento
+
+Después de simplificar la factura seguían compitiendo en pantalla tres estilos
+de sección con borde y sombra, seis tipos de botón y tooltips que repetían la
+etiqueta. La petición fue ajustar el UI de inputs, botones y secciones sin meter
+campos nuevos: bajar el peso visual, no subirlo.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| G1 | **Secciones como documento** | `FormSection` pierde la tarjeta: una regla superior, número en mono sin chip, título en display y descripción de una línea. Cotización y factura comparten el mismo ritmo; las secciones de §35 pasan a ser bloques, no widgets. |
+| G2 | **Botones con tres niveles** | Guardar (primario), Cancelar (secundario) y acciones en texto. «Agregar línea» deja de ser `dashed` y usa `type="link"` con `+`. Etiquetas cortas: «Guardar», «Borrador», «Completar datos», «Sin guardar / Guardado». |
+| G3 | **Etiquetas que bastan** | AntD marca lo obligatorio con `*`; los opcionales llevan un sufijo gris «opcional». Se eliminan los tooltips redundantes de ambos formularios y los placeholders que repetían la etiqueta. Se conserva solo el huso horario de Bogotá en la hora de expedición. |
+| G4 | **Cifras uniformes** | Los `InputNumber` del formulario alinean el valor a la derecha; los de dinero mantienen un solo `$` (el del `formatter` compartido). El resumen `DocumentTotals` también pierde su caja: ahora es una lista con el total subrayado y el neto en acento. |
+
+Archivos: `components/form/{FormSection,DocumentFormFooter}.tsx`,
+`pages/quotes/QuoteFormPage.tsx`, `pages/invoices/InvoiceFormPage.tsx` e
+`index.css`. Sin dependencias nuevas, sin backend y sin cambios de validación,
+payload ni atajos.
+
+Verificación: `client npm run build` (✓ 3651 módulos; CSS 47,50 → 47,31 kB;
+JS principal 169,27 kB sin cambio; bundle de la factura 28,69 → 28,57 kB) y
+`client npm run lint` (0 errores y 0 warnings). Sin commit ni push hasta la
+aprobación explícita.
+
+## 38. La factura se edita como un documento
+
+Ajustar inputs y botones no fue suficiente: la pantalla seguía leyéndose como un
+formulario con secciones, no como una factura. Se pidió quitar títulos y
+subtítulos, eliminar el aspecto de cajas de entrada y editar directamente el
+formato del documento, con criterio profesional. El primer acercamiento con una
+hoja enmarcada se descartó por parecer un bloque empaquetado; la grilla plana
+quedó revisada en pantalla y también resultó insuficiente: sin pistas visuales
+solo mostraba etiquetas pequeñas y campos casi invisibles.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| H1 | **Cabecera de factura** | `.ui-invoice-head` reúne la identidad del emisor (logo compacto, NIT, régimen, dirección y contacto) y, a la derecha, el título «Factura de venta/compra», el número y la terna tipo/fecha/hora. Tiene 3 px de acento superior, no una cabecera grande ni una hoja encerrada. |
+| H2 | **Datos en dos filas de documento** | «Facturar a» y «Condiciones» son dos filas con rótulo a la izquierda y una retícula interna de dos columnas. Los campos se leen con etiqueta fija y valor con línea inferior a la derecha, a 30 px de alto; los vacíos muestran placeholders (`NIT / Cédula`, `correo@empresa.com`, `Sin cotización`). Así el bloque deja de ser una columna larga con un vacío al lado. |
+| H3 | **Tabla numerada** | Columnas # · Descripción · Cant. · Precio unit. · Desc. % · IVA % · Total, con separadores finos, cabecera con fondo suave y total en color de marca. Los valores van a 13 px con cifras tabulares; «Detalle» abre un panel con descripción facturada, unidad, INC, otro tributo y semáforo de stock; «Agregar línea» es una banda con icono y numeración; el menú `⋯` conserva mover, clonar y quitar. |
+| H4 | **Resumen y pie** | Notas a la izquierda y resumen a la derecha; el total final sube a 22 px, el subtotal aparece siempre y las cifras usan ancho fijo. Resolución y contabilidad usan el mismo patrón de rótulo + celdas que el resto. Los avisos reales son una línea de texto, no tarjetas. |
+| H5 | **Barra flotante compartida** | La factura usa el mismo `DocumentFormFooter` que la cotización: barra `sticky` al borde inferior, redondeada, translúcida y con sombra, filo de marca y total siempre a la vista. A la izquierda, «Nueva factura» o el número, el estado «Guardado / Sin guardar», el aviso fiscal, borrador, cancelar y guardar; a la derecha, el total y el neto. La cabecera recupera su acento superior de 3 px. La lógica de precarga, errores de Zod, atajos, borradores y validación del Art. 617 no cambia. |
+
+Archivos: `components/ProductSelect.tsx`,
+`components/form/DocumentFormFooter.tsx`,
+`pages/invoices/InvoiceFormPage.tsx` e `index.css`. Sin dependencias nuevas,
+sin backend y sin cambios de payload. La barra es compartida: la factura la
+alimenta con contexto, aviso fiscal y borrador local; la cotización conserva su
+formulario y gana el mismo acabado visual.
+
+Una segunda revisión midió el DOM renderizado: la etiqueta de «Facturar a»
+heredaba la dirección vertical de AntD y cada campo ocupaba 142 px; además las
+columnas numéricas (70 px) eran más angostas que el `InputNumber` (90 px). Se
+fijó la fila horizontal, se normalizaron los controles a 30 px, la tabla pasó a
+columnas de 84–120 px y el bloque de datos se dividió en dos filas con retícula
+interna de dos columnas.
+
+Una tercera pasada densificó el documento: cabecera 166 → 148 px, bloque de
+datos 222 → 210 px, tabla 129 → 119 px, resumen 117 → 106 px y pie 220 →
+198 px. El conjunto pasó de 854 a 781 px y cabe completo en una ventana de
+1005 px de alto. El foco añade una segunda línea sin desplazar el texto y los
+importes usan `tabular-nums`.
+
+Una cuarta pasada repartió el espacio y robusteció el módulo. El documento pasa
+de 1040 a 1180 px y el margen del contenedor de 24 a 8 px solo en esta ruta, así
+que la hoja aprovecha el ancho disponible sin tocar el resto de la app. Los
+botones de la barra bajan de 38 a 32 px, «Cancelar» y «Guardar» llevan icono y
+el primario conserva el ancho mínimo; el atajo se anuncia en su tooltip. Todas
+las acciones en línea («Completar», «+ Detalle», «+ Agregar línea») son
+`Button` de AntD, con el mismo foco y la misma accesibilidad que el resto de la
+interfaz.
+
+La misma pasada ajustó la lectura: rótulos de fila a 11 px, etiquetas de campo a
+12 px, valores de tabla a 14 px con cifras tabulares, cabecera de 11 px, total
+final a 24 px y texto legal a 11 px. La tabla destaca la celda de total; «+
+Agregar línea» gana área de pulsación. El pie mantiene sus cinco columnas con
+etiqueta apilada: probar con tres columnas duplicaba su altura sin ganar
+legibilidad. El conjunto mide 858 px y cabe en un viewport de 1005 px de alto.
+
+Funcionalmente, el botón «Guardar» estaba fuera del `<form>` y su
+`htmlType="submit"` no enviaba nada: al mover la barra dentro de `Form`, la
+validación vuelve a ejecutarse al hacer clic. El atajo se registra una sola vez,
+`Ctrl+Enter` no duplica el envío mientras se guarda, el detalle de cada línea
+sigue abierto al reordenar (se identifica por la clave de `Form.List`), cambiar
+de producto refresca la descripción snapshot solo si el usuario no la editó, y
+los días de crédito calculan la fecha de vencimiento sobre la fecha de factura.
+
+Una quinta pasada afinó los últimos detalles de la tabla y del header. Se quitó
+el sombreado par/impar de las líneas: ahora todas comparten el mismo fondo y
+solo la fila bajo el puntero se marca con un acento teal de 2 px a la izquierda.
+Los `InputNumber` ocultan las flechas de subir/bajar —en AntD v6 viven en
+`.ant-input-number-actions` y en v5 en `.ant-input-number-handler-wrap`—, liberan
+el hueco que reservaban y dejan las cifras alineadas a la derecha con 2 px de
+padding. Los botones dejan de ser estáticos: transición de elevate y presión en
+la barra flotante y en el header de la app, foco visible con `outline` y un
+barrido animado bajo la barra mientras `data-saving` está activo. El punto del
+estado «Sin guardar» late suavemente; todo se apaga con
+`prefers-reduced-motion`.
+
+Una sexta pasada sustituyó la barra superior por la flotante de cotizaciones. Se
+retiró `.ui-invoice-toolbar` y su CSS, se devolvió a `.ui-invoice-head` el borde
+superior de 3 px y se adaptó `DocumentFormFooter` con `eyebrow` y `notice` para
+que la factura muestre el número, el aviso fiscal y el borrador sin ocupar la
+primera fila del documento. La barra queda `sticky` abajo, con 14 px de radio,
+desenfoque de fondo, sombra proyectada, filo degradado y el total en tipo de
+visualización; el botón primario conserva su sombra de marca. En móvil ambos
+bloques pasan a ancho completo. `scrollToField` reserva 92 px para el header de
+la app ahora que no hay barra fija arriba.
+
+La séptima pasada trabajó los dos controles de la tabla. «+ Detalle» dejó de ser
+un enlace de 10 px pegado al selector: ahora es una pastilla AntD de 22 px con
+chevron que gira al abrir, borde de marca cuando está desplegado y un punto ámbar
+cuando la línea guarda descripción, unidad distinta de `UND`, INC u otro
+impuesto. El botón informa `aria-expanded` y `aria-controls` sobre el panel. Ese
+panel pasó de una tira flexible de campos de 90/190 px a una retícula de seis
+columnas con anchos jerarquizados (descripción y «Otro impuesto» más amplios),
+borde de marca a la izquierda y animación de entrada; en pantallas estrechas se
+reduce a dos columnas. «+ Agregar línea» es ahora una banda AntD `dashed` de
+40 px con icono en círculo y una píldora que anuncia el número de la fila nueva.
+
+La octava pasada se centró en los campos. Los porcentajes de descuento, IVA,
+INC y otro impuesto llevan el sufijo `%` dentro del propio control y los días de
+crédito el sufijo `días`, para que el valor se entienda sin leer la cabecera de
+la columna. Los campos de texto opcionales ganaron borrado rápido —visible solo
+al pasar el ratón o enfocar— y los de razón social y correo traen `autocomplete`
+y `inputMode` adecuados. Las notas y la descripción facturada muestran contador
+de caracteres. El foco ya no es solo un cambio de color: línea de marca de 2 px,
+fondo apenas teñido y un halo corto que no desplaza el texto; el error tiñe el
+campo de rojo y añade una insignia `!` al mensaje, y los campos inactivos usan
+línea discontinua. Como AntD inyecta sus estilos al final de `<head>`, las reglas
+de estado llevan el prefijo `.ui-invoice-editor` para ganar por especificidad sin
+depender del orden. En las filas de documento, donde el asterisco está oculto,
+un punto de marca señala los campos obligatorios. Se quitó el `initialValue`
+duplicado de `dias_credito` que AntD avisaba al pasar a crédito.
+
+La novena pasada ordenó el espaciado y convirtió la edición en una hoja
+imprimible. El documento usa tres tokens locales —sangría, celda vertical y
+separación horizontal— compartidos por cabecera, datos, tabla, cierre y pie; así
+la retícula no depende de valores sueltos. La tabla conserva la cabecera fija
+bajo el header de la app (`top: 78px`), resalta la celda con foco y muestra un
+semáforo de stock en la propia fila, sin exigir abrir «Detalle». «Agregar línea»
+acepta `Alt + Enter` y lleva el foco al buscador de producto, con el atajo
+visible en la banda. La factura siempre mantiene el panel de detalle en el DOM:
+en pantalla sigue plegado, pero al imprimir se despliega para que la
+descripción facturada viaje en el documento. La barra flotante añadió «Imprimir»
+y el CSS de impresión oculta menú, header, barra y controles, convierte los
+campos en texto sin borde y respeta `@page { size: auto }` para carta o A4 según
+el papel elegido en el navegador.
+
+Verificación: `client npm run build` (✓ 3651 módulos; CSS 47,31 → 75,05 kB;
+JS principal 169,27 → 187,94 kB; bundle de la factura 28,57 → 31,43 kB) y
+`client npm run lint` (0 errores y 0 warnings). La pantalla se revisó en Chrome
+con una sesión local de prueba: geometría de la barra y del documento, botón
+«Guardar» dentro del formulario con errores de validación al pulsarlo y barra
+fija al desplazarse. En la última revisión se comprobó sobre el DOM que no queda
+zebra, que las nueve flechas numéricas tienen `display: none`, que las cifras
+están a la derecha y que un movimiento real del mouse eleva el botón 1 px y
+marca la fila con el acento lateral. La barra flotante se midió en el DOM:
+`position: sticky`, `bottom: 0`, radio de 14 px, desenfoque de 14 px, pegada al
+borde inferior al aparecer errores de validación; los tres botones siguen dentro
+del `<form>` y «Guardar» conserva `type="submit"`. En la última revisión se abrió
+el panel de detalle sobre el DOM: seis columnas, cinco rótulos y sin
+desbordamiento horizontal; al agregar una línea el número pasó de 2 a 3 y el
+panel abierto se conservó. En la última pasada se midió el foco real con
+emulación de CDP: borde `rgb(15, 118, 110)`, halo de dos capas, fondo teñido y
+botón de borrado visible; al validar, los seis campos con error mostraron borde
+`rgb(190, 18, 60)` e insignia. Los cinco sufijos (`días` y cuatro `%`) aparecen
+al abrir el detalle y elegir crédito, el panel sigue sin desbordarse y la
+consola queda sin errores. La última comprobación midió el espaciado con los
+tokens del documento, confirmó `Alt + Enter` con foco real en `.ant-select-input`
+y verificó que no hay desbordamiento horizontal. La factura se imprimió desde
+Chrome con producto, cantidad, descripción y datos fiscales: una sola página,
+sin menú ni barra flotante, con el detalle desplegado y la consola limpia. Sin
+commit ni push hasta la aprobación explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

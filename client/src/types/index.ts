@@ -1158,17 +1158,29 @@ export interface PaginatedTransactions extends Paginated<FinanceTransaction> {
 
 export type InvoiceTipo = "venta" | "compra";
 export type InvoiceEstado = "borrador" | "confirmada" | "anulada";
+export type InvoiceDocumentoTipo = "NIT" | "CC" | "CE" | "PASAPORTE" | "OTRO";
+export type InvoiceMedioPago = "efectivo" | "transferencia" | "tarjeta" | "cheque" | "otro";
 
 export interface Invoice {
   id: number;
   tipo: InvoiceTipo;
   numero: string;
+  prefijo: string | null;
   fecha: string;
+  hora_expedicion: string | null;
+  resolucion_numero: string | null;
+  resolucion_fecha: string | null;
+  rango_desde: number | null;
+  rango_hasta: number | null;
   contraparte: string;
+  tipo_documento_adquirente: InvoiceDocumentoTipo | null;
   estado: InvoiceEstado;
   subtotal: number;
   descuento_total: number;
+  /** IVA. Los demás tributos se discriminan en los campos siguientes. */
   impuesto_total: number;
+  inc_total: number;
+  otros_impuestos_total: number;
   total: number;
   retencion_fuente: number;
   retencion_iva: number;
@@ -1177,6 +1189,7 @@ export interface Invoice {
   quote_id: number | null;
   party_id: number | null;
   condicion_pago: "contado" | "credito";
+  medio_pago: InvoiceMedioPago | null;
   dias_credito: number;
   fecha_vencimiento: string | null;
   account_id: number | null;
@@ -1199,10 +1212,18 @@ export interface InvoiceItem {
   product_id: number;
   sku?: string;
   producto?: string;
+  /** Snapshot de la descripción facturada (no depende del catálogo vigente). */
+  descripcion?: string;
+  unidad_medida?: string;
   cantidad: number;
+  base_imponible?: number;
   precio_unitario: number;
   descuento_pct: number;
   impuesto_pct: number;
+  inc_pct?: number;
+  otro_impuesto_nombre?: string | null;
+  otro_impuesto_pct?: number;
+  impuesto_valor?: number;
   total_linea: number;
   costo_anterior?: number | null;
 }
@@ -1485,21 +1506,34 @@ export interface InvoiceItemInput {
   product_id: number;
   cantidad: number;
   precio_unitario: number;
+  descripcion?: string;
+  unidad_medida?: string;
   descuento_pct?: number;
   impuesto_pct?: number;
+  inc_pct?: number;
+  otro_impuesto_nombre?: string;
+  otro_impuesto_pct?: number;
 }
 
 export interface InvoiceInput {
   tipo: InvoiceTipo;
   fecha: string;
+  hora_expedicion?: string;
   contraparte: string;
+  tipo_documento_adquirente?: InvoiceDocumentoTipo;
   documento?: string;
+  prefijo?: string;
+  resolucion_numero?: string;
+  resolucion_fecha?: string;
+  rango_desde?: number;
+  rango_hasta?: number;
   orden_compra?: string;
   email?: string;
   notas?: string;
   quote_id?: number | null;
   party_id?: number | null;
   condicion_pago?: "contado" | "credito";
+  medio_pago?: InvoiceMedioPago;
   dias_credito?: number;
   fecha_vencimiento?: string | null;
   account_id?: number | null;
