@@ -43,7 +43,7 @@ import {
 import { useThemeMode } from "@/context/ThemeContext";
 import { CompanyProvider } from "@/context/CompanyContext";
 import { canAccessFinance } from "@/utils/roles";
-import usePointerGrid from "@/hooks/usePointerGrid";
+
 import useDensity from "@/hooks/useDensity";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppLogo from "@/components/AppLogo";
@@ -147,9 +147,6 @@ export default function AppLayout() {
   const [navQuery, setNavQuery] = useState("");
   const siderScrollRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
-
-  // Rejilla ambiental reactiva al puntero; el hook se inhibe con reduced-motion.
-  usePointerGrid();
 
   // Densidad del HUD persistida: el CSS compacto cuelga de `data-density`.
   const { density, toggle: toggleDensity } = useDensity();

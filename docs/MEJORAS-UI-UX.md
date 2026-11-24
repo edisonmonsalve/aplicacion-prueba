@@ -863,6 +863,134 @@ Chrome con producto, cantidad, descripción y datos fiscales: una sola página,
 sin menú ni barra flotante, con el detalle desplegado y la consola limpia. Sin
 commit ni push hasta la aprobación explícita.
 
+## 39. Factura: captura asistida, revisión fiscal y salida impresa
+
+La factura ya se leía como documento, pero capturarla seguía dependiendo de la
+memoria y del ratón: los errores aparecían todos al guardar, el pegado desde una
+hoja de cálculo no existía, el selector de producto no mostraba precio ni stock y
+la impresión no tenía una comprobación previa. Esta pasada convierte esas
+fricciones en ayudas discretas, sin cambiar el payload fiscal ni las
+validaciones del servidor.
+
+| # | Mejora | Detalle |
+|---|---|---|
+| H6 | **Validación en contexto** | `Form` valida al salir del campo y al escribir. Un resumen `role="alert"` lista hasta cuatro errores con el nombre legible de la línea y del campo; cada entrada lleva al control afectado y «Ir al primer error» resuelve el caso más común. El resumen no sustituye el marcado de AntD: lo indexa (retirado en la pasada 41: ahora basta el campo marcado y el salto al primero). |
+| H7 | **Atajos de captura** | `Enter` avanza a la siguiente línea desde cualquier campo de la fila (en la última, agrega una); en un selector vacío se deja abrir la lista. `Ctrl+D` duplica la línea activa sin producto para no chocar con la regla de duplicados; `Ctrl+Supr` la elimina y deja el foco en la anterior. `Alt+Enter` sigue agregando una línea y `Ctrl+Enter` guarda. |
+| H8 | **Checklist fiscal clicable** | La barra flotante muestra las cinco comprobaciones del Art. 617 como pastillas con estado (`✓` / `○`); al pulsar una, el documento se desplaza al campo que la resuelve y lo enfoca. El aviso «Faltan N datos fiscales» se conserva para quien prefiere el acceso directo (en la pasada 40 lo sustituye el popover de la barra). |
+| H9 | **Pegado desde Excel** | El botón de la cabecera de la tabla abre un modal con área de pegado, lectura del portapapeles, detección de tabulación/punto y coma/coma, mapeo de las columnas Descripción · Cantidad · Precio · SKU y vista previa con el producto que coincide y el que no. Solo agrega las filas con producto del catálogo y omite los repetidos. En móvil el acceso queda como botón bajo la tabla. |
+| H10 | **Selector de producto útil** | Las opciones muestran nombre, SKU, precio y stock (con aviso de stock bajo), agrupadas en Favoritos, Recientes y Catálogo. La estrella alterna el favorito; ambos grupos se guardan en `localStorage`. Un producto ya usado en otra línea aparece deshabilitado con la etiqueta «Ya agregado» y, si se fuerza por pegado, el formulario avisa y omite el duplicado. |
+| H11 | **Vista previa de impresión** | La barra ofrece «Vista previa»: un modal clona el documento real (no una maqueta paralela), lo escala dentro de una hoja y permite alternar Carta/A4. El tamaño elegido se aplica con una hoja `@page` inyectada, así que el botón «Imprimir» y la opción «Guardar como PDF» del navegador imprimen con ese papel (en la pasada 41 se retiran ambos botones y el modal; queda la impresión del navegador con los estilos de hoja). |
+| H12 | **Accesibilidad y móvil** | Una región `aria-live` anuncia líneas agregadas, duplicadas o eliminadas y productos repetidos. La tabla declara `role="table"`/`row`, las filas llevan `aria-label="Línea N"` y las cabeceras `columnheader`. En pantallas de hasta 900 px la tabla se convierte en tarjetas con borde y radio, las etiquetas de campo vuelven a verse y el pegado sigue disponible. |
+
+Archivos nuevos: `components/form/FormErrorSummary.tsx`,
+`components/form/PasteLinesDialog.tsx` y
+`components/print/InvoicePrintPreview.tsx`. Se ampliaron
+`pages/invoices/InvoiceFormPage.tsx`, `components/form/DocumentFormFooter.tsx`,
+`components/ProductSelect.tsx` e `index.css`. Sin dependencias nuevas, sin
+backend y sin cambios en el payload: el modal solo construye las mismas líneas
+que el usuario habría escrito, y el checklist es una lectura de los campos ya
+existentes.
+
+Decisiones de implementación: el resumen y el checklist comparten los nombres de
+campo de `Form.List`, de modo que el salto funciona también dentro de una línea;
+el pegado reemplaza la línea vacía inicial en vez de dejar un hueco; la vista
+previa clona el DOM y elimina los `id` duplicados para no romper `aria-controls`;
+y `@page` se inyecta desde un componente siempre montado para que el tamaño de
+papel sobreviva al cierre del modal.
+
+Verificación: `client npm run build` (3654 módulos; CSS 75,05 → 80,28 kB; bundle
+de la factura 31,43 → 43,48 kB) y `client npm run lint` sin errores ni warnings;
+`server npm test` 243/243. En Chrome con CDP se comprobó sobre una factura nueva:
+el envío vacío marcó seis campos y mostró el resumen con salto al primero; el
+error de un campo apareció al perder el foco; `Enter` movió el foco de la fila 1
+a la 2; `Ctrl+D` pasó de 2 a 3 líneas y `Ctrl+Supr` volvió a 2; el buscador
+mostró siete opciones con precio y stock; el pegado de dos filas tabuladas
+previsualizó dos líneas, las agregó y actualizó el total a `$ 218.166`; la vista
+previa clonó cuatro filas y cambió la hoja de `letter` a `a4`; en 390 px la
+cabecera quedó oculta, la fila tomó radio de 12 px y no hubo desbordamiento
+horizontal. La consola solo conserva el aviso previo de `Alert` en el login.
+Sin commit ni push hasta la aprobación explícita.
+
+## 40. Factura más ligera: solo encabezado, líneas, totales y detalle
+
+La captura asistida funcionaba, pero la pantalla seguía pareciendo un
+formulario con demasiada capa decorativa: una rejilla que seguía al puntero,
+vidrio en dos elementos fijos, pulsos y una tabla con siete columnas. La
+referencia es Siigo: un documento con encabezado, ítems, totales y campos
+secundarios fuera de la vista principal. Esta pasada quita trabajo al navegador
+y deja en la factura solo lo que se lee como factura.
+
+| # | Cambio | Detalle |
+|---|---|---|
+| L1 | **Fondo y superficies quietos** | Se elimina `usePointerGrid`: la rejilla ambiental ya no se recalcula con cada movimiento del ratón y queda estática. La barra inferior y la cabecera de la tabla usan fondo opaco, sin `backdrop-filter`, porque recomponer un elemento `sticky` en cada scroll era costoso. |
+| L2 | **Sin movimiento que distraiga** | Desaparecen el pulso del estado «Sin guardar», el destello al guardar en la celda y los vidrios de menús, calendarios y tooltips. El barrido de guardado de la barra se conserva como señal única; las cifras siguen siendo tabulares. |
+| L3 | **Tabla de documento, no de edición** | La rejilla pasa a `# · Descripción · Cant. · Precio unit. · Total` más acciones. Descuento, IVA, INC, otro tributo, unidad y descripción facturada viven tras el botón `%` de cada línea, con punto ámbar cuando hay datos ocultos. El valor elegido del producto muestra nombre y SKU: precio y stock siguen en la lista desplegable y en el semáforo de la fila. |
+| L4 | **Información adicional plegada** | Resolución, rango, cotización, orden de compra, cuenta y retenciones se agrupan bajo «Información adicional», con un resumen de una línea visible sin abrir. Al saltar a uno de esos campos desde el resumen de errores o desde el checklist, la sección se abre y el campo recibe el foco. En impresión siempre aparece desplegada. |
+| L5 | **Checklist dentro de la barra** | Las cinco comprobaciones del Art. 617 dejan de ocupar una fila: la barra muestra «Fiscal · faltan N» o «Fiscal · completo» y abre un popover con las pastillas. Pulsar una cierra el popover, abre la sección que corresponda y enfoca el campo; se retira el aviso «Completar» que ya no hace falta. |
+| L6 | **Menos renderizados** | `onFieldsChange` compara una firma de los errores antes de llamar a `setFieldErrors`, de modo que escribir en un campo sin errores nuevos no vuelve a renderizar el resumen. La celda del total ya no se remonta con una `key` ligada a su valor. |
+| L7 | **Vista previa como papel** | El clon ya no muestra campos con borde, flechas, asteriscos ni paneles de edición: los convierte en valores. Solo imprime la descripción personalizada como segunda línea del ítem; el resto del panel de detalle se omite porque la tabla y los totales ya informan de descuentos e impuestos. En móvil, las etiquetas de «Facturar a» vuelven a colocarse sobre el control para que nada quede fuera de la tarjeta. |
+
+Archivos tocados: `pages/invoices/InvoiceFormPage.tsx`, `index.css`,
+`components/form/DocumentFormFooter.tsx`, `components/ProductSelect.tsx`,
+`utils/productLookup.ts` y `components/AppLayout.tsx`. Se elimina
+`hooks/usePointerGrid.ts`. Sin dependencias nuevas, sin cambios en el payload
+fiscal ni en las validaciones: la información plegada sigue enviándose igual y
+los cinco datos del Art. 617 se comprueban con los mismos campos.
+
+Verificación: `npx tsc --noEmit`, `client npm run lint` y `client npm run build`
+(CSS 80,28 → 82,02 kB; bundle de la factura 43,48 → 44,88 kB) sin errores;
+`server npm test` 243/243. En Chrome con CDP se comprobó que la tabla muestra
+cinco rótulos visibles, la barra medía 58 px (49 px tras la pasada 41), no hay animación en `body` ni
+desenfoque en los elementos fijos, el popover fiscal se abre y se cierra al saltar
+a «Resolución» —que abre la sección y enfoca `resolucion_numero`—, el panel `%`
+sigue ofreciendo sus siete campos, el envío vacío marca seis errores, el pegado
+de dos líneas actualiza el total a `$ 558.110`, la vista previa clonaba dos filas
+sin paneles de edición, imprimía la información fiscal y respetaba A4, y en
+390 px no había desbordamiento horizontal. Una comprobación adicional con
+descripción personalizada confirmó que el papel mostraba una sola línea de
+descripción y ocultaba los seis campos del panel. La pasada 41 retira esa vista
+previa; la impresión del navegador conserva los estilos de hoja.
+
+## 41. Factura todavía más limpia: sin aviso de errores ni botones de papel
+
+La revisión de la pasada 40 dejaba dos capas que seguían estorbando: un panel
+que listaba los campos con error y una barra con «Imprimir» y «Vista previa».
+Ambas se quitan. La factura se valida en el propio campo, y la impresión sigue
+siendo la del navegador (Ctrl+P), con la misma plantilla. El trabajo restante
+va a la alineación y al espaciado del documento.
+
+| # | Cambio | Detalle |
+|---|---|---|
+| M1 | **Sin resumen de errores** | Se retira `FormErrorSummary` y el estado que lo alimentaba. El envío inválido marca los campos con AntD, salta al primero y deja el mensaje breve en un toast; no hay una alerta que ocupe espacio encima de la cabecera. |
+| M2 | **Barra solo con acciones** | Desaparecen «Imprimir» y «Vista previa» de `DocumentFormFooter` y el modal `InvoicePrintPreview`. Quedan Fiscal, Borrador, Cancelar y Guardar, con 30 px de alto y 49 px de barra. Las reglas `@media print` siguen preparando la hoja para Ctrl+P. |
+| M3 | **Ayudas en el campo numérico** | Las flechas de subir/bajar pedidas están en los `InputNumber`, no en el orden de líneas: vuelven a verse a la derecha de cada cifra, con 18 px de ancho, separador tenue y alto contraste al pasar el cursor. «Cantidad», «Precio unitario» y los `%` se corrigen sin borrar lo escrito; el teclado sigue usando ↑/↓. El orden de líneas queda en el menú («Mover arriba/abajo», «Clonar importes», «Quitar línea») y la celda de acciones baja a 44 px. |
+| M4 | **Campos sin borde ni subrayado** | Los controles pierden la línea inferior en reposo: solo cambia el fondo al pasar el cursor y reciben un halo corto al enfocar. El error tiñe levemente el fondo; la altura de la fila no cambia en ningún estado. |
+| M5 | **Documento mejor espaciado** | Cabecera más compacta, celdas de línea con 12 px verticales, panel de detalle con borde perimetral suave y 16 px entre campos, y las seis filas de totales visibles (Subtotal, Descuento, IVA, INC, Otros impuestos y Retenciones) antes del total. |
+| M6 | **Móvil sin desbordes** | Las etiquetas de la tabla vuelven a ir arriba del control y el control ocupa toda la celda; se corrige también la rejilla de tipo/fecha/hora de la cabecera. Ya no hay elementos que se salgan de la tarjeta a 390 px. |
+| M7 | **Tokens compartidos** | `styles/tokens.css` añade una escala de espacio (4/8/12/16/24 px), pesos de rótulo y cifra, radio de campo, altura de control, ancho de flecha, anillo de foco y filo tenue. La factura consume esos tokens y el `ConfigProvider` fija el mismo ancho de flecha y las ayudas siempre visibles en todo AntD: documento, modales y listas hablan la misma lengua. |
+| M8 | **Ayudas accesibles** | `useStepperLabels` traduce las etiquetas que AntD 6 deja en inglés («Increase Value») a «Aumentar/Disminuir <campo>», también en filas creadas después. Las flechas tienen foco visible, estado desactivado por `aria-disabled` y una vía equivalente por teclado; en impresión se ocultan y el valor recupera su hueco. |
+
+Archivos tocados: `pages/invoices/InvoiceFormPage.tsx`,
+`components/form/DocumentFormFooter.tsx`, `context/ThemeContext.tsx`,
+`hooks/useStepperLabels.ts`, `styles/tokens.css` e `index.css`. Se eliminan
+`components/form/FormErrorSummary.tsx` y
+`components/print/InvoicePrintPreview.tsx`. El payload, las validaciones del
+Art. 617, los atajos, el borrador local y el pegado desde Excel no cambian.
+
+Verificación: `npx tsc --noEmit`, `client npm run lint` y `client npm run build`
+sin errores; `server npm test` 243/243. En Chrome con CDP se comprobó que no
+existe el resumen de errores, que el envío vacío marca seis campos y enfoca
+`contraparte`, que la barra muestra solo cuatro botones y mide 49 px, que el
+hover de un importe no añade borde (0 px) pero cambia el fondo, que once
+`InputNumber` muestran sus flechas de 18 px con etiquetas «Aumentar Cantidad» y
+«Disminuir Cantidad», que un clic en ↑ pasa la cantidad vacía a 1, ↓ respeta el mínimo y
+`↑` la deja en 2, que el menú de línea ofrece mover, clonar y quitar, que el
+panel `%` abre sus siete campos con sus propias flechas, que en papel las flechas
+desaparecen, que el pegado de dos líneas actualiza el total a `$ 558.110`, y que
+a 390 px no hay desbordamiento horizontal. La consola solo muestra el aviso
+preexistente de `Alert` en el login. Sin commit ni push hasta la aprobación
+explícita.
+
 ## Ruta sugerida
 
 1. **Quick wins (1–2 días):** H1, H2, N1, N2, N3, G3, F1, F3 y textos de ayuda.

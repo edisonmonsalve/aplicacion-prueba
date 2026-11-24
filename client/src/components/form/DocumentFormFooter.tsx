@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { Button, Tag, Tooltip } from "antd";
-import { CloseOutlined, PrinterOutlined, SaveOutlined } from "@ant-design/icons";
+import { useState, type ReactNode } from "react";
+import { Button, Popover, Tag, Tooltip } from "antd";
+import { CloseOutlined, SafetyCertificateOutlined, SaveOutlined } from "@ant-design/icons";
 
 interface Props {
   saving: boolean;
@@ -17,8 +17,8 @@ interface Props {
   eyebrow?: string;
   /** Aviso compacto dentro de la barra (p. ej. datos fiscales pendientes). */
   notice?: ReactNode;
-  /** Solo documentos que se imprimen como hoja (factura). */
-  onPrint?: () => void;
+  /** Lista fiscal compacta; cada elemento lleva al campo que falta. */
+  checklist?: Array<{ label: string; ok: boolean; onGo: () => void }>;
 }
 
 /**
@@ -40,7 +40,7 @@ export default function DocumentFormFooter({
   draftSavedAt,
   eyebrow,
   notice,
-  onPrint,
+  checklist,
 }: Props) {
   const lastSaved = draftSavedAt
     ? new Date(draftSavedAt).toLocaleTimeString("es-CO", {
@@ -48,10 +48,50 @@ export default function DocumentFormFooter({
         minute: "2-digit",
       })
     : null;
+  const pending = checklist?.filter((item) => !item.ok).length ?? 0;
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   return (
     <div className="ui-doc-footer" data-saving={saving} data-dirty={dirty}>
       <div className="ui-doc-footer__actions">
+        {checklist && checklist.length > 0 && (
+          <Popover
+            trigger="click"
+            placement="topLeft"
+            title="Revisión fiscal"
+            open={reviewOpen}
+            onOpenChange={setReviewOpen}
+            content={
+              <div className="ui-doc-footer__checklist" aria-label="Lista de revisión fiscal">
+                {checklist.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className={item.ok ? "is-ok" : "is-pending"}
+                    onClick={() => {
+                      item.onGo();
+                      // El popover se cierra en el siguiente turno: AntD procesa
+                      // el clic del contenido después de este manejador.
+                      window.setTimeout(() => setReviewOpen(false), 0);
+                    }}
+                    title={item.ok ? "Completo · ir al campo" : "Pendiente · completar"}
+                  >
+                    <span aria-hidden="true">{item.ok ? "✓" : "○"}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            <Button
+              type="text"
+              className={`ui-doc-footer__review${pending > 0 ? " is-pending" : ""}`}
+              icon={<SafetyCertificateOutlined />}
+            >
+              {pending > 0 ? `Fiscal · faltan ${pending}` : "Fiscal · completo"}
+            </Button>
+          </Popover>
+        )}
         {eyebrow && <span className="ui-doc-footer__eyebrow">{eyebrow}</span>}
         <span className="ui-doc-footer__state" role="status" aria-live="polite">
           {dirty ? (
@@ -63,13 +103,6 @@ export default function DocumentFormFooter({
           )}
         </span>
         {notice}
-        {onPrint && (
-          <Tooltip title="Imprimir en carta o A4 (Ctrl+P)">
-            <Button type="text" icon={<PrinterOutlined />} onClick={onPrint}>
-              Imprimir
-            </Button>
-          </Tooltip>
-        )}
         {onSaveDraft && (
           <Tooltip
             title={

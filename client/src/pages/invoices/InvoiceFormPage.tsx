@@ -19,7 +19,9 @@ import {
   DownOutlined,
   MinusCircleOutlined,
   MoreOutlined,
+  PercentageOutlined,
   PlusOutlined,
+  SnippetsOutlined,
 } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -30,10 +32,12 @@ import { listThirdParties } from "@/services/thirdPartiesService";
 import { fetchProductsByIds, type ProductOption } from "@/utils/productLookup";
 import { currencyInputProps } from "@/utils/format";
 import { useProductSearch } from "@/hooks/useProductSearch";
+import { useStepperLabels } from "@/hooks/useStepperLabels";
 import ProductSelect from "@/components/ProductSelect";
 import StockTag from "@/components/StockTag";
 import DocumentTotals from "@/components/form/DocumentTotals";
 import DocumentFormFooter from "@/components/form/DocumentFormFooter";
+import PasteLinesDialog, { type PastedLine } from "@/components/form/PasteLinesDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { applyApiErrors, clearFormErrors } from "@/utils/formErrors";
 import type {
@@ -47,6 +51,8 @@ import type {
   ThirdParty,
 } from "@/types";
 import { TIPO_OPTIONS, money } from "./InvoiceUtils";
+
+type FieldName = Array<string | number>;
 
 interface LineForm {
   product_id?: number;
@@ -95,9 +101,26 @@ const tieneDetalle = (line?: LineForm) =>
   !!line &&
   (!!line.descripcion?.trim() ||
     (!!line.unidad_medida && line.unidad_medida !== "UND") ||
+    !!line.descuento_pct ||
+    (line.impuesto_pct !== undefined && line.impuesto_pct !== 19) ||
     !!line.inc_pct ||
     !!line.otro_impuesto_pct ||
     !!line.otro_impuesto_nombre?.trim());
+
+/** Campos que viven dentro de «Información adicional» y deben abrirla al saltar. */
+const MORE_FIELDS = new Set([
+  "quote_id",
+  "prefijo",
+  "resolucion_numero",
+  "resolucion_fecha",
+  "rango_desde",
+  "rango_hasta",
+  "orden_compra",
+  "account_id",
+  "retencion_fuente",
+  "retencion_iva",
+  "retencion_ica",
+]);
 
 const DOCUMENTO_OPTIONS: { value: InvoiceDocumentoTipo; label: string }[] = [
   { value: "NIT", label: "NIT" },
@@ -206,8 +229,16 @@ export default function InvoiceFormPage() {
   const [dirty, setDirty] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState<Set<number>>(new Set());
+  /** Resolución, referencias y contabilidad: plegadas para no competir con las líneas. */
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
   /** `add` de Form.List se guarda aquí para poder agregar líneas con el teclado. */
+  const editorRef = useRef<HTMLDivElement>(null);
+  useStepperLabels(editorRef);
+
   const addLineRef = useRef<((value?: LineForm) => void) | null>(null);
+  const removeLineRef = useRef<((index: number) => void) | null>(null);
   const draftKey = `${DRAFT_PREFIX}${editId ?? "new"}`;
   const loadedQuoteRef = useRef<number | null>(null);
   const lineas = Form.useWatch("items", form) ?? [];
@@ -226,6 +257,7 @@ export default function InvoiceFormPage() {
   const rangoHasta = Form.useWatch("rango_hasta", form);
   const medioPago = Form.useWatch("medio_pago", form);
   const fechaVencimiento = Form.useWatch("fecha_vencimiento", form);
+  const accountId = Form.useWatch("account_id", form);
   // Catálogo actual sin reejecutar el efecto de precios en cada búsqueda.
   const productsRef = useRef(products);
   productsRef.current = products;
@@ -271,13 +303,14 @@ export default function InvoiceFormPage() {
   }, [draftKey, form, message]);
 
   /** Alta de línea con foco automático en el producto, también con Alt+Enter. */
-  const addLine = useCallback(() => {
+  const addLine = useCallback((value?: LineForm) => {
     addLineRef.current?.({
       descuento_pct: 0,
       impuesto_pct: 19,
       inc_pct: 0,
       otro_impuesto_pct: 0,
       unidad_medida: "UND",
+      ...value,
     });
     window.setTimeout(() => {
       const rows = document.querySelectorAll(".ui-invoice-table__row");
@@ -293,25 +326,84 @@ export default function InvoiceFormPage() {
     }, 0);
   }, []);
 
+  /** Enfoca el producto de una línea; es la puerta de entrada a cada fila. */
+  const focusRow = useCallback((index: number) => {
+    window.setTimeout(() => {
+      const row = document.querySelectorAll(".ui-invoice-table__row")[index];
+      const target =
+        row?.querySelector<HTMLElement>(".ant-select-input") ??
+        row?.querySelector<HTMLElement>(".ant-select-selection-search-input") ??
+        row?.querySelector<HTMLElement>(".ant-select-selector");
+      target?.focus();
+    }, 0);
+  }, []);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.altKey && e.key === "Enter") {
+      const target = e.target as HTMLElement | null;
+      const inDialog = !!target?.closest(".ant-modal");
+      const row = target?.closest<HTMLElement>(".ui-invoice-table__row") ?? null;
+      const rows = Array.from(document.querySelectorAll<HTMLElement>(".ui-invoice-table__row"));
+      const index = row ? rows.indexOf(row) : -1;
+
+      if (e.altKey && e.key === "Enter" && !inDialog) {
         e.preventDefault();
         addLine();
         return;
       }
-      if (!(e.ctrlKey || e.metaKey)) return;
+      // El desplegable de producto usa Enter para elegir: no debe mover la fila.
+      const dropdownOpen = !!document.querySelector(
+        ".ant-select-dropdown:not(.ant-select-dropdown-hidden)"
+      );
+      // Enter dentro de la tabla avanza a la siguiente línea; en la última, abre una.
+      if (
+        e.key === "Enter" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        index >= 0 &&
+        !inDialog &&
+        !dropdownOpen
+      ) {
+        if (target?.tagName === "TEXTAREA") return;
+        // Un selector vacío usa Enter para abrir la lista; con un producto ya
+        // elegido, Enter pasa a la siguiente línea como en una hoja de cálculo.
+        const emptySelect =
+          target?.classList.contains("ant-select-input") &&
+          !target.closest(".ant-select")?.querySelector(".ant-select-selection-item");
+        if (emptySelect) return;
+        e.preventDefault();
+        if (index === rows.length - 1) addLine();
+        else focusRow(index + 1);
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey) || inDialog) return;
       if (e.key === "Enter") {
         e.preventDefault();
         form.submit();
       } else if (e.key.toLowerCase() === "s") {
         e.preventDefault();
         saveDraft();
+      } else if (e.key.toLowerCase() === "d" && index >= 0) {
+        e.preventDefault();
+        const current = (form.getFieldValue("items") as LineForm[] | undefined)?.[index];
+        if (current) {
+          addLine({ ...current, product_id: undefined });
+          setAnnouncement(`Línea ${index + 1} duplicada`);
+        }
+      } else if (e.key === "Delete" && index >= 0) {
+        e.preventDefault();
+        if (rows.length <= 1) return;
+        removeLineRef.current?.(index);
+        setAnnouncement(`Línea ${index + 1} eliminada`);
+        focusRow(Math.max(0, index - 1));
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [form, saveDraft, addLine]);
+    // Captura: si el evento llegara antes a AntD, el Select abriría su lista y
+    // Enter nunca avanzaría de línea.
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [form, saveDraft, addLine, focusRow]);
 
   // Al cambiar venta/compra, las líneas toman el valor que corresponde al nuevo
   // tipo: precio de venta o costo de compra. Se respetan los precios que el
@@ -393,6 +485,13 @@ export default function InvoiceFormPage() {
   const quoteEntregada = !!quoteInfo && quoteInfo.estado === "entregado";
   const enCotizacion = (productId?: number) =>
     !!productId && !!quoteInfo?.items.some((l) => l.product_id === productId);
+  // Resumen de una línea para el bloque plegado: informa sin abrir nada.
+  const accountName = accounts.find((a) => a.id === accountId)?.nombre;
+  const moreSummary = [
+    resolucionNumero?.trim() ? `Resolución ${resolucionNumero.trim()}` : "Sin resolución",
+    accountName ?? "Cuenta por defecto",
+    retenciones > 0 ? "Con retenciones" : "Sin retenciones",
+  ].join(" · ");
 
   // Cuentas de caja/banco: definen de dónde sale o dónde entra el dinero.
   useEffect(() => {
@@ -656,8 +755,13 @@ export default function InvoiceFormPage() {
     {
       label: "Adquirente identificado",
       ok: !!contraparte?.trim() && !!documentoAdquirente?.trim() && !!tipoDocumento,
+      field: contraparte?.trim() ? "documento" : "contraparte",
     },
-    { label: "Fecha y hora de expedición", ok: !!fecha && !!horaExpedicion },
+    {
+      label: "Fecha y hora de expedición",
+      ok: !!fecha && !!horaExpedicion,
+      field: fecha ? "hora_expedicion" : "fecha",
+    },
     {
       label: "Resolución y rango autorizado",
       ok:
@@ -667,10 +771,12 @@ export default function InvoiceFormPage() {
         typeof rangoDesde === "number" &&
         typeof rangoHasta === "number" &&
         !rangoInvalido,
+      field: !resolucionNumero?.trim() ? "resolucion_numero" : "rango_desde",
     },
     {
       label: "Líneas con descripción",
       ok: lineas.length > 0 && lineas.every((l) => !!l?.descripcion?.trim()),
+      field: lineas.length > 0 ? ["items", 0, "descripcion"] : "items",
     },
     {
       label: "Forma y medio de pago",
@@ -678,9 +784,21 @@ export default function InvoiceFormPage() {
         !!condicionPago &&
         !!medioPago &&
         (condicionPago !== "credito" || !!fechaVencimiento),
+      field: condicionPago === "credito" ? "fecha_vencimiento" : "medio_pago",
     },
   ];
-  const fiscalFaltantes = fiscalChecks.filter((c) => !c.ok);
+  /** Lleva al campo; si vive en «Información adicional», la abre primero. */
+  const goToField = (name: FieldName) => {
+    if (MORE_FIELDS.has(String(name[0]))) setMoreOpen(true);
+    // El cuerpo plegado se monta en el mismo ciclo: el salto espera un turno.
+    window.setTimeout(() => {
+      form.scrollToField(name, { behavior: "smooth", block: "center" });
+      window.setTimeout(() => {
+        const instance = form.getFieldInstance(name) as { focus?: () => void } | undefined;
+        instance?.focus?.();
+      }, 140);
+    }, 20);
+  };
 
   // La clave de Form.List es estable al mover, clonar o quitar líneas: usar el
   // índice dejaría abierto el detalle de otra fila después de reordenar.
@@ -691,8 +809,6 @@ export default function InvoiceFormPage() {
       else next.add(key);
       return next;
     });
-
-  const openFiscal = () => form.scrollToField("resolucion_numero");
 
   // La fecha de vencimiento se deriva de los días de crédito sobre la fecha de
   // factura; así el mencionado en la factura siempre concuerda con el plazo.
@@ -720,6 +836,13 @@ export default function InvoiceFormPage() {
   const onProductChange = (name: number, pid: number) => {
     const p = products[pid];
     if (!p) return;
+    const repetido = (form.getFieldValue("items") as LineForm[] | undefined)?.some(
+      (line, i) => i !== name && line?.product_id === pid
+    );
+    if (repetido) {
+      message.warning("Ese producto ya está en otra línea; revisa la cantidad");
+      setAnnouncement(`Producto ${p.nombre} repetido en otra línea`);
+    }
     const arr = [...(form.getFieldValue("items") ?? [])];
     const anteriorId = arr[name]?.product_id;
     const anteriorNombre = anteriorId ? products[anteriorId]?.nombre : undefined;
@@ -737,6 +860,51 @@ export default function InvoiceFormPage() {
       unidad_medida: arr[name]?.unidad_medida || "UND",
     };
     form.setFieldsValue({ items: arr });
+  };
+
+  /** Convierte filas pegadas en líneas; reemplaza la línea vacía inicial. */
+  const onPasteLines = (lines: PastedLine[]) => {
+    if (lines.length === 0) return;
+    const current = (form.getFieldValue("items") as LineForm[] | undefined) ?? [];
+    const vacia = current.length === 1 && !current[0]?.product_id && !current[0]?.cantidad;
+    const base = vacia ? [] : current;
+    const usados = new Set(
+      base.map((l) => l.product_id).filter((id): id is number => typeof id === "number")
+    );
+    let repetidos = 0;
+    const nuevas: LineForm[] = [];
+    for (const l of lines) {
+      if (!l.productId) continue;
+      if (usados.has(l.productId)) {
+        repetidos += 1;
+        continue;
+      }
+      usados.add(l.productId);
+      nuevas.push({
+        product_id: l.productId,
+        descripcion: l.descripcion,
+        unidad_medida: "UND",
+        cantidad: l.cantidad,
+        precio_unitario: l.precio,
+        descuento_pct: 0,
+        impuesto_pct: 19,
+        inc_pct: 0,
+        otro_impuesto_pct: 0,
+      });
+    }
+    if (nuevas.length === 0) {
+      message.warning("Esas líneas ya están en la factura");
+      return;
+    }
+    form.setFieldsValue({ items: [...base, ...nuevas] });
+    setDirty(true);
+    setPasteOpen(false);
+    setAnnouncement(`${nuevas.length} líneas agregadas desde Excel`);
+    message.success(
+      repetidos > 0
+        ? `${nuevas.length} líneas agregadas · ${repetidos} producto(s) repetido(s) omitido(s)`
+        : `${nuevas.length} líneas agregadas`
+    );
   };
 
   const onFinish = async (v: FormValues) => {
@@ -813,13 +981,17 @@ export default function InvoiceFormPage() {
   };
 
   return (
-    <div className="ui-invoice-editor">
+    <div className="ui-invoice-editor" ref={editorRef}>
+      <p className="ui-visually-hidden" role="status" aria-live="polite">
+        {announcement}
+      </p>
       <Form<FormValues>
         form={form}
         layout="vertical"
+        validateTrigger={["onBlur", "onChange"]}
         onFinish={onFinish}
         onFinishFailed={({ errorFields }) => {
-          if (errorFields[0]) form.scrollToField(errorFields[0].name);
+          if (errorFields[0]) goToField(errorFields[0].name);
           message.error("Revisa los campos marcados antes de guardar");
         }}
         onValuesChange={() => setDirty(true)}
@@ -952,27 +1124,6 @@ export default function InvoiceFormPage() {
                   allowClear
                 />
               </Form.Item>
-              {tipo !== "compra" && (
-                <Form.Item name="quote_id" label="Cotización">
-                  <Select
-                    variant="borderless"
-                    allowClear
-                    showSearch
-                    optionFilterProp="label"
-                    placeholder="Sin cotización"
-                    onChange={(v?: number) => {
-                      if (!v) {
-                        setQuoteInfo(null);
-                        loadedQuoteRef.current = null;
-                      }
-                    }}
-                    options={quotes.map((q) => ({
-                      value: q.id,
-                      label: `${q.numero} — ${q.customer_nombre} (${q.estado})`,
-                    }))}
-                  />
-                </Form.Item>
-              )}
             </div>
             <span className="ui-invoice-rowlabel">Condiciones</span>
             <div className="ui-invoice-parties__fields">
@@ -1029,7 +1180,7 @@ export default function InvoiceFormPage() {
             </div>
           </div>
 
-          <div className="ui-invoice-table">
+          <div className="ui-invoice-table" role="table" aria-label="Líneas de la factura">
             <Form.List
               name="items"
               rules={[
@@ -1048,17 +1199,26 @@ export default function InvoiceFormPage() {
             >
               {(fields, { add, remove, move }, { errors }) => {
                 addLineRef.current = add;
+                removeLineRef.current = remove;
                 return (
                 <>
-                  <div className="ui-invoice-table__head" aria-hidden="true">
-                    <span>#</span>
-                    <span>Descripción</span>
-                    <span>Cant.</span>
-                    <span>Precio unit.</span>
-                    <span>Desc. %</span>
-                    <span>IVA %</span>
-                    <span>Total</span>
-                    <span />
+                  <div className="ui-invoice-table__head" role="row">
+                    <span id="inv-col-index" role="columnheader">#</span>
+                    <span id="inv-col-product" role="columnheader">Descripción</span>
+                    <span id="inv-col-qty" role="columnheader">Cant.</span>
+                    <span id="inv-col-price" role="columnheader">Precio unit.</span>
+                    <span id="inv-col-total" role="columnheader">Total</span>
+                    <span role="columnheader">
+                      <Tooltip title="Pegar varias líneas desde Excel">
+                        <Button
+                          type="text"
+                          size="small"
+                          aria-label="Pegar líneas desde Excel"
+                          icon={<SnippetsOutlined />}
+                          onClick={() => setPasteOpen(true)}
+                        />
+                      </Tooltip>
+                    </span>
                   </div>
                   {fields.map(({ key, name }) => {
                     const l = lineas[name];
@@ -1104,9 +1264,21 @@ export default function InvoiceFormPage() {
                               }
                             : { tone: "ok", text: `Stock disponible · ${p.stock_actual}` }
                         : null;
+                    // El producto ya imprime nombre y SKU en la columna; el panel
+                    // solo viaja al papel cuando la descripción fue personalizada.
+                    const descripcionCustom =
+                      !!l?.descripcion?.trim() && l.descripcion.trim() !== p?.nombre;
                     return (
-                      <div className="ui-invoice-table__row" key={key}>
-                        <span className="ui-invoice-table__index">{name + 1}</span>
+                      <div
+                        className="ui-invoice-table__row"
+                        key={key}
+                        role="row"
+                        aria-rowindex={name + 1}
+                        aria-label={`Línea ${name + 1}`}
+                      >
+                        <span className="ui-invoice-table__index" role="cell" aria-label="Número de línea">
+                          {name + 1}
+                        </span>
                         <div className="ui-invoice-table__product">
                           <Form.Item
                             name={[name, "product_id"]}
@@ -1139,18 +1311,19 @@ export default function InvoiceFormPage() {
                               />
                             </Tooltip>
                           )}
-                          <Button
-                            type="link"
-                            size="small"
-                            className={`ui-invoice-table__detail${detailsOpen.has(key) ? " is-open" : ""}`}
-                            data-filled={tieneDetalle(l)}
-                            aria-expanded={detailsOpen.has(key)}
-                            aria-controls={`ui-invoice-detalle-${key}`}
-                            onClick={() => toggleDetails(key)}
-                            icon={<DownOutlined className="ui-invoice-table__detail-caret" />}
-                          >
-                            Detalle
-                          </Button>
+                          <Tooltip title="Descuento, IVA y otros datos de la línea">
+                            <Button
+                              type="text"
+                              size="small"
+                              className={`ui-invoice-table__detail${detailsOpen.has(key) ? " is-open" : ""}`}
+                              data-filled={tieneDetalle(l)}
+                              aria-label={`Detalle fiscal de la línea ${name + 1}`}
+                              aria-expanded={detailsOpen.has(key)}
+                              aria-controls={`ui-invoice-detalle-${key}`}
+                              onClick={() => toggleDetails(key)}
+                              icon={<PercentageOutlined className="ui-invoice-table__detail-icon" />}
+                            />
+                          </Tooltip>
                         </div>
                         <Form.Item
                           name={[name, "cantidad"]}
@@ -1171,21 +1344,7 @@ export default function InvoiceFormPage() {
                             placeholder="$ 0"
                           />
                         </Form.Item>
-                        <Form.Item
-                          name={[name, "descuento_pct"]}
-                          label="Descuento"
-                          initialValue={0}
-                        >
-                          <InputNumber variant="borderless" min={0} max={100} placeholder="0" suffix="%" />
-                        </Form.Item>
-                        <Form.Item
-                          name={[name, "impuesto_pct"]}
-                          label="IVA"
-                          initialValue={19}
-                        >
-                          <InputNumber variant="borderless" min={0} max={100} placeholder="19" suffix="%" />
-                        </Form.Item>
-                        <div className="ui-invoice-table__total num" key={lineTotal(l ?? {})}>
+                        <div className="ui-invoice-table__total num">
                           {money(lineTotal(l ?? {}))}
                         </div>
                         <div className="ui-invoice-table__actions">
@@ -1237,7 +1396,9 @@ export default function InvoiceFormPage() {
                         <div
                           className={`ui-invoice-table__detail-row${
                             detailsOpen.has(key) ? "" : " is-collapsed"
-                          }${tieneDetalle(l) ? "" : " is-empty"}`}
+                          }${tieneDetalle(l) ? "" : " is-empty"}${
+                            descripcionCustom ? " has-custom-description" : ""
+                          }`}
                           id={`ui-invoice-detalle-${key}`}
                         >
                             <Form.Item
@@ -1252,20 +1413,51 @@ export default function InvoiceFormPage() {
                                 placeholder="Texto que aparece en la factura"
                               />
                             </Form.Item>
-                            <Form.Item name={[name, "unidad_medida"]} label="Unidad" initialValue="UND">
+                            <Form.Item
+                              className="ui-invoice-table__detail-extra"
+                              name={[name, "unidad_medida"]}
+                              label="Unidad"
+                              initialValue="UND"
+                            >
                               <Input variant="borderless" maxLength={20} allowClear placeholder="UND" />
                             </Form.Item>
-                            <Form.Item name={[name, "inc_pct"]} label="INC %" initialValue={0}>
+                            <Form.Item
+                              className="ui-invoice-table__detail-extra"
+                              name={[name, "descuento_pct"]}
+                              label="Desc. %"
+                              initialValue={0}
+                            >
                               <InputNumber variant="borderless" min={0} max={100} placeholder="0" suffix="%" />
                             </Form.Item>
                             <Form.Item
-                              className="ui-invoice-table__wide"
+                              className="ui-invoice-table__detail-extra"
+                              name={[name, "impuesto_pct"]}
+                              label="IVA %"
+                              initialValue={19}
+                            >
+                              <InputNumber variant="borderless" min={0} max={100} placeholder="19" suffix="%" />
+                            </Form.Item>
+                            <Form.Item
+                              className="ui-invoice-table__detail-extra"
+                              name={[name, "inc_pct"]}
+                              label="INC %"
+                              initialValue={0}
+                            >
+                              <InputNumber variant="borderless" min={0} max={100} placeholder="0" suffix="%" />
+                            </Form.Item>
+                            <Form.Item
+                              className="ui-invoice-table__wide ui-invoice-table__detail-extra"
                               name={[name, "otro_impuesto_nombre"]}
                               label="Otro impuesto"
                             >
                               <Input variant="borderless" maxLength={60} placeholder="Ej.: ICA" allowClear />
                             </Form.Item>
-                            <Form.Item name={[name, "otro_impuesto_pct"]} label="Otro %" initialValue={0}>
+                            <Form.Item
+                              className="ui-invoice-table__detail-extra"
+                              name={[name, "otro_impuesto_pct"]}
+                              label="Otro %"
+                              initialValue={0}
+                            >
                               <InputNumber variant="borderless" min={0} max={100} placeholder="0" suffix="%" />
                             </Form.Item>
                             <div className="ui-invoice-table__flag">{flag}</div>
@@ -1279,13 +1471,21 @@ export default function InvoiceFormPage() {
                     block
                     className="ui-invoice-table__add"
                     icon={<PlusOutlined className="ui-invoice-table__add-icon" />}
-                    onClick={addLine}
+                    onClick={() => addLine()}
                   >
                     <span className="ui-invoice-table__add-label">Agregar línea</span>
-                    <span className="ui-invoice-table__add-hint">Línea {fields.length + 1}</span>
                     <Tooltip title="Atajo: Alt + Enter">
                       <span className="ui-invoice-table__add-shortcut">Alt + ↵</span>
                     </Tooltip>
+                  </Button>
+                  <Button
+                    type="link"
+                    block
+                    className="ui-invoice-table__paste-mobile"
+                    icon={<SnippetsOutlined />}
+                    onClick={() => setPasteOpen(true)}
+                  >
+                    Pegar varias líneas desde Excel
                   </Button>
                 </>
                 );
@@ -1312,15 +1512,11 @@ export default function InvoiceFormPage() {
             <DocumentTotals
               rows={[
                 { label: "Subtotal", value: money(t.subtotal) },
-                ...(t.descuento > 0
-                  ? [{ label: "Descuento", value: money(-t.descuento), hint: "Descuentos por línea" }]
-                  : []),
-                ...(t.impuesto > 0 ? [{ label: "IVA", value: money(t.impuesto) }] : []),
-                ...(t.inc > 0 ? [{ label: "INC", value: money(t.inc) }] : []),
-                ...(t.otros > 0 ? [{ label: "Otros impuestos", value: money(t.otros) }] : []),
-                ...(retenciones > 0
-                  ? [{ label: "Retenciones", value: money(-retenciones), hint: "Informativas" }]
-                  : []),
+                { label: "Descuento", value: money(-t.descuento), hint: "Descuentos por línea" },
+                { label: "IVA", value: money(t.impuesto) },
+                { label: "INC", value: money(t.inc) },
+                { label: "Otros impuestos", value: money(t.otros) },
+                { label: "Retenciones", value: money(-retenciones), hint: "Informativas" },
               ]}
               totalLabel="Total factura"
               totalValue={money(t.total)}
@@ -1328,77 +1524,119 @@ export default function InvoiceFormPage() {
             />
           </div>
 
-          <footer className="ui-invoice-foot">
-            <div className="ui-invoice-foot__row">
-              <span className="ui-invoice-rowlabel">Resolución</span>
-              <div className="ui-invoice-foot__fields">
-                <Form.Item name="prefijo" label="Prefijo" rules={[{ required: true, message: "Prefijo" }, { max: 10 }]}>
-                  <Input variant="borderless" placeholder="FAC" style={{ textTransform: "uppercase" }} disabled={!!editId} />
-                </Form.Item>
-                <Form.Item
-                  className="ui-invoice-foot__wide"
-                  name="resolucion_numero"
-                  label="Resolución"
-                  rules={[{ required: tipo === "venta", message: "Requerido" }, { max: 40 }]}
-                >
-                  <Input variant="borderless" placeholder="RES-0001" />
-                </Form.Item>
-                <Form.Item
-                  name="resolucion_fecha"
-                  label="Fecha resolución"
-                  rules={[{ required: tipo === "venta", message: "Fecha" }]}
-                >
-                  <DatePicker variant="borderless" format="DD/MM/YYYY" />
-                </Form.Item>
-                <Form.Item name="rango_desde" label="Desde" rules={[{ required: true }]}>
-                  <InputNumber variant="borderless" min={1} placeholder="1" />
-                </Form.Item>
-                <Form.Item name="rango_hasta" label="Hasta" rules={[{ required: true }]}>
-                  <InputNumber variant="borderless" min={1} placeholder="9999" />
-                </Form.Item>
+          <section className={`ui-invoice-more${moreOpen ? " is-open" : ""}`}>
+            <button
+              type="button"
+              className="ui-invoice-more__toggle"
+              aria-expanded={moreOpen}
+              aria-controls="ui-invoice-more-body"
+              onClick={() => setMoreOpen((value) => !value)}
+            >
+              <span className="ui-invoice-more__title">Información adicional</span>
+              <span className="ui-invoice-more__summary">{moreSummary}</span>
+              <DownOutlined className="ui-invoice-more__caret" />
+            </button>
+            <div
+              className={`ui-invoice-more__body${moreOpen ? "" : " is-collapsed"}`}
+              id="ui-invoice-more-body"
+            >
+              <div className="ui-invoice-foot__row">
+                <span className="ui-invoice-rowlabel">Resolución</span>
+                <div className="ui-invoice-foot__fields">
+                  <Form.Item name="prefijo" label="Prefijo" rules={[{ required: true, message: "Prefijo" }, { max: 10 }]}>
+                    <Input variant="borderless" placeholder="FAC" style={{ textTransform: "uppercase" }} disabled={!!editId} />
+                  </Form.Item>
+                  <Form.Item
+                    className="ui-invoice-foot__wide"
+                    name="resolucion_numero"
+                    label="Resolución"
+                    rules={[{ required: tipo === "venta", message: "Requerido" }, { max: 40 }]}
+                  >
+                    <Input variant="borderless" placeholder="RES-0001" />
+                  </Form.Item>
+                  <Form.Item
+                    name="resolucion_fecha"
+                    label="Fecha resolución"
+                    rules={[{ required: tipo === "venta", message: "Fecha" }]}
+                  >
+                    <DatePicker variant="borderless" format="DD/MM/YYYY" />
+                  </Form.Item>
+                  <Form.Item name="rango_desde" label="Desde" rules={[{ required: true }]}>
+                    <InputNumber variant="borderless" min={1} placeholder="1" />
+                  </Form.Item>
+                  <Form.Item name="rango_hasta" label="Hasta" rules={[{ required: true }]}>
+                    <InputNumber variant="borderless" min={1} placeholder="9999" />
+                  </Form.Item>
+                </div>
+              </div>
+              {rangoInvalido && (
+                <p className="ui-invoice-error ui-invoice-foot__error">
+                  El rango desde debe ser menor o igual al rango hasta.
+                </p>
+              )}
+              <div className="ui-invoice-foot__row">
+                <span className="ui-invoice-rowlabel">Referencia</span>
+                <div className="ui-invoice-foot__fields">
+                  {tipo !== "compra" && (
+                    <Form.Item name="quote_id" label="Cotización">
+                      <Select
+                        variant="borderless"
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        placeholder="Sin cotización"
+                        onChange={(v?: number) => {
+                          if (!v) {
+                            setQuoteInfo(null);
+                            loadedQuoteRef.current = null;
+                          }
+                        }}
+                        options={quotes.map((q) => ({
+                          value: q.id,
+                          label: `${q.numero} — ${q.customer_nombre} (${q.estado})`,
+                        }))}
+                      />
+                    </Form.Item>
+                  )}
+                  <Form.Item name="orden_compra" label="Orden de compra">
+                    <Input variant="borderless" placeholder="OC-0001" />
+                  </Form.Item>
+                </div>
+              </div>
+              <div className="ui-invoice-foot__row">
+                <span className="ui-invoice-rowlabel">Contabilidad</span>
+                <div className="ui-invoice-foot__fields">
+                  <Form.Item
+                    className="ui-invoice-foot__wide"
+                    name="account_id"
+                    label="Cuenta de destino"
+                  >
+                    <Select
+                      variant="borderless"
+                      allowClear
+                      placeholder="Cuenta por defecto"
+                      options={accounts.map((a) => ({
+                        value: a.id,
+                        label: `${a.nombre} (${a.tipo}) · saldo ${money(a.saldo_actual)}`,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item name="retencion_fuente" label="Ret. fuente" initialValue={0}>
+                    <InputNumber {...currencyInputProps} variant="borderless" placeholder="$ 0" />
+                  </Form.Item>
+                  <Form.Item name="retencion_iva" label="Ret. IVA" initialValue={0}>
+                    <InputNumber {...currencyInputProps} variant="borderless" placeholder="$ 0" />
+                  </Form.Item>
+                  <Form.Item name="retencion_ica" label="Ret. ICA" initialValue={0}>
+                    <InputNumber {...currencyInputProps} variant="borderless" placeholder="$ 0" />
+                  </Form.Item>
+                </div>
+              </div>
+              <div className="ui-invoice-foot__legal">
+                Hora local de Bogotá (UTC-5) · Los datos fiscales se validan al confirmar.
               </div>
             </div>
-            {rangoInvalido && (
-              <p className="ui-invoice-error ui-invoice-foot__error">
-                El rango desde debe ser menor o igual al rango hasta.
-              </p>
-            )}
-            <div className="ui-invoice-foot__row">
-              <span className="ui-invoice-rowlabel">Contabilidad</span>
-              <div className="ui-invoice-foot__fields">
-                <Form.Item name="orden_compra" label="Orden de compra">
-                  <Input variant="borderless" placeholder="OC-0001" />
-                </Form.Item>
-                <Form.Item
-                  className="ui-invoice-foot__wide"
-                  name="account_id"
-                  label="Cuenta de destino"
-                >
-                  <Select
-                    variant="borderless"
-                    allowClear
-                    placeholder="Cuenta por defecto"
-                    options={accounts.map((a) => ({
-                      value: a.id,
-                      label: `${a.nombre} (${a.tipo}) · saldo ${money(a.saldo_actual)}`,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item name="retencion_fuente" label="Ret. fuente" initialValue={0}>
-                  <InputNumber {...currencyInputProps} variant="borderless" placeholder="$ 0" />
-                </Form.Item>
-                <Form.Item name="retencion_iva" label="Ret. IVA" initialValue={0}>
-                  <InputNumber {...currencyInputProps} variant="borderless" placeholder="$ 0" />
-                </Form.Item>
-                <Form.Item name="retencion_ica" label="Ret. ICA" initialValue={0}>
-                  <InputNumber {...currencyInputProps} variant="borderless" placeholder="$ 0" />
-                </Form.Item>
-              </div>
-            </div>
-            <div className="ui-invoice-foot__legal">
-              Hora local de Bogotá (UTC-5) · Los datos fiscales se validan al confirmar.
-            </div>
-          </footer>
+          </section>
         </div>
 
         <DocumentFormFooter
@@ -1411,20 +1649,23 @@ export default function InvoiceFormPage() {
           net={retenciones > 0 ? { label: "Neto a pagar", value: money(totalNeto) } : undefined}
           onSaveDraft={saveDraft}
           draftSavedAt={draftSavedAt}
-          onPrint={() => window.print()}
           eyebrow={editId ? `Factura ${prefijo ?? ""}-${editId}` : "Nueva factura"}
-          notice={
-            (dirty || !!editId) && fiscalFaltantes.length > 0 ? (
-              <span className="ui-doc-footer__notice">
-                Faltan {fiscalFaltantes.length} datos fiscales ·{" "}
-                <Button type="link" size="small" onClick={openFiscal}>
-                  Completar
-                </Button>
-              </span>
-            ) : undefined
-          }
+          checklist={fiscalChecks.map((check) => ({
+            label: check.label,
+            ok: check.ok,
+            onGo: () =>
+              goToField(typeof check.field === "string" ? [check.field] : check.field),
+          }))}
         />
       </Form>
+
+      <PasteLinesDialog
+        open={pasteOpen}
+        products={products}
+        onCancel={() => setPasteOpen(false)}
+        onConfirm={onPasteLines}
+      />
+
     </div>
   );
 }
