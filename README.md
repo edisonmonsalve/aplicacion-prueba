@@ -457,6 +457,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
 ## Documentación
 
+- [Portada pública](landing/index.html) — landing estática con SEO, desplegable en GitHub Pages o Vercel.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
