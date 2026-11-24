@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d9488" />
+
+    <title>Signal — Inventario, facturación y finanzas en una sola plataforma</title>
+    <meta
+      name="description"
+      content="Plataforma fullstack para gestionar stock, cotizaciones, facturas, cartera y contabilidad analítica. Una sola fuente de verdad para tu operación comercial."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://github.com/edisonmonsalve/aplicacion-prueba" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230d9488'/%3E%3Cpath d='M14 42V22h8l10 12 10-12h8v20h-8V32l-10 12-10-12v10z' fill='%23fff'/%3E%3C/svg%3E" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Signal" />
+    <meta property="og:title" content="Signal — Tu operación, en una sola señal" />
+    <meta
+      property="og:description"
+      content="Inventario, cotizaciones, facturación, cartera y finanzas con trazabilidad contable y permisos por rol."
+    />
+    <meta
+      property="og:image"
+      content="https://github.com/edisonmonsalve/aplicacion-prueba/raw/docs/readme-visual/docs/screenshots/01-inicio.png"
+    />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Signal — Inventario, facturación y finanzas" />
+    <meta
+      name="twitter:description"
+      content="Del presupuesto al balance, sin hojas de cálculo ni datos duplicados."
+    />
+
+    <script>
+      (function () {
+        document.documentElement.classList.add("js");
+        try {
+          var saved = localStorage.getItem("signal-landing-theme");
+          var theme =
+            saved ||
+            (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.dataset.theme = theme;
+        } catch (_) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
+
+    <link rel="stylesheet" href="assets/styles.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Signal — Sistema de Inventario, Facturación y Finanzas",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Aplicación fullstack para gestionar inventario, cotizaciones, facturas, cartera y contabilidad analítica.",
+        "url": "https://github.com/edisonmonsalve/aplicacion-prueba",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+  </head>
+
+  <body id="inicio">
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <header class="site-header">
+      <div class="shell site-header__inner">
+        <a class="brand" href="#inicio" aria-label="Signal, ir al inicio">
+          <span class="brand__mark" aria-hidden="true"></span>
+          <span class="brand__text">
+            <strong>SIGNAL</strong>
+            <small>INVENTARIO · FACTURACIÓN · FINANZAS</small>
+          </span>
+        </a>
+
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="nav-principal"
+          aria-label="Abrir menú"
+        >
+          <span></span><span></span><span></span>
+        </button>
+
+        <nav class="nav" id="nav-principal" aria-label="Navegación principal">
+          <a href="#producto">Producto</a>
+          <a href="#modulos">Módulos</a>
+          <a href="#vista">Vista previa</a>
+          <a href="#seguridad">Permisos</a>
+          <a href="#documentacion">Docs</a>
+          <a class="nav__cta" href="https://github.com/edisonmonsalve/aplicacion-prueba" target="_blank" rel="noopener">
+            Ver código <span aria-hidden="true">↗</span>
+          </a>
+          <button class="theme-toggle" type="button" aria-label="Cambiar tema" aria-pressed="false">
+            <span class="theme-toggle__icon" aria-hidden="true"></span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="contenido">
+      <section class="hero" aria-labelledby="hero-titulo">
+        <div class="hero__grid" aria-hidden="true"></div>
+        <div class="shell hero__inner">
+          <div class="hero__copy">
+            <p class="eyebrow"><span class="pip"></span> Plataforma fullstack · ciclo comercial completo</p>
+            <h1 id="hero-titulo">
+              Tu operación,<br />
+              en una sola <em>señal</em>.
+            </h1>
+            <p class="hero__lead">
+              Controla el stock, cotiza con confianza, factura con criterio fiscal y entiende tu
+              caja en tiempo real. Sin hojas de cálculo, sin datos duplicados y sin perder el
+              hilo entre un documento y su asiento.
+            </p>
+            <div class="hero__actions">
+              <a class="button button--primary" href="#modulos">Explorar módulos <span aria-hidden="true">→</span></a>
+              <a class="button button--ghost" href="#vista">Ver la interfaz</a>
+            </div>
+            <dl class="hero__facts" aria-label="Datos del proyecto">
+              <div><dt>Módulos</dt><dd>06</dd></div>
+              <div><dt>Roles</dt><dd>04</dd></div>
+              <div><dt>Reportes</dt><dd>08</dd></div>
+              <div><dt>Pruebas</dt><dd>243</dd></div>
+            </dl>
+          </div>
+
+          <div class="hero__visual">
+            <div class="browser">
+              <div class="browser__bar" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <small>app.local / inicio</small>
+              </div>
+              <button
+                class="browser__screen"
+                type="button"
+                data-lightbox
+                data-full="assets/screenshots/01-inicio.png"
+                data-caption="Panel de inicio — KPIs, stock bajo y actividad reciente"
+                aria-label="Ampliar captura del panel de inicio"
+              >
+                <img
+                  src="assets/screenshots/01-inicio.png"
+                  alt="Panel de inicio de Signal con indicadores de inventario y actividad"
+                  width="1440"
+                  height="900"
+                />
+              </button>
+            </div>
+            <p class="hero__caption">Panel de control real, con datos de demostración.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--product" id="producto" aria-labelledby="producto-titulo">
+        <div class="shell">
+          <div class="section__head reveal">
+            <p class="eyebrow">01 · El producto</p>
+            <h2 id="producto-titulo">Del presupuesto al balance, sin fricción.</h2>
+            <p>
+              Cada documento nace en un lugar y termina en otro sin perder trazabilidad. La
+              cotización propone, la factura contabiliza y los reportes explican.
+            </p>
+          </div>
+
+          <div class="flow">
+            <article class="flow__step reveal">
+              <span class="flow__num">01</span>
+              <h3>Cotiza</h3>
+              <p>Líneas con IVA, descuentos, validez y facturación por hitos desde una misma propuesta.</p>
+            </article>
+            <article class="flow__step reveal">
+              <span class="flow__num">02</span>
+              <h3>Factura</h3>
+              <p>Venta o compra con numeración segura, movimientos de stock y asientos de cabecera.</p>
+            </article>
+            <article class="flow__step reveal">
+              <span class="flow__num">03</span>
+              <h3>Entiende</h3>
+              <p>Caja, utilidad, cartera, aging y cierres con la misma fuente de datos.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="modulos" aria-labelledby="modulos-titulo">
+        <div class="shell">
+          <div class="section__head reveal">
+            <p class="eyebrow">02 · Módulos</p>
+            <h2 id="modulos-titulo">Todo lo que tu operación necesita, conectado.</h2>
+            <p>Seis módulos que comparten reglas, permisos y una única verdad contable.</p>
+          </div>
+
+          <div class="cards">
+            <article class="card reveal">
+              <span class="card__tag">INVENTARIO</span>
+              <h3>Stock que no se pierde</h3>
+              <p>Categorías, productos, movimientos transaccionales y alertas de stock bajo.</p>
+              <ul>
+                <li>SKU único y sugerencia automática</li>
+                <li>Costo histórico por salida</li>
+                <li>Origen y documento en cada movimiento</li>
+              </ul>
+            </article>
+
+            <article class="card reveal">
+              <span class="card__tag">COTIZACIONES</span>
+              <h3>Propuestas claras</h3>
+              <p>Estados, vencimiento, auditoría de ediciones e impresión profesional.</p>
+              <ul>
+                <li>Descuento por línea e IVA</li>
+                <li>Varias facturas por cotización</li>
+                <li>Vínculo bidireccional con facturas</li>
+              </ul>
+            </article>
+
+            <article class="card reveal">
+              <span class="card__tag">FACTURACIÓN</span>
+              <h3>Criterio fiscal desde el inicio</h3>
+              <p>Facturas FAC/COM con retenciones, IVA separado y asientos trazables.</p>
+              <ul>
+                <li>Cuenta de caja o banco</li>
+                <li>Notas crédito y débito</li>
+                <li>Impresión lista para PDF</li>
+              </ul>
+            </article>
+
+            <article class="card reveal">
+              <span class="card__tag">CARTERA</span>
+              <h3>Cobra con contexto</h3>
+              <p>Aging, saldos, prioridad por mora y seguimiento comercial sin tocar la contabilidad.</p>
+              <ul>
+                <li>Alertas crítica, alta, media y baja</li>
+                <li>Cobros y pagos con contrapartida</li>
+                <li>Promesas y próximo contacto</li>
+              </ul>
+            </article>
+
+            <article class="card reveal">
+              <span class="card__tag">FINANZAS</span>
+              <h3>La caja, explicada</h3>
+              <p>Presupuestos analíticos, transacciones inmutables y reportes con el mismo periodo.</p>
+              <ul>
+                <li>Resultados, flujo y balance</li>
+                <li>Rentabilidad y rotación</li>
+                <li>Conciliación bancaria</li>
+              </ul>
+            </article>
+
+            <article class="card reveal">
+              <span class="card__tag">CONTROL</span>
+              <h3>Trazabilidad de verdad</h3>
+              <p>Auditoría, cierres de ejercicio y salud de datos para dormir tranquilo.</p>
+              <ul>
+                <li>Snapshots inmutables</li>
+                <li>Reapertura motivada</li>
+                <li>Exportación CSV y PDF</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--tint" id="vista" aria-labelledby="vista-titulo">
+        <div class="shell">
+          <div class="section__head reveal">
+            <p class="eyebrow">03 · Vista previa</p>
+            <h2 id="vista-titulo">Así se ve por dentro.</h2>
+            <p>Capturas reales de la aplicación con datos de demostración. Pulsa cualquier imagen para ampliarla.</p>
+          </div>
+
+          <div class="gallery">
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/02-productos.png" data-caption="Productos — búsqueda, filtros y stock">
+              <img src="assets/screenshots/02-productos.png" alt="Listado de productos con filtros y stock" loading="lazy" width="1440" height="900" />
+              <span>Productos</span>
+            </button>
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/03-cotizaciones.png" data-caption="Cotizaciones — estados, vencimiento y acciones">
+              <img src="assets/screenshots/03-cotizaciones.png" alt="Listado de cotizaciones con estados y filtros" loading="lazy" width="1440" height="900" />
+              <span>Cotizaciones</span>
+            </button>
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/04-factura-formulario.png" data-caption="Formulario de factura — líneas, IVA y detalle fiscal">
+              <img src="assets/screenshots/04-factura-formulario.png" alt="Formulario de factura con líneas y detalle fiscal" loading="lazy" width="1440" height="900" />
+              <span>Nueva factura</span>
+            </button>
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/05-factura-detalle.png" data-caption="Detalle de factura — totales, retenciones y asientos">
+              <img src="assets/screenshots/05-factura-detalle.png" alt="Detalle de una factura con totales y asientos" loading="lazy" width="1440" height="900" />
+              <span>Detalle fiscal</span>
+            </button>
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/06-impresion-fiscal.png" data-caption="Impresión fiscal — documento listo para guardar como PDF">
+              <img src="assets/screenshots/06-impresion-fiscal.png" alt="Vista de impresión fiscal de una factura" loading="lazy" width="1440" height="900" />
+              <span>Impresión</span>
+            </button>
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/07-finanzas.png" data-caption="Resumen financiero — caja, utilidad, IVA y cuentas">
+              <img src="assets/screenshots/07-finanzas.png" alt="Resumen financiero con tarjetas de caja y utilidad" loading="lazy" width="1440" height="900" />
+              <span>Finanzas</span>
+            </button>
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/08-cartera.png" data-caption="Cartera — aging, saldos y alertas de cobro">
+              <img src="assets/screenshots/08-cartera.png" alt="Panel de cartera con aging y alertas" loading="lazy" width="1440" height="900" />
+              <span>Cartera</span>
+            </button>
+            <button class="shot reveal" type="button" data-lightbox data-full="assets/screenshots/09-tendencias.png" data-caption="Tendencias — evolución por periodo">
+              <img src="assets/screenshots/09-tendencias.png" alt="Gráfico de tendencias financieras por periodo" loading="lazy" width="1440" height="900" />
+              <span>Tendencias</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="seguridad" aria-labelledby="seguridad-titulo">
+        <div class="shell seguridad">
+          <div class="section__head reveal">
+            <p class="eyebrow">04 · Permisos</p>
+            <h2 id="seguridad-titulo">Cada rol ve lo que debe ver.</h2>
+            <p>
+              Los costos, la contabilidad y las acciones sensibles están limitados por diseño,
+              no por ocultar botones en la interfaz.
+            </p>
+          </div>
+
+          <div class="roles">
+            <div class="role reveal"><strong>Admin</strong><span>Control total de la operación, usuarios y empresa.</span></div>
+            <div class="role reveal"><strong>Contador</strong><span>Finanzas completas, cartera y facturación; inventario en lectura.</span></div>
+            <div class="role reveal"><strong>Operador</strong><span>Productos, movimientos, cotizaciones y facturas sin ver costos.</span></div>
+            <div class="role reveal"><strong>Consulta</strong><span>Visión de lectura para auditar sin modificar datos.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta" id="documentacion" aria-labelledby="cta-titulo">
+        <div class="shell cta__inner reveal">
+          <div>
+            <p class="eyebrow">05 · Empieza</p>
+            <h2 id="cta-titulo">Conoce el proyecto por dentro.</h2>
+            <p>
+              El README documenta reglas de negocio, API, puesta en marcha y decisiones técnicas.
+              El manual de usuario recorre cada pantalla.
+            </p>
+          </div>
+          <div class="cta__actions">
+            <a class="button button--primary" href="https://github.com/edisonmonsalve/aplicacion-prueba#readme" target="_blank" rel="noopener">
+              Leer el README <span aria-hidden="true">↗</span>
+            </a>
+            <a class="button button--ghost" href="https://github.com/edisonmonsalve/aplicacion-prueba/blob/main/docs/MANUAL-USUARIO.md" target="_blank" rel="noopener">
+              Manual de usuario <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell site-footer__inner">
+        <div class="brand brand--footer">
+          <span class="brand__mark" aria-hidden="true"></span>
+          <span class="brand__text"><strong>SIGNAL</strong><small>Datos como señal</small></span>
+        </div>
+        <p>React · TypeScript · Express · MariaDB · Hecho con criterio contable.</p>
+        <nav aria-label="Enlaces del pie">
+          <a href="https://github.com/edisonmonsalve/aplicacion-prueba" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/edisonmonsalve/aplicacion-prueba/blob/main/docs/ESTILO-SIGNAL.md" target="_blank" rel="noopener">Estilo Signal</a>
+          <a href="#inicio">Volver arriba</a>
+        </nav>
+      </div>
+    </footer>
+
+    <dialog class="lightbox" id="lightbox" aria-label="Captura ampliada">
+      <button class="lightbox__close" type="button" aria-label="Cerrar imagen">×</button>
+      <figure>
+        <img id="lightbox-image" src="" alt="" />
+        <figcaption id="lightbox-caption"></figcaption>
+      </figure>
+    </dialog>
+
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var themeButton = document.querySelector(".theme-toggle");
+        var navToggle = document.querySelector(".nav-toggle");
+        var nav = document.querySelector(".nav");
+        var dialog = document.getElementById("lightbox");
+        var lightboxImage = document.getElementById("lightbox-image");
+        var lightboxCaption = document.getElementById("lightbox-caption");
+        var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        function updateThemeButton() {
+          if (!themeButton) return;
+          var dark = root.dataset.theme === "dark";
+          themeButton.setAttribute("aria-pressed", String(dark));
+          themeButton.setAttribute("aria-label", dark ? "Usar tema claro" : "Usar tema oscuro");
+        }
+        updateThemeButton();
+
+        if (themeButton) {
+          themeButton.addEventListener("click", function () {
+            var next = root.dataset.theme === "dark" ? "light" : "dark";
+            root.dataset.theme = next;
+            try { localStorage.setItem("signal-landing-theme", next); } catch (_) {}
+            updateThemeButton();
+          });
+        }
+
+        if (navToggle && nav) {
+          navToggle.addEventListener("click", function () {
+            var open = document.body.classList.toggle("nav--open");
+            navToggle.setAttribute("aria-expanded", String(open));
+            navToggle.setAttribute("aria-label", open ? "Cerrar menú" : "Abrir menú");
+          });
+          nav.querySelectorAll("a").forEach(function (link) {
+            link.addEventListener("click", function () {
+              document.body.classList.remove("nav--open");
+              navToggle.setAttribute("aria-expanded", "false");
+            });
+          });
+        }
+
+        document.querySelectorAll("[data-lightbox]").forEach(function (trigger) {
+          trigger.addEventListener("click", function () {
+            lightboxImage.src = trigger.dataset.full;
+            lightboxImage.alt = trigger.dataset.caption || "Captura ampliada de la aplicación";
+            lightboxCaption.textContent = trigger.dataset.caption || "";
+            if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+          });
+        });
+
+        if (dialog) {
+          dialog.addEventListener("click", function (event) {
+            if (event.target === dialog) dialog.close();
+          });
+          var close = dialog.querySelector(".lightbox__close");
+          if (close) close.addEventListener("click", function () { dialog.close(); });
+        }
+
+        var reveals = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+        var observer;
+
+        function show(el) {
+          if (!el || el.classList.contains("is-visible")) return;
+          el.classList.add("is-visible");
+          if (observer) observer.unobserve(el);
+        }
+
+        function revealPassed() {
+          reveals.forEach(function (el) {
+            if (el.getBoundingClientRect().top < window.innerHeight * 0.95) show(el);
+          });
+        }
+
+        if (reduced || !("IntersectionObserver" in window)) {
+          reveals.forEach(show);
+        } else {
+          observer = new IntersectionObserver(
+            function (entries) {
+              entries.forEach(function (entry) {
+                if (entry.isIntersecting) show(entry.target);
+              });
+            },
+            { threshold: 0.12 }
+          );
+          revealPassed();
+          reveals.forEach(function (el) {
+            if (!el.classList.contains("is-visible")) observer.observe(el);
+          });
+          window.addEventListener("scroll", revealPassed, { passive: true });
+        }
+
+        var canonical = document.querySelector('link[rel="canonical"]');
+        var ogUrl = document.querySelector('meta[property="og:url"]');
+        var publicUrl = window.location.href.split("#")[0];
+        if (canonical) canonical.href = publicUrl;
+        if (!ogUrl) {
+          ogUrl = document.createElement("meta");
+          ogUrl.setAttribute("property", "og:url");
+          document.head.appendChild(ogUrl);
+        }
+        ogUrl.content = publicUrl;
+      })();
+    </script>
+  </body>
+</html>
