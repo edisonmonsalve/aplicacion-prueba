@@ -10,6 +10,7 @@
   --ui-surface-2: #fbfaf8;
   --ui-ink: #16201e;
   --ui-ink-2: #5b6b67;
+  --ui-ink-3: #485954;
   --ui-line: #e6e9e5;
   --ui-grid-line: rgba(22, 32, 30, 0.045);
 
@@ -24,6 +25,9 @@
   --ui-brand: #0d9488;
   --ui-brand-strong: #0f766e;
   --ui-brand-soft: rgba(13, 148, 136, 0.1);
+  --ui-focus-ring: 0 0 0 2px var(--ui-brand-strong);
+  /* Anillo con respiro: el hueco del fondo separa la marca de la cifra. */
+  --ui-focus-ring-spaced: 0 0 0 2px var(--ui-surface), 0 0 0 4px var(--ui-brand-strong);
   --ui-success: #10b981;
   --ui-success-ink: #047857;
   --ui-danger: #fb7185;
@@ -40,9 +44,27 @@
   --ui-coral: var(--ui-danger);
   --ui-electric: var(--ui-info);
 
-  /* Forma */
+  /* Forma y jerarquía de control. Documento y formularios comparten la misma
+     altura, el mismo radio de campo y el mismo anillo de foco: la jerarquía
+     la dan el peso de la tinta y el fondo, no bordes distintos en cada vista. */
   --ui-radius: 14px;
   --ui-radius-lg: 16px;
+  --ui-field-radius: 5px;
+  --ui-control-h: 30px;
+  --ui-stepper-w: 14px;
+  --ui-subtle-line: 1px solid color-mix(in srgb, var(--ui-brand-strong) 22%, var(--ui-line));
+
+  /* Espaciado: una sola escala para celdas, paneles y barras. */
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+
+  /* Peso de lectura: el rótulo orienta, el dato manda. */
+  --ui-weight-label: 600;
+  --ui-weight-figure: 700;
+  --ui-weight-total: 800;
   /* Profundidad en tres niveles: el contenido descansa, las tarjetas se
      separan apenas y solo lo flotante (modales, menús) proyecta sombra larga. */
   --ui-elev-0: 0 0 0 1px color-mix(in srgb, var(--ui-line) 70%, transparent);
@@ -63,8 +85,10 @@
   --ui-display: "Space Grotesk Variable", "Plus Jakarta Sans Variable", system-ui, sans-serif;
   --ui-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
   --ui-text-micro: 10.5px;
+  --ui-text-small: 11px;
   --ui-text-caption: 12px;
   --ui-text-body: 14px;
+  --ui-text-total: 16px;
   --ui-text-title: clamp(18px, 1.4vw, 22px);
   --ui-text-kpi: clamp(22px, 1.8vw, 28px);
   --ui-text-display: clamp(24px, 2.2vw, 30px);
@@ -85,6 +109,7 @@ html[data-theme="dark"] {
   --ui-surface-2: #16231f;
   --ui-ink: #e8f1ef;
   --ui-ink-2: #9db3ae;
+  --ui-ink-3: #b7c9c4;
   --ui-line: #243631;
   --ui-grid-line: rgba(232, 241, 239, 0.045);
 

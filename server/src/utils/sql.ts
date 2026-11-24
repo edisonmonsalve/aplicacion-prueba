@@ -7,3 +7,11 @@ export function buildSet(fields: Record<string, string | number | undefined>) {
     params: entries.map(([, value]) => value as string | number),
   };
 }
+
+/**
+ * Escapa `%`, `_` y `\` para que un término buscado por `LIKE` se trate como
+ * texto literal. Se usa junto con `LIKE ? ESCAPE '\\'`.
+ */
+export function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}

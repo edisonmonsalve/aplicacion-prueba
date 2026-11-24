@@ -32,15 +32,11 @@ export async function fetchProductsByIds(
   return Object.fromEntries(data.map((p) => [p.id, p]));
 }
 
-/** Etiqueta uniforme del select de productos, con el nombre primero. */
+/**
+ * Etiqueta del select: nombre y SKU. El precio y el stock viven en la meta de
+ * cada opción y en el semáforo de la fila, no en el valor seleccionado, que
+ * también se imprime en la factura.
+ */
 export function productOptionLabel(p: ProductOption) {
-  const stock =
-    p.stock_actual === undefined
-      ? ""
-      : ` (stock: ${p.stock_actual}${
-          p.stock_minimo !== undefined && p.stock_actual <= p.stock_minimo
-            ? " · stock bajo"
-            : ""
-        })`;
-  return `${p.nombre}${stock} — ${p.sku}`;
+  return p.sku ? `${p.nombre} — ${p.sku}` : p.nombre;
 }

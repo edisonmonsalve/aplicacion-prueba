@@ -108,6 +108,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
               cellPaddingBlock: 12,
             },
             Button: { fontWeight: 600 },
+            // Mismo ancho de flecha que --ui-stepper-w: el riel aparece al
+            // enfocar el número y no roba espacio al valor en reposo.
+            InputNumber: { handleWidth: 14, handleFontSize: 9, handleVisible: true },
           },
         }}
       >

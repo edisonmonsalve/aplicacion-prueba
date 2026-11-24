@@ -715,19 +715,26 @@ const daysBetween = (desde: string, hasta: string) =>
  * - Rotación = costo de ventas / valor del inventario actual. Como no se
  *   guardan fotos históricas de existencias, el denominador es el inventario
  *   de hoy valorizado al costo actual; se informa así en la interfaz.
- * - Días de inventario = días del periodo / rotación.
- * - Stock muerto: productos con existencias y sin ventas en `dias_muerto`
- *   días (por defecto 90), contados desde la fecha final del rango.
+ * - Días de inventario = días transcurridos del periodo / rotación. En un mes
+ *   en curso se usan los días vividos, no el mes completo.
+ * - Última venta y stock muerto se miden contra una fecha de corte: hoy si el
+ *   periodo sigue abierto, o el cierre del rango si ya terminó. Así un mes en
+ *   curso no cuenta los días que aún no han pasado.
  * - ABC por ingresos: A hasta el 80 % acumulado, B hasta el 95 %, C el resto.
  */
 export async function getInventoryAnalytics(query: InventoryAnalyticsQuery) {
-  const hasta = query.hasta ?? today();
+  const hoy = today();
+  const hasta = query.hasta ?? hoy;
   const desde = query.desde ?? `${hasta.slice(0, 7)}-01`;
   if (desde > hasta) {
     throw new HttpError(400, "La fecha inicial no puede ser posterior a la final");
   }
   const diasMuerto = query.dias_muerto ?? 90;
   const diasPeriodo = daysBetween(desde, hasta) + 1;
+  // Un periodo futuro o en curso se corta hoy: no se pueden contar días que
+  // todavía no han ocurrido ni ventas posteriores a la fecha de referencia.
+  const fechaCorte = hasta < hoy ? hasta : hoy;
+  const diasTranscurridos = Math.max(1, daysBetween(desde, fechaCorte) + 1);
 
   // Dos subconsultas independientes para no multiplicar filas: las ventas se
   // agregan por producto y el costo de ventas sale de las asignaciones.
@@ -770,12 +777,12 @@ export async function getInventoryAnalytics(query: InventoryAnalyticsQuery) {
        SELECT ii.product_id, MAX(i.fecha) AS ultima_venta
        FROM invoice_items ii
        JOIN invoices i ON i.id = ii.invoice_id
-       WHERE i.tipo = 'venta' AND i.estado = 'confirmada'
+       WHERE i.tipo = 'venta' AND i.estado = 'confirmada' AND i.fecha <= ?
        GROUP BY ii.product_id
      ) u ON u.product_id = p.id
      WHERE p.stock_actual > 0 OR COALESCE(v.unidades, 0) > 0
      ORDER BY p.nombre`,
-    [desde, hasta, desde, hasta]
+    [desde, hasta, desde, hasta, fechaCorte]
   );
 
   const base = rows.map((r) => {
@@ -791,7 +798,9 @@ export async function getInventoryAnalytics(query: InventoryAnalyticsQuery) {
         ? r.ultima_venta.toISOString().slice(0, 10)
         : String(r.ultima_venta).slice(0, 10)
       : null;
-    const diasSinVenta = ultimaVenta ? daysBetween(ultimaVenta, hasta) : null;
+    const diasSinVenta = ultimaVenta
+      ? Math.max(0, daysBetween(ultimaVenta, fechaCorte))
+      : null;
     return {
       id: Number(r.id),
       sku: String(r.sku),
@@ -808,7 +817,9 @@ export async function getInventoryAnalytics(query: InventoryAnalyticsQuery) {
       margen_pct: pctOf(margen, ingresos),
       rotacion: rotacionRaw === null ? null : roundMoney(rotacionRaw),
       dias_inventario:
-        rotacionRaw && rotacionRaw > 0 ? roundMoney(diasPeriodo / rotacionRaw) : null,
+        rotacionRaw && rotacionRaw > 0
+          ? roundMoney(diasTranscurridos / rotacionRaw)
+          : null,
       ultima_venta: ultimaVenta,
       dias_sin_venta: diasSinVenta,
       stock_muerto:
@@ -868,7 +879,9 @@ export async function getInventoryAnalytics(query: InventoryAnalyticsQuery) {
       ingresos: totalIngresos,
       rotacion: rotacionRaw === null ? null : roundMoney(rotacionRaw),
       dias_inventario:
-        rotacionRaw && rotacionRaw > 0 ? roundMoney(diasPeriodo / rotacionRaw) : null,
+        rotacionRaw && rotacionRaw > 0
+          ? roundMoney(diasTranscurridos / rotacionRaw)
+          : null,
       productos: porIngresos.filter((r) => r.stock_actual > 0).length,
       productos_vendidos: porIngresos.filter((r) => r.unidades_vendidas > 0).length,
       stock_muerto: {

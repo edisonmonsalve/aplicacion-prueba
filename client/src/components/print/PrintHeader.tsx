@@ -10,6 +10,8 @@ interface Props {
   status?: ReactNode;
   /** Líneas de fecha u otros metadatos, una por renglón. */
   meta: ReactNode;
+  /** Métricas rápidas bajo la cabecera: ítems, unidades, referencia. */
+  summary?: { label: string; value: ReactNode }[];
 }
 
 /** Símbolo de la empresa emisora. Pensado para impresión en color o escala de grises. */
@@ -41,7 +43,7 @@ function CompanyMark({ name, size = 46 }: { name: string; size?: number }) {
  * izquierda y datos del documento a la derecha. Los datos del emisor se
  * configuran en «Empresa» y se comparten con `CompanyProvider`.
  */
-export default function PrintHeader({ docKind, docNumber, status, meta }: Props) {
+export default function PrintHeader({ docKind, docNumber, status, meta, summary }: Props) {
   const { company } = useCompany();
 
   const dataLines = [
@@ -51,7 +53,7 @@ export default function PrintHeader({ docKind, docNumber, status, meta }: Props)
     [company.email, company.web].filter(Boolean).join(" · "),
   ].filter(Boolean);
 
-  return (
+  const header = (
     <header className="print-header">
       <div className="print-brand">
         {company.logo_url ? (
@@ -81,5 +83,23 @@ export default function PrintHeader({ docKind, docNumber, status, meta }: Props)
         <div className="print-doc-meta">{meta}</div>
       </div>
     </header>
+  );
+
+  if (!summary?.length) return header;
+
+  return (
+    <>
+      {header}
+      {summary && summary.length > 0 && (
+        <div className="print-summary" role="group" aria-label="Resumen del documento">
+          {summary.map((item) => (
+            <div className="print-summary__item" key={item.label}>
+              <span className="print-summary__label">{item.label}</span>
+              <span className="print-summary__value">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

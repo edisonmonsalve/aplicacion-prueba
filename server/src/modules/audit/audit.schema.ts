@@ -19,6 +19,7 @@ export const auditQuerySchema = z.object({
       "bank_reconciliation",
       "receivable_followup",
       "company_settings",
+      "stock_movement",
     ])
     .optional(),
   entidad_id: z.coerce.number().int().positive().optional(),

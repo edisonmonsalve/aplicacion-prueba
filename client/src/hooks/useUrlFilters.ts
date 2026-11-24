@@ -31,11 +31,11 @@ export function useUrlFilters() {
   );
 
   const getPositiveInt = useCallback(
-    (key: string, fallback: number) => {
+    (key: string, fallback: number, max = Number.MAX_SAFE_INTEGER) => {
       const raw = params.get(key);
       if (raw === null || raw === "") return fallback;
       const value = Number(raw);
-      return Number.isInteger(value) && value > 0 ? value : fallback;
+      return Number.isInteger(value) && value > 0 ? Math.min(value, max) : fallback;
     },
     [params]
   );

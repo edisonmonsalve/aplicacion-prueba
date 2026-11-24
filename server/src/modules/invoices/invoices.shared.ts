@@ -5,48 +5,74 @@ export type LineCalc = {
   bruto: number;
   descuento: number;
   base: number;
+  /** IVA. Sigue siendo `impuesto_total` para no alterar los asientos. */
+  iva: number;
+  /** Impuesto nacional al consumo. */
+  inc: number;
+  /** Otro tributo parametrizable por línea. */
+  otro: number;
+  /** Suma de los tres tributos (compatibilidad con callers anteriores). */
   impuesto: number;
   total: number;
 };
 
-export function calcLine(item: {
+type TaxableItem = {
   cantidad: number;
   precio_unitario: number;
   descuento_pct: number;
   impuesto_pct: number;
-}): LineCalc {
+  inc_pct?: number;
+  otro_impuesto_pct?: number;
+};
+
+/**
+ * Discrimina los tributos de una línea sin cambiar la base contable.
+ *
+ * `impuesto_total` de la cabecera sigue siendo solo IVA: los asientos de IVA
+ * descontable por pagar no deben mezclar INC ni otros tributos. El total de la
+ * factura sí incluye los tres.
+ */
+export function calcLine(item: TaxableItem): LineCalc {
   const bruto = item.cantidad * item.precio_unitario;
   const descuento = (bruto * item.descuento_pct) / 100;
   const base = bruto - descuento;
-  const impuesto = (base * item.impuesto_pct) / 100;
+  const iva = (base * item.impuesto_pct) / 100;
+  const inc = (base * (item.inc_pct ?? 0)) / 100;
+  const otro = (base * (item.otro_impuesto_pct ?? 0)) / 100;
+  const impuesto = iva + inc + otro;
   return {
     bruto: roundMoney(bruto),
     descuento: roundMoney(descuento),
     base: roundMoney(base),
+    iva: roundMoney(iva),
+    inc: roundMoney(inc),
+    otro: roundMoney(otro),
     impuesto: roundMoney(impuesto),
     total: roundMoney(base + impuesto),
   };
 }
 
-export function calcTotals(
-  items: {
-    cantidad: number;
-    precio_unitario: number;
-    descuento_pct: number;
-    impuesto_pct: number;
-  }[]
-) {
+export function calcTotals(items: TaxableItem[]) {
   return items.reduce(
     (acc, item) => {
       const l = calcLine(item);
       return {
         subtotal: roundMoney(acc.subtotal + l.bruto),
         descuento_total: roundMoney(acc.descuento_total + l.descuento),
-        impuesto_total: roundMoney(acc.impuesto_total + l.impuesto),
+        impuesto_total: roundMoney(acc.impuesto_total + l.iva),
+        inc_total: roundMoney(acc.inc_total + l.inc),
+        otros_impuestos_total: roundMoney(acc.otros_impuestos_total + l.otro),
         total: roundMoney(acc.total + l.total),
       };
     },
-    { subtotal: 0, descuento_total: 0, impuesto_total: 0, total: 0 }
+    {
+      subtotal: 0,
+      descuento_total: 0,
+      impuesto_total: 0,
+      inc_total: 0,
+      otros_impuestos_total: 0,
+      total: 0,
+    }
   );
 }
 
@@ -56,6 +82,8 @@ export function rowToLine(it: RowDataPacket) {
     precio_unitario: Number(it.precio_unitario),
     descuento_pct: Number(it.descuento_pct),
     impuesto_pct: Number(it.impuesto_pct),
+    inc_pct: Number(it.inc_pct ?? 0),
+    otro_impuesto_pct: Number(it.otro_impuesto_pct ?? 0),
   });
 }
 
@@ -66,11 +94,20 @@ export function totalsFromRows(items: RowDataPacket[]) {
       return {
         subtotal: roundMoney(acc.subtotal + l.bruto),
         descuento_total: roundMoney(acc.descuento_total + l.descuento),
-        impuesto_total: roundMoney(acc.impuesto_total + l.impuesto),
+        impuesto_total: roundMoney(acc.impuesto_total + l.iva),
+        inc_total: roundMoney(acc.inc_total + l.inc),
+        otros_impuestos_total: roundMoney(acc.otros_impuestos_total + l.otro),
         total: roundMoney(acc.total + l.total),
       };
     },
-    { subtotal: 0, descuento_total: 0, impuesto_total: 0, total: 0 }
+    {
+      subtotal: 0,
+      descuento_total: 0,
+      impuesto_total: 0,
+      inc_total: 0,
+      otros_impuestos_total: 0,
+      total: 0,
+    }
   );
 }
 

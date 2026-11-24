@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
-import { Form, Input, InputNumber, Modal, Radio, Typography, message, Alert } from "antd";
+import { useCallback, useEffect, useState } from "react";
+import { Button, Form, Input, InputNumber, Modal, Radio, Typography, message, Alert } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
 import { isAxiosError } from "axios";
 import dayjs from "dayjs";
 import { createMovement, type MovementInput } from "@/services/movementsService";
 import { getAvailability, listBudgets } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/utils/errors";
-import { canEditCosts } from "@/utils/roles";
+import { canAccessFinance, canEditCosts } from "@/utils/roles";
 import { formatCurrency, currencyInputProps, integerInputProps, formatNumber } from "@/utils/format";
 import type { BudgetAvailability, BudgetListItem, Product } from "@/types";
 import ModalHeading from "@/components/ModalHeading";
@@ -26,11 +27,14 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
   const [saving, setSaving] = useState(false);
   const [availability, setAvailability] = useState<BudgetAvailability | null>(null);
   const [closedPeriod, setClosedPeriod] = useState<BudgetListItem | undefined>();
-  const [confirmedExceed, setConfirmedExceed] = useState(false);
+  const [avisosError, setAvisosError] = useState(false);
   const tipo = Form.useWatch("tipo", form);
   const cantidadWatch = Form.useWatch("cantidad", form);
   const costoWatch = Form.useWatch("costo_unitario", form);
   const puedeFijarCosto = canEditCosts(user?.rol);
+  // El operador no pertenece al módulo financiero: no se le consultan importes
+  // ni cierres, y se le avisa de que las validaciones se aplican al guardar.
+  const puedeVerFinanzas = canAccessFinance(user?.rol);
 
   const costoEfectivo =
     puedeFijarCosto && tipo === "entrada" && costoWatch !== undefined
@@ -40,26 +44,38 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
   const excedeDisponible =
     !!availability && costoTotal > 0 && costoTotal > availability.disponible;
 
-  useEffect(() => {
+  const loadAvisos = useCallback(() => {
+    if (!puedeVerFinanzas) {
+      setAvailability(null);
+      setClosedPeriod(undefined);
+      setAvisosError(false);
+      return;
+    }
     let ignore = false;
-    getAvailability(product.id)
-      .then((a) => { if (!ignore) setAvailability(a); })
-      .catch(() => {});
-    listBudgets({ page: 1, pageSize: 100, estado: "cerrado" })
-      .then((r) => {
+    setAvisosError(false);
+    Promise.all([
+      getAvailability(product.id),
+      listBudgets({ page: 1, pageSize: 100, estado: "cerrado" }),
+    ])
+      .then(([a, r]) => {
         if (ignore) return;
+        setAvailability(a);
         const hoy = dayjs().format("YYYY-MM-DD");
         setClosedPeriod(r.data.find((b) => b.fecha_inicio <= hoy && b.fecha_fin >= hoy));
       })
-      .catch(() => {});
-    return () => { ignore = true; };
-  }, [product.id]);
+      .catch(() => {
+        if (!ignore) setAvisosError(true);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [product.id, puedeVerFinanzas]);
 
-  useEffect(() => {
-    setConfirmedExceed(false);
-  }, [tipo]);
+  useEffect(() => loadAvisos(), [loadAvisos]);
 
-  const handleOk = async () => {
+  // El flag y el monto confirmado viajan como argumentos: usar el state del
+  // render anterior reabría el confirm, porque `onOk` veía `false` en su closure.
+  const submit = async (confirmed: boolean, confirmedGasto?: number) => {
     const values = await form.validateFields().catch(() => null);
     if (!values) return;
 
@@ -83,7 +99,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
       values.tipo === "entrada" &&
       gasto > 0 &&
       gasto > availability.disponible &&
-      !confirmedExceed
+      (!confirmed || gasto !== confirmedGasto)
     ) {
       if (user?.rol !== "admin") {
         messageApi.error(
@@ -96,10 +112,7 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
         content: `Esta compra (${formatCurrency(gasto)}) supera el disponible (${formatCurrency(availability.disponible)}) de la línea "${availability.budget_nombre}". ¿Deseas continuar?`,
         okText: "Continuar",
         cancelText: "Cancelar",
-        onOk: () => {
-          setConfirmedExceed(true);
-          handleOk();
-        },
+        onOk: () => void submit(true, gasto),
       });
       return;
     }
@@ -128,6 +141,8 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
     }
   };
 
+  const handleOk = () => void submit(false);
+
   return (
     <Modal
       open
@@ -153,6 +168,31 @@ export default function MovementFormModal({ product, onClose, onSaved }: Props) 
         <br />
         Stock actual: <b>{formatNumber(product.stock_actual)}</b>
       </Typography.Paragraph>
+
+      {!puedeVerFinanzas && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Las validaciones financieras se aplican al guardar"
+          description="Tu rol no consulta presupuestos ni cierres contables. Si la entrada genera un egreso en un periodo cerrado, el registro se rechazará con el motivo."
+        />
+      )}
+
+      {puedeVerFinanzas && avisosError && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="No se pudieron consultar los avisos financieros"
+          description="El presupuesto y el periodo se seguirán validando al guardar."
+          action={
+            <Button size="small" icon={<ReloadOutlined />} onClick={() => loadAvisos()}>
+              Reintentar
+            </Button>
+          }
+        />
+      )}
 
       {closedPeriod && tipo === "entrada" && (
         <Alert

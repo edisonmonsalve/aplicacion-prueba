@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { App, Button, Card, Col, Row, Select, Space, Table, Tag, Tooltip, Typography, Alert, List } from "antd";
+import { App, Button, Card, Col, Row, Select, Space, Table, Tag, Tooltip, Typography, Alert } from "antd";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { deleteFinanceAccount, getFinanceSummary, getFinanceAccounts, getSuggestions, getTrends } from "@/services/financeService";
 import { useAuth } from "@/context/AuthContext";
@@ -23,9 +23,12 @@ import StatCard from "@/components/StatCard";
 import AnimatedNumber from "@/components/AnimatedNumber";
 import EmptyState from "@/components/EmptyState";
 import ReportExport from "@/components/ReportExport";
+import LoadError from "@/components/LoadError";
+import SuggestionList from "@/components/SuggestionList";
 import Sparkline from "@/components/Sparkline";
 import { useDateRange, type RangoFechas } from "@/hooks/useDateRange";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import useLatestRequest from "@/hooks/useLatestRequest";
 import { exportReportCsv, printReport, type ReportDocument } from "@/utils/reportExport";
 import AccountFormModal from "./AccountFormModal";
 
@@ -178,6 +181,7 @@ export default function FinanceOverviewPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { start, isCurrent } = useLatestRequest();
   // El rango vive en la URL: sobrevive a recargas y se puede compartir.
   const {
     range,
@@ -219,6 +223,7 @@ export default function FinanceOverviewPage() {
   useDocumentTitle("Finanzas");
 
   const load = async () => {
+    const requestId = start();
     setLoading(true);
     setError(null);
     try {
@@ -236,15 +241,21 @@ export default function FinanceOverviewPage() {
         prevRequest,
         trendRequest,
       ]);
+      if (!isCurrent(requestId)) return;
       setSummary(s);
       setAccounts(a);
       setSuggestions(sg);
       setPreviousSummary(prev);
       setTrends(tr);
     } catch (err) {
+      if (!isCurrent(requestId)) return;
+      // Evita que un rango anterior siga visible bajo el nuevo selector.
+      setSummary(null);
+      setPreviousSummary(null);
+      setTrends(null);
       setError(getErrorMessage(err, "No se pudo cargar el resumen financiero"));
     } finally {
-      setLoading(false);
+      if (isCurrent(requestId)) setLoading(false);
     }
   };
 
@@ -345,7 +356,6 @@ export default function FinanceOverviewPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="02 / Finanzas"
         title="Resumen financiero"
         description="Consulta ingresos, egresos, utilidad y capital por día, semana, mes o año, con comparación contra el periodo anterior o el año anterior."
       />
@@ -378,7 +388,11 @@ export default function FinanceOverviewPage() {
                   ]}
                 />
               </Tooltip>
-              <ReportExport disabled={!s || loading} onCsv={exportCsv} onPdf={exportPdf} />
+              <ReportExport
+                disabled={!s || loading || !!error}
+                onCsv={exportCsv}
+                onPdf={exportPdf}
+              />
             </Space>
           }
           footer={
@@ -410,17 +424,10 @@ export default function FinanceOverviewPage() {
       />
 
       {error && (
-        <Alert
-          type="error"
-          showIcon
-          style={{ marginBottom: 16 }}
+        <LoadError
           message="No se pudo cargar el resumen financiero"
           description={error}
-          action={
-            <Button size="small" onClick={load}>
-              Reintentar
-            </Button>
-          }
+          onRetry={load}
         />
       )}
 
@@ -571,21 +578,10 @@ export default function FinanceOverviewPage() {
               <span>Sugerencias</span>
             </Tooltip>
           }
+          extra={<Tag>{suggestions.length}</Tag>}
           style={{ marginBottom: 16 }}
         >
-          <List
-            dataSource={suggestions}
-            renderItem={(s) => (
-              <List.Item>
-                <Alert
-                  type={s.severidad === "danger" ? "error" : s.severidad === "warning" ? "warning" : "info"}
-                  message={s.mensaje}
-                  showIcon
-                  style={{ width: "100%" }}
-                />
-              </List.Item>
-            )}
-          />
+          <SuggestionList items={suggestions} />
         </Card>
       )}
       <Card

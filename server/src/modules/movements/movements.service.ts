@@ -5,7 +5,8 @@ import type { AuthUser } from "../../types/express.js";
 import { canSeeCosts } from "../../types/roles.js";
 import { today } from "../../utils/dates.js";
 import { HttpError } from "../../utils/http-error.js";
-import { createAutoTransaction } from "../finance/finance.shared.js";
+import { escapeLike } from "../../utils/sql.js";
+import { auditFinance, createAutoTransaction } from "../finance/finance.shared.js";
 import type { createMovementSchema, listQuerySchema } from "./movements.schema.js";
 
 export type MovementInput = z.infer<typeof createMovementSchema> & {
@@ -114,6 +115,20 @@ async function applyMovement(
     ]
   );
 
+  // Trazabilidad: el movimiento queda en audit_log dentro de la misma
+  // transacción, así que un rollback por periodo cerrado no deja rastro suelto.
+  await auditFinance(conn, actor.id, "stock_movement", res.insertId, "crear", {
+    stock_actual: Number(product.stock_actual),
+  }, {
+    stock_actual: nuevoStock,
+    tipo: input.tipo,
+    origen: input.origen,
+    cantidad: input.cantidad,
+    producto_id: input.product_id,
+    invoice_id: input.invoiceId ?? null,
+    quote_id: input.quoteId ?? null,
+  });
+
   // Generacion automatica de asientos financieros segun el origen.
   // Las facturas y cotizaciones la desactivan con skipFinance y crean sus
   // propios asientos a nivel de documento.
@@ -186,8 +201,12 @@ export async function listMovements(query: z.infer<typeof listQuerySchema>, acto
     params.push(query.quote_id);
   }
   if (query.q) {
-    const term = `%${query.q}%`;
-    where.push("(p.sku LIKE ? OR p.nombre LIKE ? OR m.motivo LIKE ? OR u.nombre LIKE ?)");
+    // `%` y `_` son texto literal: buscar "50%" no debe devolver todo el historial.
+    const term = `%${escapeLike(query.q)}%`;
+    const like = "LIKE ? ESCAPE '\\\\'";
+    where.push(
+      `(p.sku ${like} OR p.nombre ${like} OR m.motivo ${like} OR u.nombre ${like})`
+    );
     params.push(term, term, term, term);
   }
   if (query.desde) {
