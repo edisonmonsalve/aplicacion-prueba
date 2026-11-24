@@ -1036,7 +1036,7 @@ la cifra. Esta ronda baja el ruido sin quitar información ni atajos.
 
 | # | Cambio | Detalle |
 |---|---|---|
-| B1 | **Nada se mueve al pasar el cursor** | La elevación global de `.ant-btn` se desactiva dentro de `.ui-invoice-editor`, incluida la barra: los botones solo cambian fondo o tinta. «Guardar» conserva su sombra de reposo para seguir siendo la acción principal. |
+| B1 | **Nada se mueve al pasar el cursor** | La elevación global de `.ant-btn` se desactiva dentro de `.ui-invoice-editor`, incluida la barra: los botones solo cambian fondo o tinta. «Guardar» tampoco proyecta sombra: se distingue por su color de marca. |
 | B2 | **Filas en reposo** | Se retira el fondo y el filo lateral del `hover` de `.ui-invoice-table__row`, el cambio de color del índice y el borde de las tarjetas en móvil. La celda con el foco sigue señalando dónde se edita. |
 | B3 | **Detalle y alta discretos** | El botón `%` solo tiñe fondo, tinta y un paso el borde al señalarlo (el estado abierto sí sigue marcado). «Agregar línea» deja de ser `dashed` y pierde el borde: fondo, tinta y tamaño no cambian al cursor; el texto baja a `--ui-ink-2` y el `+` y el atajo a `--ui-ink-3`, sin círculo de icono ni pastilla de atajo. |
 | B4 | **Cabecera sin raya fuerte** | El borde inferior pasa de tinta a `--ui-line`, el mismo que separa las filas, y desaparecen los divisores verticales entre rótulos. Sigue `sticky` y opaca. |
@@ -1071,7 +1071,18 @@ sigue enfocando el producto y crea la fila con cantidad `1`. Las etiquetas no
 llevan iconos de ayuda. «Agregar línea» queda sin borde y con el mismo fondo,
 tinta y altura en reposo y en hover; los porcentajes del panel se alinean a la
 izquierda con 8 px hasta el riel, sin sufijo `%` junto a las flechas, y no cambian al señalar. Consola sin errores.
-Sin commit ni push hasta la aprobación explícita.
+Esta ronda quedó registrada en el commit `8e3c904`, pusheado a
+`origin/feature/robustez-reportes`.
+
+## 44. Vidrio de nuevo en superficies flotantes
+
+| # | Cambio | Detalle |
+|---|---|---|
+| C1 | **Glass restaurado** | Se recupera el bloque `@supports` de la tanda HUD: desplegables, popovers, `Select`, calendarios y tooltips vuelven a usar `backdrop-filter: blur(6px) saturate(1.15)` con fondo `color-mix(in srgb, var(--ui-surface) 62%, transparent)`, y el tooltip oscuro con `#0f1a18` al 66 %. La sombra que AntD añade a esas superficies se anula: el vidrio se distingue por el fondo y el borde, no por una sombra proyectada. La flecha del tooltip y del popover sigue oculta para que no rompa el tono del vidrio. La barra inferior y la cabecera `sticky` de la tabla permanecen opacas, de modo que el documento conserva la calma de la ronda anterior. |
+| C2 | **Guardar sin sombra** | El primario compartido de `DocumentFormFooter` pierde la sombra de reposo y la que AntD le daba al pasar el cursor. La jerarquía la sigue dando el color de marca; el resto de botones del documento permanecen planos. |
+
+Archivos tocados: `client/src/index.css` y esta documentación. Sin dependencias
+nuevas; el comportamiento, el payload fiscal y la impresión no cambian.
 
 ## Ruta sugerida
 

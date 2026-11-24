@@ -113,8 +113,9 @@ Regla: Jakarta para *explicar*, Space Grotesk para *anunciar*.
   popovers, selects, calendarios y tooltips): `backdrop-filter: blur(6px)
   saturate(1.15)` sobre un 62 % de superficie (66 % en el tooltip oscuro). Los
   modales quedan fuera: su mask a pantalla completa ya oscurece la página y no
-  hay fondo reconocible que difuminar. Tooltips y popovers ocultan la flecha,
-  que no comparte el desenfoque. El contenido y las tarjetas siguen opacos.
+  hay fondo reconocible que difuminar. Estas superficies no proyectan sombra:
+  el vidrio se distingue por el fondo y el filo. Tooltips y popovers ocultan la
+  flecha, que no comparte el desenfoque. El contenido y las tarjetas siguen opacos.
 - **Modales de formulario** con cabecera editorial: micro-label, título display
   y una línea de contexto, precedidos por una barra de señal estática (no late
   dentro de un diálogo). El cuerpo tiene scroll propio y el pie queda fijo, de
@@ -175,7 +176,7 @@ apaga, por lo que solo queda la rejilla estática.
 | `Sparkline` | Serie mínima en SVG para una tarjeta: línea de 1,5 px teñida con el acento del tono y área al 12 %. Sin ejes, sin animación y oculta a lectores de pantalla; el valor y la variación siguen siendo el contenido principal. |
 | `StatCard` | KPI HUD: barra de acento, escuadra, icono, delta y **cifra con color semántico**. Entrada escalonada, lavado de acento en reposo y highlight interior; `:active` hunde 1 px, foco con doble anillo y `sparkline` opcional sin espacio vacío. |
 | `AnimatedNumber` | Conteo corto de la cifra al montar o cambiar de periodo; sin movimiento si se prefiere reducir. |
-| `Button` (AntD) | Jerarquía de estados propia: `hover` eleva 1 px con sombra corta y `:active` hunde 1 px; primario y peligro suman un filo del color de su señal. Solo animan `transform` y `box-shadow`, así que temas, `disabled` y `loading` siguen gobernados por AntD. Texto y enlace no se elevan, y ningún botón se mueve dentro de un documento (factura/cotización). Sin movimiento con `prefers-reduced-motion`. |
+| `Button` (AntD) | Jerarquía de estados propia: `hover` eleva 1 px con sombra corta y `:active` hunde 1 px; primario y peligro suman un filo del color de su señal. Solo animan `transform` y `box-shadow`, así que temas, `disabled` y `loading` siguen gobernados por AntD. Texto y enlace no se elevan, ningún botón se mueve dentro de un documento (factura/cotización) y «Guardar» no proyecta sombra: se distingue por el color de marca. Sin movimiento con `prefers-reduced-motion`. |
 | `Card` (AntD) | Títulos de cabecera en micro-label; sombra más suave y cálida. Los gráficos usan `.ui-chart-card` (profundidad, halo y marco HUD de dos escuadras). En densidad compacta reduce relleno y altura de cabecera. |
 | `Table` (AntD) | Cabecera en micro-label con fondo opaco; numéricos mono (`--ui-mono`) alineados, fondo uniforme en filas normales y color solo para estados reales (`.row-low-stock`, subtotales de resultados); `focus-within` por fila con `outline`. La densidad compacta reduce el relleno vertical de las filas. Efectos fuera de la impresión. |
 | Recharts | Paleta única desde `styles/chartPalette.ts`, tooltips del tema, gradientes suaves y `isAnimationActive={!reduced}`. |

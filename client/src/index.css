@@ -1381,7 +1381,7 @@ html[data-theme="dark"] .row-low-stock > td {
 
 .ui-doc-footer .ant-btn-primary {
   min-width: 112px;
-  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--ui-brand-strong) 80%, transparent);
+  box-shadow: none !important;
 }
 
 .ui-doc-footer .ant-btn:focus-visible {
@@ -3371,35 +3371,42 @@ html[data-theme="dark"] .row-low-stock > td {
 
 /* Dentro del documento las acciones son planas: el cursor no eleva ni
    desplaza los botones, solo cambia el fondo o la tinta. El primario de la
-   barra conserva su sombra de reposo para seguir siendo la acción principal. */
+   barra tampoco proyecta sombra: se distingue por su color, no por una elevación. */
 .ui-invoice-editor .ant-btn:not(:disabled):hover,
 .ui-invoice-editor .ant-btn:not(:disabled):active {
   transform: none;
   box-shadow: none;
 }
 
-.ui-invoice-editor .ui-doc-footer .ant-btn-primary:hover {
-  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--ui-brand-strong) 80%, transparent);
-}
+/* Glass quirúrgico: solo superficies que flotan sobre contenido (menús,
+   desplegables, calendarios y tooltips). Los modales quedan fuera: su mask ya
+   oscurece la pantalla y el vidrio no se percibe. El contenido sigue sobre
+   superficie opaca y, sin soporte, queda el fondo de AntD. Los tooltips
+   mantienen vidrio oscuro en ambos temas: su texto es blanco. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ant-dropdown .ant-dropdown-menu,
+  .ant-popover .ant-popover-inner,
+  .ant-select-dropdown,
+  .ant-picker-dropdown .ant-picker-panel-container {
+    background-color: color-mix(in srgb, var(--ui-surface) 62%, transparent) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(1.15);
+    backdrop-filter: blur(6px) saturate(1.15);
+    box-shadow: none !important;
+  }
 
-/* Superficies flotantes opacas. El desenfoque de fondo en menús, calendarios y
-   tooltips se percibía como peso al abrirlos y no aportaba legibilidad. La
-   elevación y el borde siguen distinguiéndolos del contenido. */
-.ant-dropdown .ant-dropdown-menu,
-.ant-popover .ant-popover-inner,
-.ant-select-dropdown,
-.ant-picker-dropdown .ant-picker-panel-container {
-  background-color: var(--ui-surface) !important;
-}
+  .ant-tooltip .ant-tooltip-inner {
+    background-color: color-mix(in srgb, #0f1a18 66%, transparent) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(1.15);
+    backdrop-filter: blur(6px) saturate(1.15);
+    box-shadow: none !important;
+  }
 
-.ant-tooltip .ant-tooltip-inner {
-  background-color: #0f1a18 !important;
-}
-
-/* La flecha del tooltip y el popover no aporta sobre una superficie opaca. */
-.ant-tooltip .ant-tooltip-arrow,
-.ant-popover .ant-popover-arrow {
-  display: none;
+  /* La flecha no comparte el `backdrop-filter` del cuerpo y se percibe de otro
+     tono. En un panel de vidrio se oculta: la superficie flota por sí sola. */
+  .ant-tooltip .ant-tooltip-arrow,
+  .ant-popover .ant-popover-arrow {
+    display: none;
+  }
 }
 
 /* Modales de formulario: cabecera editorial con la misma barra de señal que
