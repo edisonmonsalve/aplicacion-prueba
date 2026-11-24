@@ -32,6 +32,7 @@ import { listThirdParties } from "@/services/thirdPartiesService";
 import { fetchProductsByIds, type ProductOption } from "@/utils/productLookup";
 import { currencyInputProps } from "@/utils/format";
 import { useProductSearch } from "@/hooks/useProductSearch";
+import useReducedMotion from "@/hooks/useReducedMotion";
 import { useStepperLabels } from "@/hooks/useStepperLabels";
 import ProductSelect from "@/components/ProductSelect";
 import StockTag from "@/components/StockTag";
@@ -96,13 +97,16 @@ interface FormValues {
   items: LineForm[];
 }
 
+/** IVA sugerido por tipo: venta tributa 19 % y reabastecimiento no. */
+const IMPUESTO_DEFAULT: Record<InvoiceTipo, number> = { venta: 19, compra: 0 };
+
 /** Marca las líneas que ya guardan datos en el panel desplegable de detalle. */
-const tieneDetalle = (line?: LineForm) =>
+const tieneDetalle = (line?: LineForm, tipo: InvoiceTipo = "venta") =>
   !!line &&
   (!!line.descripcion?.trim() ||
     (!!line.unidad_medida && line.unidad_medida !== "UND") ||
     !!line.descuento_pct ||
-    (line.impuesto_pct !== undefined && line.impuesto_pct !== 19) ||
+    (line.impuesto_pct !== undefined && line.impuesto_pct !== IMPUESTO_DEFAULT[tipo]) ||
     !!line.inc_pct ||
     !!line.otro_impuesto_pct ||
     !!line.otro_impuesto_nombre?.trim());
@@ -236,6 +240,7 @@ export default function InvoiceFormPage() {
   /** `add` de Form.List se guarda aquí para poder agregar líneas con el teclado. */
   const editorRef = useRef<HTMLDivElement>(null);
   useStepperLabels(editorRef);
+  const reducedMotion = useReducedMotion();
 
   const addLineRef = useRef<((value?: LineForm) => void) | null>(null);
   const removeLineRef = useRef<((index: number) => void) | null>(null);
@@ -248,6 +253,7 @@ export default function InvoiceFormPage() {
   const documentoAdquirente = Form.useWatch("documento", form);
   const quoteIdForm = Form.useWatch("quote_id", form);
   const condicionPago = Form.useWatch("condicion_pago", form) ?? "contado";
+  const diasCredito = Form.useWatch("dias_credito", form);
   const horaExpedicion = Form.useWatch("hora_expedicion", form);
   const tipoDocumento = Form.useWatch("tipo_documento_adquirente", form);
   const prefijo = Form.useWatch("prefijo", form);
@@ -305,8 +311,9 @@ export default function InvoiceFormPage() {
   /** Alta de línea con foco automático en el producto, también con Alt+Enter. */
   const addLine = useCallback((value?: LineForm) => {
     addLineRef.current?.({
+      cantidad: 1,
       descuento_pct: 0,
-      impuesto_pct: 19,
+      impuesto_pct: IMPUESTO_DEFAULT[tipo ?? "venta"],
       inc_pct: 0,
       otro_impuesto_pct: 0,
       unidad_medida: "UND",
@@ -324,7 +331,7 @@ export default function InvoiceFormPage() {
         last?.querySelector<HTMLElement>(".ant-select-selector");
       target?.focus();
     }, 0);
-  }, []);
+  }, [tipo]);
 
   /** Enfoca el producto de una línea; es la puerta de entrada a cada fila. */
   const focusRow = useCallback((index: number) => {
@@ -335,6 +342,19 @@ export default function InvoiceFormPage() {
         row?.querySelector<HTMLElement>(".ant-select-selection-search-input") ??
         row?.querySelector<HTMLElement>(".ant-select-selector");
       target?.focus();
+    }, 0);
+  }, []);
+
+  /** Tras elegir el producto, la cantidad queda seleccionada para escribir. */
+  const focusQuantity = useCallback((index: number) => {
+    window.setTimeout(() => {
+      const row = document.querySelectorAll<HTMLElement>(".ui-invoice-table__row")[index];
+      const input = row?.querySelector<HTMLInputElement>(
+        '[aria-colindex="3"] .ant-input-number input'
+      );
+      input?.focus();
+      // El valor inicial suele ser 1: seleccionarlo evita borrarlo a mano.
+      input?.select();
     }, 0);
   }, []);
 
@@ -428,6 +448,17 @@ export default function InvoiceFormPage() {
     form.setFieldsValue({ items: next });
   }, [tipo, editId, form]);
 
+  // El vencimiento se recalcula si cambian la fecha, el plazo o la condición;
+  // editarlo a mano no dispara este efecto porque no es una dependencia.
+  useEffect(() => {
+    if (editId || condicionPago !== "credito" || !fecha) return;
+    const dias = Number(diasCredito ?? 0);
+    if (!dias) return;
+    const esperada = fecha.add(dias, "day");
+    const actual = form.getFieldValue("fecha_vencimiento") as Dayjs | undefined;
+    if (!actual?.isSame(esperada, "day")) form.setFieldsValue({ fecha_vencimiento: esperada });
+  }, [fecha, condicionPago, diasCredito, editId, form]);
+
   useEffect(() => {
     if (editId) return;
     const defaults = DEFAULT_RETENCIONES[tipo ?? "venta"];
@@ -475,6 +506,8 @@ export default function InvoiceFormPage() {
     ? quoteInfo.saldo_por_facturar ?? Math.max(0, quoteInfo.total - (quoteInfo.facturado ?? 0))
     : 0;
   const excedeCotizacion = !!quoteInfo && tipo !== "compra" && t.total > saldoCotizado + 0.005;
+  // Una sola regla para la validación y la checklist fiscal.
+  const documentoRequerido = tipo === "venta";
   const rangoInvalido =
     typeof rangoDesde === "number" &&
     typeof rangoHasta === "number" &&
@@ -575,7 +608,7 @@ export default function InvoiceFormPage() {
             cantidad: 1,
             precio_unitario: p.costo ?? p.precio,
             descuento_pct: 0,
-            impuesto_pct: 0,
+            impuesto_pct: IMPUESTO_DEFAULT.compra,
             inc_pct: 0,
             otro_impuesto_pct: 0,
           };
@@ -614,7 +647,7 @@ export default function InvoiceFormPage() {
           product_id: l.product_id!,
           descripcion: l.nombre,
           unidad_medida: "UND",
-          cantidad: l.cantidad,
+          cantidad: l.cantidad ?? 1,
           precio_unitario: l.precio_unitario,
           descuento_pct: l.descuento_pct,
           impuesto_pct: l.impuesto_pct,
@@ -718,7 +751,7 @@ export default function InvoiceFormPage() {
             product_id: l.product_id,
             descripcion: l.descripcion ?? l.producto,
             unidad_medida: l.unidad_medida ?? "UND",
-            cantidad: l.cantidad,
+            cantidad: l.cantidad ?? 1,
             precio_unitario: l.precio_unitario,
             descuento_pct: l.descuento_pct,
             impuesto_pct: l.impuesto_pct,
@@ -754,7 +787,7 @@ export default function InvoiceFormPage() {
   const fiscalChecks = [
     {
       label: "Adquirente identificado",
-      ok: !!contraparte?.trim() && !!documentoAdquirente?.trim() && !!tipoDocumento,
+      ok: !!contraparte?.trim() && (!documentoRequerido || !!documentoAdquirente?.trim()) && !!tipoDocumento,
       field: contraparte?.trim() ? "documento" : "contraparte",
     },
     {
@@ -792,7 +825,10 @@ export default function InvoiceFormPage() {
     if (MORE_FIELDS.has(String(name[0]))) setMoreOpen(true);
     // El cuerpo plegado se monta en el mismo ciclo: el salto espera un turno.
     window.setTimeout(() => {
-      form.scrollToField(name, { behavior: "smooth", block: "center" });
+      form.scrollToField(name, {
+        behavior: reducedMotion ? "auto" : "smooth",
+        block: "center",
+      });
       window.setTimeout(() => {
         const instance = form.getFieldInstance(name) as { focus?: () => void } | undefined;
         instance?.focus?.();
@@ -841,7 +877,6 @@ export default function InvoiceFormPage() {
     );
     if (repetido) {
       message.warning("Ese producto ya está en otra línea; revisa la cantidad");
-      setAnnouncement(`Producto ${p.nombre} repetido en otra línea`);
     }
     const arr = [...(form.getFieldValue("items") ?? [])];
     const anteriorId = arr[name]?.product_id;
@@ -854,12 +889,19 @@ export default function InvoiceFormPage() {
     const suggested = tipo === "compra" ? (p.costo ?? p.precio) : p.precio;
     arr[name] = {
       ...arr[name],
+      cantidad: arr[name]?.cantidad ?? 1,
       precio_unitario: suggested,
       // La descripción se captura como snapshot facturado, no se lee del catálogo al imprimir.
       descripcion: descripcionSnapshot,
       unidad_medida: arr[name]?.unidad_medida || "UND",
     };
     form.setFieldsValue({ items: arr });
+    // El foco continúa donde empieza la captura de la línea: escribir la
+    // cantidad reemplaza el valor sugerido sin necesidad de otro clic.
+    focusQuantity(name);
+    setAnnouncement(
+      `${repetido ? `Producto ${p.nombre} repetido en otra línea. ` : `Producto ${p.nombre} seleccionado. `}Cantidad de la línea ${name + 1} lista para ingresar.`
+    );
   };
 
   /** Convierte filas pegadas en líneas; reemplaza la línea vacía inicial. */
@@ -884,10 +926,10 @@ export default function InvoiceFormPage() {
         product_id: l.productId,
         descripcion: l.descripcion,
         unidad_medida: "UND",
-        cantidad: l.cantidad,
+        cantidad: l.cantidad ?? 1,
         precio_unitario: l.precio,
         descuento_pct: 0,
-        impuesto_pct: 19,
+        impuesto_pct: IMPUESTO_DEFAULT[tipo ?? "venta"],
         inc_pct: 0,
         otro_impuesto_pct: 0,
       });
@@ -899,7 +941,12 @@ export default function InvoiceFormPage() {
     form.setFieldsValue({ items: [...base, ...nuevas] });
     setDirty(true);
     setPasteOpen(false);
-    setAnnouncement(`${nuevas.length} líneas agregadas desde Excel`);
+    // Pegar también termina en la primera cantidad nueva: el usuario puede
+    // ajustarla de inmediato con el teclado.
+    focusQuantity(base.length);
+    setAnnouncement(
+      `${nuevas.length} líneas agregadas desde Excel. Cantidad de la línea ${base.length + 1} lista para revisar.`
+    );
     message.success(
       repetidos > 0
         ? `${nuevas.length} líneas agregadas · ${repetidos} producto(s) repetido(s) omitido(s)`
@@ -909,6 +956,11 @@ export default function InvoiceFormPage() {
 
   const onFinish = async (v: FormValues) => {
     if (saving) return; // Ctrl+Enter repetido no debe duplicar la factura.
+    if (rangoInvalido) {
+      goToField(["rango_desde"]);
+      message.error("El rango desde debe ser menor o igual al rango hasta");
+      return;
+    }
     clearFormErrors(form);
     const payload = {
       tipo: v.tipo,
@@ -963,7 +1015,11 @@ export default function InvoiceFormPage() {
       } catch {
         // Si el navegador bloquea localStorage, la factura ya quedó guardada.
       }
-      localStorage.removeItem(draftKey);
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        // El borrador local es comodidad; la factura ya quedó guardada.
+      }
       setDraftSavedAt(null);
       setDirty(false);
       message.success(editId ? "Factura actualizada" : "Borrador creado");
@@ -973,7 +1029,7 @@ export default function InvoiceFormPage() {
       message.error(msg);
       if (fieldCount > 0) {
         const first = form.getFieldsError().find((f) => f.errors.length > 0);
-        if (first) form.scrollToField(first.name);
+        if (first) goToField(first.name);
       }
     } finally {
       setSaving(false);
@@ -982,6 +1038,9 @@ export default function InvoiceFormPage() {
 
   return (
     <div className="ui-invoice-editor" ref={editorRef}>
+      <h1 className="ui-visually-hidden">
+        {editId ? `Factura ${prefijo ?? ""}-${editId}` : "Nueva factura"}
+      </h1>
       <p className="ui-visually-hidden" role="status" aria-live="polite">
         {announcement}
       </p>
@@ -1007,7 +1066,7 @@ export default function InvoiceFormPage() {
           rango_hasta: 9999,
           condicion_pago: "contado",
           dias_credito: 0,
-          items: [{}],
+          items: [{ cantidad: 1 }],
         }}
       >
         <div className="ui-invoice-grid">
@@ -1049,7 +1108,11 @@ export default function InvoiceFormPage() {
                 <Form.Item name="fecha" label="Fecha" rules={[{ required: true }]}>
                   <DatePicker variant="borderless" format="DD/MM/YYYY" />
                 </Form.Item>
-                <Form.Item name="hora_expedicion" label="Hora" rules={[{ required: true, message: "Hora" }]}>
+                <Form.Item
+                  name="hora_expedicion"
+                  label="Hora"
+                  rules={[{ required: true, message: "Ingresa la hora de expedición" }]}
+                >
                   <TimePicker variant="borderless" format="HH:mm" />
                 </Form.Item>
               </div>
@@ -1081,7 +1144,10 @@ export default function InvoiceFormPage() {
                 className="ui-invoice-parties__name"
                 name="contraparte"
                 label={tipo === "compra" ? "Proveedor" : "Cliente"}
-                rules={[{ required: true, message: "Requerido" }, { min: 2, message: "Mínimo 2 caracteres" }]}
+                rules={[
+                  { required: true, message: "Ingresa el nombre de la contraparte" },
+                  { min: 2, message: "Escribe al menos 2 caracteres" },
+                ]}
               >
                 <Input
                   variant="borderless"
@@ -1094,19 +1160,19 @@ export default function InvoiceFormPage() {
                 <Form.Item
                   name="tipo_documento_adquirente"
                   label="Tipo"
-                  rules={[{ required: true, message: "Tipo" }]}
+                  rules={[{ required: true, message: "Elige el tipo de documento" }]}
                 >
                   <Select variant="borderless" options={DOCUMENTO_OPTIONS} />
                 </Form.Item>
                 <Form.Item
                   name="documento"
                   label="Número"
-                  rules={[{ required: tipo === "venta", message: "Requerido" }]}
+                  rules={[{ required: documentoRequerido, message: "Ingresa el número de documento" }]}
                 >
                   <Input
                     variant="borderless"
                     placeholder="NIT / Cédula"
-                    inputMode="numeric"
+                    inputMode={tipoDocumento === "NIT" || tipoDocumento === "CC" ? "numeric" : "text"}
                     allowClear
                   />
                 </Form.Item>
@@ -1149,7 +1215,7 @@ export default function InvoiceFormPage() {
                 <Form.Item
                   name="medio_pago"
                   label="Medio de pago"
-                  rules={[{ required: true, message: "Medio" }]}
+                  rules={[{ required: true, message: "Elige el medio de pago" }]}
                 >
                   <Select variant="borderless" options={MEDIO_PAGO_OPTIONS} />
                 </Form.Item>
@@ -1180,7 +1246,7 @@ export default function InvoiceFormPage() {
             </div>
           </div>
 
-          <div className="ui-invoice-table" role="table" aria-label="Líneas de la factura">
+          <div className="ui-invoice-table">
             <Form.List
               name="items"
               rules={[
@@ -1202,13 +1268,19 @@ export default function InvoiceFormPage() {
                 removeLineRef.current = remove;
                 return (
                 <>
+                  <div
+                    role="table"
+                    aria-label="Líneas de la factura"
+                    aria-colcount={6}
+                    aria-rowcount={fields.length + 1}
+                  >
                   <div className="ui-invoice-table__head" role="row">
-                    <span id="inv-col-index" role="columnheader">#</span>
-                    <span id="inv-col-product" role="columnheader">Descripción</span>
-                    <span id="inv-col-qty" role="columnheader">Cant.</span>
-                    <span id="inv-col-price" role="columnheader">Precio unit.</span>
-                    <span id="inv-col-total" role="columnheader">Total</span>
-                    <span role="columnheader">
+                    <span id="inv-col-index" role="columnheader" aria-colindex={1}>#</span>
+                    <span id="inv-col-product" role="columnheader" aria-colindex={2}>Descripción</span>
+                    <span id="inv-col-qty" role="columnheader" aria-colindex={3}>Cant.</span>
+                    <span id="inv-col-price" role="columnheader" aria-colindex={4}>Precio unit.</span>
+                    <span id="inv-col-total" role="columnheader" aria-colindex={5}>Total</span>
+                    <span role="columnheader" aria-colindex={6}>
                       <Tooltip title="Pegar varias líneas desde Excel">
                         <Button
                           type="text"
@@ -1234,7 +1306,7 @@ export default function InvoiceFormPage() {
                               : "Producto agregado después de la entrega: esta factura tampoco descuenta stock."
                           }
                         >
-                          <Tag color={incluido ? "green" : "orange"}>
+                          <Tag color={incluido ? "green" : "orange"} tabIndex={0}>
                             {incluido ? "Entregado" : "Agregado tras entrega"}
                           </Tag>
                         </Tooltip>
@@ -1273,17 +1345,22 @@ export default function InvoiceFormPage() {
                         className="ui-invoice-table__row"
                         key={key}
                         role="row"
-                        aria-rowindex={name + 1}
+                        aria-rowindex={name + 2}
                         aria-label={`Línea ${name + 1}`}
                       >
-                        <span className="ui-invoice-table__index" role="cell" aria-label="Número de línea">
+                        <span
+                          className="ui-invoice-table__index"
+                          role="cell"
+                          aria-colindex={1}
+                          aria-label="Número de línea"
+                        >
                           {name + 1}
                         </span>
-                        <div className="ui-invoice-table__product">
+                        <div className="ui-invoice-table__product" role="cell" aria-colindex={2}>
                           <Form.Item
                             name={[name, "product_id"]}
                             label="Producto"
-                            rules={[{ required: true, message: "Producto" }]}
+                            rules={[{ required: true, message: "Elige un producto" }]}
                           >
                             <ProductSelect
                               variant="borderless"
@@ -1307,6 +1384,7 @@ export default function InvoiceFormPage() {
                               <span
                                 className={`ui-invoice-table__stock is-${stock.tone}`}
                                 role="img"
+                                tabIndex={0}
                                 aria-label={stock.text}
                               />
                             </Tooltip>
@@ -1316,38 +1394,43 @@ export default function InvoiceFormPage() {
                               type="text"
                               size="small"
                               className={`ui-invoice-table__detail${detailsOpen.has(key) ? " is-open" : ""}`}
-                              data-filled={tieneDetalle(l)}
-                              aria-label={`Detalle fiscal de la línea ${name + 1}`}
+                              aria-label={`Descuento e impuestos de la línea ${name + 1}`}
                               aria-expanded={detailsOpen.has(key)}
                               aria-controls={`ui-invoice-detalle-${key}`}
                               onClick={() => toggleDetails(key)}
                               icon={<PercentageOutlined className="ui-invoice-table__detail-icon" />}
-                            />
+                            >
+                              <DownOutlined className="ui-invoice-table__detail-caret" />
+                            </Button>
                           </Tooltip>
                         </div>
-                        <Form.Item
-                          name={[name, "cantidad"]}
-                          label="Cantidad"
-                          rules={[{ required: true, message: "Cant." }]}
-                        >
-                          <InputNumber variant="borderless" min={1} placeholder="1" />
-                        </Form.Item>
-                        <Form.Item
-                          name={[name, "precio_unitario"]}
-                          label="Precio unitario"
-                          rules={[{ required: true, message: "Precio" }]}
-                        >
-                          <InputNumber
-                            {...currencyInputProps}
-                            variant="borderless"
-                            min={0.01}
-                            placeholder="$ 0"
-                          />
-                        </Form.Item>
-                        <div className="ui-invoice-table__total num">
+                        <div className="ui-invoice-table__cell" role="cell" aria-colindex={3}>
+                          <Form.Item
+                            name={[name, "cantidad"]}
+                            label="Cantidad"
+                            rules={[{ required: true, message: "Ingresa la cantidad" }]}
+                          >
+                            <InputNumber variant="borderless" min={1} placeholder="1" />
+                          </Form.Item>
+                        </div>
+                        <div className="ui-invoice-table__cell" role="cell" aria-colindex={4}>
+                          <Form.Item
+                            name={[name, "precio_unitario"]}
+                            label="Precio unitario"
+                            rules={[{ required: true, message: "Ingresa el precio unitario" }]}
+                          >
+                            <InputNumber
+                              {...currencyInputProps}
+                              variant="borderless"
+                              min={0.01}
+                              placeholder="$ 0"
+                            />
+                          </Form.Item>
+                        </div>
+                        <div className="ui-invoice-table__total num" role="cell" aria-colindex={5}>
                           {money(lineTotal(l ?? {}))}
                         </div>
-                        <div className="ui-invoice-table__actions">
+                        <div className="ui-invoice-table__actions" role="cell" aria-colindex={6}>
                           <Dropdown
                             trigger={["click"]}
                             placement="bottomRight"
@@ -1396,7 +1479,7 @@ export default function InvoiceFormPage() {
                         <div
                           className={`ui-invoice-table__detail-row${
                             detailsOpen.has(key) ? "" : " is-collapsed"
-                          }${tieneDetalle(l) ? "" : " is-empty"}${
+                          }${tieneDetalle(l, tipo) ? "" : " is-empty"}${
                             descripcionCustom ? " has-custom-description" : ""
                           }`}
                           id={`ui-invoice-detalle-${key}`}
@@ -1424,18 +1507,18 @@ export default function InvoiceFormPage() {
                             <Form.Item
                               className="ui-invoice-table__detail-extra"
                               name={[name, "descuento_pct"]}
-                              label="Desc. %"
+                              label="Descuento %"
                               initialValue={0}
                             >
-                              <InputNumber variant="borderless" min={0} max={100} placeholder="0" suffix="%" />
+                              <InputNumber variant="borderless" min={0} max={100} placeholder="0" />
                             </Form.Item>
                             <Form.Item
                               className="ui-invoice-table__detail-extra"
                               name={[name, "impuesto_pct"]}
                               label="IVA %"
-                              initialValue={19}
+                              initialValue={IMPUESTO_DEFAULT[tipo ?? "venta"]}
                             >
-                              <InputNumber variant="borderless" min={0} max={100} placeholder="19" suffix="%" />
+                              <InputNumber variant="borderless" min={0} max={100} placeholder="19" />
                             </Form.Item>
                             <Form.Item
                               className="ui-invoice-table__detail-extra"
@@ -1443,31 +1526,32 @@ export default function InvoiceFormPage() {
                               label="INC %"
                               initialValue={0}
                             >
-                              <InputNumber variant="borderless" min={0} max={100} placeholder="0" suffix="%" />
+                              <InputNumber variant="borderless" min={0} max={100} placeholder="0" />
                             </Form.Item>
                             <Form.Item
                               className="ui-invoice-table__wide ui-invoice-table__detail-extra"
                               name={[name, "otro_impuesto_nombre"]}
-                              label="Otro impuesto"
+                              label="Nombre del tributo"
                             >
                               <Input variant="borderless" maxLength={60} placeholder="Ej.: ICA" allowClear />
                             </Form.Item>
                             <Form.Item
                               className="ui-invoice-table__detail-extra"
                               name={[name, "otro_impuesto_pct"]}
-                              label="Otro %"
+                              label="Otro tributo %"
                               initialValue={0}
                             >
-                              <InputNumber variant="borderless" min={0} max={100} placeholder="0" suffix="%" />
+                              <InputNumber variant="borderless" min={0} max={100} placeholder="0" />
                             </Form.Item>
                             <div className="ui-invoice-table__flag">{flag}</div>
                         </div>
                       </div>
                     );
                   })}
+                  </div>
                   <Form.ErrorList errors={errors} />
                   <Button
-                    type="dashed"
+                    type="default"
                     block
                     className="ui-invoice-table__add"
                     icon={<PlusOutlined className="ui-invoice-table__add-icon" />}
@@ -1494,7 +1578,7 @@ export default function InvoiceFormPage() {
           </div>
 
           {excedeCotizacion && (
-            <p className="ui-invoice-alert">
+            <p className="ui-invoice-alert" role="status">
               Supera el saldo cotizado en {money(t.total - saldoCotizado)}
             </p>
           )}
@@ -1511,15 +1595,16 @@ export default function InvoiceFormPage() {
             </Form.Item>
             <DocumentTotals
               rows={[
-                { label: "Subtotal", value: money(t.subtotal) },
+                { label: "Subtotal", value: money(t.subtotal), hint: "Suma de cantidad × precio de cada línea" },
                 { label: "Descuento", value: money(-t.descuento), hint: "Descuentos por línea" },
-                { label: "IVA", value: money(t.impuesto) },
+                { label: "IVA", value: money(t.impuesto), hint: "IVA aplicado por línea" },
                 { label: "INC", value: money(t.inc) },
                 { label: "Otros impuestos", value: money(t.otros) },
                 { label: "Retenciones", value: money(-retenciones), hint: "Informativas" },
               ]}
               totalLabel="Total factura"
               totalValue={money(t.total)}
+              totalHint="Total de la factura antes de restar las retenciones informativas"
               net={retenciones > 0 ? { label: "Neto a pagar", value: money(totalNeto) } : undefined}
             />
           </div>
@@ -1543,34 +1628,65 @@ export default function InvoiceFormPage() {
               <div className="ui-invoice-foot__row">
                 <span className="ui-invoice-rowlabel">Resolución</span>
                 <div className="ui-invoice-foot__fields">
-                  <Form.Item name="prefijo" label="Prefijo" rules={[{ required: true, message: "Prefijo" }, { max: 10 }]}>
+                  <Form.Item
+                    name="prefijo"
+                    label="Prefijo"
+                    rules={[
+                      { required: true, message: "Ingresa el prefijo" },
+                      { max: 10, message: "Máximo 10 caracteres" },
+                    ]}
+                  >
                     <Input variant="borderless" placeholder="FAC" style={{ textTransform: "uppercase" }} disabled={!!editId} />
                   </Form.Item>
                   <Form.Item
                     className="ui-invoice-foot__wide"
                     name="resolucion_numero"
                     label="Resolución"
-                    rules={[{ required: tipo === "venta", message: "Requerido" }, { max: 40 }]}
+                    rules={[
+                      { required: tipo === "venta", message: "Ingresa el número de resolución" },
+                      { max: 40 },
+                    ]}
                   >
                     <Input variant="borderless" placeholder="RES-0001" />
                   </Form.Item>
                   <Form.Item
                     name="resolucion_fecha"
                     label="Fecha resolución"
-                    rules={[{ required: tipo === "venta", message: "Fecha" }]}
+                    rules={[{ required: tipo === "venta", message: "Elige la fecha de la resolución" }]}
                   >
                     <DatePicker variant="borderless" format="DD/MM/YYYY" />
                   </Form.Item>
-                  <Form.Item name="rango_desde" label="Desde" rules={[{ required: true }]}>
+                  <Form.Item
+                    name="rango_desde"
+                    label="Desde"
+                    dependencies={["rango_hasta"]}
+                    rules={[
+                      { required: true, message: "Ingresa el rango desde" },
+                      {
+                        validator: (_, value?: number) => {
+                          const desde = value;
+                          const hasta = form.getFieldValue("rango_hasta") as number | undefined;
+                          if (desde && hasta && desde > hasta) {
+                            return Promise.reject(new Error("El rango desde debe ser menor o igual al rango hasta"));
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    ]}
+                  >
                     <InputNumber variant="borderless" min={1} placeholder="1" />
                   </Form.Item>
-                  <Form.Item name="rango_hasta" label="Hasta" rules={[{ required: true }]}>
+                  <Form.Item
+                    name="rango_hasta"
+                    label="Hasta"
+                    rules={[{ required: true, message: "Ingresa el rango hasta" }]}
+                  >
                     <InputNumber variant="borderless" min={1} placeholder="9999" />
                   </Form.Item>
                 </div>
               </div>
               {rangoInvalido && (
-                <p className="ui-invoice-error ui-invoice-foot__error">
+                <p className="ui-invoice-error ui-invoice-foot__error" role="alert">
                   El rango desde debe ser menor o igual al rango hasta.
                 </p>
               )}

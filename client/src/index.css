@@ -60,6 +60,13 @@ html.theme-switching *::after {
   outline-offset: 2px;
 }
 
+/* En el documento el foco usa la tinta fuerte y el mismo respiro que los
+   campos: un solo lenguaje para botones, pistas, estados y acciones en línea. */
+.ui-invoice-editor :where(button, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--ui-brand-strong);
+  outline-offset: 2px;
+}
+
 /* Etiqueta técnica: corta, mayúscula y espaciada, como en un panel de control. */
 .ui-eyebrow {
   display: block;
@@ -1204,8 +1211,14 @@ html[data-theme="dark"] .row-low-stock > td {
   padding-top: 10px;
   border-top: 1px solid var(--ui-ink);
   font-family: var(--ui-display);
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--ui-text-total);
+  font-weight: var(--ui-weight-total);
+}
+
+.ui-doc-totals__hint:focus-visible {
+  outline: 2px solid var(--ui-brand-strong);
+  outline-offset: 2px;
+  border-radius: var(--ui-field-radius);
 }
 
 .ui-doc-totals__net {
@@ -1284,8 +1297,8 @@ html[data-theme="dark"] .row-low-stock > td {
 .ui-doc-footer__eyebrow {
   color: var(--ui-ink-2);
   font-family: var(--ui-mono);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -1297,18 +1310,24 @@ html[data-theme="dark"] .row-low-stock > td {
   min-width: 74px;
 }
 
-.ui-doc-footer__state .ant-tag {
-  margin: 0;
+.ui-doc-footer__saved,
+.ui-doc-footer__unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  padding: 2px var(--ui-space-2);
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
 }
 
 .ui-doc-footer__saved {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--ui-text-caption);
   color: var(--ui-ink-2);
+}
+
+.ui-doc-footer__unsaved {
+  color: var(--ui-warning-ink);
+  background: color-mix(in srgb, var(--ui-warning) 9%, var(--ui-surface));
 }
 
 .ui-doc-footer__saved::before,
@@ -1327,9 +1346,9 @@ html[data-theme="dark"] .row-low-stock > td {
 .ui-doc-footer__notice {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--ui-space-1);
   color: var(--ui-warning-ink);
-  font-size: 11px;
+  font-size: var(--ui-text-small);
   white-space: nowrap;
 }
 
@@ -1337,8 +1356,8 @@ html[data-theme="dark"] .row-low-stock > td {
   height: auto;
   padding: 0;
   color: var(--ui-brand-strong);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
 }
 
 .ui-doc-footer__notice .ant-btn:hover {
@@ -1393,11 +1412,11 @@ html[data-theme="dark"] .row-low-stock > td {
 /* Checklist fiscal compacto: vive en un popover para no ocupar una fila de la
    barra. Cada punto sigue siendo un acceso directo al campo que lo resuelve. */
 .ui-doc-footer__review.ant-btn {
-  height: 28px;
-  padding: 0 8px;
+  height: var(--ui-control-h);
+  padding: 0 var(--ui-space-2);
   color: var(--ui-ink-2);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
 }
 
 .ui-doc-footer__review.ant-btn.is-pending {
@@ -1474,20 +1493,30 @@ html[data-theme="dark"] .row-low-stock > td {
 }
 
 .ui-product-option__star {
-  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
+  border-radius: var(--ui-field-radius);
   background: none;
-  color: #b45309;
+  color: var(--ui-warning-ink);
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
 }
 
-.ui-product-option__star:hover,
+.ui-product-option__star:hover {
+  background: var(--ui-brand-soft);
+  color: var(--ui-brand-strong);
+}
+
 .ui-product-option__star:focus-visible {
-  color: #d97706;
-  outline: none;
+  outline: 2px solid var(--ui-brand-strong);
+  outline-offset: 1px;
 }
 
 .ui-product-option__name {
@@ -1515,8 +1544,8 @@ html[data-theme="dark"] .row-low-stock > td {
 }
 
 .ui-product-option__meta small.is-low {
-  color: #b45309;
-  font-weight: 700;
+  color: var(--ui-warning-ink);
+  font-weight: var(--ui-weight-figure);
 }
 
 /* Pegado desde Excel. */
@@ -1568,142 +1597,11 @@ html[data-theme="dark"] .row-low-stock > td {
   font-size: 11px;
 }
 
-/* Vista previa de impresión: el documento real, escalado dentro de una hoja. */
-.ui-print-preview__hint {
-  margin: 0 0 10px;
-  color: var(--ui-ink-2);
-  font-size: 12px;
-}
-
-.ui-print-preview__stage {
-  max-height: 64vh;
-  padding: 16px;
-  overflow: auto;
-  border-radius: 10px;
-  background: #e5e7eb;
-}
-
-.ui-print-preview__sheet {
-  width: max-content;
-  min-width: 100%;
-  margin: 0 auto;
-  background: #fff;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
-}
-
-.ui-print-preview__stage.is-letter .ui-print-preview__sheet {
-  width: 816px;
-}
-
-.ui-print-preview__stage.is-a4 .ui-print-preview__sheet {
-  width: 794px;
-}
-
-.ui-invoice-preview-clone {
-  width: 1000px;
-  margin: 0;
-  padding: 10mm 8mm;
-  zoom: 0.76;
-  pointer-events: none;
-}
-
-.ui-invoice-preview-clone .ui-doc-footer,
-.ui-invoice-preview-clone .ui-invoice-table__add,
-.ui-invoice-preview-clone .ui-invoice-table__paste-mobile,
-.ui-invoice-preview-clone .ui-invoice-table__head button,
-.ui-invoice-preview-clone .ui-invoice-table__detail,
-.ui-invoice-preview-clone .ui-invoice-table__stock,
-.ui-invoice-preview-clone .ui-invoice-errors,
-.ui-invoice-preview-clone .ui-invoice-more__toggle,
-.ui-invoice-preview-clone .ui-invoice-table__actions,
-.ui-invoice-preview-clone .ui-invoice-table__detail-row:not(.has-custom-description) {
-  display: none !important;
-}
-
-/* La vista previa muestra el mismo contenido que el papel: descripción
-   personalizada e información fiscal aunque en el editor estén plegadas. */
-.ui-invoice-preview-clone .ui-invoice-table__detail-row.has-custom-description {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr);
-  margin: 0;
-  padding: 0 var(--ui-doc-gutter) 2mm !important;
-  border: 0 !important;
-  background: none !important;
-}
-
-.ui-invoice-preview-clone .ui-invoice-table__detail-row .ui-invoice-table__wide {
-  grid-column: 1 / -1;
-}
-
-.ui-invoice-preview-clone .ui-invoice-table__detail-extra {
-  display: none !important;
-}
-
-.ui-invoice-preview-clone .ui-invoice-more__body.is-collapsed {
-  display: block !important;
-}
-
-/* Ruido de edición que no pertenece al papel: contadores, limpiadores, flechas
-   y etiquetas internas del panel de detalle. */
-.ui-invoice-preview-clone .ant-input-data-count,
-.ui-invoice-preview-clone .ant-input-suffix,
-.ui-invoice-preview-clone .ant-input-clear-icon,
-.ui-invoice-preview-clone .ant-select-arrow,
-.ui-invoice-preview-clone .ant-select-suffix,
-.ui-invoice-preview-clone .ant-select-selection-placeholder,
-.ui-invoice-preview-clone .ant-picker-suffix,
-.ui-invoice-preview-clone .ant-input-number-actions,
-.ui-invoice-preview-clone .ui-invoice-table__flag,
-.ui-invoice-preview-clone .ant-form-item-required::before,
-.ui-invoice-preview-clone .ant-form-item-explain-error {
-  display: none !important;
-}
-
-/* En papel no hay controles: el clon muestra los valores sin borde ni subrayado
-   para que la vista previa no prometa una hoja distinta a la que se imprime. */
-.ui-invoice-preview-clone .ui-invoice-grid .ant-input,
-.ui-invoice-preview-clone .ui-invoice-grid .ant-input-affix-wrapper,
-.ui-invoice-preview-clone .ui-invoice-grid .ant-input-number,
-.ui-invoice-preview-clone .ui-invoice-grid .ant-picker,
-.ui-invoice-preview-clone .ui-invoice-grid .ant-select-selector {
-  min-height: 0;
-  padding: 0 !important;
-  border: 0 !important;
-  border-bottom: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.ui-invoice-preview-clone textarea.ant-input {
-  resize: none !important;
-}
-
-.ui-invoice-preview-clone ::placeholder {
-  color: transparent !important;
-}
-
-.ui-print-preview__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.ui-print-preview__footer > div {
-  display: flex;
-  gap: 8px;
-}
-
 @media (max-width: 1199px) {
   .ui-doc-field__xs,
   .ui-doc-field__sm { grid-column: span 6; }
   .ui-doc-field__md,
   .ui-doc-field__lg { grid-column: span 12; }
-}
-
-@media (max-width: 1199px) {
   .ui-doc-lines__head {
     display: none;
   }
@@ -1729,11 +1627,11 @@ html[data-theme="dark"] .row-low-stock > td {
     margin-bottom: 0;
   }
   .ui-doc-line__flag,
-  .ui-doc-line__actions {
+  .ui-doc-line__remove {
     grid-column: 1 / -1;
     padding-top: 0;
   }
-  .ui-doc-line__actions {
+  .ui-doc-line__remove {
     justify-self: end;
   }
 }
@@ -1804,18 +1702,6 @@ html[data-theme="dark"] .row-low-stock > td {
 
 .ui-invoice-error {
   color: var(--ui-danger-ink);
-}
-
-/* El aviso fiscal mantiene la presentación de enlace de documento. */
-.ui-invoice-alert .ant-btn {
-  height: auto;
-  padding: 0;
-  color: var(--ui-brand-strong);
-  font-weight: 600;
-}
-
-.ui-invoice-alert .ant-btn:hover {
-  text-decoration: underline;
 }
 
 .ui-invoice-grid .ant-form-item {
@@ -1897,14 +1783,14 @@ html[data-theme="dark"] .row-low-stock > td {
   background: color-mix(in srgb, var(--ui-surface) 88%, var(--ui-brand-soft)) !important;
 }
 
-/* El foco se marca con un halo corto alrededor del campo, sin desplazar el
-   texto ni cambiar la altura de la fila. */
+/* El foco se marca con un anillo separado 2 px del valor: la marca no toca la
+   cifra y el fondo sigue siendo el del documento. No desplaza el texto. */
 .ui-invoice-editor .ui-invoice-grid .ant-input:focus,
 .ui-invoice-editor .ui-invoice-grid .ant-input-number-focused,
 .ui-invoice-editor .ui-invoice-grid .ant-picker-focused,
 .ui-invoice-editor .ui-invoice-grid .ant-select-focused .ant-select-selector {
   background: var(--ui-brand-soft) !important;
-  box-shadow: var(--ui-focus-ring) !important;
+  box-shadow: var(--ui-focus-ring-spaced) !important;
 }
 
 /* El error se ve en el campo, no solo en el texto de debajo: fondo apenas
@@ -1919,8 +1805,8 @@ html[data-theme="dark"] .row-low-stock > td {
 .ui-invoice-grid .ant-form-item-explain-error {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: var(--ui-space-1);
+  font-size: var(--ui-text-small);
   font-weight: 600;
   color: var(--ui-danger-ink);
 }
@@ -1964,26 +1850,28 @@ html[data-theme="dark"] .row-low-stock > td {
 
 .ui-invoice-grid .ant-input::placeholder,
 .ui-invoice-grid .ant-input-number-input::placeholder {
-  color: var(--ui-ink-3, var(--ui-ink-2));
-  opacity: 0.7;
+  color: var(--ui-ink-3);
 }
 
-/* Las cifras se leen de derecha a izquierda, pero el valor necesita ayuda:
-   AntD dibuja un par de flechas de incremento a la derecha. Se dejan a la
-   vista, alineadas y con zona de pulsación suficiente, para corregir cantidad
-   o porcentaje sin borrar lo escrito. El teclado sigue usando ↑/↓. */
+/* Las flechas de cantidad siguen ahí, pero no compiten con la cifra: el riel
+   es transparente y solo aparece al enfocar o señalar el campo. En reposo el
+   valor usa casi todo el control; al editar, las flechas están a un clic y el
+   teclado conserva ↑/↓. */
 .ui-invoice-editor .ant-input-number-actions {
   display: flex !important;
   flex-direction: column;
   width: var(--ui-stepper-w);
-  border-left: var(--ui-subtle-line);
   border-radius: 0 var(--ui-field-radius) var(--ui-field-radius) 0;
-  background: var(--ui-surface-2);
-  overflow: hidden;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ui-fast) var(--ui-ease);
 }
 
-.ui-invoice-editor .ant-input-number-handler-wrap {
-  display: flex !important;
+.ui-invoice-editor .ant-input-number:hover .ant-input-number-actions,
+.ui-invoice-editor .ant-input-number:focus-within .ant-input-number-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .ui-invoice-editor .ant-input-number-action {
@@ -1991,16 +1879,13 @@ html[data-theme="dark"] .row-low-stock > td {
   place-items: center;
   flex: 1 1 50%;
   min-height: calc(var(--ui-control-h) / 2);
-  color: var(--ui-ink-2);
+  border-radius: var(--ui-field-radius);
+  color: var(--ui-ink-3);
   font-size: 9px;
   line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
   transition: background-color var(--ui-fast) var(--ui-ease), color var(--ui-fast) var(--ui-ease);
-}
-
-.ui-invoice-editor .ant-input-number-action + .ant-input-number-action {
-  border-top: var(--ui-subtle-line);
 }
 
 .ui-invoice-editor .ant-input-number-action:hover {
@@ -2018,31 +1903,43 @@ html[data-theme="dark"] .row-low-stock > td {
   outline-offset: -2px;
 }
 
-.ui-invoice-grid .ant-input-number-input,
-.ui-invoice-table .ant-input-number-input {
-  padding-right: calc(var(--ui-stepper-w) + 4px) !important;
+/* El ancho se reserva siempre para el riel de flechas: si AntD lo recalcula al
+   señalar el campo, la cifra se encoge y parece que el input se movió. Con el
+   ancho fijo, el valor no se recompone al pasar el cursor ni al enfocar. */
+.ui-invoice-editor .ant-input-number-input {
+  width: calc(100% - var(--ui-stepper-w)) !important;
+  padding-right: 2px !important;
   text-align: right;
 }
 
+/* AntD cambia la base porcentual del campo cuando aparece el riel: en el panel
+   de detalle, donde el control mide 88 px, se fija el ancho para que la cifra
+   no se encoja 14 px al pasar el cursor. */
+.ui-invoice-table__detail-row .ant-input-number-input {
+  width: 62px !important;
+  min-width: 62px !important;
+  max-width: 62px !important;
+  padding-left: 6px !important;
+  text-align: left;
+}
+
 .ui-invoice-grid .ant-select-selection-placeholder {
-  color: var(--ui-ink-2);
-  opacity: 0.75;
+  color: var(--ui-ink-3);
 }
 
 /* La unidad viaja dentro del campo: el % se lee junto al número aunque la
    etiqueta de la columna esté oculta en la tabla. */
 .ui-invoice-grid .ant-input-number-suffix {
-  color: var(--ui-ink-3, var(--ui-ink-2));
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.8;
+  color: var(--ui-ink-3);
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
   pointer-events: none;
 }
 
 /* Borrado rápido sin llenar la fila de cruces: aparece al pasar el ratón o al
    enfocar, y se pone en rojo al señalarlo. */
 .ui-invoice-grid .ant-input-clear-icon {
-  color: var(--ui-ink-3, var(--ui-ink-2));
+  color: var(--ui-ink-3);
   opacity: 0;
   transition: opacity var(--ui-fast) var(--ui-ease), color var(--ui-fast) var(--ui-ease);
 }
@@ -2061,9 +1958,9 @@ html[data-theme="dark"] .row-low-stock > td {
    `Input`, que no siempre comparte la clase del contador del `TextArea`. */
 .ui-invoice-grid .ant-input-data-count,
 .ui-invoice-grid .ant-input-suffix > span:not(.ant-input-clear-icon) {
-  color: var(--ui-ink-3, var(--ui-ink-2));
+  color: var(--ui-ink-3);
   font-family: var(--ui-mono);
-  font-size: 10px;
+  font-size: var(--ui-text-small);
 }
 
 /* Cabecera: emisor a la izquierda; tipo, número y fecha a la derecha. */
@@ -2161,8 +2058,8 @@ html[data-theme="dark"] .row-low-stock > td {
 }
 
 .ui-invoice-head__meta .ant-form-item-label > label {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -2175,8 +2072,8 @@ html[data-theme="dark"] .row-low-stock > td {
   border-right: 1px solid var(--ui-line);
   background: color-mix(in srgb, var(--ui-surface) 90%, var(--ui-brand-soft));
   color: var(--ui-ink-2);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2290,22 +2187,22 @@ html[data-theme="dark"] .row-low-stock > td {
 }
 
 /* Con muchas líneas la cabecera se queda bajo el header de la app: las columnas
-   siguen rotuladas mientras se recorre el documento. Fondo opaco: el vidrio en
-   una cabecera `sticky` se recompone en cada scroll. */
+   siguen rotuladas mientras se recorre el documento. Fondo opaco y un filo
+   tenue —la misma línea que separa las filas— en lugar de una raya de tinta. */
 .ui-invoice-table__head {
   position: sticky;
   /* El header de la app mide 76 px: 2 px de respiro para que no se pegue. */
   top: 78px;
   z-index: 6;
-  border-bottom: 1px solid var(--ui-ink);
+  border-bottom: 1px solid var(--ui-line);
   background: var(--ui-surface);
 }
 
 .ui-invoice-table__head > span {
   padding: 9px 8px;
-  border-right: 1px solid var(--ui-line);
+  border-right: 0;
   color: var(--ui-ink-2);
-  font-size: 11px;
+  font-size: var(--ui-text-small);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2323,22 +2220,30 @@ html[data-theme="dark"] .row-low-stock > td {
   border-bottom: 1px solid var(--ui-line);
 }
 
-.ui-invoice-table__row:hover {
-  background: color-mix(in srgb, var(--ui-surface) 94%, var(--ui-brand-soft));
-  box-shadow: inset 2px 0 0 var(--ui-brand-strong);
-}
-
-/* La celda con el foco se marca aunque el ratón esté en otra parte: en una
-   retícula densa, saber qué columna se está editando evita errores. */
-.ui-invoice-table__row > *:focus-within {
-  background: color-mix(in srgb, var(--ui-surface) 90%, var(--ui-brand-soft));
-  box-shadow: inset 0 -2px 0 var(--ui-brand-strong);
+/* La fila no reacciona al paso del cursor ni al foco: es un documento, no una
+   lista. La única señal al editar es el anillo del campo, sin teñir la celda. */
+.ui-invoice-editor .ui-invoice-table .ant-input:focus,
+.ui-invoice-editor .ui-invoice-table .ant-input-number-focused,
+.ui-invoice-editor .ui-invoice-table .ant-select-focused .ant-select-selector,
+.ui-invoice-editor .ui-invoice-table .ant-picker-focused,
+.ui-invoice-editor .ui-invoice-table .ant-form-item-has-error .ant-input,
+.ui-invoice-editor .ui-invoice-table .ant-form-item-has-error .ant-input-number,
+.ui-invoice-editor .ui-invoice-table .ant-form-item-has-error .ant-select-selector,
+.ui-invoice-editor .ui-invoice-table .ant-form-item-has-error .ant-picker {
+  background: transparent !important;
 }
 
 .ui-invoice-table__row > * {
   min-width: 0;
   padding: 12px 8px;
   border-right: 1px solid var(--ui-line);
+}
+
+/* Envoltorio de celda para los Form.Item: conserva la retícula y da a la tabla
+   ARIA una celda real por columna, no un div sin rol. */
+.ui-invoice-table__cell .ant-form-item {
+  width: 100%;
+  margin-bottom: 0;
 }
 
 .ui-invoice-table__head > span:first-child,
@@ -2382,11 +2287,8 @@ html[data-theme="dark"] .row-low-stock > td {
   font-size: 14px;
 }
 
-.ui-invoice-table__row:hover .ui-invoice-table__index {
-  color: var(--ui-brand-strong);
-}
-
-/* Las etiquetas siguen en el DOM para lectores de pantalla. */
+/* En la fila principal la cabecera rotula las columnas, así que la etiqueta
+   sigue en el DOM solo para lectores de pantalla. */
 .ui-invoice-table .ant-form-item-label {
   position: absolute;
   width: 1px;
@@ -2396,8 +2298,28 @@ html[data-theme="dark"] .row-low-stock > td {
   white-space: nowrap;
 }
 
+/* En el panel desplegable no hay cabecera al lado: la etiqueta se ve encima
+   del campo para que nunca quede un input «ciego». */
+.ui-invoice-table__detail-row .ant-form-item-label {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  padding: 0 0 3px !important;
+  line-height: 1.2;
+}
+
+.ui-invoice-table__detail-row .ant-form-item-label > label {
+  height: auto;
+  color: var(--ui-ink-3);
+  font-size: var(--ui-text-small);
+  font-weight: 600;
+}
+
 .ui-invoice-table .ant-form-item-explain-error {
-  font-size: 10px;
+  font-size: var(--ui-text-small);
 }
 
 .ui-invoice-table__product {
@@ -2420,29 +2342,40 @@ html[data-theme="dark"] .row-low-stock > td {
 }
 
 .ui-invoice-table__stock.is-ok {
-  background: var(--ui-success);
-  color: var(--ui-success);
+  background: var(--ui-success-ink);
+  color: var(--ui-success-ink);
 }
 
 .ui-invoice-table__stock.is-low {
-  background: var(--ui-warning);
-  color: var(--ui-warning);
+  background: var(--ui-warning-ink);
+  color: var(--ui-warning-ink);
 }
 
 .ui-invoice-table__stock.is-out {
-  background: var(--ui-danger);
-  color: var(--ui-danger);
+  background: var(--ui-danger-ink);
+  color: var(--ui-danger-ink);
 }
 
-/* «Detalle» es un control secundario: icono compacto con chevron que gira y un
-   punto ámbar cuando la línea guarda descuento, impuestos u otro dato oculto. */
+.ui-invoice-table__stock:focus-visible,
+.ui-invoice-editor .ant-tag:focus-visible {
+  outline: 2px solid var(--ui-brand-strong);
+  outline-offset: 3px;
+}
+
+/* «Detalle» es un control de apertura, no una alerta: `%` y chevron dentro de
+   una pastilla discreta. El borde y el tamaño se mantienen en reposo para que
+   el hover no desplace la celda; al señalarlo solo se tiñe un poco. */
 .ui-invoice-table__detail.ant-btn {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   align-self: center;
-  width: 24px;
-  min-width: 24px;
+  width: auto;
+  min-width: 34px;
   height: 24px;
-  padding: 0;
+  padding: 0 6px;
   border: 1px solid var(--ui-line);
   border-radius: 6px;
   background: var(--ui-surface);
@@ -2457,25 +2390,26 @@ html[data-theme="dark"] .row-low-stock > td {
   font-size: 11px;
 }
 
+.ui-invoice-table__detail-caret {
+  font-size: 8px;
+  line-height: 1;
+  transition: transform var(--ui-fast) var(--ui-ease);
+}
+
 .ui-invoice-table__detail.is-open {
-  border-color: var(--ui-brand-strong);
+  border-color: var(--ui-line);
   background: var(--ui-brand-soft);
   color: var(--ui-brand-strong);
 }
 
-.ui-invoice-table__detail[data-filled="true"]::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--ui-warning, #f59e0b);
+.ui-invoice-table__detail.is-open .ui-invoice-table__detail-caret {
+  transform: rotate(180deg);
 }
 
+/* Al señalarlo cambian fondo, tinta y el borde un paso; nada se mueve. */
 .ui-invoice-table__detail.ant-btn:hover {
-  border-color: var(--ui-brand-strong);
+  border-color: color-mix(in srgb, var(--ui-brand-strong) 32%, var(--ui-line));
+  background: var(--ui-brand-soft);
   color: var(--ui-brand-strong);
 }
 
@@ -2502,12 +2436,13 @@ html[data-theme="dark"] .row-low-stock > td {
   color: var(--ui-ink-2);
 }
 
-/* Panel desplegable: una sola fila de campos con jerarquía de anchos, en vez
-   de una tira de inputs sueltos. Se anima al abrirse y respeta reduced-motion. */
+/* Panel desplegable: dos filas cortas, una celda por campo y la etiqueta
+   siempre encima de su valor. Así Descuento, IVA, INC y el tributo adicional
+   no se confunden entre sí. Se anima al abrirse y respeta reduced-motion. */
 .ui-invoice-table__detail-row {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) 88px 88px 88px 88px;
+  grid-template-columns: minmax(0, 1.6fr) repeat(5, minmax(72px, 88px));
   align-items: end;
   gap: 10px 16px;
   margin-top: 6px;
@@ -2546,57 +2481,47 @@ html[data-theme="dark"] .row-low-stock > td {
   width: auto;
 }
 
+.ui-invoice-table__detail-row .ui-invoice-table__flag {
+  grid-column: -2 / -1;
+}
+
 .ui-invoice-table__flag {
   justify-self: end;
   padding-bottom: 2px !important;
   border-right: 0 !important;
 }
 
-/* Banda de alta línea: ocupa el ancho de la tabla y deja claro qué número
-   tendrá la fila nueva, con el icono dentro de un círculo de marca. */
-.ui-invoice-table__add.ant-btn {
+/* Banda de alta línea: una fila más del documento, sin borde ni hover. Fondo,
+   tinta y tamaño quedan fijos; el foco usa el anillo del editor. */
+.ui-invoice-table__add.ant-btn,
+.ui-invoice-table__add.ant-btn:hover {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 34px;
-  padding: 0 14px;
-  border: 1px dashed color-mix(in srgb, var(--ui-brand-strong) 45%, var(--ui-line));
-  border-top-color: var(--ui-line);
+  height: 32px;
+  padding: 0 12px;
+  border: 0 !important;
   border-radius: 0 0 8px 8px;
-  background: color-mix(in srgb, var(--ui-surface) 96%, var(--ui-brand-soft));
-  color: var(--ui-brand-strong);
-  font-size: 11px;
-  font-weight: 700;
-  transition: background-color var(--ui-fast) var(--ui-ease), border-color var(--ui-fast) var(--ui-ease);
+  background: var(--ui-surface) !important;
+  color: var(--ui-ink-2) !important;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: none !important;
+  transition: none;
 }
 
 .ui-invoice-table__add-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--ui-brand-soft);
-  font-size: 11px;
+  color: var(--ui-ink-3);
+  font-size: 12px;
 }
 
 .ui-invoice-table__add-shortcut {
-  padding: 2px 6px;
-  border: 1px solid var(--ui-line);
-  border-radius: 4px;
-  color: var(--ui-ink-3, var(--ui-ink-2));
+  color: var(--ui-ink-3);
   font-family: var(--ui-mono);
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.ui-invoice-table__add.ant-btn:hover {
-  border-color: var(--ui-brand-strong);
-  background: var(--ui-brand-soft);
+  font-size: var(--ui-text-small);
+  font-weight: var(--ui-weight-label);
 }
 
 .ui-invoice-table__paste-mobile.ant-btn {
@@ -2642,11 +2567,13 @@ html[data-theme="dark"] .row-low-stock > td {
   font-weight: 600;
 }
 
+/* El total cierra por peso y color, no por una raya gruesa: la jerarquía la
+   da la tinta de marca y una cifra algo mayor que el resto del resumen. */
 .ui-invoice-closing .ui-doc-totals__final {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 2px solid var(--ui-ink);
-  font-size: 24px;
+  margin-top: 10px;
+  padding-top: 4px;
+  border-top: 0;
+  font-size: var(--ui-text-title);
 }
 
 .ui-invoice-closing .ui-doc-totals__final .num {
@@ -2841,9 +2768,6 @@ html[data-theme="dark"] .row-low-stock > td {
        con ancho mínimo propio queda recortado dentro de su celda. */
     overflow: hidden;
   }
-  .ui-invoice-table__row:hover {
-    box-shadow: inset 0 0 0 1px var(--ui-brand);
-  }
   .ui-invoice-table__row > * {
     padding: 2px 0;
     border-right: 0;
@@ -2900,11 +2824,11 @@ html[data-theme="dark"] .row-low-stock > td {
   .ui-invoice-table__detail-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .ui-invoice-table__detail-row .ui-invoice-table__wide {
+  .ui-invoice-table__detail-row .ui-invoice-table__wide,
+  .ui-invoice-table__detail-row .ui-invoice-table__flag {
     grid-column: 1 / -1;
   }
   .ui-invoice-table__flag {
-    grid-column: 1 / -1;
     justify-self: start;
   }
   .ui-invoice-table__total {
@@ -3443,6 +3367,19 @@ html[data-theme="dark"] .row-low-stock > td {
 .ant-btn-primary:not(.ant-btn-loading):not(:disabled):active,
 .ant-btn-dangerous:not(.ant-btn-loading):not(:disabled):active {
   box-shadow: none;
+}
+
+/* Dentro del documento las acciones son planas: el cursor no eleva ni
+   desplaza los botones, solo cambia el fondo o la tinta. El primario de la
+   barra conserva su sombra de reposo para seguir siendo la acción principal. */
+.ui-invoice-editor .ant-btn:not(:disabled):hover,
+.ui-invoice-editor .ant-btn:not(:disabled):active {
+  transform: none;
+  box-shadow: none;
+}
+
+.ui-invoice-editor .ui-doc-footer .ant-btn-primary:hover {
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--ui-brand-strong) 80%, transparent);
 }
 
 /* Superficies flotantes opacas. El desenfoque de fondo en menús, calendarios y
@@ -3987,7 +3924,6 @@ html[data-theme="dark"] * {
   .ui-page-header,
   .ui-invoice-alert,
   .ui-invoice-error,
-  .ui-invoice-errors,
   .ui-invoice-hint,
   .ant-modal-root,
   .ant-message,
@@ -4169,11 +4105,6 @@ html[data-theme="dark"] * {
     color: #64748b !important;
     font-size: 7pt !important;
     font-weight: 600 !important;
-  }
-
-  .ui-invoice-editor .ant-form-item-label > label::after,
-  .ui-invoice-editor .ui-invoice-required-dot {
-    display: none !important;
   }
 
   .ui-invoice-editor .ant-form-item-control-input {

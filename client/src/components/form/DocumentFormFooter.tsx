@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Button, Popover, Tag, Tooltip } from "antd";
+import { Button, Popover, Tooltip } from "antd";
 import { CloseOutlined, SafetyCertificateOutlined, SaveOutlined } from "@ant-design/icons";
 
 interface Props {
@@ -95,9 +95,7 @@ export default function DocumentFormFooter({
         {eyebrow && <span className="ui-doc-footer__eyebrow">{eyebrow}</span>}
         <span className="ui-doc-footer__state" role="status" aria-live="polite">
           {dirty ? (
-            <Tag color="warning" variant="filled">
-              Sin guardar
-            </Tag>
+            <span className="ui-doc-footer__unsaved">Sin guardar</span>
           ) : (
             <span className="ui-doc-footer__saved">Guardado</span>
           )}
@@ -125,7 +123,7 @@ export default function DocumentFormFooter({
           </Button>
         </Tooltip>
       </div>
-      <div className="ui-doc-footer__amounts" aria-live="polite">
+      <div className="ui-doc-footer__amounts">
         <span className="ui-eyebrow">{totalLabel}</span>
         <strong className="num">{totalValue}</strong>
         {net && (

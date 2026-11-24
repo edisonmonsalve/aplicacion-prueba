@@ -23,7 +23,9 @@ export default function DocumentTotals({ rows, totalLabel, totalValue, totalHint
         <div className="ui-doc-totals__row" key={row.label}>
           {row.hint ? (
             <Tooltip title={row.hint}>
-              <span>{row.label}</span>
+              <span className="ui-doc-totals__hint" tabIndex={0} aria-label={`${row.label}: ${row.hint}`}>
+                {row.label}
+              </span>
             </Tooltip>
           ) : (
             <span>{row.label}</span>
@@ -34,7 +36,9 @@ export default function DocumentTotals({ rows, totalLabel, totalValue, totalHint
       <div className="ui-doc-totals__final">
         {totalHint ? (
           <Tooltip title={totalHint}>
-            <span>{totalLabel}</span>
+            <span className="ui-doc-totals__hint" tabIndex={0} aria-label={`${totalLabel}: ${totalHint}`}>
+              {totalLabel}
+            </span>
           </Tooltip>
         ) : (
           <span>{totalLabel}</span>

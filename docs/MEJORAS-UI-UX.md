@@ -798,10 +798,9 @@ bloques pasan a ancho completo. `scrollToField` reserva 92 px para el header de
 la app ahora que no hay barra fija arriba.
 
 La séptima pasada trabajó los dos controles de la tabla. «+ Detalle» dejó de ser
-un enlace de 10 px pegado al selector: ahora es una pastilla AntD de 22 px con
-chevron que gira al abrir, borde de marca cuando está desplegado y un punto ámbar
-cuando la línea guarda descripción, unidad distinta de `UND`, INC u otro
-impuesto. El botón informa `aria-expanded` y `aria-controls` sobre el panel. Ese
+un enlace de 10 px pegado al selector: ahora es una pastilla AntD con chevron
+que gira al abrir y borde de marca cuando está desplegado. El botón informa
+`aria-expanded` y `aria-controls` sobre el panel. Ese
 panel pasó de una tira flexible de campos de 90/190 px a una retícula de seis
 columnas con anchos jerarquizados (descripción y «Otro impuesto» más amplios),
 borde de marca a la izquierda y animación de entrada; en pantallas estrechas se
@@ -924,7 +923,7 @@ y deja en la factura solo lo que se lee como factura.
 |---|---|---|
 | L1 | **Fondo y superficies quietos** | Se elimina `usePointerGrid`: la rejilla ambiental ya no se recalcula con cada movimiento del ratón y queda estática. La barra inferior y la cabecera de la tabla usan fondo opaco, sin `backdrop-filter`, porque recomponer un elemento `sticky` en cada scroll era costoso. |
 | L2 | **Sin movimiento que distraiga** | Desaparecen el pulso del estado «Sin guardar», el destello al guardar en la celda y los vidrios de menús, calendarios y tooltips. El barrido de guardado de la barra se conserva como señal única; las cifras siguen siendo tabulares. |
-| L3 | **Tabla de documento, no de edición** | La rejilla pasa a `# · Descripción · Cant. · Precio unit. · Total` más acciones. Descuento, IVA, INC, otro tributo, unidad y descripción facturada viven tras el botón `%` de cada línea, con punto ámbar cuando hay datos ocultos. El valor elegido del producto muestra nombre y SKU: precio y stock siguen en la lista desplegable y en el semáforo de la fila. |
+| L3 | **Tabla de documento, no de edición** | La rejilla pasa a `# · Descripción · Cant. · Precio unit. · Total` más acciones. Descuento, IVA, INC, otro tributo, unidad y descripción facturada viven tras el botón `%` de cada línea. El valor elegido del producto muestra nombre y SKU: precio y stock siguen en la lista desplegable y en el semáforo de la fila. |
 | L4 | **Información adicional plegada** | Resolución, rango, cotización, orden de compra, cuenta y retenciones se agrupan bajo «Información adicional», con un resumen de una línea visible sin abrir. Al saltar a uno de esos campos desde el resumen de errores o desde el checklist, la sección se abre y el campo recibe el foco. En impresión siempre aparece desplegada. |
 | L5 | **Checklist dentro de la barra** | Las cinco comprobaciones del Art. 617 dejan de ocupar una fila: la barra muestra «Fiscal · faltan N» o «Fiscal · completo» y abre un popover con las pastillas. Pulsar una cierra el popover, abre la sección que corresponda y enfoca el campo; se retira el aviso «Completar» que ya no hace falta. |
 | L6 | **Menos renderizados** | `onFieldsChange` compara una firma de los errores antes de llamar a `setFieldErrors`, de modo que escribir en un campo sin errores nuevos no vuelve a renderizar el resumen. La celda del total ya no se remonta con una `key` ligada a su valor. |
@@ -988,8 +987,91 @@ hover de un importe no añade borde (0 px) pero cambia el fondo, que once
 panel `%` abre sus siete campos con sus propias flechas, que en papel las flechas
 desaparecen, que el pegado de dos líneas actualiza el total a `$ 558.110`, y que
 a 390 px no hay desbordamiento horizontal. La consola solo muestra el aviso
-preexistente de `Alert` en el login. Sin commit ni push hasta la aprobación
-explícita.
+preexistente de `Alert` en el login. Commiteado en `65a7353`.
+
+## 42. Pasada de sistema de diseño: jerarquía, datos y accesibilidad
+
+Sobre la factura ya compacta, una auditoría del sistema Signal encontró deuda
+que no se ve en una captura pero sí al usar el formulario: mensajes de error
+crípticos, un rango que solo avisaba visualmente, tooltips inalcanzables con el
+teclado, contraste justo en el foco y CSS de una vista previa que ya no existe.
+Esta pasada cierra esos puntos sin cambiar el aspecto del documento ni el
+payload fiscal.
+
+| # | Cambio | Detalle |
+|---|---|---|
+| A1 | **Errores que enseñan** | Los mensajes dejan de ser «Requerido», «Cant.» o «Precio» y pasan a «Ingresa el nombre de la contraparte», «Elige un producto», «Ingresa la cantidad», «Ingresa el precio unitario» o «Ingresa el número de resolución». El envío vacío sigue marcando seis campos y enfoca el primero. |
+| A2 | **Rango que bloquea** | «Desde» valida contra «Hasta» con `dependencies`, muestra `role="alert"` y `onFinish` vuelve a comprobarlo antes de enviar. Ya no se puede guardar un rango invertido aunque el aviso rojo estuviera fuera de vista. |
+| A3 | **Datos coherentes** | El documento se exige solo en venta tanto en la regla como en la checklist fiscal; el IVA por defecto sale de `IMPUESTO_DEFAULT` por tipo (19 % venta, 0 % compra) y también lo usa el indicador de detalle oculto; el vencimiento se recalcula al cambiar fecha, plazo o condición. El tipo de documento elige `inputMode` numérico solo para NIT y cédula. |
+| A4 | **Guardar más seguro** | Los errores de API usan el mismo `goToField` que la checklist (abre «Información adicional» si hace falta) y borrar el borrador local va dentro de `try/catch`: un navegador que bloquee `localStorage` ya no convierte una factura guardada en un fallo. |
+| A5 | **Tabla anunciable** | La tabla quedó dentro de un `role="table"` con `aria-colcount`/`aria-rowcount`; la cabecera y cada fila tienen `aria-colindex` / `aria-rowindex` correctos (la primera línea es la fila 2) y seis celdas reales. Los botones de agregar/pegar y `Form.ErrorList` salieron fuera de la tabla. |
+| A6 | **Foco y ayudas al alcance** | `--ui-focus-ring` usa `--ui-brand-strong` (5,47:1 claro, 11,54:1 oscuro). Los tooltips de totales, stock y estado de entrega ahora son enfocables; la estrella de favoritos tiene `aria-pressed` y un objetivo de 24 px. El salto al primer error respeta `prefers-reduced-motion`. El `aria-live` del importe se retira para no anunciar cada pulsación: solo habla el estado «Sin guardar/Guardado». |
+| A7 | **Contraste sin pastillas ámbar** | «Sin guardar» es texto en `--ui-warning-ink` con punto, no una `Tag` rellena. Los puntos de stock y el aviso de stock bajo usan las variantes `ink`, y los placeholders dejan de depender de `opacity`. Aparece `--ui-ink-3` en ambos temas para ayudas y sufijos. |
+| A8 | **Menos CSS muerto y tokens nuevos** | Se borra el clon de vista previa, las reglas heredadas de AntD v5, el selector `ui-doc-line__actions` (la cotización usa `__remove`) y los dos `@media (max-width:1199px)` consecutivos. `--ui-text-small`, `--ui-text-total`, `--ui-weight-total` y `--ui-ink-3` sustituyen tamaños y colores sueltos; `DocumentTotals` recibe ahora las mismas pistas que la cotización. Se añade un `h1` oculto para dar contexto a lectores de pantalla sin cambiar la cabecera visual. |
+
+Archivos tocados: `pages/invoices/InvoiceFormPage.tsx`,
+`components/form/DocumentFormFooter.tsx`, `components/form/DocumentTotals.tsx`,
+`components/ProductSelect.tsx`, `styles/tokens.css` e `index.css`. No hay
+dependencias nuevas; el payload, los atajos, el borrador local, el pegado y la
+hoja impresa siguen igual.
+
+Verificación: `npx tsc --noEmit`, `client npm run lint` y `client npm run build`
+(CSS 82,82 → 80,76 kB por la eliminación de CSS muerto; bundle de la factura
+43,62 kB) sin errores; `server npm test` 243/243. En Chrome con CDP se comprobó
+el `h1` oculto, la tabla con 6 columnas y 6 celdas por fila, `aria-rowindex=2`
+en la primera línea, el anillo de foco de 2 px en `--ui-brand-strong`, las
+pistas de totales enfocables, los seis mensajes accionables, «Sin guardar» en
+tinta de aviso sin `Tag`, el rango invertido marcado y anunciado, once steppers
+con etiquetas en español, el menú de línea, la impresión sin flechas y 390 px
+sin desbordamiento. La consola solo muestra el aviso preexistente de `Alert`
+en el login. Sin commit ni push hasta la aprobación explícita.
+
+## 43. Profundidad tranquila en la factura
+
+La pasada anterior dejó el documento correcto pero demasiado «vivo»: al recorrer
+la tabla, cada fila cambiaba de fondo y aparecía una barra lateral; la banda de
+alta y los botones se elevaban; la cabecera y el total llevaban rayas de tinta;
+y el riel de las flechas numéricas era una caja de 18 px que restaba espacio a
+la cifra. Esta ronda baja el ruido sin quitar información ni atajos.
+
+| # | Cambio | Detalle |
+|---|---|---|
+| B1 | **Nada se mueve al pasar el cursor** | La elevación global de `.ant-btn` se desactiva dentro de `.ui-invoice-editor`, incluida la barra: los botones solo cambian fondo o tinta. «Guardar» conserva su sombra de reposo para seguir siendo la acción principal. |
+| B2 | **Filas en reposo** | Se retira el fondo y el filo lateral del `hover` de `.ui-invoice-table__row`, el cambio de color del índice y el borde de las tarjetas en móvil. La celda con el foco sigue señalando dónde se edita. |
+| B3 | **Detalle y alta discretos** | El botón `%` solo tiñe fondo, tinta y un paso el borde al señalarlo (el estado abierto sí sigue marcado). «Agregar línea» deja de ser `dashed` y pierde el borde: fondo, tinta y tamaño no cambian al cursor; el texto baja a `--ui-ink-2` y el `+` y el atajo a `--ui-ink-3`, sin círculo de icono ni pastilla de atajo. |
+| B4 | **Cabecera sin raya fuerte** | El borde inferior pasa de tinta a `--ui-line`, el mismo que separa las filas, y desaparecen los divisores verticales entre rótulos. Sigue `sticky` y opaca. |
+| B5 | **Total más contenido** | El total factura baja de 24 px a `--ui-text-title` (~20 px) y pierde la raya sólida de 2 px: el peso de la cifra y la tinta de marca bastan para cerrar el resumen. |
+| B6 | **Flechas que no estorban** | `--ui-stepper-w` pasa de 18 a 14 px; el riel es transparente, sin borde ni separador, y aparece solo al enfocar o señalar el número. El valor gana campo (`padding-right` 22 → 2 px) y el ancho del input se fija en `calc(100% - 14px)` para que AntD no lo encoja al hover y la cifra no se recomponga. En el panel de detalle el porcentaje se alinea a la izquierda (`padding-left: 6 px`) para que la cifra no quede bajo el riel de flechas; en las cifras de la tabla se conserva la alineación a la derecha. Las etiquetas «Aumentar/Disminuir…», la pulsación directa y ↑/↓ siguen igual; `ConfigProvider` usa el mismo ancho. |
+| B7 | **Foco con respiro** | El anillo de los campos deja 2 px de fondo antes de la tinta de marca (`--ui-focus-ring-spaced`) en vez de pegarse a la cifra. Botones, pistas, estados y acciones en línea comparten el mismo anillo de `--ui-brand-strong` con 2 px de separación. En la tabla se retira además el fondo del foco, incluso en campos con error: ni la celda ni el control se tiñen, solo aparece el anillo. |
+| B8 | **Panel de detalle legible** | Se retira el texto descriptivo añadido bajo los campos y se corrige que las etiquetas estaban ocultas por CSS en toda la tabla. En el panel desplegable se hacen visibles, pequeñas y en tinta secundaria, encima de cada input: `Descuento %`, `IVA %`, `INC %`, `Otro tributo %`, sin iconos de ayuda ni texto redundante. En la fila principal se mantienen ocultas a la vista porque la cabecera ya rotula las columnas. La retícula pasa a seis columnas para que descripción y unidad ocupen la primera fila y descuento, IVA, INC, nombre del tributo y su porcentaje la segunda. Se quita el sufijo `%` dentro de los cuatro `InputNumber`: AntD lo ubicaba a la derecha, junto al riel de flechas, y la etiqueta ya indica la unidad. El botón `%` se rediseña como pastilla con `%` y chevron que gira al abrir, sin punto ámbar: el estado lo da `aria-expanded` y el fondo de marca cuando está abierto. Su tooltip sigue siendo «Descuento, IVA y otros datos de la línea». |
+| B9 | **Cantidad lista para escribir** | Toda línea nueva nace con cantidad `1` (valor real, no solo placeholder), también al abrir un borrador, precargar una cotización o pegar desde Excel. Al elegir producto, el foco salta al `InputNumber` de cantidad de esa línea y deja el valor seleccionado, así que escribirlo reemplaza el `1` sin otro clic. La región `aria-live` anuncia el producto elegido y la línea enfocada; el pegado masivo lleva el foco a la primera cantidad nueva. La búsqueda del selector conserva el foco mientras se escribe. |
+
+Archivos tocados: `styles/tokens.css`, `context/ThemeContext.tsx`, `index.css` y
+`pages/invoices/InvoiceFormPage.tsx`.
+No hay dependencias nuevas y el payload, la validación, el borrador, el pegado
+y la hoja impresa no cambian. Las flechas se siguen ocultando en impresión.
+
+Verificación: `npx tsc --noEmit`, `client npm run lint`, `client npm run build`
+(CSS 80,76 → 81,59 kB) y `git diff --check` sin errores; `server npm test` 243/243.
+En Chrome con CDP se comprobó que la cabecera usa `--ui-line` (1 px) y no tiene
+divisores verticales, el total mide 19,9 px sin borde, la fila no cambia de
+fondo ni de sombra al pasar el cursor, «Agregar línea», `%` y «Guardar» no se
+desplazan, el riel mide 14 px con `opacity: 0` en reposo y pasa a 1 al señalar,
+el valor reserva el ancho del riel con `padding-right: 2 px` y no se encoge al hover (62 px antes y después en el panel), el anillo de foco queda a 4 px con
+2 px de fondo intermedio, en la tabla el fondo del campo y de la celda es
+transparente incluso con error, el panel de detalle abre en dos filas sin textos de ayuda bajo las etiquetas,
+el botón `%` muestra chevron y gira al abrir sin punto ámbar, la impresión oculta
+los tributos y conserva la descripción, y 390 px no desborda. En CDP se
+comprobó que la primera línea nace con cantidad `1`, que al elegir producto el
+foco pasa al campo de cantidad con el valor seleccionado (`[0, 1]`), que la
+región `aria-live` anuncia «Cantidad de la línea 1 lista para ingresar» y que
+escribir reemplaza el valor por `3`. En una segunda línea con otro producto el
+foco también pasa a su cantidad y el anuncio nombra la línea 2; «Agregar línea»
+sigue enfocando el producto y crea la fila con cantidad `1`. Las etiquetas no
+llevan iconos de ayuda. «Agregar línea» queda sin borde y con el mismo fondo,
+tinta y altura en reposo y en hover; los porcentajes del panel se alinean a la
+izquierda con 8 px hasta el riel, sin sufijo `%` junto a las flechas, y no cambian al señalar. Consola sin errores.
+Sin commit ni push hasta la aprobación explícita.
 
 ## Ruta sugerida
 

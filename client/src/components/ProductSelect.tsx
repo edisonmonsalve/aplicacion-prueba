@@ -101,6 +101,7 @@ export default function ProductSelect({
             type="button"
             className="ui-product-option__star"
             aria-label={favorite ? "Quitar de favoritos" : "Marcar como favorito"}
+            aria-pressed={favorite}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
