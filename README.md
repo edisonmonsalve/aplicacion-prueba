@@ -1,5 +1,10 @@
 # Sistema de Inventario, Facturación y Finanzas
 
+[![Portada pública de Signal](docs/screenshots/10-landing.png)](https://edisonmonsalve.github.io/aplicacion-prueba/)
+
+*Portada pública del proyecto — haz clic para abrir la landing en
+[edisonmonsalve.github.io/aplicacion-prueba](https://edisonmonsalve.github.io/aplicacion-prueba/).*
+
 Aplicación web fullstack para gestionar el ciclo comercial completo de una empresa: catálogo y
 stock, cotizaciones, facturas de venta y compra, cartera cobrable/pagable, contabilidad analítica
 y reportes. El proyecto sirve además como práctica de CRUD completo, reglas de negocio,
@@ -32,7 +37,8 @@ mueve stock y genera asientos.
 
 ## Vista previa
 
-Capturas reales de la aplicación con datos demo, a 1440 × 900 px.
+Capturas reales de la aplicación con datos demo, a 1440 × 900 px. La portada pública se muestra
+al inicio de este documento.
 
 | Inicio | Productos |
 | :---: | :---: |
@@ -457,7 +463,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
 ## Documentación
 
-- [Portada pública](landing/index.html) — landing estática con SEO, desplegable en GitHub Pages o Vercel.
+- [Portada pública](https://edisonmonsalve.github.io/aplicacion-prueba/) — landing estática publicada en GitHub Pages ([código en `landing/index.html`](landing/index.html)); también desplegable en Vercel.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
