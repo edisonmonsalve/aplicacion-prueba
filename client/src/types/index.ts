@@ -113,10 +113,10 @@ export interface Dashboard {
   movimientosHoy: number;
   /** Valor del inventario a precio de venta (precio × stock). */
   valorInventario: number;
-  /** Valor del inventario al costo (costo × stock). */
-  valorInventarioCosto: number;
-  /** Productos activos con stock y costo cero o sin definir. */
-  productosSinCosto: number;
+  /** Valor del inventario al costo (costo × stock). No se envía al operador. */
+  valorInventarioCosto?: number;
+  /** Productos activos con stock y costo cero o sin definir. No se envía al operador. */
+  productosSinCosto?: number;
   productosStockBajo: LowStockProduct[];
   ultimosMovimientos: StockMovement[];
   movimientosPorDia: { dia: string; tipo: MovementTipo; total: number }[];
@@ -1017,6 +1017,7 @@ export type AuditEntity =
   | "account"
   | "payment"
   | "period_closure"
+  | "invoice"
   | "invoice_adjustment"
   | "bank_reconciliation"
   | "receivable_followup"

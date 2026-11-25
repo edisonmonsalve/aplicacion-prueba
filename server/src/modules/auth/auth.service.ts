@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "../../config/Db.js";
+import { signToken } from "../../config/jwt.js";
 import type { Rol } from "../../types/roles.js";
 import { HttpError } from "../../utils/http-error.js";
 
@@ -36,11 +36,7 @@ export async function login(email: string, password: string) {
     return null;
   }
 
-  const token = jwt.sign(
-    { id: user.id, rol: user.rol },
-    process.env.JWT_SECRET!,
-    { expiresIn: "8h" }
-  );
+  const token = signToken({ id: user.id, rol: user.rol });
 
   return {
     token,

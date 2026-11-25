@@ -30,6 +30,7 @@ const ENTIDAD_META: Record<AuditEntity, { label: string; color: string }> = {
   account: { label: "Cuenta", color: "cyan" },
   payment: { label: "Pago", color: "gold" },
   period_closure: { label: "Cierre", color: "purple" },
+  invoice: { label: "Factura", color: "volcano" },
   invoice_adjustment: { label: "Nota", color: "cyan" },
   bank_reconciliation: { label: "Conciliación", color: "magenta" },
   receivable_followup: { label: "Seguimiento cartera", color: "lime" },

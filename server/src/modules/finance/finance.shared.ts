@@ -46,6 +46,7 @@ export async function auditFinance(
     | "account"
     | "payment"
     | "period_closure"
+    | "invoice"
     | "invoice_adjustment"
     | "bank_reconciliation"
     | "receivable_followup"

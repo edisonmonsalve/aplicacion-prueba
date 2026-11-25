@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 import { pool } from "../../config/Db.js";
 import type { AuthUser } from "../../types/express.js";
+import { canSeeCosts } from "../../types/roles.js";
 import { today } from "../../utils/dates.js";
 import { getSummary } from "../finance/transactions.service.js";
 import { listMovements } from "../movements/movements.service.js";
@@ -35,13 +36,19 @@ export async function getDashboard(actor: AuthUser) {
     actor.rol === "operador" ? Promise.resolve(null) : financeOverview(),
   ]);
 
+  const showCosts = canSeeCosts(actor.rol);
+
   return {
     productosActivos,
     stockBajo,
     movimientosHoy,
     valorInventario: Number(valor[0][0].venta),
-    valorInventarioCosto: Number(valor[0][0].costo),
-    productosSinCosto: Number(valor[0][0].sin_costo),
+    ...(showCosts
+      ? {
+          valorInventarioCosto: Number(valor[0][0].costo),
+          productosSinCosto: Number(valor[0][0].sin_costo),
+        }
+      : {}),
     productosStockBajo: bajos[0],
     ultimosMovimientos: recientes.data,
     ...graficos,

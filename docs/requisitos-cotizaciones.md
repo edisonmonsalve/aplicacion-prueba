@@ -93,7 +93,7 @@ Estados posibles guardados: `borrador`, `enviado`, `aprobado`, `rechazado`, `ent
 | POST | `/api/quotes/:id/approve` | Creador o admin | Aprobar |
 | POST | `/api/quotes/:id/reject` | Creador o admin | Rechazar |
 | POST | `/api/quotes/:id/deliver` | Creador o admin | Entregar y descontar stock |
-| POST | `/api/quotes/:id/duplicate` | Autenticado | Crear borrador a partir de otro |
+| POST | `/api/quotes/:id/duplicate` | Admin u operador | Crear borrador a partir de otro |
 
 ## 8. Pantallas
 

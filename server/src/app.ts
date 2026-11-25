@@ -1,9 +1,9 @@
-import "dotenv/config";
 import express from "express";
-import cors from "cors";
+import { env } from "./config/env.js";
 import { pool } from "./config/Db.js";
 import { HEALTH_PATH, apiMounts } from "./routes.js";
 import { errorHandler } from "./middlewares/error-handler.js";
+import { corsMiddleware, securityHeaders } from "./middlewares/security.js";
 import { buildOpenApiDocument } from "./docs/openapi.js";
 import { swaggerUiHtml } from "./docs/swagger-ui.js";
 
@@ -11,8 +11,11 @@ export const app = express();
 
 const openApiDocument = buildOpenApiDocument();
 
-app.use(cors());
-app.use(express.json());
+app.disable("x-powered-by");
+if (env.TRUST_PROXY === "1") app.set("trust proxy", 1);
+app.use(securityHeaders);
+app.use(corsMiddleware);
+app.use(express.json({ limit: "1mb" }));
 
 app.get(HEALTH_PATH, async (_req, res) => {
   const [rows] = await pool.query("SELECT 1 AS ok");

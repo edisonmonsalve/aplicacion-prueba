@@ -546,7 +546,7 @@ export type FiscalYearParams = {
 export type AuditQuery = {
   page?: number;
   pageSize?: number;
-  entidad?: "budget" | "transaction" | "account" | "payment" | "period_closure" | "invoice_adjustment" | "bank_reconciliation" | "receivable_followup" | "company_settings" | "stock_movement";
+  entidad?: "budget" | "transaction" | "account" | "payment" | "period_closure" | "invoice" | "invoice_adjustment" | "bank_reconciliation" | "receivable_followup" | "company_settings" | "stock_movement";
   entidad_id?: number;
   accion?: string;
   user_id?: number;

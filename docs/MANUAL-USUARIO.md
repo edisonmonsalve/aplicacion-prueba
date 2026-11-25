@@ -19,7 +19,7 @@ Roles y permisos:
 |-----|-----------|--------------|----------|----------|
 | admin | Completo | Completo | Completo | Gestión |
 | contador | Lectura | Lectura | Completo | — |
-| operador | Operación | Operación | Lectura | — |
+| operador | Operación | Operación | — | — |
 | consulta | Lectura | Lectura | Lectura | — |
 
 - El menú lateral se adapta al rol: solo el administrador ve “Empresa”, “Usuarios” y “Finanzas → transacciones”.

@@ -28,6 +28,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json({ message: "La categoría indicada no existe" });
   } else if (err?.code === "ER_ROW_IS_REFERENCED_2") {
     res.status(409).json({ message: "No se puede eliminar: tiene registros asociados" });
+  } else if (err?.type === "entity.too.large") {
+    res.status(413).json({ message: "La petición supera el tamaño máximo permitido" });
+  } else if (err?.type === "entity.parse.failed") {
+    res.status(400).json({ message: "El cuerpo de la petición no es JSON válido" });
   } else {
     console.error(err);
     res.status(500).json({ message: "Error interno del servidor" });

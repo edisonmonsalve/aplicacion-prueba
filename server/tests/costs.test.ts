@@ -233,6 +233,13 @@ describe("Costos y margen: visibilidad y permisos", () => {
     const res = await request(app).get("/api/dashboard").set(bearer(operador.token));
     expect(res.status).toBe(200);
     expect(res.body.ultimosMovimientos[0]).toHaveProperty("costo_unitario", null);
+    expect(res.body).not.toHaveProperty("valorInventarioCosto");
+    expect(res.body).not.toHaveProperty("productosSinCosto");
+
+    const adminRes = await request(app).get("/api/dashboard").set(bearer(admin.token));
+    expect(adminRes.status).toBe(200);
+    expect(adminRes.body).toHaveProperty("valorInventarioCosto");
+    expect(adminRes.body).toHaveProperty("productosSinCosto");
   });
 
   it("el resumen incluye unidades, valor, stock bajo y margen del stock", async () => {

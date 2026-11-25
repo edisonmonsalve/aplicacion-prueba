@@ -55,6 +55,8 @@ export const serverEnv: Record<string, string> = {
   ...fromProcess,
   DB_NAME: "inventario_e2e_test",
   PORT: String(apiPort),
+  // La suite repite logins; el límite se prueba en su propia batería unitaria.
+  RATE_LIMIT_DISABLED: "1",
 };
 
 /** Recrea la base E2E y crea el administrador demo antes de levantar los servidores. */

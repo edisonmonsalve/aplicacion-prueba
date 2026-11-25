@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { pool } from "../../config/Db.js";
 import { addDays } from "../../utils/dates.js";
 import { HttpError } from "../../utils/http-error.js";
-import { createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
+import { auditFinance, createAutoTransaction, roundMoney } from "../finance/finance.shared.js";
 import type { AuthUser } from "../../types/express.js";
 import { registerMovement } from "../movements/movements.service.js";
 import { formatQuoteNumber } from "../quotes/quotes.format.js";
@@ -450,7 +450,11 @@ export async function createInvoice(input: InvoiceInput, actor: { id: number }) 
   });
 }
 
-export async function updateInvoice(id: number, input: z.infer<typeof updateInvoiceSchema>) {
+export async function updateInvoice(
+  id: number,
+  input: z.infer<typeof updateInvoiceSchema>,
+  actor: AuthUser
+) {
   return withTransaction(async (conn) => {
     const [rows] = await conn.query<RowDataPacket[]>(
       "SELECT * FROM invoices WHERE id = ? FOR UPDATE",
@@ -592,6 +596,24 @@ export async function updateInvoice(id: number, input: z.infer<typeof updateInvo
         );
       }
     }
+
+    await auditFinance(
+      conn,
+      actor.id,
+      "invoice",
+      id,
+      "actualizar",
+      {
+        estado: current.estado,
+        contraparte: current.contraparte,
+        total: Number(current.total),
+      },
+      {
+        estado: current.estado,
+        contraparte: input.contraparte ?? current.contraparte,
+        total: totals.total,
+      }
+    );
 
     return { id };
   });
@@ -1285,12 +1307,35 @@ export async function cancelInvoice(id: number, actor: { id: number }) {
   });
 }
 
-export async function deleteInvoice(id: number) {
-  const [rows] = await pool.query<RowDataPacket[]>("SELECT estado FROM invoices WHERE id = ?", [id]);
-  if (!rows[0]) throw new HttpError(404, "Factura no encontrada");
-  if (rows[0].estado !== "borrador") throw new HttpError(409, "Solo se eliminan facturas en borrador");
-  await pool.query("DELETE FROM invoices WHERE id = ?", [id]);
-  return { id };
+export async function deleteInvoice(id: number, actor: AuthUser) {
+  return withTransaction(async (conn) => {
+    const [rows] = await conn.query<RowDataPacket[]>(
+      "SELECT * FROM invoices WHERE id = ? FOR UPDATE",
+      [id]
+    );
+    const current = rows[0];
+    if (!current) throw new HttpError(404, "Factura no encontrada");
+    if (current.estado !== "borrador") {
+      throw new HttpError(409, "Solo se eliminan facturas en borrador");
+    }
+
+    await conn.query("DELETE FROM invoices WHERE id = ?", [id]);
+    await auditFinance(
+      conn,
+      actor.id,
+      "invoice",
+      id,
+      "eliminar",
+      {
+        numero: current.numero,
+        estado: current.estado,
+        contraparte: current.contraparte,
+        total: Number(current.total),
+      },
+      null
+    );
+    return { id };
+  });
 }
 
 function withTransaction<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T> {

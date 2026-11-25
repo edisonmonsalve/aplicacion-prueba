@@ -1033,4 +1033,52 @@ describe("Módulo de Facturación — RF-XX", () => {
     // solo se revierte el stock.
     expect(afterCancel[0].stock_actual).toBe(10);
   });
+
+  it("RF-17: editar y eliminar un borrador queda registrado en auditoría", async () => {
+    const created = await request(app)
+      .post("/api/invoices")
+      .set(bearer(admin.token))
+      .send({
+        tipo: "venta",
+        fecha: "2024-01-15",
+        contraparte: "Cliente Auditoría",
+        items: [{ product_id: productId, cantidad: 1, precio_unitario: 500 }],
+      });
+    expect(created.status).toBe(201);
+    const id = created.body.id as number;
+
+    const updated = await request(app)
+      .put(`/api/invoices/${id}`)
+      .set(bearer(admin.token))
+      .send({ contraparte: "Cliente Auditado" });
+    expect(updated.status).toBe(200);
+
+    const auditUpdate = await request(app)
+      .get(`/api/audit?entidad=invoice&entidad_id=${id}`)
+      .set(bearer(admin.token));
+    expect(auditUpdate.status).toBe(200);
+    expect(auditUpdate.body.total).toBe(1);
+    expect(auditUpdate.body.data[0]).toMatchObject({
+      entidad: "invoice",
+      entidad_id: id,
+      accion: "actualizar",
+      despues: expect.objectContaining({ contraparte: "Cliente Auditado" }),
+    });
+
+    const removed = await request(app)
+      .delete(`/api/invoices/${id}`)
+      .set(bearer(admin.token));
+    expect(removed.status).toBe(200);
+
+    const auditDelete = await request(app)
+      .get(`/api/audit?entidad=invoice&entidad_id=${id}`)
+      .set(bearer(admin.token));
+    expect(auditDelete.body.total).toBe(2);
+    expect(auditDelete.body.data[0]).toMatchObject({
+      entidad: "invoice",
+      entidad_id: id,
+      accion: "eliminar",
+      antes: expect.objectContaining({ contraparte: "Cliente Auditado" }),
+    });
+  });
 });

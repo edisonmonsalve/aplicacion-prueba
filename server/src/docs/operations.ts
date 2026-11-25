@@ -19,7 +19,10 @@ type Entry = [tag: string, summary: string, extra?: Omit<OperationMeta, "tag" | 
 
 const READ = ["admin", "contador", "consulta"];
 const WRITE = ["admin", "contador"];
-const OPERATE = ["admin", "contador", "operador"];
+// Inventario y cotizaciones: el contador consulta, pero no opera.
+const OPERATE = ["admin", "operador"];
+// Facturación: el contador sí crea, confirma y anula.
+const INVOICE_WRITE = ["admin", "contador", "operador"];
 const ADMIN = ["admin"];
 
 const SESSION = "Sesión";
@@ -395,27 +398,27 @@ const entries: Record<string, Entry> = {
   "POST /api/invoices": [
     INVOICES,
     "Crear un borrador de factura",
-    { roles: OPERATE, body: "InvoiceRequest", status: 201 },
+    { roles: INVOICE_WRITE, body: "InvoiceRequest", status: 201 },
   ],
   "PUT /api/invoices/{id}": [
     INVOICES,
     "Editar un borrador de factura",
-    { roles: OPERATE, body: "UpdateInvoiceRequest" },
+    { roles: INVOICE_WRITE, body: "UpdateInvoiceRequest" },
   ],
   "POST /api/invoices/{id}/confirmar": [
     INVOICES,
     "Confirmar una factura: mueve stock, contabiliza y marca la cotización como entregada",
-    { roles: OPERATE },
+    { roles: INVOICE_WRITE },
   ],
   "POST /api/invoices/{id}/anular": [
     INVOICES,
     "Anular una factura con sus contrapartidas",
-    { roles: OPERATE },
+    { roles: INVOICE_WRITE },
   ],
   "DELETE /api/invoices/{id}": [
     INVOICES,
     "Eliminar un borrador de factura",
-    { roles: OPERATE },
+    { roles: INVOICE_WRITE },
   ],
 
   "GET /api/third-parties": [

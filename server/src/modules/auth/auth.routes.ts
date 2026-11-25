@@ -1,6 +1,6 @@
 import { Router } from "express";
-// import { login, loginSchema } from "./auth.service.js";
 import { authenticate } from "../../middlewares/auth.js";
+import { loginRateLimit, passwordRateLimit } from "../../middlewares/rate-limit.js";
 import { changePassword, changePasswordSchema, login, loginSchema } from "./auth.service.js";
 
 export const authRouter = Router();
@@ -9,7 +9,7 @@ authRouter.get("/me", authenticate, (req, res) => {
   res.json(req.user);
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", loginRateLimit, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: "Datos inválidos" });
@@ -23,7 +23,7 @@ authRouter.post("/login", async (req, res) => {
   res.json(result);
 });
 
-authRouter.put("/password", authenticate, async (req, res) => {
+authRouter.put("/password", authenticate, passwordRateLimit, async (req, res) => {
   const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
   await changePassword(req.user!.id, currentPassword, newPassword);
   res.json({ message: "Contraseña actualizada" });

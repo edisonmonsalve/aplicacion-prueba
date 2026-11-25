@@ -15,6 +15,7 @@ export const auditQuerySchema = z.object({
       "account",
       "payment",
       "period_closure",
+      "invoice",
       "invoice_adjustment",
       "bank_reconciliation",
       "receivable_followup",

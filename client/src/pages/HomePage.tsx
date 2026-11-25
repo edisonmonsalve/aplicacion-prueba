@@ -20,6 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getDashboard } from "@/services/dashboardService";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency, formatNumber } from "@/utils/format";
+import { canSeeCosts } from "@/utils/roles";
 import { STATUS_OPTIONS } from "@/pages/quotes/quoteUtils";
 import type { Dashboard } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -122,6 +123,9 @@ export default function HomePage() {
   );
 
   const tooltipStyle = chartTooltipStyle(token);
+  const showCosts = canSeeCosts(user?.rol);
+  const inventoryCost = data?.valorInventarioCosto;
+  const productsWithoutCost = data?.productosSinCosto;
 
   const stats = data
     ? [
@@ -156,20 +160,26 @@ export default function HomePage() {
           tone: "violet" as const,
           to: "/products?activo=1",
           hint: "Abre el catálogo activo que compone este valor",
-          sub: `Al costo: ${formatCurrency(data.valorInventarioCosto)}`,
+          ...(showCosts && inventoryCost !== undefined
+            ? { sub: `Al costo: ${formatCurrency(inventoryCost)}` }
+            : {}),
         },
-        {
-          title: "Inventario al costo",
-          value: <AnimatedNumber value={data.valorInventarioCosto} format={formatCurrency} />,
-          icon: <WalletOutlined />,
-          tone: "primary" as const,
-          to: "/products?activo=1",
-          hint: "Valor contable del inventario: costo × stock",
-          sub:
-            data.productosSinCosto > 0
-              ? `${data.productosSinCosto} producto(s) sin costo`
-              : "Todos los productos tienen costo",
-        },
+        ...(showCosts && inventoryCost !== undefined
+          ? [
+              {
+                title: "Inventario al costo",
+                value: <AnimatedNumber value={inventoryCost} format={formatCurrency} />,
+                icon: <WalletOutlined />,
+                tone: "primary" as const,
+                to: "/products?activo=1",
+                hint: "Valor contable del inventario: costo × stock",
+                sub:
+                  (productsWithoutCost ?? 0) > 0
+                    ? `${productsWithoutCost} producto(s) sin costo`
+                    : "Todos los productos tienen costo",
+              },
+            ]
+          : []),
       ]
     : [];
 

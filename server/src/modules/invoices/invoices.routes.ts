@@ -146,7 +146,7 @@ invoicesRouter.put("/:id", requireRole("admin", "contador", "operador"), async (
   try {
     const id = idSchema.parse(req.params).id;
     const input = updateInvoiceSchema.parse(req.body);
-    res.json(await updateInvoice(id, input));
+    res.json(await updateInvoice(id, input, req.user!));
   } catch (err) { next(err); }
 });
 
@@ -167,6 +167,6 @@ invoicesRouter.post("/:id/anular", requireRole("admin", "contador", "operador"),
 invoicesRouter.delete("/:id", requireRole("admin", "contador", "operador"), async (req, res, next) => {
   try {
     const id = idSchema.parse(req.params).id;
-    res.json(await deleteInvoice(id));
+    res.json(await deleteInvoice(id, req.user!));
   } catch (err) { next(err); }
 });
