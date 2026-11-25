@@ -2,7 +2,8 @@ import { config } from "dotenv";
 import mysql from "mysql2/promise";
 import { runMigrations } from "../db/migrator.js";
 
-config({ path: ".env.test", override: true });
+// Las variables del proceso tienen prioridad: permite apuntar E2E a su propia base.
+config({ path: ".env.test", override: false });
 
 const dbName = process.env.DB_NAME ?? "";
 if (!dbName.endsWith("_test")) {

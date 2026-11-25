@@ -68,6 +68,58 @@ jobs:
       - name: Revisar estilo y errores comunes
         run: npm run lint
 
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: inventario_e2e_test
+      JWT_SECRET: secreto-solo-para-ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Instalar dependencias del servidor
+        working-directory: server
+        run: npm ci
+
+      - name: Instalar dependencias del cliente
+        working-directory: client
+        run: npm ci
+
+      - name: Instalar Chromium
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar pruebas de extremo a extremo
+        working-directory: client
+        run: npm run test:e2e
+
   client:
     name: client
     runs-on: ubuntu-latest

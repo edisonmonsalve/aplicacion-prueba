@@ -340,6 +340,8 @@ hace falta configurar CORS en desarrollo.
 | `client` | `npm run build` | Verifica tipos y genera el build |
 | `client` | `npm run preview` | Sirve el build generado |
 | `client` | `npm run lint` | Revisa el código con ESLint |
+| `client` | `npm run test:e2e` | Pruebas de extremo a extremo con Playwright |
+| `client` | `npm run test:e2e:ui` | Pruebas E2E en modo interactivo |
 
 ## API
 
@@ -470,6 +472,34 @@ cd ../client && npm run lint && npm run build
 
 Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
+### Pruebas de extremo a extremo
+
+Playwright levanta una API y un Vite efímeros contra la base `inventario_e2e_test`, distinta de la
+de las pruebas unitarias. Cubre inicio de sesión, redirección a `/login` sin sesión, permisos por
+rol, CRUD de categorías, alta de producto y movimientos de stock.
+
+```bash
+cd client
+npm run test:e2e
+```
+
+Usa Chromium de Playwright. Si ya tienes Chrome instalado y quieres evitar la descarga:
+
+```powershell
+$env:PLAYWRIGHT_CHANNEL='chrome'
+npm run test:e2e
+```
+
+El job `e2e` de CI ejecuta la misma suite con MariaDB como servicio. El detalle de puertos,
+fixtures y selectores está en [`docs/MEJORAS-E2E.md`](docs/MEJORAS-E2E.md).
+
+Comprobaciones habituales antes de integrar cambios (incluye E2E):
+
+```bash
+cd server && npm run typecheck && npm run lint && npm test
+cd ../client && npm run lint && npm run build && npm run test:e2e
+```
+
 ## Decisiones técnicas
 
 - **Paginación, búsqueda y filtros en el servidor**, con consultas parametrizadas.
@@ -543,6 +573,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 - [Portada pública](https://edisonmonsalve.github.io/aplicacion-prueba/) — landing estática publicada en GitHub Pages ([código en `landing/index.html`](landing/index.html)); también desplegable en Vercel.
 - [Especificación OpenAPI](docs/api/openapi.json) — contrato HTTP generado desde los esquemas Zod; en el servidor se explora en `/api/docs`.
 - [Mejora de OpenAPI y contrato TS](docs/MEJORAS-OPENAPI.md) — generación, uso en el cliente y mantenimiento.
+- [Pruebas E2E con Playwright](docs/MEJORAS-E2E.md) — arquitectura, ejecución local y CI.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
