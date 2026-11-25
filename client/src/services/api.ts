@@ -1,4 +1,5 @@
-import axios, { type AxiosError } from "axios";
+import axios, { type AxiosError, type AxiosResponse } from "axios";
+import type { ApiRequests } from "./api-contract.generated";
 
 export const api = axios.create({
   baseURL: "/api", // el proxy de Vite lo envía a Express
@@ -25,3 +26,19 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * Petición tipada contra el contrato generado desde los esquemas Zod del servidor.
+ * El body se infiere de la operación; la respuesta se indica al llamar.
+ */
+export function apiRequest<K extends keyof ApiRequests, T = unknown>(
+  endpoint: K,
+  body: ApiRequests[K]
+): Promise<AxiosResponse<T>> {
+  const [method, path] = endpoint.split(" ");
+  return api.request<T>({
+    method: method.toLowerCase(),
+    url: path.replace(/^\/api/, ""),
+    data: body,
+  });
+}
