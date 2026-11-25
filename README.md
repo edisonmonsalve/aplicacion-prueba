@@ -312,7 +312,9 @@ petición se generan con `z.toJSONSchema` desde los mismos esquemas Zod que vali
 petición. Las tablas de abajo son un resumen humano; si una ruta nueva aparece sin metadata,
 la spec la documenta igualmente con un resumen genérico. El contrato TypeScript del cliente
 ([`api-contract.generated.ts`](client/src/services/api-contract.generated.ts)) sale de la misma
-generación, y una prueba falla si los artefactos quedan desactualizados.
+generación, y una prueba falla si los artefactos quedan desactualizados. El flujo completo, su
+uso en el cliente y las limitaciones actuales están en
+[`docs/MEJORAS-OPENAPI.md`](docs/MEJORAS-OPENAPI.md).
 
 ### Sesión
 
@@ -480,6 +482,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
 - [Portada pública](https://edisonmonsalve.github.io/aplicacion-prueba/) — landing estática publicada en GitHub Pages ([código en `landing/index.html`](landing/index.html)); también desplegable en Vercel.
 - [Especificación OpenAPI](docs/api/openapi.json) — contrato HTTP generado desde los esquemas Zod; en el servidor se explora en `/api/docs`.
+- [Mejora de OpenAPI y contrato TS](docs/MEJORAS-OPENAPI.md) — generación, uso en el cliente y mantenimiento.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
