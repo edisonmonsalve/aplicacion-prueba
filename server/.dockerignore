@@ -1,8 +1,12 @@
 node_modules
 dist
 coverage
+tests
+vitest.config.ts
 .env
 .env.*
 !.env.example
+logs
+*.sql.bak
 npm-debug.log*
 *.log

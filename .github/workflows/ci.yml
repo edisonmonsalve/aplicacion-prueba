@@ -39,7 +39,7 @@ jobs:
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: inventario_test
-      JWT_SECRET: secreto-solo-para-ci
+      JWT_SECRET: 91367a814052c9a6280a6028de335b61a57ba12675451ac738949cc4284819eb
 
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +52,9 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Auditar dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Revisar tipos
         run: npm run typecheck
@@ -91,7 +94,7 @@ jobs:
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: inventario_e2e_test
-      JWT_SECRET: secreto-solo-para-ci
+      JWT_SECRET: 91367a814052c9a6280a6028de335b61a57ba12675451ac738949cc4284819eb
 
     steps:
       - uses: actions/checkout@v4
@@ -139,6 +142,9 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Auditar dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Revisar tipos y compilar
         run: npm run build

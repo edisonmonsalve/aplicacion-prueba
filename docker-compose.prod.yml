@@ -1,0 +1,74 @@
+# Kit de producción local: cliente estático con Nginx, API y MariaDB internos.
+#   docker compose -f docker-compose.prod.yml up -d --build --wait
+#
+# A diferencia de docker-compose.yml (desarrollo con Vite), aquí solo se publica
+# el puerto del cliente: Nginx hace de proxy inverso para /api y MariaDB no se
+# expone al host. Usa el mismo .env que el kit de desarrollo.
+name: signal-prod
+
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en .env}
+      MARIADB_DATABASE: ${DB_NAME:-inventario}
+    # Sin `ports`: la base solo es accesible desde la red interna de Compose.
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./server
+      target: production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en .env}
+      DB_NAME: ${DB_NAME:-inventario}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      # El cliente se sirve en el mismo origen a través de Nginx.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Nginx es el único proxy delante del API y fija X-Forwarded-For.
+      # Se fija en 1: el .env de desarrollo define 0 y aquí no aplica.
+      TRUST_PROXY: "1"
+    # Sin `ports`: el API solo se alcanza a través del proxy de Nginx.
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      target: production
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  mariadb_data:

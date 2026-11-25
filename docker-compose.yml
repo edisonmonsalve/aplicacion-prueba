@@ -4,10 +4,11 @@ services:
   db:
     image: mariadb:11.4
     environment:
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en .env}
       MARIADB_DATABASE: ${DB_NAME:-inventario}
     ports:
-      - "${MARIADB_HOST_PORT:-3306}:3306"
+      # Solo accesible desde el host: evita exponer la base a la red.
+      - "127.0.0.1:${MARIADB_HOST_PORT:-3306}:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
     healthcheck:
@@ -15,32 +16,55 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      # La primera inicialización de InnoDB puede tardar más que los reintentos.
+      start_period: 60s
 
   server:
-    build: ./server
+    build:
+      context: ./server
+      target: dev
     environment:
+      NODE_ENV: development
       PORT: 3000
       DB_HOST: db
       DB_PORT: 3306
       DB_USER: root
-      DB_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en .env}
       DB_NAME: ${DB_NAME:-inventario}
-      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-por-una-cadena-larga-y-aleatoria}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
     ports:
       - "${API_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # `--wait` y el cliente esperan a que la API responda de verdad.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   client:
-    build: ./client
+    build:
+      context: ./client
+      target: dev
     environment:
       # Dentro de la red de Compose, "localhost" sería el propio contenedor
       VITE_API_PROXY_TARGET: http://server:3000
     ports:
       - "${WEB_PORT:-5173}:5173"
     depends_on:
-      - server
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
 volumes:
   mariadb_data:
