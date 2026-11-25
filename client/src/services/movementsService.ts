@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type { MovementOrigen, MovementTipo, Paginated, StockMovement } from "@/types";
 
 export type MovementSortKey =
@@ -45,11 +45,13 @@ export interface MovementInput {
 }
 
 export async function getMovements(params: MovementsQuery) {
-  const { data } = await api.get<MovementsResponse>("/movements", { params });
+  const { data } = await apiRequest<"GET /api/movements", MovementsResponse>("GET /api/movements", {
+    query: params,
+  });
   return data;
 }
 
 export async function createMovement(input: MovementInput) {
-  const { data } = await api.post<{ id: number; stock_actual: number }>("/movements", input);
+  const { data } = await apiRequest("POST /api/movements", input);
   return data;
 }

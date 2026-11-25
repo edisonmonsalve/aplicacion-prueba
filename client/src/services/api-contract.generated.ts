@@ -568,6 +568,51 @@ export type CompanyRequest = {
   logo_url?: string | null;
 };
 
+/** Generado desde el esquema Zod `HealthResponse`. */
+export type HealthResponse = {
+  status: "ok";
+  db: {
+  ok: number;
+}[];
+};
+
+/** Generado desde el esquema Zod `AuthUserResponse`. */
+export type AuthUserResponse = {
+  id: IdParam;
+  nombre: string;
+  email: string;
+  rol: "admin" | "contador" | "operador" | "consulta";
+};
+
+/** Generado desde el esquema Zod `LoginResponse`. */
+export type LoginResponse = {
+  token: string;
+  user: AuthUserResponse;
+};
+
+/** Generado desde el esquema Zod `MessageResponse`. */
+export type MessageResponse = {
+  message: string;
+};
+
+/** Generado desde el esquema Zod `IdResponse`. */
+export type IdResponse = {
+  id: IdParam;
+};
+
+/** Generado desde el esquema Zod `SkuResponse`. */
+export type SkuResponse = {
+  sku: string;
+};
+
+/** Generado desde el esquema Zod `IdStockResponse`. */
+export type IdStockResponse = {
+  id: IdParam;
+  stock_actual: number;
+  costo_unitario?: number;
+  precio_unitario?: number;
+};
+
 /** Generado desde el esquema Zod `ErrorResponse`. */
 export type ErrorResponse = {
   message: string;
@@ -578,6 +623,110 @@ export type ValidationErrorResponse = {
   message: string;
   errors: Record<string, unknown>[];
 };
+
+/** Todas las operaciones publicadas por el servidor, con o sin cuerpo. */
+export type ApiRoutes =
+  | "GET /api/health"
+  | "GET /api/auth/me"
+  | "POST /api/auth/login"
+  | "PUT /api/auth/password"
+  | "GET /api/users"
+  | "POST /api/users"
+  | "PUT /api/users/{id}"
+  | "PATCH /api/users/{id}/activo"
+  | "GET /api/categories"
+  | "POST /api/categories"
+  | "PUT /api/categories/{id}"
+  | "DELETE /api/categories/{id}"
+  | "GET /api/products"
+  | "POST /api/products"
+  | "GET /api/products/next-sku"
+  | "PUT /api/products/{id}"
+  | "PATCH /api/products/{id}/activo"
+  | "GET /api/movements"
+  | "POST /api/movements"
+  | "GET /api/dashboard"
+  | "GET /api/quotes"
+  | "POST /api/quotes"
+  | "GET /api/quotes/{id}"
+  | "PUT /api/quotes/{id}"
+  | "DELETE /api/quotes/{id}"
+  | "POST /api/quotes/{id}/duplicate"
+  | "POST /api/quotes/{id}/send"
+  | "POST /api/quotes/{id}/approve"
+  | "POST /api/quotes/{id}/reject"
+  | "GET /api/quotes/{id}/history"
+  | "POST /api/quotes/{id}/deliver"
+  | "GET /api/finance/availability"
+  | "GET /api/finance/accounts"
+  | "POST /api/finance/accounts"
+  | "PUT /api/finance/accounts/{id}"
+  | "DELETE /api/finance/accounts/{id}"
+  | "GET /api/finance/categories"
+  | "GET /api/finance/budgets"
+  | "POST /api/finance/budgets"
+  | "GET /api/finance/budgets/{id}"
+  | "PUT /api/finance/budgets/{id}"
+  | "DELETE /api/finance/budgets/{id}"
+  | "POST /api/finance/budgets/{id}/activate"
+  | "POST /api/finance/budgets/{id}/close"
+  | "GET /api/finance/transactions"
+  | "POST /api/finance/transactions"
+  | "POST /api/finance/transactions/{id}/reverse"
+  | "GET /api/finance/reconciliations"
+  | "POST /api/finance/reconciliations"
+  | "GET /api/finance/reconciliations/{id}"
+  | "PUT /api/finance/reconciliations/{id}"
+  | "GET /api/finance/reconciliations/{id}/suggestions"
+  | "POST /api/finance/reconciliations/{id}/lines"
+  | "PUT /api/finance/reconciliations/{id}/lines/{lineId}"
+  | "DELETE /api/finance/reconciliations/{id}/lines/{lineId}"
+  | "POST /api/finance/reconciliations/{id}/lines/{lineId}/match"
+  | "POST /api/finance/reconciliations/{id}/lines/{lineId}/unmatch"
+  | "POST /api/finance/reconciliations/{id}/lines/{lineId}/ignore"
+  | "POST /api/finance/reconciliations/{id}/close"
+  | "POST /api/finance/reconciliations/{id}/reopen"
+  | "GET /api/finance/suggestions"
+  | "GET /api/finance/summary"
+  | "GET /api/finance/pnl"
+  | "GET /api/finance/cash-flow"
+  | "GET /api/finance/balance"
+  | "GET /api/finance/profitability"
+  | "GET /api/finance/inventory-analytics"
+  | "GET /api/finance/quotes-funnel"
+  | "GET /api/finance/trends"
+  | "GET /api/finance/data-health"
+  | "GET /api/invoices/cartera"
+  | "GET /api/invoices/cartera/aging"
+  | "GET /api/invoices/cartera/alertas"
+  | "PUT /api/invoices/cartera/alertas/{id}/seguimiento"
+  | "GET /api/invoices/{id}/payments"
+  | "POST /api/invoices/{id}/payments"
+  | "POST /api/invoices/{id}/payments/{paymentId}/anular"
+  | "GET /api/invoices/{id}/notas"
+  | "POST /api/invoices/{id}/notas"
+  | "POST /api/invoices/{id}/notas/{adjustmentId}/anular"
+  | "GET /api/invoices"
+  | "POST /api/invoices"
+  | "GET /api/invoices/{id}"
+  | "PUT /api/invoices/{id}"
+  | "DELETE /api/invoices/{id}"
+  | "POST /api/invoices/{id}/confirmar"
+  | "POST /api/invoices/{id}/anular"
+  | "GET /api/third-parties"
+  | "POST /api/third-parties"
+  | "GET /api/third-parties/{id}"
+  | "PUT /api/third-parties/{id}"
+  | "DELETE /api/third-parties/{id}"
+  | "GET /api/period-closures"
+  | "POST /api/period-closures"
+  | "GET /api/period-closures/{id}"
+  | "GET /api/period-closures/ejercicios/{anio}/preview"
+  | "POST /api/period-closures/ejercicios"
+  | "POST /api/period-closures/{id}/reabrir"
+  | "GET /api/audit"
+  | "GET /api/company"
+  | "PUT /api/company";
 
 /** Cuerpo esperado por cada operación que acepta JSON. */
 export interface ApiRequests {
@@ -618,6 +767,66 @@ export interface ApiRequests {
   "POST /api/period-closures/{id}/reabrir": ReopenClosureRequest;
   "PUT /api/company": CompanyRequest;
 }
+
+/** Respuesta correcta de las operaciones con esquema verificado en el servidor. */
+export type ApiResponses = {
+  "GET /api/health": HealthResponse;
+  "GET /api/auth/me": AuthUserResponse;
+  "POST /api/auth/login": LoginResponse;
+  "PUT /api/auth/password": MessageResponse;
+  "POST /api/users": IdResponse;
+  "PUT /api/users/{id}": MessageResponse;
+  "PATCH /api/users/{id}/activo": MessageResponse;
+  "POST /api/categories": IdResponse;
+  "PUT /api/categories/{id}": MessageResponse;
+  "DELETE /api/categories/{id}": MessageResponse;
+  "POST /api/products": IdResponse;
+  "GET /api/products/next-sku": SkuResponse;
+  "PUT /api/products/{id}": MessageResponse;
+  "PATCH /api/products/{id}/activo": MessageResponse;
+  "POST /api/movements": IdStockResponse;
+  "POST /api/third-parties": IdResponse;
+};
+
+/** Operaciones que aceptan cuerpo JSON; lo usa `apiRequest` en runtime. */
+export const apiRoutesWithBody: ReadonlySet<ApiRoutes> = new Set<ApiRoutes>([
+  "POST /api/auth/login",
+  "PUT /api/auth/password",
+  "POST /api/users",
+  "PUT /api/users/{id}",
+  "PATCH /api/users/{id}/activo",
+  "POST /api/categories",
+  "PUT /api/categories/{id}",
+  "POST /api/products",
+  "PUT /api/products/{id}",
+  "PATCH /api/products/{id}/activo",
+  "POST /api/movements",
+  "POST /api/quotes",
+  "PUT /api/quotes/{id}",
+  "POST /api/finance/accounts",
+  "PUT /api/finance/accounts/{id}",
+  "POST /api/finance/budgets",
+  "PUT /api/finance/budgets/{id}",
+  "POST /api/finance/transactions",
+  "POST /api/finance/reconciliations",
+  "PUT /api/finance/reconciliations/{id}",
+  "POST /api/finance/reconciliations/{id}/lines",
+  "PUT /api/finance/reconciliations/{id}/lines/{lineId}",
+  "POST /api/finance/reconciliations/{id}/lines/{lineId}/match",
+  "POST /api/finance/reconciliations/{id}/lines/{lineId}/ignore",
+  "POST /api/finance/reconciliations/{id}/reopen",
+  "PUT /api/invoices/cartera/alertas/{id}/seguimiento",
+  "POST /api/invoices/{id}/payments",
+  "POST /api/invoices/{id}/notas",
+  "POST /api/invoices",
+  "PUT /api/invoices/{id}",
+  "POST /api/third-parties",
+  "PUT /api/third-parties/{id}",
+  "POST /api/period-closures",
+  "POST /api/period-closures/ejercicios",
+  "POST /api/period-closures/{id}/reabrir",
+  "PUT /api/company",
+]);
 
 export type ApiOperationId =
   | "getApiHealth"

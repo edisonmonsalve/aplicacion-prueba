@@ -59,7 +59,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -94,7 +101,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -150,7 +164,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -195,7 +216,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -397,7 +425,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -481,7 +516,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -565,7 +607,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -693,7 +742,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -777,7 +833,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -859,7 +922,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1079,7 +1149,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1165,7 +1242,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkuResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1229,7 +1313,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1313,7 +1404,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1577,7 +1675,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdStockResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -7264,7 +7369,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -10766,6 +10878,133 @@
         },
         "required": [
           "nombre"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "db": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "ok"
+              ]
+            }
+          }
+        },
+        "required": [
+          "status",
+          "db"
+        ]
+      },
+      "AuthUserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/IdParam"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "contador",
+              "operador",
+              "consulta"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "email",
+          "rol"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUserResponse"
+          }
+        },
+        "required": [
+          "token",
+          "user"
+        ]
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "IdResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/IdParam"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "SkuResponse": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku"
+        ]
+      },
+      "IdStockResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/IdParam"
+          },
+          "stock_actual": {
+            "type": "number"
+          },
+          "costo_unitario": {
+            "type": "number"
+          },
+          "precio_unitario": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "stock_actual"
         ]
       },
       "ErrorResponse": {

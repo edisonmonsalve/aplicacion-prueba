@@ -1,5 +1,10 @@
 import axios, { type AxiosError, type AxiosResponse } from "axios";
-import type { ApiRequests } from "./api-contract.generated";
+import {
+  apiRoutesWithBody,
+  type ApiRequests,
+  type ApiResponses,
+  type ApiRoutes,
+} from "./api-contract.generated";
 
 export const api = axios.create({
   baseURL: "/api", // el proxy de Vite lo envía a Express
@@ -27,18 +32,49 @@ api.interceptors.response.use(
   }
 );
 
+export interface ApiRequestOptions {
+  /** Sustituye los parámetros de ruta declarados entre llaves, como `{id}`. */
+  params?: Record<string, string | number>;
+  /** Parámetros de la query string. */
+  query?: object;
+}
+
+type ResponseOf<K extends ApiRoutes> = K extends keyof ApiResponses ? ApiResponses[K] : unknown;
+
 /**
  * Petición tipada contra el contrato generado desde los esquemas Zod del servidor.
- * El body se infiere de la operación; la respuesta se indica al llamar.
+ * La respuesta se infiere cuando la operación tiene un esquema verificado; si no,
+ * se puede indicar con el segundo parámetro genérico.
  */
-export function apiRequest<K extends keyof ApiRequests, T = unknown>(
+export function apiRequest<K extends keyof ApiRequests, T = ResponseOf<K>>(
   endpoint: K,
-  body: ApiRequests[K]
-): Promise<AxiosResponse<T>> {
-  const [method, path] = endpoint.split(" ");
-  return api.request<T>({
+  body: ApiRequests[K],
+  options?: ApiRequestOptions
+): Promise<AxiosResponse<T>>;
+export function apiRequest<K extends Exclude<ApiRoutes, keyof ApiRequests>, T = ResponseOf<K>>(
+  endpoint: K,
+  options?: ApiRequestOptions
+): Promise<AxiosResponse<T>>;
+export function apiRequest(
+  endpoint: ApiRoutes,
+  bodyOrOptions?: unknown,
+  options?: ApiRequestOptions
+): Promise<AxiosResponse> {
+  const [method, template] = endpoint.split(" ");
+  const hasBody = apiRoutesWithBody.has(endpoint);
+  const body = hasBody ? bodyOrOptions : undefined;
+  const requestOptions = (hasBody ? options : bodyOrOptions) as ApiRequestOptions | undefined;
+
+  const url = template.replace(/^\/api/, "").replace(/\{([^}]+)\}/g, (_match, name: string) => {
+    const value = requestOptions?.params?.[name];
+    if (value === undefined) throw new Error(`Falta el parámetro de ruta "${name}" en ${endpoint}`);
+    return encodeURIComponent(String(value));
+  });
+
+  return api.request({
     method: method.toLowerCase(),
-    url: path.replace(/^\/api/, ""),
+    url,
     data: body,
+    ...(requestOptions?.query ? { params: requestOptions.query } : {}),
   });
 }

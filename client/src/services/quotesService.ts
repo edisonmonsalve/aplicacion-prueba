@@ -1,18 +1,33 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type { Quote, QuoteDetail, QuotesQuery } from "../types";
 import type { QuoteInput } from "@/types/index";
 
 export const listQuotes = async (params: QuotesQuery) =>
-  (await api.get<{ data: Quote[]; total: number; monto_total: number }>("/quotes", { params })).data;
+  (
+    await apiRequest<"GET /api/quotes", { data: Quote[]; total: number; monto_total: number }>(
+      "GET /api/quotes",
+      { query: params }
+    )
+  ).data;
 
-export const getQuote = async (id: number) => (await api.get<QuoteDetail>(`/quotes/${id}`)).data;
+export const getQuote = async (id: number) =>
+  (await apiRequest<"GET /api/quotes/{id}", QuoteDetail>("GET /api/quotes/{id}", { params: { id } }))
+    .data;
 
-export const sendQuote = (id: number) => api.post(`/quotes/${id}/send`);
-export const approveQuote = (id: number) => api.post(`/quotes/${id}/approve`);
-export const rejectQuote = (id: number) => api.post(`/quotes/${id}/reject`);
+export const sendQuote = (id: number) =>
+  apiRequest("POST /api/quotes/{id}/send", { params: { id } });
+export const approveQuote = (id: number) =>
+  apiRequest("POST /api/quotes/{id}/approve", { params: { id } });
+export const rejectQuote = (id: number) =>
+  apiRequest("POST /api/quotes/{id}/reject", { params: { id } });
 
 export const duplicateQuote = async (id: number) =>
-  (await api.post<{ id: number }>(`/quotes/${id}/duplicate`)).data;
+  (
+    await apiRequest<"POST /api/quotes/{id}/duplicate", { id: number }>(
+      "POST /api/quotes/{id}/duplicate",
+      { params: { id } }
+    )
+  ).data;
 
 const toPayload = (d: QuoteInput) => ({
   party_id: d.party_id ?? null,
@@ -24,9 +39,18 @@ const toPayload = (d: QuoteInput) => ({
   notas: d.notas,
 });
 export const createQuote = async (data: QuoteInput) =>
-  (await api.post<{ id: number }>("/quotes", toPayload(data))).data;
+  (
+    await apiRequest<"POST /api/quotes", { id: number }>("POST /api/quotes", toPayload(data))
+  ).data;
 
 export const updateQuote = async (id: number, data: QuoteInput) =>
-  (await api.put<{ id: number }>(`/quotes/${id}`, toPayload(data))).data;
+  (
+    await apiRequest<"PUT /api/quotes/{id}", { id: number }>(
+      "PUT /api/quotes/{id}",
+      toPayload(data),
+      { params: { id } }
+    )
+  ).data;
 
-export const deliverQuote = (id: number) => api.post(`/quotes/${id}/deliver`);
+export const deliverQuote = (id: number) =>
+  apiRequest("POST /api/quotes/{id}/deliver", { params: { id } });

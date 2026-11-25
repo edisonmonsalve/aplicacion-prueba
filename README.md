@@ -356,8 +356,9 @@ petición se generan con `z.toJSONSchema` desde los mismos esquemas Zod que vali
 petición. Las tablas de abajo son un resumen humano; si una ruta nueva aparece sin metadata,
 la spec la documenta igualmente con un resumen genérico. El contrato TypeScript del cliente
 ([`api-contract.generated.ts`](client/src/services/api-contract.generated.ts)) sale de la misma
-generación, y una prueba falla si los artefactos quedan desactualizados. El flujo completo, su
-uso en el cliente y las limitaciones actuales están en
+generación, y una prueba falla si los artefactos quedan desactualizados. El cliente consume ese
+contrato con `apiRequest()`, que infiere cuerpo y respuesta, sustituye parámetros de ruta y envía
+la query string; los 14 servicios ya lo usan. El flujo completo está en
 [`docs/MEJORAS-OPENAPI.md`](docs/MEJORAS-OPENAPI.md).
 
 ### Sesión

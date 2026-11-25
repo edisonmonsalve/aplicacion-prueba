@@ -110,6 +110,9 @@ function buildOperation(method: HttpMethod, path: string, meta: OperationMeta) {
   const responses: Record<string, unknown> = {
     [String(successStatus)]: {
       description: successStatus === 201 ? "Recurso creado" : "Operación completada",
+      ...(meta.response && {
+        content: { "application/json": { schema: schemaRef(meta.response) } },
+      }),
     },
     "400": errorResponse("Datos inválidos (errores de validación)", "ValidationErrorResponse"),
   };

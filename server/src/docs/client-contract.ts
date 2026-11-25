@@ -4,6 +4,10 @@ type OpenApiDocument = {
   components: { schemas: Record<string, unknown> };
 };
 
+type JsonResponse = {
+  content?: Record<string, { schema?: { $ref?: string } }>;
+};
+
 /** Convierte el subconjunto de JSON Schema que emite Zod en tipos TypeScript. */
 function tsType(value: unknown): string {
   if (!value || typeof value !== "object") return "unknown";
@@ -48,7 +52,10 @@ interface Endpoint {
   path: string;
   operationId: string;
   body?: string;
+  response?: string;
 }
+
+const nameOfRef = (ref: string) => ref.split("/").pop() as string;
 
 /** Contrato TypeScript para el cliente, generado desde la misma spec OpenAPI. */
 export function buildClientContract(doc: OpenApiDocument): string {
@@ -61,21 +68,39 @@ export function buildClientContract(doc: OpenApiDocument): string {
     for (const [method, rawOperation] of Object.entries(methods)) {
       const operation = rawOperation as {
         operationId: string;
-        requestBody?: { content?: Record<string, { schema?: { $ref?: string } }> };
+        requestBody?: JsonResponse;
+        responses?: Record<string, JsonResponse>;
       };
       const bodyRef = operation.requestBody?.content?.["application/json"]?.schema?.$ref;
+      const successStatus = Object.keys(operation.responses ?? {}).find((status) =>
+        status.startsWith("2")
+      );
+      const responseRef = successStatus
+        ? operation.responses?.[successStatus]?.content?.["application/json"]?.schema?.$ref
+        : undefined;
       endpoints.push({
         method: method.toUpperCase(),
         path,
         operationId: operation.operationId,
-        ...(bodyRef ? { body: bodyRef.split("/").pop() as string } : {}),
+        ...(bodyRef ? { body: nameOfRef(bodyRef) } : {}),
+        ...(responseRef ? { response: nameOfRef(responseRef) } : {}),
       });
     }
   }
 
-  const requestKeys = endpoints
-    .filter((endpoint) => endpoint.body)
-    .map((endpoint) => `  "${endpoint.method} ${endpoint.path}": ${endpoint.body};`);
+  const route = (endpoint: Endpoint) => `${endpoint.method} ${endpoint.path}`;
+  const routes = endpoints.map((endpoint) => `  | "${route(endpoint)}"`).join("\n");
+  const withBody = endpoints.filter((endpoint) => endpoint.body);
+  const requestKeys = withBody.map(
+    (endpoint) => `  "${route(endpoint)}": ${endpoint.body};`
+  );
+  const withResponse = endpoints.filter((endpoint) => endpoint.response);
+  const responseBlock = withResponse.length
+    ? `export type ApiResponses = {\n${withResponse
+        .map((endpoint) => `  "${route(endpoint)}": ${endpoint.response};`)
+        .join("\n")}\n};`
+    : "export type ApiResponses = Record<never, never>;";
+  const bodyRouteKeys = withBody.map((endpoint) => `  "${route(endpoint)}",`).join("\n");
   const operationIds = endpoints.map((endpoint) => `  | "${endpoint.operationId}"`).join("\n");
 
   return `// Generado por \`npm run openapi:export\` en server. No editar a mano.
@@ -83,10 +108,22 @@ export function buildClientContract(doc: OpenApiDocument): string {
 
 ${typeLines.join("\n\n")}
 
+/** Todas las operaciones publicadas por el servidor, con o sin cuerpo. */
+export type ApiRoutes =
+${routes};
+
 /** Cuerpo esperado por cada operación que acepta JSON. */
 export interface ApiRequests {
 ${requestKeys.join("\n")}
 }
+
+/** Respuesta correcta de las operaciones con esquema verificado en el servidor. */
+${responseBlock}
+
+/** Operaciones que aceptan cuerpo JSON; lo usa \`apiRequest\` en runtime. */
+export const apiRoutesWithBody: ReadonlySet<ApiRoutes> = new Set<ApiRoutes>([
+${bodyRouteKeys}
+]);
 
 export type ApiOperationId =
 ${operationIds};

@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type {
   CarteraAging,
   CarteraAlertReport,
@@ -17,31 +17,65 @@ import type {
 } from "@/types";
 
 export const listInvoices = async (q: InvoicesQuery) =>
-  (await api.get<PaginatedInvoices>("/invoices", { params: q })).data;
+  (await apiRequest<"GET /api/invoices", PaginatedInvoices>("GET /api/invoices", { query: q })).data;
 
-export const getInvoice = async (id: number) => (await api.get<InvoiceDetail>(`/invoices/${id}`)).data;
+export const getInvoice = async (id: number) =>
+  (await apiRequest<"GET /api/invoices/{id}", InvoiceDetail>("GET /api/invoices/{id}", {
+    params: { id },
+  })).data;
 
 export const createInvoice = async (input: InvoiceInput) =>
-  (await api.post<{ id: number; numero: string; tipo: string }>("/invoices", input)).data;
+  (
+    await apiRequest<"POST /api/invoices", { id: number; numero: string; tipo: string }>(
+      "POST /api/invoices",
+      input
+    )
+  ).data;
 
 export const updateInvoice = async (id: number, input: Partial<InvoiceInput>) =>
-  (await api.put<{ id: number }>(`/invoices/${id}`, input)).data;
+  (
+    await apiRequest<"PUT /api/invoices/{id}", { id: number }>(
+      "PUT /api/invoices/{id}",
+      input,
+      { params: { id } }
+    )
+  ).data;
 
-export const deleteInvoice = async (id: number) => api.delete(`/invoices/${id}`);
+export const deleteInvoice = async (id: number) =>
+  apiRequest("DELETE /api/invoices/{id}", { params: { id } });
 
 export const confirmInvoice = async (id: number) =>
-  (await api.post<{ id: number; estado: string }>(`/invoices/${id}/confirmar`)).data;
+  (
+    await apiRequest<"POST /api/invoices/{id}/confirmar", { id: number; estado: string }>(
+      "POST /api/invoices/{id}/confirmar",
+      { params: { id } }
+    )
+  ).data;
 
 export const cancelInvoice = async (id: number) =>
-  (await api.post<{ id: number; estado: string }>(`/invoices/${id}/anular`)).data;
+  (
+    await apiRequest<"POST /api/invoices/{id}/anular", { id: number; estado: string }>(
+      "POST /api/invoices/{id}/anular",
+      { params: { id } }
+    )
+  ).data;
 
 // ---------- Cartera y pagos ----------
 
 export const listReceivables = async (q: ReceivablesQuery) =>
-  (await api.get<PaginatedReceivables>("/invoices/cartera", { params: q })).data;
+  (
+    await apiRequest<"GET /api/invoices/cartera", PaginatedReceivables>("GET /api/invoices/cartera", {
+      query: q,
+    })
+  ).data;
 
 export const getCarteraAging = async (params?: { desde?: string; hasta?: string }) =>
-  (await api.get<CarteraAging>("/invoices/cartera/aging", { params })).data;
+  (
+    await apiRequest<"GET /api/invoices/cartera/aging", CarteraAging>(
+      "GET /api/invoices/cartera/aging",
+      { query: params }
+    )
+  ).data;
 
 export const getCarteraAlertas = async (params?: {
   tipo?: "venta" | "compra";
@@ -49,38 +83,55 @@ export const getCarteraAlertas = async (params?: {
   incluir_resueltos?: boolean;
   q?: string;
 }) =>
-  (await api.get<CarteraAlertReport>("/invoices/cartera/alertas", { params })).data;
+  (
+    await apiRequest<"GET /api/invoices/cartera/alertas", CarteraAlertReport>(
+      "GET /api/invoices/cartera/alertas",
+      { query: params }
+    )
+  ).data;
 
 export const saveCarteraFollowup = async (invoiceId: number, input: CarteraFollowupInput) =>
   (
-    await api.put<CarteraFollowup & { invoice_id: number }>(
-      `/invoices/cartera/alertas/${invoiceId}/seguimiento`,
-      input
+    await apiRequest<"PUT /api/invoices/cartera/alertas/{id}/seguimiento", CarteraFollowup & { invoice_id: number }>(
+      "PUT /api/invoices/cartera/alertas/{id}/seguimiento",
+      input,
+      { params: { id: invoiceId } }
     )
   ).data;
 
 export const listInvoicePayments = async (id: number) =>
-  (await api.get<InvoicePayment[]>(`/invoices/${id}/payments`)).data;
+  (
+    await apiRequest<"GET /api/invoices/{id}/payments", InvoicePayment[]>(
+      "GET /api/invoices/{id}/payments",
+      { params: { id } }
+    )
+  ).data;
 
 export const createInvoicePayment = async (id: number, input: PaymentInput) =>
   (
-    await api.post<{
-      id: number;
-      transaction_id: number;
-      pagado: number;
-      saldo_pendiente: number;
-    }>(`/invoices/${id}/payments`, input)
+    await apiRequest<
+      "POST /api/invoices/{id}/payments",
+      { id: number; transaction_id: number; pagado: number; saldo_pendiente: number }
+    >("POST /api/invoices/{id}/payments", input, { params: { id } })
   ).data;
 
 export const cancelInvoicePayment = async (id: number, paymentId: number) =>
   (
-    await api.post<{ id: number; estado: string; saldo_pendiente: number }>(
-      `/invoices/${id}/payments/${paymentId}/anular`
-    )
+    await apiRequest<
+      "POST /api/invoices/{id}/payments/{paymentId}/anular",
+      { id: number; estado: string; saldo_pendiente: number }
+    >("POST /api/invoices/{id}/payments/{paymentId}/anular", {
+      params: { id, paymentId },
+    })
   ).data;
 
 export const listInvoiceAdjustments = async (id: number) =>
-  (await api.get<InvoiceAdjustment[]>(`/invoices/${id}/notas`)).data;
+  (
+    await apiRequest<"GET /api/invoices/{id}/notas", InvoiceAdjustment[]>(
+      "GET /api/invoices/{id}/notas",
+      { params: { id } }
+    )
+  ).data;
 
 export const createInvoiceAdjustment = async (
   id: number,
@@ -93,19 +144,18 @@ export const createInvoiceAdjustment = async (
   }
 ) =>
   (
-    await api.post<{
-      id: number;
-      numero: string;
-      tipo: string;
-      estado: string;
-      total: number;
-      total_neto: number;
-    }>(`/invoices/${id}/notas`, input)
+    await apiRequest<
+      "POST /api/invoices/{id}/notas",
+      { id: number; numero: string; tipo: string; estado: string; total: number; total_neto: number }
+    >("POST /api/invoices/{id}/notas", input, { params: { id } })
   ).data;
 
 export const cancelInvoiceAdjustment = async (id: number, adjustmentId: number) =>
   (
-    await api.post<{ id: number; numero: string; estado: string }>(
-      `/invoices/${id}/notas/${adjustmentId}/anular`
-    )
+    await apiRequest<
+      "POST /api/invoices/{id}/notas/{adjustmentId}/anular",
+      { id: number; numero: string; estado: string }
+    >("POST /api/invoices/{id}/notas/{adjustmentId}/anular", {
+      params: { id, adjustmentId },
+    })
   ).data;

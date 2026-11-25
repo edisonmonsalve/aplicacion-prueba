@@ -7,6 +7,8 @@ export interface OperationMeta {
   roles?: "public" | "auth" | string[];
   body?: string;
   query?: string;
+  /** Esquema de la respuesta correcta, cuando el handler tiene una forma verificable. */
+  response?: string;
   /** Parámetros de ruta con un esquema distinto al entero positivo por defecto. */
   params?: Record<string, string>;
   status?: number;
@@ -37,69 +39,81 @@ const COMPANY = "Empresa";
  * Esta tabla solo enriquece las operaciones existentes.
  */
 const entries: Record<string, Entry> = {
-  "GET /api/health": [SESSION, "Estado del servidor y la conexión a la base", { roles: "public" }],
+  "GET /api/health": [
+    SESSION,
+    "Estado del servidor y la conexión a la base",
+    { roles: "public", response: "HealthResponse" },
+  ],
   "POST /api/auth/login": [
     SESSION,
     "Iniciar sesión y obtener un token JWT",
-    { roles: "public", body: "LoginRequest" },
+    { roles: "public", body: "LoginRequest", response: "LoginResponse" },
   ],
-  "GET /api/auth/me": [SESSION, "Datos del usuario de la sesión"],
+  "GET /api/auth/me": [
+    SESSION,
+    "Datos del usuario de la sesión",
+    { response: "AuthUserResponse" },
+  ],
   "PUT /api/auth/password": [
     SESSION,
     "Cambiar la contraseña del usuario actual",
-    { body: "ChangePasswordRequest" },
+    { body: "ChangePasswordRequest", response: "MessageResponse" },
   ],
 
   "GET /api/users": [USERS, "Listar usuarios", { roles: ADMIN, query: "ListUsersQuery" }],
   "POST /api/users": [
     USERS,
     "Crear un usuario",
-    { roles: ADMIN, body: "CreateUserRequest", status: 201 },
+    { roles: ADMIN, body: "CreateUserRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/users/{id}": [
     USERS,
     "Editar un usuario",
-    { roles: ADMIN, body: "UpdateUserRequest" },
+    { roles: ADMIN, body: "UpdateUserRequest", response: "MessageResponse" },
   ],
   "PATCH /api/users/{id}/activo": [
     USERS,
     "Activar o desactivar un usuario",
-    { roles: ADMIN, body: "ActivoRequest" },
+    { roles: ADMIN, body: "ActivoRequest", response: "MessageResponse" },
   ],
 
   "GET /api/categories": [CATALOG, "Listar categorías con su número de productos"],
   "POST /api/categories": [
     CATALOG,
     "Crear una categoría",
-    { roles: ADMIN, body: "CategoryRequest", status: 201 },
+    { roles: ADMIN, body: "CategoryRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/categories/{id}": [
     CATALOG,
     "Editar una categoría",
-    { roles: ADMIN, body: "CategoryRequest" },
+    { roles: ADMIN, body: "CategoryRequest", response: "MessageResponse" },
   ],
-  "DELETE /api/categories/{id}": [CATALOG, "Eliminar una categoría", { roles: ADMIN }],
+  "DELETE /api/categories/{id}": [
+    CATALOG,
+    "Eliminar una categoría",
+    { roles: ADMIN, response: "MessageResponse" },
+  ],
 
   "GET /api/products": [CATALOG, "Listar productos", { query: "ListProductsQuery" }],
   "GET /api/products/next-sku": [
     CATALOG,
     "Sugerir el siguiente SKU de una categoría",
-    { query: "NextSkuQuery" },
+    { query: "NextSkuQuery", response: "SkuResponse" },
   ],
   "POST /api/products": [
     CATALOG,
     "Crear un producto",
-    { roles: OPERATE, body: "CreateProductRequest", status: 201 },
+    { roles: OPERATE, body: "CreateProductRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/products/{id}": [
     CATALOG,
     "Editar un producto",
-    { roles: OPERATE, body: "UpdateProductRequest" },
+    { roles: OPERATE, body: "UpdateProductRequest", response: "MessageResponse" },
   ],
   "PATCH /api/products/{id}/activo": [
     CATALOG,
     "Activar o desactivar un producto",
-    { roles: ADMIN, body: "ActivoRequest" },
+    { roles: ADMIN, body: "ActivoRequest", response: "MessageResponse" },
   ],
 
   "GET /api/movements": [
@@ -110,7 +124,7 @@ const entries: Record<string, Entry> = {
   "POST /api/movements": [
     CATALOG,
     "Registrar una entrada o salida de stock",
-    { roles: OPERATE, body: "CreateMovementRequest", status: 201 },
+    { roles: OPERATE, body: "CreateMovementRequest", status: 201, response: "IdStockResponse" },
   ],
 
   "GET /api/dashboard": [CATALOG, "Métricas-resumen del inicio"],
@@ -413,7 +427,7 @@ const entries: Record<string, Entry> = {
   "POST /api/third-parties": [
     PARTIES,
     "Crear un tercero",
-    { roles: WRITE, body: "CreateThirdPartyRequest", status: 201 },
+    { roles: WRITE, body: "CreateThirdPartyRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/third-parties/{id}": [
     PARTIES,
