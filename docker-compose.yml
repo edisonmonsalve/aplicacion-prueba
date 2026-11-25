@@ -1,0 +1,46 @@
+name: signal
+
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MARIADB_DATABASE: ${DB_NAME:-inventario}
+    ports:
+      - "${MARIADB_HOST_PORT:-3306}:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build: ./server
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      DB_NAME: ${DB_NAME:-inventario}
+      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-por-una-cadena-larga-y-aleatoria}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  client:
+    build: ./client
+    environment:
+      # Dentro de la red de Compose, "localhost" sería el propio contenedor
+      VITE_API_PROXY_TARGET: http://server:3000
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+    depends_on:
+      - server
+
+volumes:
+  mariadb_data:

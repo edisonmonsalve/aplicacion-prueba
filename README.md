@@ -1,5 +1,9 @@
 # Sistema de Inventario, Facturación y Finanzas
 
+[![CI](https://github.com/edisonmonsalve/aplicacion-prueba/actions/workflows/ci.yml/badge.svg)](https://github.com/edisonmonsalve/aplicacion-prueba/actions/workflows/ci.yml)
+[![Deploy landing](https://github.com/edisonmonsalve/aplicacion-prueba/actions/workflows/deploy-landing.yml/badge.svg)](https://github.com/edisonmonsalve/aplicacion-prueba/actions/workflows/deploy-landing.yml)
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+
 [![Portada pública de Signal](docs/screenshots/10-landing.png)](https://edisonmonsalve.github.io/aplicacion-prueba/)
 
 *Portada pública del proyecto — haz clic para abrir la landing en
@@ -211,10 +215,47 @@ Usuarios demo creados por `seed:demo` (todos con clave `Demo1234!`):
 
 ### Requisitos previos
 
-- Node.js 22 recomendado (Vite 8 requiere 20.19+ o 22.12+).
-- MariaDB 10.5 o superior.
+- **Opción recomendada:** Docker Engine con el plugin Compose.
+- **Instalación local:** Node.js 22 recomendado (Vite 8 requiere 20.19+ o 22.12+) y MariaDB
+  10.5 o superior.
 
-### 1. Base de datos y backend
+### Opción A: Docker Compose (recomendado)
+
+```bash
+cp .env.compose.example .env   # en Windows: copy .env.compose.example .env
+docker compose up -d --build
+```
+
+El primer arranque levanta MariaDB, espera a que acepte conexiones, aplica las migraciones y
+compila el cliente. No hace falta instalar Node ni MariaDB en el host.
+
+| Servicio | URL | Variable de puerto |
+| --- | --- | --- |
+| Aplicación | `http://localhost:5173` | `WEB_PORT` |
+| API | `http://localhost:3000/api/health` | `API_PORT` |
+| MariaDB | `localhost:3306` | `MARIADB_HOST_PORT` |
+
+Crea el administrador y, si quieres, siembra los datos de demostración:
+
+```bash
+docker compose exec server npm run seed:admin -- admin@ejemplo.com TuClaveSegura123
+docker compose exec server npm run seed:demo      # opcional
+```
+
+Comandos útiles:
+
+```bash
+docker compose logs -f server   # seguir los logs de la API
+docker compose down             # detener sin borrar datos
+docker compose down -v          # detener y borrar el volumen de MariaDB
+```
+
+> Revisa `.env` antes de usar el proyecto fuera de tu máquina: cambia `JWT_SECRET` y
+> `DB_ROOT_PASSWORD`. Ese archivo está ignorado por Git.
+
+### Opción B: instalación local
+
+#### 1. Base de datos y backend
 
 ```bash
 cd server
@@ -264,7 +305,7 @@ npm run seed:demo
 > El seed demo es idempotente por secciones: no duplica movimientos, transacciones ni
 > cotizaciones. Crea **Caja principal** (3.000.000) y **Banco principal** (25.000.000).
 
-### 2. Frontend
+#### 2. Frontend
 
 ```bash
 cd client
@@ -279,6 +320,9 @@ hace falta configurar CORS en desarrollo.
 
 | Carpeta | Comando | Descripción |
 | --- | --- | --- |
+| raíz | `docker compose up -d --build` | Levanta MariaDB, API y cliente |
+| raíz | `docker compose logs -f server` | Sigue los logs de la API |
+| raíz | `docker compose down -v` | Detiene y borra el volumen de datos |
 | `server` | `npm run dev` | Servidor con recarga automática |
 | `server` | `npm run build` | Compila TypeScript a `dist/` |
 | `server` | `npm start` | Ejecuta la versión compilada |
@@ -444,10 +488,23 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
 ```text
 .
+├── docker-compose.yml           # MariaDB + API + cliente
+├── .env.compose.example         # Plantilla de variables para Compose
+├── LICENSE                      # MIT
+├── landing/                     # Portada pública estática
+│   ├── index.html
+│   ├── assets/
+│   │   ├── styles.css
+│   │   ├── og-image.html        # Fuente de la tarjeta 1200 × 630
+│   │   ├── og-image.png
+│   │   └── screenshots/         # Capturas usadas en la portada
+│   ├── robots.txt
+│   └── sitemap.xml
 ├── docs/                        # Manual, requerimientos, decisiones y capturas
 │   ├── api/openapi.json         # Spec OpenAPI 3.1 generada
 │   └── screenshots/             # Imágenes usadas en este README
 ├── client/                      # React + Vite
+│   ├── Dockerfile
 │   └── src/
 │       ├── components/          # Layout, rutas protegidas, tablas, gráficos e impresión
 │       ├── context/             # AuthContext y ThemeContext
@@ -461,6 +518,8 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 │       ├── types/               # Interfaces compartidas
 │       └── utils/               # Errores, moneda y exportación
 └── server/                      # Express + TypeScript
+    ├── Dockerfile
+    ├── .env.example
     ├── migrations/               # SQL numeradas
     ├── src/
     │   ├── config/              # Conexión a MariaDB

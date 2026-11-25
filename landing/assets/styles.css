@@ -795,6 +795,48 @@ button {
   gap: 12px;
 }
 
+.quickstart {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  margin-top: 22px;
+  padding: 7px 8px 7px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.quickstart code {
+  overflow-x: auto;
+  color: var(--ink);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.quickstart__copy {
+  flex: none;
+  min-width: 74px;
+  padding: 7px 12px;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quickstart__copy:hover {
+  background: var(--brand);
+  color: #fff;
+}
+
+:root[data-theme="dark"] .quickstart__copy:hover {
+  color: #07110f;
+}
+
 .site-footer {
   padding: 34px 0;
   border-top: 1px solid var(--line);

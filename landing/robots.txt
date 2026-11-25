@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://edisonmonsalve.github.io/aplicacion-prueba/sitemap.xml
