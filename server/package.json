@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:db": "tsx src/scripts/setup-test-db.ts",
     "lint": "eslint .",
-    "migrate": "tsx src/scripts/migrate.ts"
+    "migrate": "tsx src/scripts/migrate.ts",
+    "openapi:export": "tsx src/scripts/export-openapi.ts"
   },
   "keywords": [],
   "author": "",

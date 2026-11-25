@@ -291,6 +291,7 @@ hace falta configurar CORS en desarrollo.
 | `server` | `npm run seed:admin -- correo clave` | Crea un usuario administrador |
 | `server` | `npm run seed:demo` | Siembra datos demo (requiere el servidor activo) |
 | `server` | `npm run reset:dev` | Borra y recrea la base de desarrollo |
+| `server` | `npm run openapi:export` | Regenera la spec y el contrato TS del cliente |
 | `client` | `npm run dev` | Servidor de desarrollo |
 | `client` | `npm run build` | Verifica tipos y genera el build |
 | `client` | `npm run preview` | Sirve el build generado |
@@ -301,6 +302,17 @@ hace falta configurar CORS en desarrollo.
 Todas las rutas, salvo el login y `health`, requieren `Authorization: Bearer <token>`.
 Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuando hay detalle
 (validación Zod o líneas sin stock), con códigos 400, 401, 403, 404, 409 y 500.
+
+**Referencia completa y ejecutable:** con el servidor en marcha abre
+`http://localhost:3000/api/docs` (Swagger UI). El JSON OpenAPI 3.1 está en
+`/api/openapi.json` y una copia versionada en [`docs/api/openapi.json`](docs/api/openapi.json).
+
+La spec **no se escribe a mano**: las rutas se leen del router real de Express y los esquemas de
+petición se generan con `z.toJSONSchema` desde los mismos esquemas Zod que validan cada
+petición. Las tablas de abajo son un resumen humano; si una ruta nueva aparece sin metadata,
+la spec la documenta igualmente con un resumen genérico. El contrato TypeScript del cliente
+([`api-contract.generated.ts`](client/src/services/api-contract.generated.ts)) sale de la misma
+generación, y una prueba falla si los artefactos quedan desactualizados.
 
 ### Sesión
 
@@ -433,6 +445,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 ```text
 .
 ├── docs/                        # Manual, requerimientos, decisiones y capturas
+│   ├── api/openapi.json         # Spec OpenAPI 3.1 generada
 │   └── screenshots/             # Imágenes usadas en este README
 ├── client/                      # React + Vite
 │   └── src/
@@ -443,7 +456,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 │       │   ├── invoices/        # Lista, formulario, detalle, impresión y cartera
 │       │   ├── quotes/          # Lista, formulario, detalle e impresión
 │       │   └── finance/         # Resumen, presupuestos, reportes, cierres y auditoría
-│       ├── services/            # Llamadas a la API (axios)
+│       ├── services/            # Llamadas a la API (axios) y contrato generado
 │       ├── styles/              # Tokens Signal y estilos globales
 │       ├── types/               # Interfaces compartidas
 │       └── utils/               # Errores, moneda y exportación
@@ -451,11 +464,13 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
     ├── migrations/               # SQL numeradas
     ├── src/
     │   ├── config/              # Conexión a MariaDB
+    │   ├── docs/                # Generador OpenAPI, metadata y Swagger UI
     │   ├── middlewares/         # Autenticación, roles y manejo central de errores
     │   ├── modules/             # auth, users, categories, products, movements,
     │   │                        # dashboard, quotes, invoices, finance, third-parties,
     │   │                        # period-closures, audit y company
-    │   ├── scripts/             # Seed admin/demo, migraciones y base de pruebas
+    │   ├── routes.ts            # Prefijos compartidos por app y la spec
+    │   ├── scripts/             # Seeds, migraciones y exportación de la spec
     │   ├── types/               # Tipos de Express (req.user)
     │   └── utils/               # HttpError, SQL, transacciones y fechas
     └── tests/                   # Pruebas Vitest + Supertest
@@ -464,6 +479,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 ## Documentación
 
 - [Portada pública](https://edisonmonsalve.github.io/aplicacion-prueba/) — landing estática publicada en GitHub Pages ([código en `landing/index.html`](landing/index.html)); también desplegable en Vercel.
+- [Especificación OpenAPI](docs/api/openapi.json) — contrato HTTP generado desde los esquemas Zod; en el servidor se explora en `/api/docs`.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
