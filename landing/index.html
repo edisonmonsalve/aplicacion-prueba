@@ -24,8 +24,13 @@
     <meta property="og:url" content="https://edisonmonsalve.github.io/aplicacion-prueba/" />
     <meta
       property="og:image"
-      content="https://edisonmonsalve.github.io/aplicacion-prueba/assets/screenshots/01-inicio.png"
+      content="https://edisonmonsalve.github.io/aplicacion-prueba/assets/og-image.png"
     />
+    <meta property="og:image:secure_url" content="https://edisonmonsalve.github.io/aplicacion-prueba/assets/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Signal — Inventario, facturación y finanzas en una sola plataforma" />
     <meta property="og:locale" content="es_ES" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Signal — Inventario, facturación y finanzas" />
@@ -35,8 +40,9 @@
     />
     <meta
       name="twitter:image"
-      content="https://edisonmonsalve.github.io/aplicacion-prueba/assets/screenshots/01-inicio.png"
+      content="https://edisonmonsalve.github.io/aplicacion-prueba/assets/og-image.png"
     />
+    <meta name="twitter:image:alt" content="Signal — Inventario, facturación y finanzas" />
 
     <script>
       (function () {
@@ -345,6 +351,12 @@
               El README documenta reglas de negocio, API, puesta en marcha y decisiones técnicas.
               El manual de usuario recorre cada pantalla.
             </p>
+            <div class="quickstart">
+              <code>docker compose up -d --build</code>
+              <button class="quickstart__copy" type="button" data-copy="docker compose up -d --build">
+                Copiar
+              </button>
+            </div>
           </div>
           <div class="cta__actions">
             <a class="button button--primary" href="https://github.com/edisonmonsalve/aplicacion-prueba#readme" target="_blank" rel="noopener">
@@ -422,6 +434,25 @@
             });
           });
         }
+
+        document.querySelectorAll("[data-copy]").forEach(function (button) {
+          button.addEventListener("click", async function () {
+            var text = button.dataset.copy;
+            try {
+              await navigator.clipboard.writeText(text);
+              button.textContent = "Copiado";
+            } catch (_) {
+              var input = document.createElement("textarea");
+              input.value = text;
+              document.body.appendChild(input);
+              input.select();
+              document.execCommand("copy");
+              document.body.removeChild(input);
+              button.textContent = "Copiado";
+            }
+            setTimeout(function () { button.textContent = "Copiar"; }, 1800);
+          });
+        });
 
         document.querySelectorAll("[data-lightbox]").forEach(function (trigger) {
           trigger.addEventListener("click", function () {

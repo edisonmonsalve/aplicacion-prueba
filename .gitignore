@@ -10,6 +10,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.compose.example
 
 # Logs
 logs/
