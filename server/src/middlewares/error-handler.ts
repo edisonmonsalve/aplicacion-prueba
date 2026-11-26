@@ -1,8 +1,9 @@
 import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
 import { HttpError } from "../utils/http-error.js";
+import { logger } from "../utils/logger.js";
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof ZodError) {
     res.status(400).json({ message: "Datos inválidos", errors: err.issues });
   } else if (err instanceof HttpError) {
@@ -33,7 +34,12 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   } else if (err?.type === "entity.parse.failed") {
     res.status(400).json({ message: "El cuerpo de la petición no es JSON válido" });
   } else {
-    console.error(err);
+    logger.error("unhandled_error", {
+      requestId: res.getHeader("X-Request-Id"),
+      method: req.method,
+      path: req.path,
+      error: err,
+    });
     res.status(500).json({ message: "Error interno del servidor" });
   }
 };

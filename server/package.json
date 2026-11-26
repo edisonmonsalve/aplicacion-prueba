@@ -16,6 +16,8 @@
     "test:db": "tsx src/scripts/setup-test-db.ts",
     "lint": "eslint .",
     "migrate": "tsx src/scripts/migrate.ts",
+    "migrate:status": "tsx src/scripts/migrate-status.ts",
+    "test:coverage": "vitest run --coverage",
     "openapi:export": "tsx src/scripts/export-openapi.ts"
   },
   "keywords": [],
@@ -39,6 +41,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.5",
     "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.14.0",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",

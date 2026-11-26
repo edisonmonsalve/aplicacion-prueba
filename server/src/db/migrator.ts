@@ -47,6 +47,49 @@ async function record(conn: mysql.Connection, m: Migration) {
   ]);
 }
 
+export interface MigrationStatusRow {
+  version: number;
+  name: string;
+  applied: boolean;
+  /** La migración ya aplicada cambió de contenido respecto al checksum guardado. */
+  modified: boolean;
+}
+
+/**
+ * Consulta el estado sin aplicar cambios. Útil antes de un despliegue y para
+ * comprobar que nadie editó una migración ya ejecutada.
+ */
+export async function migrationStatus(): Promise<MigrationStatusRow[]> {
+  const dbName = process.env.DB_NAME!;
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT ?? 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: dbName,
+  });
+
+  try {
+    const migrations = await loadMigrations();
+    const [rows] = await conn.query<RowDataPacket[]>(
+      "SELECT version, checksum FROM schema_migrations"
+    );
+    const applied = new Map<number, string>(rows.map((r) => [r.version, r.checksum]));
+
+    return migrations.map((m) => {
+      const checksum = applied.get(m.version);
+      return {
+        version: m.version,
+        name: m.name,
+        applied: checksum !== undefined,
+        modified: checksum !== undefined && checksum !== m.checksum,
+      };
+    });
+  } finally {
+    await conn.end();
+  }
+}
+
 export async function runMigrations(options: { baseline?: number } = {}) {
   const dbName = process.env.DB_NAME!;
   const conn = await mysql.createConnection({

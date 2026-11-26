@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { login } from "@/services/authService";
+import { login, logout } from "@/services/authService";
 import type { AuthUser } from "@/types";
 
 interface AuthContextValue {
@@ -20,12 +20,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const result = await login(email, password);
     localStorage.setItem("token", result.token);
+    localStorage.setItem("refreshToken", result.refreshToken);
     localStorage.setItem("user", JSON.stringify(result.user));
     setUser(result.user);
   };
 
   const signOut = () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    // Se revoca en el servidor, pero cerrar sesión no depende de la red.
+    if (refreshToken) void logout(refreshToken).catch(() => undefined);
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     setUser(null);
   };

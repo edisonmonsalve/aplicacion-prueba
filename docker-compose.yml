@@ -34,6 +34,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "${API_PORT:-3000}:3000"
     depends_on:

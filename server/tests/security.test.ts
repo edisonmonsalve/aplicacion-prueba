@@ -73,4 +73,19 @@ describe("seguridad", () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("El cuerpo de la petición no es JSON válido");
   });
+
+  it("expone salud con latencia y métricas solo para administradores", async () => {
+    const health = await request(app).get("/api/health").expect(200);
+    expect(health.body.status).toBe("ok");
+    expect(health.body.db.latency_ms).toBeTypeOf("number");
+    expect(health.headers["x-request-id"]).toBeDefined();
+
+    const admin = await userWithToken("admin");
+    const metrics = await request(app).get("/api/metrics").set(bearer(admin.token)).expect(200);
+    expect(metrics.body.requests.total).toBeGreaterThan(0);
+    expect(metrics.body.routes).toBeInstanceOf(Array);
+
+    const operador = await userWithToken("operador");
+    await request(app).get("/api/metrics").set(bearer(operador.token)).expect(403);
+  });
 });

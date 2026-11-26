@@ -65,8 +65,8 @@ jobs:
       - name: Crear base de datos de pruebas
         run: npm run test:db
 
-      - name: Ejecutar pruebas
-        run: npm test
+      - name: Ejecutar pruebas con cobertura
+        run: npm run test:coverage
 
       - name: Revisar estilo y errores comunes
         run: npm run lint
@@ -123,6 +123,17 @@ jobs:
         working-directory: client
         run: npm run test:e2e
 
+      - name: Subir artefactos de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ github.run_attempt }}
+          path: |
+            client/test-results
+            client/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   client:
     name: client
     runs-on: ubuntu-latest
@@ -148,3 +159,35 @@ jobs:
 
       - name: Revisar tipos y compilar
         run: npm run build
+
+  dependencies:
+    name: dependencias
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar dependencias nuevas o actualizadas
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  secrets:
+    name: secretos
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Escanea el historial y el diff. En repositorios de organización puede
+      # requerir GITLEAKS_LICENSE; en repositorios públicos no.
+      - name: Buscar secretos filtrados
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

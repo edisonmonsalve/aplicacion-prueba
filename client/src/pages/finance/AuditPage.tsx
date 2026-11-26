@@ -36,6 +36,7 @@ const ENTIDAD_META: Record<AuditEntity, { label: string; color: string }> = {
   receivable_followup: { label: "Seguimiento cartera", color: "lime" },
   company_settings: { label: "Empresa", color: "blue" },
   stock_movement: { label: "Movimiento", color: "gold" },
+  auth: { label: "Acceso", color: "red" },
 };
 
 const ENTIDAD_OPTIONS = (Object.keys(ENTIDAD_META) as AuditEntity[]).map((value) => ({
@@ -57,6 +58,8 @@ const ACCION_META: Record<string, { label: string; color: string }> = {
   ignorar: { label: "Ignorar", color: "default" },
   linea_agregar: { label: "Agregar línea", color: "cyan" },
   linea_eliminar: { label: "Eliminar línea", color: "red" },
+  login_failed: { label: "Login fallido", color: "red" },
+  login_locked: { label: "Cuenta bloqueada", color: "volcano" },
 };
 
 const ACCION_OPTIONS = Object.keys(ACCION_META).map((value) => ({

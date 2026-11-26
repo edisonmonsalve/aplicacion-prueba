@@ -27,4 +27,5 @@ test("inicia sesión y abre el panel con la sesión guardada", async ({ page }) 
   await expect(page).not.toHaveURL(/\/login$/);
   await expect(page.getByRole("menuitem", { name: /Inicio/ })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("token"))).toBeTruthy();
+  expect(await page.evaluate(() => localStorage.getItem("refreshToken"))).toBeTruthy();
 });

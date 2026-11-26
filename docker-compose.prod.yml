@@ -41,6 +41,7 @@ services:
       # Nginx es el único proxy delante del API y fija X-Forwarded-For.
       # Se fija en 1: el .env de desarrollo define 0 y aquí no aplica.
       TRUST_PROXY: "1"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     # Sin `ports`: el API solo se alcanza a través del proxy de Nginx.
     depends_on:
       db:

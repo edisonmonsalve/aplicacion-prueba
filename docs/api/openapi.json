@@ -45,6 +45,9 @@
     },
     {
       "name": "Empresa"
+    },
+    {
+      "name": "Operación"
     }
   ],
   "paths": {
@@ -200,6 +203,105 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "operationId": "postApiAuthRefresh",
+        "tags": [
+          "Sesión"
+        ],
+        "summary": "Renovar el token de acceso con un refresh token",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "postApiAuthLogout",
+        "tags": [
+          "Sesión"
+        ],
+        "summary": "Cerrar la sesión y revocar el refresh token",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Operación completada"
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
               }
             }
           }
@@ -8121,7 +8223,8 @@
                 "bank_reconciliation",
                 "receivable_followup",
                 "company_settings",
-                "stock_movement"
+                "stock_movement",
+                "auth"
               ]
             }
           },
@@ -8347,6 +8450,61 @@
           }
         }
       }
+    },
+    "/api/metrics": {
+      "get": {
+        "operationId": "getApiMetrics",
+        "tags": [
+          "Operación"
+        ],
+        "summary": "Métricas de uso, errores y latencia desde el arranque",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación completada"
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8386,6 +8544,19 @@
           "password"
         ]
       },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
       "ChangePasswordRequest": {
         "type": "object",
         "properties": {
@@ -8395,7 +8566,7 @@
           },
           "newPassword": {
             "type": "string",
-            "minLength": 8,
+            "minLength": 10,
             "maxLength": 72
           }
         },
@@ -8420,7 +8591,7 @@
           },
           "password": {
             "type": "string",
-            "minLength": 8,
+            "minLength": 10,
             "maxLength": 72
           },
           "rol": {
@@ -8456,7 +8627,7 @@
           },
           "password": {
             "type": "string",
-            "minLength": 8,
+            "minLength": 10,
             "maxLength": 72
           },
           "rol": {
@@ -10743,7 +10914,8 @@
               "bank_reconciliation",
               "receivable_followup",
               "company_settings",
-              "stock_movement"
+              "stock_movement",
+              "auth"
             ]
           },
           "entidad_id": {
@@ -10889,23 +11061,29 @@
             "type": "string",
             "const": "ok"
           },
+          "uptime_seconds": {
+            "type": "number"
+          },
           "db": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "number"
-                }
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "ok"
               },
-              "required": [
-                "ok"
-              ]
-            }
+              "latency_ms": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "status",
+              "latency_ms"
+            ]
           }
         },
         "required": [
           "status",
+          "uptime_seconds",
           "db"
         ]
       },
@@ -10946,12 +11124,16 @@
           "token": {
             "type": "string"
           },
+          "refreshToken": {
+            "type": "string"
+          },
           "user": {
             "$ref": "#/components/schemas/AuthUserResponse"
           }
         },
         "required": [
           "token",
+          "refreshToken",
           "user"
         ]
       },

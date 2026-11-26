@@ -35,6 +35,7 @@ const PARTIES = "Terceros";
 const CLOSURES = "Cierres fiscales";
 const AUDIT = "Auditoría";
 const COMPANY = "Empresa";
+const OPS = "Operación";
 
 /**
  * Metadata declarativa de cada operación. Las rutas NO se enumeran aquí: se leen
@@ -47,10 +48,25 @@ const entries: Record<string, Entry> = {
     "Estado del servidor y la conexión a la base",
     { roles: "public", response: "HealthResponse" },
   ],
+  "GET /api/metrics": [
+    OPS,
+    "Métricas de uso, errores y latencia desde el arranque",
+    { roles: ADMIN },
+  ],
   "POST /api/auth/login": [
     SESSION,
     "Iniciar sesión y obtener un token JWT",
     { roles: "public", body: "LoginRequest", response: "LoginResponse" },
+  ],
+  "POST /api/auth/refresh": [
+    SESSION,
+    "Renovar el token de acceso con un refresh token",
+    { roles: "public", body: "RefreshTokenRequest", response: "LoginResponse" },
+  ],
+  "POST /api/auth/logout": [
+    SESSION,
+    "Cerrar la sesión y revocar el refresh token",
+    { roles: "public", body: "RefreshTokenRequest", status: 204 },
   ],
   "GET /api/auth/me": [
     SESSION,

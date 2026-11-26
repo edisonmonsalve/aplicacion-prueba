@@ -4,13 +4,13 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Desarrollo: conserva devDependencies para poder usar `npm run seed:*` con tsx.
+# Desarrollo: conserva devDependencies para `tsx`, seeds y recarga en caliente.
 # Lo usa docker-compose.yml.
 FROM deps AS dev
 COPY . .
 RUN npm run build
 EXPOSE 3000
-CMD ["sh", "-c", "node dist/scripts/migrate.js && npm start"]
+CMD ["sh", "-c", "npm run migrate && npm run dev"]
 
 # Producción: compila y poda devDependencies antes de la imagen final.
 FROM deps AS build

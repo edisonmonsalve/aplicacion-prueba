@@ -3,6 +3,7 @@ import { Form, Input, Modal, message } from "antd";
 import { isAxiosError } from "axios";
 import { changePassword } from "@/services/authService";
 import { getErrorMessage } from "@/utils/errors";
+import { PASSWORD_HINT, passwordRules } from "@/utils/passwordRules";
 import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
@@ -73,12 +74,10 @@ export default function ChangePasswordModal({ onClose, onSaved }: Props) {
         <Form.Item
           label="Nueva contraseña"
           name="newPassword"
-          tooltip="Mínimo 8 caracteres y distinta a la actual."
+          tooltip={PASSWORD_HINT}
           dependencies={["currentPassword"]}
           rules={[
-            { required: true, message: "Ingresa la nueva contraseña" },
-            { min: 8, message: "Mínimo 8 caracteres" },
-            { max: 72, message: "Máximo 72 caracteres" },
+            ...passwordRules(true),
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (value && value === getFieldValue("currentPassword")) {
@@ -88,6 +87,7 @@ export default function ChangePasswordModal({ onClose, onSaved }: Props) {
               },
             }),
           ]}
+
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>

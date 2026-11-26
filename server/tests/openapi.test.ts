@@ -64,8 +64,13 @@ describe("especificación OpenAPI", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("marca como públicas solo health y login", () => {
-    const publicOps = ["/api/health", "/api/auth/login"];
+  it("marca como públicas solo health, login, refresh y logout", () => {
+    const publicOps = [
+      "/api/health",
+      "/api/auth/login",
+      "/api/auth/refresh",
+      "/api/auth/logout",
+    ];
     for (const [path, methods] of Object.entries(doc.paths)) {
       for (const raw of Object.values(methods as AnyRecord)) {
         const operation = raw as AnyRecord;
@@ -112,7 +117,7 @@ describe("especificación OpenAPI", () => {
     });
 
     const schemas = doc.components.schemas as AnyRecord;
-    expect(schemas.LoginResponse).toMatchObject({ required: ["token", "user"] });
+    expect(schemas.LoginResponse).toMatchObject({ required: ["token", "refreshToken", "user"] });
     expect(schemas.MessageResponse).toMatchObject({ required: ["message"] });
   });
 

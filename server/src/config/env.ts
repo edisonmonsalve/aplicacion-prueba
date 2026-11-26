@@ -29,6 +29,16 @@ const envSchema = z.object({
   TRUST_PROXY: z.enum(["0", "1"]).default("0"),
   /** 1 = desactivar el límite de intentos (solo pruebas locales). */
   RATE_LIMIT_DISABLED: z.enum(["0", "1"]).default("0"),
+  /** Minutos que dura un token de acceso. */
+  ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+  /** Días que dura un refresh token. */
+  REFRESH_TOKEN_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+  /** Intentos fallidos antes de bloquear temporalmente la cuenta. */
+  MAX_LOGIN_ATTEMPTS: z.coerce.number().int().min(3).max(20).default(5),
+  /** Minutos de bloqueo tras superar los intentos. */
+  LOCKOUT_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+  /** Nivel mínimo de log: debug, info, warn, error o silent. */
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error", "silent"]).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

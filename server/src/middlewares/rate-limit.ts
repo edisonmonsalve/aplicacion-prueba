@@ -68,3 +68,6 @@ export const loginRateLimit = rateLimit({ max: 20 });
 
 /** Protege el cambio de contraseña autenticado. */
 export const passwordRateLimit = rateLimit({ max: 10 });
+
+/** Limita la rotación de refresh tokens por IP. */
+export const refreshRateLimit = rateLimit({ max: 60 });

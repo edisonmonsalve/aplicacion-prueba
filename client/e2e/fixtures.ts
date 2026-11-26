@@ -3,6 +3,7 @@ import { adminCredentials, apiBaseURL } from "./env";
 
 interface Session {
   token: string;
+  refreshToken: string;
   user: { id: number; email: string; rol: string };
 }
 
@@ -39,6 +40,7 @@ export const test = base.extend<Fixtures>({
             origin: String(baseURL),
             localStorage: [
               { name: "token", value: adminSession.token },
+              { name: "refreshToken", value: adminSession.refreshToken },
               { name: "user", value: JSON.stringify(adminSession.user) },
             ],
           },

@@ -1,4 +1,4 @@
-import axios, { type AxiosError, type AxiosResponse } from "axios";
+import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import {
   apiRoutesWithBody,
   type ApiRequests,
@@ -10,6 +10,50 @@ export const api = axios.create({
   baseURL: "/api", // el proxy de Vite lo envía a Express
 });
 
+// Cliente sin interceptores para renovar la sesión: evita bucles y que un 401
+// del propio refresh dispare otro refresh.
+const authApi = axios.create({ baseURL: "/api" });
+
+interface RetryConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
+let refreshing: Promise<string | null> | null = null;
+
+function clearSession() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+}
+
+function expireSession() {
+  clearSession();
+  sessionStorage.setItem("session-expired", "1");
+  if (window.location.pathname !== "/login") window.location.assign("/login");
+}
+
+/** Renueva el token de acceso. Varias peticiones simultáneas comparten la misma promesa. */
+function renewAccessToken(): Promise<string | null> {
+  refreshing ??= (async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) return null;
+
+    try {
+      const { data } = await authApi.post("/auth/refresh", { refreshToken });
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("refreshToken", data.refreshToken);
+      if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
+      return data.token as string;
+    } catch {
+      return null;
+    } finally {
+      refreshing = null;
+    }
+  })();
+
+  return refreshing;
+}
+
 // Adjunta el token en cada petición
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
@@ -19,15 +63,32 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    // El login responde 401 con credenciales malas: eso no es una sesión expirada
-    const isLogin = error.config?.url?.includes("/auth/login");
-    if (error.response?.status === 401 && !isLogin) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      sessionStorage.setItem("session-expired", "1");
-      if (window.location.pathname !== "/login") window.location.assign("/login");
+  async (error: AxiosError) => {
+    const config = error.config as RetryConfig | undefined;
+    const url = config?.url ?? "";
+    // Los endpoints de sesión responden 401 por credenciales o token inválido:
+    // eso no se reintenta para no ocultar el error real.
+    const isSessionEndpoint =
+      url.includes("/auth/login") || url.includes("/auth/refresh") || url.includes("/auth/logout");
+
+    if (
+      error.response?.status === 401 &&
+      config &&
+      !config._retry &&
+      !isSessionEndpoint
+    ) {
+      config._retry = true;
+      const token = await renewAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        return api.request(config);
+      }
+      expireSession();
+    } else if (error.response?.status === 401 && config?._retry && !isSessionEndpoint) {
+      // El token renovado tampoco sirve: la sesión ya no es válida.
+      expireSession();
     }
+
     return Promise.reject(error);
   }
 );

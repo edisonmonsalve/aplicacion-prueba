@@ -8,13 +8,13 @@ test("el operador no ve usuarios ni finanzas y no puede abrir esas rutas", async
   const sufijo = unique("operador").replace(/[^a-z0-9]/gi, "").slice(-10);
   const email = `${sufijo}@demo.com`;
   const creado = await adminApi.post("/api/users", {
-    data: { nombre: "Operador E2E", email, password: "Demo1234!", rol: "operador" },
+    data: { nombre: "Operador E2E", email, password: "Demo12345!", rol: "operador" },
   });
   expect(creado.ok(), "No se pudo crear el operador de prueba").toBeTruthy();
 
   await page.goto("/login");
   await page.getByLabel("Correo").fill(email);
-  await page.getByLabel("Contraseña").fill("Demo1234!");
+  await page.getByLabel("Contraseña").fill("Demo12345!");
   await page.getByRole("button", { name: "Entrar" }).click();
 
   await expect(page).not.toHaveURL(/\/login$/);

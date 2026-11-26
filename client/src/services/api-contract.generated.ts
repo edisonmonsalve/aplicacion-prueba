@@ -13,6 +13,11 @@ export type LoginRequest = {
   password: string;
 };
 
+/** Generado desde el esquema Zod `RefreshTokenRequest`. */
+export type RefreshTokenRequest = {
+  refreshToken: string;
+};
+
 /** Generado desde el esquema Zod `ChangePasswordRequest`. */
 export type ChangePasswordRequest = {
   currentPassword: string;
@@ -546,7 +551,7 @@ export type FiscalYearParams = {
 export type AuditQuery = {
   page?: number;
   pageSize?: number;
-  entidad?: "budget" | "transaction" | "account" | "payment" | "period_closure" | "invoice" | "invoice_adjustment" | "bank_reconciliation" | "receivable_followup" | "company_settings" | "stock_movement";
+  entidad?: "budget" | "transaction" | "account" | "payment" | "period_closure" | "invoice" | "invoice_adjustment" | "bank_reconciliation" | "receivable_followup" | "company_settings" | "stock_movement" | "auth";
   entidad_id?: number;
   accion?: string;
   user_id?: number;
@@ -571,9 +576,11 @@ export type CompanyRequest = {
 /** Generado desde el esquema Zod `HealthResponse`. */
 export type HealthResponse = {
   status: "ok";
+  uptime_seconds: number;
   db: {
-  ok: number;
-}[];
+  status: "ok";
+  latency_ms: number;
+};
 };
 
 /** Generado desde el esquema Zod `AuthUserResponse`. */
@@ -587,6 +594,7 @@ export type AuthUserResponse = {
 /** Generado desde el esquema Zod `LoginResponse`. */
 export type LoginResponse = {
   token: string;
+  refreshToken: string;
   user: AuthUserResponse;
 };
 
@@ -629,6 +637,8 @@ export type ApiRoutes =
   | "GET /api/health"
   | "GET /api/auth/me"
   | "POST /api/auth/login"
+  | "POST /api/auth/refresh"
+  | "POST /api/auth/logout"
   | "PUT /api/auth/password"
   | "GET /api/users"
   | "POST /api/users"
@@ -726,11 +736,14 @@ export type ApiRoutes =
   | "POST /api/period-closures/{id}/reabrir"
   | "GET /api/audit"
   | "GET /api/company"
-  | "PUT /api/company";
+  | "PUT /api/company"
+  | "GET /api/metrics";
 
 /** Cuerpo esperado por cada operación que acepta JSON. */
 export interface ApiRequests {
   "POST /api/auth/login": LoginRequest;
+  "POST /api/auth/refresh": RefreshTokenRequest;
+  "POST /api/auth/logout": RefreshTokenRequest;
   "PUT /api/auth/password": ChangePasswordRequest;
   "POST /api/users": CreateUserRequest;
   "PUT /api/users/{id}": UpdateUserRequest;
@@ -773,6 +786,7 @@ export type ApiResponses = {
   "GET /api/health": HealthResponse;
   "GET /api/auth/me": AuthUserResponse;
   "POST /api/auth/login": LoginResponse;
+  "POST /api/auth/refresh": LoginResponse;
   "PUT /api/auth/password": MessageResponse;
   "POST /api/users": IdResponse;
   "PUT /api/users/{id}": MessageResponse;
@@ -791,6 +805,8 @@ export type ApiResponses = {
 /** Operaciones que aceptan cuerpo JSON; lo usa `apiRequest` en runtime. */
 export const apiRoutesWithBody: ReadonlySet<ApiRoutes> = new Set<ApiRoutes>([
   "POST /api/auth/login",
+  "POST /api/auth/refresh",
+  "POST /api/auth/logout",
   "PUT /api/auth/password",
   "POST /api/users",
   "PUT /api/users/{id}",
@@ -832,6 +848,8 @@ export type ApiOperationId =
   | "getApiHealth"
   | "getApiAuthMe"
   | "postApiAuthLogin"
+  | "postApiAuthRefresh"
+  | "postApiAuthLogout"
   | "putApiAuthPassword"
   | "getApiUsers"
   | "postApiUsers"
@@ -929,13 +947,16 @@ export type ApiOperationId =
   | "postApiPeriodClosuresIdReabrir"
   | "getApiAudit"
   | "getApiCompany"
-  | "putApiCompany";
+  | "putApiCompany"
+  | "getApiMetrics";
 
 /** Puntos de entrada de la API, con la misma ruta que publica el servidor. */
 export const apiEndpoints = {
   "getApiHealth": { method: "GET", path: "/api/health" },
   "getApiAuthMe": { method: "GET", path: "/api/auth/me" },
   "postApiAuthLogin": { method: "POST", path: "/api/auth/login" },
+  "postApiAuthRefresh": { method: "POST", path: "/api/auth/refresh" },
+  "postApiAuthLogout": { method: "POST", path: "/api/auth/logout" },
   "putApiAuthPassword": { method: "PUT", path: "/api/auth/password" },
   "getApiUsers": { method: "GET", path: "/api/users" },
   "postApiUsers": { method: "POST", path: "/api/users" },
@@ -1034,4 +1055,5 @@ export const apiEndpoints = {
   "getApiAudit": { method: "GET", path: "/api/audit" },
   "getApiCompany": { method: "GET", path: "/api/company" },
   "putApiCompany": { method: "PUT", path: "/api/company" },
+  "getApiMetrics": { method: "GET", path: "/api/metrics" },
 } as const;

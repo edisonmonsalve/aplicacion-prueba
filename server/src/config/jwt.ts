@@ -14,7 +14,7 @@ export interface TokenPayload {
 export function signToken(payload: TokenPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
     algorithm: "HS256",
-    expiresIn: "8h",
+    expiresIn: `${env.ACCESS_TOKEN_TTL_MINUTES}m`,
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
   });

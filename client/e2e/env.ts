@@ -42,7 +42,7 @@ export const webBaseURL = `http://127.0.0.1:${webPort}`;
 
 export const adminCredentials = {
   email: "demo@demo.com",
-  password: "Demo1234!",
+  password: "Demo12345!",
 };
 
 /**

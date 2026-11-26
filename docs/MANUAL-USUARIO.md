@@ -8,10 +8,10 @@ flujos principales.
 
 - **URL de desarrollo:** `http://localhost:5173` (cliente) sobre el servidor en `http://localhost:3000`.
 - **Credenciales demo:**
-  - Administrador: `demo@demo.com` / `Demo1234!`
-  - Contador: `contador@demo.com` / `Demo1234!`
-  - Operador: `operador@demo.com` / `Demo1234!`
-  - Consulta: `consulta@demo.com` / `Demo1234!`
+  - Administrador: `demo@demo.com` / `Demo12345!`
+  - Contador: `contador@demo.com` / `Demo12345!`
+  - Operador: `operador@demo.com` / `Demo12345!`
+  - Consulta: `consulta@demo.com` / `Demo12345!`
 
 Roles y permisos:
 

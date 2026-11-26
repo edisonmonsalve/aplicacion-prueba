@@ -20,7 +20,7 @@ La cotización es una propuesta comercial y **no contabiliza**; la factura es el
 mueve stock y genera asientos.
 
 > Datos de demostración disponibles con `npm run seed:demo`. Usuario admin:
-> `demo@demo.com` / `Demo1234!`.
+> `demo@demo.com` / `Demo12345!`.
 
 ## Índice
 
@@ -136,7 +136,7 @@ al inicio de este documento.
 | `operador` | Operación | Operación | Crear y confirmar | — | Sin acceso | — |
 | `consulta` | Lectura | Lectura | Lectura | Lectura | Solo lectura | — |
 
-Usuarios demo creados por `seed:demo` (todos con clave `Demo1234!`):
+Usuarios demo creados por `seed:demo` (todos con clave `Demo12345!`):
 
 | Correo | Rol |
 | --- | --- |
@@ -246,7 +246,7 @@ Para probar con los datos de demostración, crea el administrador con las creden
 el seed y ejecútalo:
 
 ```bash
-docker compose exec server npm run seed:admin -- demo@demo.com "Demo1234!"
+docker compose exec server npm run seed:admin -- demo@demo.com "Demo12345!"
 docker compose exec server npm run seed:demo
 ```
 
@@ -278,7 +278,7 @@ En producción la imagen del servidor no incluye `tsx`, así que los seeds se ej
 
 ```bash
 docker compose -f docker-compose.prod.yml exec server \
-  node dist/scripts/seed-admin.js demo@demo.com "Demo1234!"
+  node dist/scripts/seed-admin.js demo@demo.com "Demo12345!"
 docker compose -f docker-compose.prod.yml exec server node dist/scripts/seed-demo.js
 ```
 
@@ -326,6 +326,11 @@ Si ya tenías una base con el esquema anterior, adóptala con
 | `CORS_ORIGINS` | Orígenes permitidos, separados por coma; vacío = sin CORS |
 | `TRUST_PROXY` | `1` si la API está detrás de un proxy inverso |
 | `RATE_LIMIT_DISABLED` | `1` solo para pruebas controladas |
+| `ACCESS_TOKEN_TTL_MINUTES` | Vida del token de acceso (por defecto `15`) |
+| `REFRESH_TOKEN_DAYS` | Vida del refresh token (por defecto `7`) |
+| `MAX_LOGIN_ATTEMPTS` | Intentos fallidos antes del bloqueo temporal (por defecto `5`) |
+| `LOCKOUT_MINUTES` | Minutos de bloqueo de la cuenta (por defecto `15`) |
+| `LOG_LEVEL` | `debug`, `info`, `warn`, `error` o `silent` |
 
 Crea el primer administrador y arranca la API:
 
@@ -344,7 +349,7 @@ Para dejar la base de desarrollo limpia con datos de ejemplo:
 $env:RESET_DEV_DB='si'; npm run reset:dev
 
 # 2. Crea el administrador demo
-npm run seed:admin -- demo@demo.com "Demo1234!"
+npm run seed:admin -- demo@demo.com "Demo12345!"
 
 # 3. Inicia el servidor
 npm run dev
@@ -382,9 +387,11 @@ hace falta configurar CORS en desarrollo.
 | `server` | `npm run typecheck` | Verifica tipos sin compilar |
 | `server` | `npm run lint` | Revisa el código con ESLint |
 | `server` | `npm test` | Ejecuta las pruebas |
+| `server` | `npm run test:coverage` | Pruebas con umbral mínimo de cobertura |
 | `server` | `npm run test:watch` | Pruebas en modo observador |
 | `server` | `npm run test:db` | Crea/actualiza la base de pruebas |
 | `server` | `npm run migrate` | Aplica las migraciones pendientes |
+| `server` | `npm run migrate:status` | Muestra migraciones aplicadas, pendientes o modificadas |
 | `server` | `npm run seed:admin -- correo clave` | Crea un usuario administrador |
 | `server` | `npm run seed:demo` | Siembra datos demo (requiere el servidor activo) |
 | `server` | `npm run reset:dev` | Borra y recrea la base de desarrollo |
@@ -398,8 +405,10 @@ hace falta configurar CORS en desarrollo.
 
 ## API
 
-Todas las rutas, salvo el login y `health`, requieren `Authorization: Bearer <token>`.
-Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuando hay detalle
+Todas las rutas, salvo `health`, `login`, `refresh` y `logout`, requieren
+`Authorization: Bearer <token>`. El token de acceso dura 15 minutos; el cliente lo renueva con el
+refresh token de forma transparente. Los errores siguen un formato único:
+`{ "message": "..." }`, más `errors` cuando hay detalle
 (validación Zod o líneas sin stock), con códigos 400, 401, 403, 404, 409 y 500.
 
 **Referencia completa y ejecutable:** con el servidor en marcha abre
@@ -556,15 +565,18 @@ cd ../client && npm run lint && npm run build && npm run test:e2e
 ## Seguridad
 
 La API valida el entorno al arrancar: `JWT_SECRET` debe tener al menos 32 caracteres y no puede
-ser un valor de ejemplo. El login y el cambio de contraseña tienen límite de intentos; las
-peticiones autenticadas comprueban que el usuario siga activo y usan su rol actual. Las respuestas
-incluyen cabeceras de seguridad y CORS solo se habilita para los orígenes de `CORS_ORIGINS`.
+ser un valor de ejemplo. El login usa tokens de acceso cortos (15 minutos) y refresh tokens
+rotativos; tras cinco intentos fallidos la cuenta se bloquea 15 minutos y el intento queda en
+auditoría. Las peticiones autenticadas comprueban que el usuario siga activo y usan su rol actual.
+Las respuestas incluyen cabeceras de seguridad y CORS solo se habilita para los orígenes de
+`CORS_ORIGINS`. Los logs son JSON, con `X-Request-Id` por petición y sin credenciales.
 
 El rol `operador` no recibe costes ni márgenes en productos, movimientos ni dashboard. Los secretos
 de `.env` no se versionan y el kit Docker exige definirlos antes de arrancar.
 
 La política de reporte, la lista de verificación de despliegue y las limitaciones conocidas están
-en [`SECURITY.md`](SECURITY.md).
+en [`SECURITY.md`](SECURITY.md). La operación diaria (copias, restauración, migraciones, logs y
+métricas) está en [`docs/OPERACION.md`](docs/OPERACION.md).
 
 ## Decisiones técnicas
 
@@ -628,7 +640,7 @@ en [`SECURITY.md`](SECURITY.md).
     │   ├── middlewares/         # Autenticación, roles y manejo central de errores
     │   ├── modules/             # auth, users, categories, products, movements,
     │   │                        # dashboard, quotes, invoices, finance, third-parties,
-    │   │                        # period-closures, audit y company
+    │   │                        # period-closures, audit, company y ops
     │   ├── routes.ts            # Prefijos compartidos por app y la spec
     │   ├── scripts/             # Seeds, migraciones y exportación de la spec
     │   ├── types/               # Tipos de Express (req.user)
@@ -643,6 +655,7 @@ en [`SECURITY.md`](SECURITY.md).
 - [Mejora de OpenAPI y contrato TS](docs/MEJORAS-OPENAPI.md) — generación, uso en el cliente y mantenimiento.
 - [Pruebas E2E con Playwright](docs/MEJORAS-E2E.md) — arquitectura, ejecución local y CI.
 - [Política de seguridad](SECURITY.md) — reporte, medidas implementadas y despliegue.
+- [Operación](docs/OPERACION.md) — copias de seguridad, restauración, migraciones, logs y métricas.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
@@ -655,8 +668,9 @@ en [`SECURITY.md`](SECURITY.md).
 ## Posibles mejoras
 
 - Facturación electrónica y envío de documentos por correo.
-- Tokens de vida corta con refresh tokens.
-- Docker y despliegue en la nube.
+- Preview público por Pull Request (requiere definir el proveedor de despliegue; el workflow
+  actual construye y prueba la pila de producción sin publicar una URL).
+- Exportador de métricas para Prometheus y trazas distribuidas.
 - Notificaciones automáticas de vencimientos y alertas de stock.
 - Valuación de inventario por promedio ponderado.
 
