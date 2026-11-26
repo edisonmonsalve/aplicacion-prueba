@@ -200,6 +200,6 @@ jobs:
       # Escanea el historial y el diff. En repositorios de organización puede
       # requerir GITLEAKS_LICENSE; en repositorios públicos no.
       - name: Buscar secretos filtrados
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
