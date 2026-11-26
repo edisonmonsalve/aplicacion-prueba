@@ -1,19 +1,19 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type { Category } from "@/types";
 
 export async function getCategories() {
-  const { data } = await api.get<Category[]>("/categories");
+  const { data } = await apiRequest<"GET /api/categories", Category[]>("GET /api/categories");
   return data;
 }
 
 export async function createCategory(nombre: string, codigo: string) {
-  await api.post("/categories", { nombre, codigo });
+  await apiRequest("POST /api/categories", { nombre, codigo });
 }
 
 export async function updateCategory(id: number, nombre: string, codigo: string) {
-  await api.put(`/categories/${id}`, { nombre, codigo });
+  await apiRequest("PUT /api/categories/{id}", { nombre, codigo }, { params: { id } });
 }
 
 export async function deleteCategory(id: number) {
-  await api.delete(`/categories/${id}`);
+  await apiRequest("DELETE /api/categories/{id}", { params: { id } });
 }

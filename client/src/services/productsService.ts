@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type { Paginated, Product } from "@/types";
 
 export interface ProductsQuery {
@@ -42,27 +42,29 @@ export interface ProductInput {
 }
 
 export async function getProducts(params: ProductsQuery) {
-  const { data } = await api.get<ProductsResponse>("/products", { params });
+  const { data } = await apiRequest<"GET /api/products", ProductsResponse>("GET /api/products", {
+    query: params,
+  });
   return data;
 }
 
 /** SKU sugerido para una categoría (`PREF-0001`); el usuario puede editarlo. */
 export async function getNextSku(categoryId: number) {
-  const { data } = await api.get<{ sku: string }>("/products/next-sku", {
-    params: { category_id: categoryId },
+  const { data } = await apiRequest("GET /api/products/next-sku", {
+    query: { category_id: categoryId },
   });
   return data.sku;
 }
 
 export async function createProduct(input: ProductInput) {
-  const { data } = await api.post<{ id: number }>("/products", input);
+  const { data } = await apiRequest("POST /api/products", input);
   return data;
 }
 
 export async function updateProduct(id: number, input: ProductInput) {
-  await api.put(`/products/${id}`, input);
+  await apiRequest("PUT /api/products/{id}", input, { params: { id } });
 }
 
 export async function setProductActivo(id: number, activo: boolean) {
-  await api.patch(`/products/${id}/activo`, { activo });
+  await apiRequest("PATCH /api/products/{id}/activo", { activo }, { params: { id } });
 }

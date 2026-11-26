@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type {
   PaginatedThirdParties,
   ThirdPartiesQuery,
@@ -7,16 +7,30 @@ import type {
 } from "@/types";
 
 export const listThirdParties = async (q: ThirdPartiesQuery) =>
-  (await api.get<PaginatedThirdParties>("/third-parties", { params: q })).data;
+  (
+    await apiRequest<"GET /api/third-parties", PaginatedThirdParties>("GET /api/third-parties", {
+      query: q,
+    })
+  ).data;
 
 export const getThirdParty = async (id: number) =>
-  (await api.get<ThirdParty>(`/third-parties/${id}`)).data;
+  (
+    await apiRequest<"GET /api/third-parties/{id}", ThirdParty>("GET /api/third-parties/{id}", {
+      params: { id },
+    })
+  ).data;
 
 export const createThirdParty = async (input: ThirdPartyInput) =>
-  (await api.post<{ id: number }>("/third-parties", input)).data;
+  (await apiRequest("POST /api/third-parties", input)).data;
 
 export const updateThirdParty = async (id: number, input: Partial<ThirdPartyInput>) =>
-  (await api.put<{ id: number }>(`/third-parties/${id}`, input)).data;
+  (
+    await apiRequest<"PUT /api/third-parties/{id}", { id: number }>(
+      "PUT /api/third-parties/{id}",
+      input,
+      { params: { id } }
+    )
+  ).data;
 
 export const deleteThirdParty = async (id: number) =>
-  api.delete(`/third-parties/${id}`);
+  apiRequest("DELETE /api/third-parties/{id}", { params: { id } });

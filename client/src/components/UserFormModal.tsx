@@ -5,6 +5,7 @@ import { createUser, updateUser } from "@/services/usersService";
 import { getErrorMessage } from "@/utils/errors";
 import type { Rol, User } from "@/types";
 import { ROLES } from "@/utils/roles";
+import { PASSWORD_HINT, passwordRules } from "@/utils/passwordRules";
 import ModalHeading from "@/components/ModalHeading";
 
 interface Props {
@@ -107,12 +108,8 @@ export default function UserFormModal({ user, isSelf, onClose, onSaved }: Props)
         <Form.Item
           label={isEdit ? "Nueva contraseña (opcional)" : "Contraseña"}
           name="password"
-          tooltip="Mínimo 8 caracteres. En edición, dejar vacío para no cambiarla."
-          rules={[
-            { required: !isEdit, message: "Ingresa la contraseña" },
-            { min: 8, message: "Mínimo 8 caracteres" },
-            { max: 72, message: "Máximo 72 caracteres" },
-          ]}
+          tooltip={`${PASSWORD_HINT} En edición, déjala vacía para no cambiarla.`}
+          rules={passwordRules(!isEdit)}
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>

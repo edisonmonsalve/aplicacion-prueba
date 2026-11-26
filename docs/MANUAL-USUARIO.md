@@ -8,10 +8,10 @@ flujos principales.
 
 - **URL de desarrollo:** `http://localhost:5173` (cliente) sobre el servidor en `http://localhost:3000`.
 - **Credenciales demo:**
-  - Administrador: `demo@demo.com` / `Demo1234!`
-  - Contador: `contador@demo.com` / `Demo1234!`
-  - Operador: `operador@demo.com` / `Demo1234!`
-  - Consulta: `consulta@demo.com` / `Demo1234!`
+  - Administrador: `demo@demo.com` / `Demo12345!`
+  - Contador: `contador@demo.com` / `Demo12345!`
+  - Operador: `operador@demo.com` / `Demo12345!`
+  - Consulta: `consulta@demo.com` / `Demo12345!`
 
 Roles y permisos:
 
@@ -19,7 +19,7 @@ Roles y permisos:
 |-----|-----------|--------------|----------|----------|
 | admin | Completo | Completo | Completo | Gestión |
 | contador | Lectura | Lectura | Completo | — |
-| operador | Operación | Operación | Lectura | — |
+| operador | Operación | Operación | — | — |
 | consulta | Lectura | Lectura | Lectura | — |
 
 - El menú lateral se adapta al rol: solo el administrador ve “Empresa”, “Usuarios” y “Finanzas → transacciones”.

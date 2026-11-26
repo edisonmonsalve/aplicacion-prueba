@@ -39,10 +39,13 @@ jobs:
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: inventario_test
-      JWT_SECRET: secreto-solo-para-ci
 
     steps:
       - uses: actions/checkout@v4
+
+      # Se genera en cada ejecución: no hay secretos reales en el repositorio.
+      - name: Generar secreto efímero para las pruebas
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -53,6 +56,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Auditar dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Revisar tipos
         run: npm run typecheck
 
@@ -62,11 +68,76 @@ jobs:
       - name: Crear base de datos de pruebas
         run: npm run test:db
 
-      - name: Ejecutar pruebas
-        run: npm test
+      - name: Ejecutar pruebas con cobertura
+        run: npm run test:coverage
 
       - name: Revisar estilo y errores comunes
         run: npm run lint
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: inventario_e2e_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar secreto efímero para las pruebas
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Instalar dependencias del servidor
+        working-directory: server
+        run: npm ci
+
+      - name: Instalar dependencias del cliente
+        working-directory: client
+        run: npm ci
+
+      - name: Instalar Chromium
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar pruebas de extremo a extremo
+        working-directory: client
+        run: npm run test:e2e
+
+      - name: Subir artefactos de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ github.run_attempt }}
+          path: |
+            client/test-results
+            client/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
 
   client:
     name: client
@@ -88,5 +159,47 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Auditar dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Revisar tipos y compilar
         run: npm run build
+
+  dependencies:
+    name: dependencias
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar dependencias nuevas o actualizadas
+        uses: actions/dependency-review-action@v4
+        # El grafo de dependencias debe habilitarse en Settings > Security.
+        # Mientras siga deshabilitado, el job es informativo y no rompe el PR;
+        # `npm audit` sigue bloqueando vulnerabilidades altas en producción.
+        continue-on-error: true
+        with:
+          fail-on-severity: high
+
+  secrets:
+    name: secretos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Escanea el historial y el diff. En repositorios de organización puede
+      # requerir GITLEAKS_LICENSE; en repositorios públicos no.
+      - name: Buscar secretos filtrados
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

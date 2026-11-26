@@ -20,8 +20,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Cobertura de tests
+# Cobertura de tests y artefactos de Playwright
 coverage/
+test-results/
+playwright-report/
+blob-report/
 
 # Cachés de herramientas
 .vite/

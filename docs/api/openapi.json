@@ -45,6 +45,9 @@
     },
     {
       "name": "Empresa"
+    },
+    {
+      "name": "Operación"
     }
   ],
   "paths": {
@@ -59,7 +62,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -94,7 +104,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -150,7 +167,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -185,6 +209,105 @@
         }
       }
     },
+    "/api/auth/refresh": {
+      "post": {
+        "operationId": "postApiAuthRefresh",
+        "tags": [
+          "Sesión"
+        ],
+        "summary": "Renovar el token de acceso con un refresh token",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "postApiAuthLogout",
+        "tags": [
+          "Sesión"
+        ],
+        "summary": "Cerrar la sesión y revocar el refresh token",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Operación completada"
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/password": {
       "put": {
         "operationId": "putApiAuthPassword",
@@ -195,7 +318,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -397,7 +527,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -481,7 +618,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -565,7 +709,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -693,7 +844,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -777,7 +935,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -859,7 +1024,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1079,7 +1251,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1165,7 +1344,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkuResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1229,7 +1415,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1313,7 +1506,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Operación completada"
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -1577,7 +1777,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdStockResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -7264,7 +7471,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Recurso creado"
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Datos inválidos (errores de validación)",
@@ -8004,11 +8218,13 @@
                 "account",
                 "payment",
                 "period_closure",
+                "invoice",
                 "invoice_adjustment",
                 "bank_reconciliation",
                 "receivable_followup",
                 "company_settings",
-                "stock_movement"
+                "stock_movement",
+                "auth"
               ]
             }
           },
@@ -8234,6 +8450,61 @@
           }
         }
       }
+    },
+    "/api/metrics": {
+      "get": {
+        "operationId": "getApiMetrics",
+        "tags": [
+          "Operación"
+        ],
+        "summary": "Métricas de uso, errores y latencia desde el arranque",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación completada"
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8273,6 +8544,19 @@
           "password"
         ]
       },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
       "ChangePasswordRequest": {
         "type": "object",
         "properties": {
@@ -8282,7 +8566,7 @@
           },
           "newPassword": {
             "type": "string",
-            "minLength": 8,
+            "minLength": 10,
             "maxLength": 72
           }
         },
@@ -8307,7 +8591,7 @@
           },
           "password": {
             "type": "string",
-            "minLength": 8,
+            "minLength": 10,
             "maxLength": 72
           },
           "rol": {
@@ -8343,7 +8627,7 @@
           },
           "password": {
             "type": "string",
-            "minLength": 8,
+            "minLength": 10,
             "maxLength": 72
           },
           "rol": {
@@ -10625,11 +10909,13 @@
               "account",
               "payment",
               "period_closure",
+              "invoice",
               "invoice_adjustment",
               "bank_reconciliation",
               "receivable_followup",
               "company_settings",
-              "stock_movement"
+              "stock_movement",
+              "auth"
             ]
           },
           "entidad_id": {
@@ -10766,6 +11052,143 @@
         },
         "required": [
           "nombre"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "uptime_seconds": {
+            "type": "number"
+          },
+          "db": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "ok"
+              },
+              "latency_ms": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "status",
+              "latency_ms"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "uptime_seconds",
+          "db"
+        ]
+      },
+      "AuthUserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/IdParam"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "contador",
+              "operador",
+              "consulta"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "email",
+          "rol"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUserResponse"
+          }
+        },
+        "required": [
+          "token",
+          "refreshToken",
+          "user"
+        ]
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "IdResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/IdParam"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "SkuResponse": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku"
+        ]
+      },
+      "IdStockResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/IdParam"
+          },
+          "stock_actual": {
+            "type": "number"
+          },
+          "costo_unitario": {
+            "type": "number"
+          },
+          "precio_unitario": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "stock_actual"
         ]
       },
       "ErrorResponse": {

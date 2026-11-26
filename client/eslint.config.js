@@ -14,4 +14,13 @@ export default [
       "react-hooks/exhaustive-deps": "warn",
     },
   },
+  {
+    // Las fixtures de Playwright usan `use` como callback, no como hook de React.
+    files: ["e2e/**/*.ts", "playwright.config.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "no-empty-pattern": "off",
+    },
+  },
 ];

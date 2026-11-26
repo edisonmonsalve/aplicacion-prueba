@@ -1,0 +1,67 @@
+# Verifica que la imagen de producción arranca y responde antes de fusionar.
+#
+# No publica una URL porque el repositorio no define un proveedor de hosting.
+# Cuando exista uno (VPS, Fly.io, Render, etc.), este job puede reutilizar la
+# imagen construida o desplegar docker-compose.prod.yml en el destino.
+name: Preview de producción
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    name: pila de producción
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      # Valores no secretos; los dos primeros se generan por ejecución.
+      DB_NAME: inventario_preview
+      WEB_PORT: 8080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar secretos efímeros
+        run: |
+          echo "DB_ROOT_PASSWORD=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Construir y levantar la pila de producción
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Comprobar salud, cabeceras y cliente estático
+        run: |
+          set -euo pipefail
+
+          health=$(curl -fsS http://localhost:8080/api/health)
+          echo "health: $health"
+          echo "$health" | grep -q '"status":"ok"'
+
+          curl -fsS http://localhost:8080/ | grep -q '/assets/'
+          curl -fsS http://localhost:8080/ | grep -q 'theme-init.js'
+
+          headers=$(curl -fsSI http://localhost:8080/)
+          echo "$headers" | grep -qi 'content-security-policy:.*script-src'
+          echo "$headers" | grep -qi 'x-content-type-options: nosniff'
+
+          curl -fsS http://localhost:8080/api/openapi.json > /dev/null
+
+      - name: Mostrar logs si falla
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color
+
+      - name: Apagar y limpiar
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v
+
+      - name: Resumen
+        if: success()
+        run: |
+          echo "La imagen de producción arrancó, migró la base y respondió en :8080." >> "$GITHUB_STEP_SUMMARY"
+          echo "Sin URL pública: falta definir el proveedor de despliegue." >> "$GITHUB_STEP_SUMMARY"

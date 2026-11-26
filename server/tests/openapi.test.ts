@@ -64,8 +64,13 @@ describe("especificación OpenAPI", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("marca como públicas solo health y login", () => {
-    const publicOps = ["/api/health", "/api/auth/login"];
+  it("marca como públicas solo health, login, refresh y logout", () => {
+    const publicOps = [
+      "/api/health",
+      "/api/auth/login",
+      "/api/auth/refresh",
+      "/api/auth/logout",
+    ];
     for (const [path, methods] of Object.entries(doc.paths)) {
       for (const raw of Object.values(methods as AnyRecord)) {
         const operation = raw as AnyRecord;
@@ -96,6 +101,51 @@ describe("especificación OpenAPI", () => {
     });
     const schemas = doc.components.schemas as AnyRecord;
     expect(schemas.LoginRequest).toMatchObject({ required: ["email", "password"] });
+  });
+
+  it("documenta respuestas correctas verificadas", () => {
+    const login = (doc.paths["/api/auth/login"] as AnyRecord).post as AnyRecord;
+    const loginResponse = (login.responses as AnyRecord)["200"] as AnyRecord;
+    expect((loginResponse.content as AnyRecord)["application/json"]).toMatchObject({
+      schema: { $ref: "#/components/schemas/LoginResponse" },
+    });
+
+    const createProduct = (doc.paths["/api/products"] as AnyRecord).post as AnyRecord;
+    const created = (createProduct.responses as AnyRecord)["201"] as AnyRecord;
+    expect((created.content as AnyRecord)["application/json"]).toMatchObject({
+      schema: { $ref: "#/components/schemas/IdResponse" },
+    });
+
+    const schemas = doc.components.schemas as AnyRecord;
+    expect(schemas.LoginResponse).toMatchObject({ required: ["token", "refreshToken", "user"] });
+    expect(schemas.MessageResponse).toMatchObject({ required: ["message"] });
+  });
+
+  it("genera el contrato con todas las rutas y las respuestas tipadas", () => {
+    const contract = buildClientContract(doc);
+    expect(contract).toContain("export type ApiRoutes =");
+    expect(contract).toContain("export type ApiResponses = {");
+    expect(contract).toContain("export const apiRoutesWithBody: ReadonlySet<ApiRoutes>");
+    for (const [path, methods] of Object.entries(doc.paths)) {
+      for (const method of Object.keys(methods)) {
+        expect(contract).toContain(`"${method.toUpperCase()} ${path}"`);
+      }
+    }
+  });
+
+  it("el conjunto de rutas con body coincide con la spec", () => {
+    const contract = buildClientContract(doc);
+    const block =
+      contract.match(/apiRoutesWithBody[^=]*= new Set<ApiRoutes>\(\[([\s\S]*?)\]\);/)?.[1] ?? "";
+    const listed = Array.from(block.matchAll(/"([^"]+)"/g), (match) => match[1]).sort();
+
+    const expected: string[] = [];
+    for (const [path, methods] of Object.entries(doc.paths)) {
+      for (const [method, raw] of Object.entries(methods as AnyRecord)) {
+        if ((raw as AnyRecord).requestBody) expected.push(`${method.toUpperCase()} ${path}`);
+      }
+    }
+    expect(listed).toEqual(expected.sort());
   });
 
   it("sirve la spec y la interfaz pública", async () => {

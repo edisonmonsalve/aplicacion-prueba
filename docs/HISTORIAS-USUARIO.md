@@ -17,11 +17,11 @@ Criterios de aceptación (CA) incluidos.
 
 ## 2. Inventario
 
-- **HU-05** Como operador, quiero registrar productos con SKU, nombre, categoría, precio, costo y stock mínimo, para mantener el catálogo.
-  - CA: SKU único; precio y stock mínimo válidos; producto inactivo no admite movimientos.
-- **HU-06** Como operador, quiero editar y activar/desactivar productos, para gestionar el ciclo de vida.
+- **HU-05** Como admin u operador, quiero registrar productos con SKU, nombre, categoría, precio y stock mínimo, para mantener el catálogo.
+  - CA: SKU único; precio y stock mínimo válidos; solo admin define el costo; producto inactivo no admite movimientos.
+- **HU-06** Como admin u operador, quiero editar productos; como admin, activarlos o desactivarlos para gestionar el ciclo de vida.
   - CA: no se desactiva si tiene stock o cotizaciones enviadas/aprobadas.
-- **HU-07** Como operador, quiero organizar productos por categorías, para facilitar la búsqueda.
+- **HU-07** Como admin, quiero organizar productos por categorías, para facilitar la búsqueda.
   - CA: no se elimina una categoría con productos asociados.
 - **HU-08** Como operador, quiero registrar entradas de stock, para reflejar compras.
   - CA: suma stock; si tiene costo, genera egreso automático en finanzas; valida periodo cerrado.

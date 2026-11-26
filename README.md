@@ -20,7 +20,7 @@ La cotización es una propuesta comercial y **no contabiliza**; la factura es el
 mueve stock y genera asientos.
 
 > Datos de demostración disponibles con `npm run seed:demo`. Usuario admin:
-> `demo@demo.com` / `Demo1234!`.
+> `demo@demo.com` / `Demo12345!`.
 
 ## Índice
 
@@ -33,6 +33,7 @@ mueve stock y genera asientos.
 - [Scripts](#scripts)
 - [API](#api)
 - [Pruebas y calidad](#pruebas-y-calidad)
+- [Seguridad](#seguridad)
 - [Decisiones técnicas](#decisiones-técnicas)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Documentación](#documentación)
@@ -135,7 +136,7 @@ al inicio de este documento.
 | `operador` | Operación | Operación | Crear y confirmar | — | Sin acceso | — |
 | `consulta` | Lectura | Lectura | Lectura | Lectura | Solo lectura | — |
 
-Usuarios demo creados por `seed:demo` (todos con clave `Demo1234!`):
+Usuarios demo creados por `seed:demo` (todos con clave `Demo12345!`):
 
 | Correo | Rol |
 | --- | --- |
@@ -208,7 +209,7 @@ Usuarios demo creados por `seed:demo` (todos con clave `Demo1234!`):
 | Frontend | React 19, TypeScript 5.9, Vite 8, Ant Design 6, React Router 7, Axios, Recharts, Zod |
 | Backend | Node.js, Express 5, TypeScript, Zod |
 | Base de datos | MariaDB (driver `mysql2`) con migraciones numeradas |
-| Seguridad | JWT, bcryptjs, middleware de roles y DTO sensibles al rol |
+| Seguridad | JWT HS256, bcryptjs, roles, rate limiting, CORS por origen y cabeceras de seguridad |
 | Pruebas y calidad | Vitest, Supertest, ESLint, `tsc --noEmit` |
 
 ## Puesta en marcha
@@ -219,39 +220,86 @@ Usuarios demo creados por `seed:demo` (todos con clave `Demo1234!`):
 - **Instalación local:** Node.js 22 recomendado (Vite 8 requiere 20.19+ o 22.12+) y MariaDB
   10.5 o superior.
 
-### Opción A: Docker Compose (recomendado)
+### Opción A: Docker Compose
+
+#### A1. Kit de desarrollo (recomendado para trabajar)
 
 ```bash
 cp .env.compose.example .env   # en Windows: copy .env.compose.example .env
-docker compose up -d --build
+# Edita .env y define DB_ROOT_PASSWORD y JWT_SECRET con valores aleatorios:
+#   openssl rand -hex 32
+docker compose up -d --build --wait
 ```
 
-El primer arranque levanta MariaDB, espera a que acepte conexiones, aplica las migraciones y
-compila el cliente. No hace falta instalar Node ni MariaDB en el host.
+El primer arranque levanta MariaDB, espera a que esté sana, aplica las migraciones y sirve el
+cliente con Vite (recarga en caliente). `--wait` no devuelve el control hasta que la API y el
+cliente están listos, así que el siguiente comando no compite con las migraciones. No hace falta
+instalar Node ni MariaDB en el host.
 
 | Servicio | URL | Variable de puerto |
 | --- | --- | --- |
 | Aplicación | `http://localhost:5173` | `WEB_PORT` |
 | API | `http://localhost:3000/api/health` | `API_PORT` |
-| MariaDB | `localhost:3306` | `MARIADB_HOST_PORT` |
+| MariaDB | `127.0.0.1:3306` | `MARIADB_HOST_PORT` |
 
-Crea el administrador y, si quieres, siembra los datos de demostración:
+Para probar con los datos de demostración, crea el administrador con las credenciales que espera
+el seed y ejecútalo:
 
 ```bash
-docker compose exec server npm run seed:admin -- admin@ejemplo.com TuClaveSegura123
-docker compose exec server npm run seed:demo      # opcional
+docker compose exec server npm run seed:admin -- demo@demo.com "Demo12345!"
+docker compose exec server npm run seed:demo
 ```
+
+#### A2. Kit de producción local (cliente estático)
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build --wait
+```
+
+Usa el mismo `.env`, pero cambia el comportamiento:
+
+- El cliente se compila con Vite y se sirve como estático con Nginx (sin Vite ni Node en la
+  imagen final), con fallback de rutas de la SPA, caché de assets, CSP y cabeceras de seguridad.
+- **Solo se publica el cliente** (`WEB_PORT`, por defecto `8080` si `.env` no lo define). Nginx
+  hace de proxy inverso de `/api`; MariaDB y la API quedan en la red interna.
+- Usa su propio volumen (`signal-prod_mariadb_data`), separado del kit de desarrollo: los datos de
+  uno no aparecen en el otro.
+- La API y el cliente corren con usuarios sin privilegios.
+- `NODE_ENV=production` y `TRUST_PROXY=1`: el API usa la IP real que Nginx fija en
+  `X-Forwarded-For`.
+- La documentación de la API sigue disponible a través del mismo origen, en `/api/docs`.
+
+| Servicio | URL |
+| --- | --- |
+| Aplicación y API | `http://localhost:<WEB_PORT>` (`5173` con el `.env` de ejemplo) |
+| Documentación | `http://localhost:<WEB_PORT>/api/docs` |
+
+En producción la imagen del servidor no incluye `tsx`, así que los seeds se ejecutan compilados:
+
+```bash
+docker compose -f docker-compose.prod.yml exec server \
+  node dist/scripts/seed-admin.js demo@demo.com "Demo12345!"
+docker compose -f docker-compose.prod.yml exec server node dist/scripts/seed-demo.js
+```
+
+Si prefieres tu propio administrador, usa otro correo y contraseña y omite `seed:demo`.
 
 Comandos útiles:
 
 ```bash
-docker compose logs -f server   # seguir los logs de la API
+docker compose logs -f server   # seguir los logs del API
 docker compose down             # detener sin borrar datos
 docker compose down -v          # detener y borrar el volumen de MariaDB
 ```
 
-> Revisa `.env` antes de usar el proyecto fuera de tu máquina: cambia `JWT_SECRET` y
-> `DB_ROOT_PASSWORD`. Ese archivo está ignorado por Git.
+> `.env` es obligatorio: Compose no arranca si `DB_ROOT_PASSWORD` o `JWT_SECRET` están vacíos.
+> Ese archivo está ignorado por Git. En desarrollo MariaDB solo se publica en `127.0.0.1`; en
+> producción no se publica. Si cambias las credenciales después del primer arranque, ejecuta
+> `docker compose down -v` (y lo mismo con `-f docker-compose.prod.yml`) antes de volver a
+> levantar: el volumen conserva la contraseña anterior.
+
+> El kit Docker no se ha podido ejecutar en el equipo de desarrollo porque no tiene Docker
+> instalado; los archivos se validan de forma estática y se prueban en CI/equipos con Docker.
 
 ### Opción B: instalación local
 
@@ -261,6 +309,7 @@ docker compose down -v          # detener y borrar el volumen de MariaDB
 cd server
 npm install
 cp .env.example .env     # en Windows: copy .env.example .env
+# Edita .env y define JWT_SECRET con: openssl rand -hex 32
 npm run migrate          # crea la base si no existe y aplica migraciones pendientes
 ```
 
@@ -273,7 +322,15 @@ Si ya tenías una base con el esquema anterior, adóptala con
 | `DB_HOST`, `DB_PORT` | Servidor de MariaDB |
 | `DB_USER`, `DB_PASSWORD` | Credenciales de la base |
 | `DB_NAME` | Nombre de la base (`inventario`) |
-| `JWT_SECRET` | Cadena larga y aleatoria para firmar los tokens |
+| `JWT_SECRET` | Obligatorio: cadena aleatoria de al menos 32 caracteres |
+| `CORS_ORIGINS` | Orígenes permitidos, separados por coma; vacío = sin CORS |
+| `TRUST_PROXY` | `1` si la API está detrás de un proxy inverso |
+| `RATE_LIMIT_DISABLED` | `1` solo para pruebas controladas |
+| `ACCESS_TOKEN_TTL_MINUTES` | Vida del token de acceso (por defecto `15`) |
+| `REFRESH_TOKEN_DAYS` | Vida del refresh token (por defecto `7`) |
+| `MAX_LOGIN_ATTEMPTS` | Intentos fallidos antes del bloqueo temporal (por defecto `5`) |
+| `LOCKOUT_MINUTES` | Minutos de bloqueo de la cuenta (por defecto `15`) |
+| `LOG_LEVEL` | `debug`, `info`, `warn`, `error` o `silent` |
 
 Crea el primer administrador y arranca la API:
 
@@ -292,7 +349,7 @@ Para dejar la base de desarrollo limpia con datos de ejemplo:
 $env:RESET_DEV_DB='si'; npm run reset:dev
 
 # 2. Crea el administrador demo
-npm run seed:admin -- demo@demo.com "Demo1234!"
+npm run seed:admin -- demo@demo.com "Demo12345!"
 
 # 3. Inicia el servidor
 npm run dev
@@ -320,7 +377,8 @@ hace falta configurar CORS en desarrollo.
 
 | Carpeta | Comando | Descripción |
 | --- | --- | --- |
-| raíz | `docker compose up -d --build` | Levanta MariaDB, API y cliente |
+| raíz | `docker compose up -d --build` | Levanta el kit de desarrollo (Vite) |
+| raíz | `docker compose -f docker-compose.prod.yml up -d --build` | Levanta el kit de producción local (Nginx estático) |
 | raíz | `docker compose logs -f server` | Sigue los logs de la API |
 | raíz | `docker compose down -v` | Detiene y borra el volumen de datos |
 | `server` | `npm run dev` | Servidor con recarga automática |
@@ -329,9 +387,11 @@ hace falta configurar CORS en desarrollo.
 | `server` | `npm run typecheck` | Verifica tipos sin compilar |
 | `server` | `npm run lint` | Revisa el código con ESLint |
 | `server` | `npm test` | Ejecuta las pruebas |
+| `server` | `npm run test:coverage` | Pruebas con umbral mínimo de cobertura |
 | `server` | `npm run test:watch` | Pruebas en modo observador |
 | `server` | `npm run test:db` | Crea/actualiza la base de pruebas |
 | `server` | `npm run migrate` | Aplica las migraciones pendientes |
+| `server` | `npm run migrate:status` | Muestra migraciones aplicadas, pendientes o modificadas |
 | `server` | `npm run seed:admin -- correo clave` | Crea un usuario administrador |
 | `server` | `npm run seed:demo` | Siembra datos demo (requiere el servidor activo) |
 | `server` | `npm run reset:dev` | Borra y recrea la base de desarrollo |
@@ -340,11 +400,15 @@ hace falta configurar CORS en desarrollo.
 | `client` | `npm run build` | Verifica tipos y genera el build |
 | `client` | `npm run preview` | Sirve el build generado |
 | `client` | `npm run lint` | Revisa el código con ESLint |
+| `client` | `npm run test:e2e` | Pruebas de extremo a extremo con Playwright |
+| `client` | `npm run test:e2e:ui` | Pruebas E2E en modo interactivo |
 
 ## API
 
-Todas las rutas, salvo el login y `health`, requieren `Authorization: Bearer <token>`.
-Los errores siguen un formato único: `{ "message": "..." }`, más `errors` cuando hay detalle
+Todas las rutas, salvo `health`, `login`, `refresh` y `logout`, requieren
+`Authorization: Bearer <token>`. El token de acceso dura 15 minutos; el cliente lo renueva con el
+refresh token de forma transparente. Los errores siguen un formato único:
+`{ "message": "..." }`, más `errors` cuando hay detalle
 (validación Zod o líneas sin stock), con códigos 400, 401, 403, 404, 409 y 500.
 
 **Referencia completa y ejecutable:** con el servidor en marcha abre
@@ -356,7 +420,10 @@ petición se generan con `z.toJSONSchema` desde los mismos esquemas Zod que vali
 petición. Las tablas de abajo son un resumen humano; si una ruta nueva aparece sin metadata,
 la spec la documenta igualmente con un resumen genérico. El contrato TypeScript del cliente
 ([`api-contract.generated.ts`](client/src/services/api-contract.generated.ts)) sale de la misma
-generación, y una prueba falla si los artefactos quedan desactualizados.
+generación, y una prueba falla si los artefactos quedan desactualizados. El cliente consume ese
+contrato con `apiRequest()`, que infiere cuerpo y respuesta, sustituye parámetros de ruta y envía
+la query string; los 14 servicios ya lo usan. El flujo completo está en
+[`docs/MEJORAS-OPENAPI.md`](docs/MEJORAS-OPENAPI.md).
 
 ### Sesión
 
@@ -379,7 +446,7 @@ generación, y una prueba falla si los artefactos quedan desactualizados.
 | GET | `/api/products`, `/api/products/next-sku` | Autenticado | Listar y sugerir SKU |
 | POST, PUT | `/api/products[/:id]` | Admin u operador | Crear y editar |
 | PATCH | `/api/products/:id/activo` | Admin | Activar o desactivar |
-| GET, POST | `/api/movements` | Lectura / operación | Historial y registrar movimiento |
+| GET, POST | `/api/movements` | Lectura / admin y operador | Historial y registrar movimiento |
 | GET | `/api/dashboard` | Autenticado | Métricas del inicio |
 | GET | `/api/third-parties[/:id]` | Autenticado | Listar y detalle de terceros |
 | POST, PUT, DELETE | `/api/third-parties[/:id]` | Admin, contador | Crear, editar y eliminar terceros |
@@ -388,13 +455,13 @@ generación, y una prueba falla si los artefactos quedan desactualizados.
 
 | Método | Ruta | Acceso | Descripción |
 | --- | --- | --- | --- |
-| GET, POST | `/api/quotes` | Lectura / operación | Listar y crear borrador |
+| GET, POST | `/api/quotes` | Lectura / admin y operador | Listar y crear borrador |
 | GET | `/api/quotes/:id` | Autenticado | Detalle con líneas |
 | PUT, DELETE | `/api/quotes/:id` | Creador o admin | Editar o eliminar borrador |
-| POST | `/api/quotes/:id/duplicate` | Operación | Duplicar como borrador nuevo |
+| POST | `/api/quotes/:id/duplicate` | Admin u operador | Duplicar como borrador nuevo |
 | POST | `/api/quotes/:id/{send,approve,reject}` | Creador o admin | Transiciones de estado |
 | GET | `/api/quotes/:id/history` | Autenticado | Historial de estados |
-| POST | `/api/quotes/:id/deliver` | Operación | Entrega de almacén (endpoint conservado) |
+| POST | `/api/quotes/:id/deliver` | Admin u operador | Entrega de almacén (endpoint conservado) |
 
 ### Facturación y cartera
 
@@ -467,6 +534,50 @@ cd ../client && npm run lint && npm run build
 
 Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
+### Pruebas de extremo a extremo
+
+Playwright levanta una API y un Vite efímeros contra la base `inventario_e2e_test`, distinta de la
+de las pruebas unitarias. Cubre inicio de sesión, redirección a `/login` sin sesión, permisos por
+rol, CRUD de categorías, alta de producto y movimientos de stock.
+
+```bash
+cd client
+npm run test:e2e
+```
+
+Usa Chromium de Playwright. Si ya tienes Chrome instalado y quieres evitar la descarga:
+
+```powershell
+$env:PLAYWRIGHT_CHANNEL='chrome'
+npm run test:e2e
+```
+
+El job `e2e` de CI ejecuta la misma suite con MariaDB como servicio. El detalle de puertos,
+fixtures y selectores está en [`docs/MEJORAS-E2E.md`](docs/MEJORAS-E2E.md).
+
+Comprobaciones habituales antes de integrar cambios (incluye E2E):
+
+```bash
+cd server && npm run typecheck && npm run lint && npm test
+cd ../client && npm run lint && npm run build && npm run test:e2e
+```
+
+## Seguridad
+
+La API valida el entorno al arrancar: `JWT_SECRET` debe tener al menos 32 caracteres y no puede
+ser un valor de ejemplo. El login usa tokens de acceso cortos (15 minutos) y refresh tokens
+rotativos; tras cinco intentos fallidos la cuenta se bloquea 15 minutos y el intento queda en
+auditoría. Las peticiones autenticadas comprueban que el usuario siga activo y usan su rol actual.
+Las respuestas incluyen cabeceras de seguridad y CORS solo se habilita para los orígenes de
+`CORS_ORIGINS`. Los logs son JSON, con `X-Request-Id` por petición y sin credenciales.
+
+El rol `operador` no recibe costes ni márgenes en productos, movimientos ni dashboard. Los secretos
+de `.env` no se versionan y el kit Docker exige definirlos antes de arrancar.
+
+La política de reporte, la lista de verificación de despliegue y las limitaciones conocidas están
+en [`SECURITY.md`](SECURITY.md). La operación diaria (copias, restauración, migraciones, logs y
+métricas) está en [`docs/OPERACION.md`](docs/OPERACION.md).
+
 ## Decisiones técnicas
 
 - **Paginación, búsqueda y filtros en el servidor**, con consultas parametrizadas.
@@ -488,7 +599,8 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
 ```text
 .
-├── docker-compose.yml           # MariaDB + API + cliente
+├── docker-compose.yml           # Kit de desarrollo: MariaDB + API + Vite
+├── docker-compose.prod.yml      # Kit de producción: MariaDB + API + Nginx estático
 ├── .env.compose.example         # Plantilla de variables para Compose
 ├── LICENSE                      # MIT
 ├── landing/                     # Portada pública estática
@@ -504,7 +616,8 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 │   ├── api/openapi.json         # Spec OpenAPI 3.1 generada
 │   └── screenshots/             # Imágenes usadas en este README
 ├── client/                      # React + Vite
-│   ├── Dockerfile
+│   ├── Dockerfile               # Multi-stage: Vite para desarrollo, Nginx para producción
+│   ├── nginx/                   # Configuración del cliente estático y cabeceras
 │   └── src/
 │       ├── components/          # Layout, rutas protegidas, tablas, gráficos e impresión
 │       ├── context/             # AuthContext y ThemeContext
@@ -518,7 +631,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 │       ├── types/               # Interfaces compartidas
 │       └── utils/               # Errores, moneda y exportación
 └── server/                      # Express + TypeScript
-    ├── Dockerfile
+    ├── Dockerfile               # Multi-stage, usuario sin privilegios
     ├── .env.example
     ├── migrations/               # SQL numeradas
     ├── src/
@@ -527,7 +640,7 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
     │   ├── middlewares/         # Autenticación, roles y manejo central de errores
     │   ├── modules/             # auth, users, categories, products, movements,
     │   │                        # dashboard, quotes, invoices, finance, third-parties,
-    │   │                        # period-closures, audit y company
+    │   │                        # period-closures, audit, company y ops
     │   ├── routes.ts            # Prefijos compartidos por app y la spec
     │   ├── scripts/             # Seeds, migraciones y exportación de la spec
     │   ├── types/               # Tipos de Express (req.user)
@@ -539,6 +652,10 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 
 - [Portada pública](https://edisonmonsalve.github.io/aplicacion-prueba/) — landing estática publicada en GitHub Pages ([código en `landing/index.html`](landing/index.html)); también desplegable en Vercel.
 - [Especificación OpenAPI](docs/api/openapi.json) — contrato HTTP generado desde los esquemas Zod; en el servidor se explora en `/api/docs`.
+- [Mejora de OpenAPI y contrato TS](docs/MEJORAS-OPENAPI.md) — generación, uso en el cliente y mantenimiento.
+- [Pruebas E2E con Playwright](docs/MEJORAS-E2E.md) — arquitectura, ejecución local y CI.
+- [Política de seguridad](SECURITY.md) — reporte, medidas implementadas y despliegue.
+- [Operación](docs/OPERACION.md) — copias de seguridad, restauración, migraciones, logs y métricas.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
@@ -551,8 +668,9 @@ Si necesitas recrear la base de pruebas desde cero, ejecuta `npm run test:db`.
 ## Posibles mejoras
 
 - Facturación electrónica y envío de documentos por correo.
-- Tokens de vida corta con refresh tokens.
-- Docker y despliegue en la nube.
+- Preview público por Pull Request (requiere definir el proveedor de despliegue; el workflow
+  actual construye y prueba la pila de producción sin publicar una URL).
+- Exportador de métricas para Prometheus y trazas distribuidas.
 - Notificaciones automáticas de vencimientos y alertas de stock.
 - Valuación de inventario por promedio ponderado.
 

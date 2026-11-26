@@ -7,6 +7,8 @@ export interface OperationMeta {
   roles?: "public" | "auth" | string[];
   body?: string;
   query?: string;
+  /** Esquema de la respuesta correcta, cuando el handler tiene una forma verificable. */
+  response?: string;
   /** Parámetros de ruta con un esquema distinto al entero positivo por defecto. */
   params?: Record<string, string>;
   status?: number;
@@ -17,7 +19,10 @@ type Entry = [tag: string, summary: string, extra?: Omit<OperationMeta, "tag" | 
 
 const READ = ["admin", "contador", "consulta"];
 const WRITE = ["admin", "contador"];
-const OPERATE = ["admin", "contador", "operador"];
+// Inventario y cotizaciones: el contador consulta, pero no opera.
+const OPERATE = ["admin", "operador"];
+// Facturación: el contador sí crea, confirma y anula.
+const INVOICE_WRITE = ["admin", "contador", "operador"];
 const ADMIN = ["admin"];
 
 const SESSION = "Sesión";
@@ -30,6 +35,7 @@ const PARTIES = "Terceros";
 const CLOSURES = "Cierres fiscales";
 const AUDIT = "Auditoría";
 const COMPANY = "Empresa";
+const OPS = "Operación";
 
 /**
  * Metadata declarativa de cada operación. Las rutas NO se enumeran aquí: se leen
@@ -37,69 +43,96 @@ const COMPANY = "Empresa";
  * Esta tabla solo enriquece las operaciones existentes.
  */
 const entries: Record<string, Entry> = {
-  "GET /api/health": [SESSION, "Estado del servidor y la conexión a la base", { roles: "public" }],
+  "GET /api/health": [
+    SESSION,
+    "Estado del servidor y la conexión a la base",
+    { roles: "public", response: "HealthResponse" },
+  ],
+  "GET /api/metrics": [
+    OPS,
+    "Métricas de uso, errores y latencia desde el arranque",
+    { roles: ADMIN },
+  ],
   "POST /api/auth/login": [
     SESSION,
     "Iniciar sesión y obtener un token JWT",
-    { roles: "public", body: "LoginRequest" },
+    { roles: "public", body: "LoginRequest", response: "LoginResponse" },
   ],
-  "GET /api/auth/me": [SESSION, "Datos del usuario de la sesión"],
+  "POST /api/auth/refresh": [
+    SESSION,
+    "Renovar el token de acceso con un refresh token",
+    { roles: "public", body: "RefreshTokenRequest", response: "LoginResponse" },
+  ],
+  "POST /api/auth/logout": [
+    SESSION,
+    "Cerrar la sesión y revocar el refresh token",
+    { roles: "public", body: "RefreshTokenRequest", status: 204 },
+  ],
+  "GET /api/auth/me": [
+    SESSION,
+    "Datos del usuario de la sesión",
+    { response: "AuthUserResponse" },
+  ],
   "PUT /api/auth/password": [
     SESSION,
     "Cambiar la contraseña del usuario actual",
-    { body: "ChangePasswordRequest" },
+    { body: "ChangePasswordRequest", response: "MessageResponse" },
   ],
 
   "GET /api/users": [USERS, "Listar usuarios", { roles: ADMIN, query: "ListUsersQuery" }],
   "POST /api/users": [
     USERS,
     "Crear un usuario",
-    { roles: ADMIN, body: "CreateUserRequest", status: 201 },
+    { roles: ADMIN, body: "CreateUserRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/users/{id}": [
     USERS,
     "Editar un usuario",
-    { roles: ADMIN, body: "UpdateUserRequest" },
+    { roles: ADMIN, body: "UpdateUserRequest", response: "MessageResponse" },
   ],
   "PATCH /api/users/{id}/activo": [
     USERS,
     "Activar o desactivar un usuario",
-    { roles: ADMIN, body: "ActivoRequest" },
+    { roles: ADMIN, body: "ActivoRequest", response: "MessageResponse" },
   ],
 
   "GET /api/categories": [CATALOG, "Listar categorías con su número de productos"],
   "POST /api/categories": [
     CATALOG,
     "Crear una categoría",
-    { roles: ADMIN, body: "CategoryRequest", status: 201 },
+    { roles: ADMIN, body: "CategoryRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/categories/{id}": [
     CATALOG,
     "Editar una categoría",
-    { roles: ADMIN, body: "CategoryRequest" },
+    { roles: ADMIN, body: "CategoryRequest", response: "MessageResponse" },
   ],
-  "DELETE /api/categories/{id}": [CATALOG, "Eliminar una categoría", { roles: ADMIN }],
+  "DELETE /api/categories/{id}": [
+    CATALOG,
+    "Eliminar una categoría",
+    { roles: ADMIN, response: "MessageResponse" },
+  ],
 
   "GET /api/products": [CATALOG, "Listar productos", { query: "ListProductsQuery" }],
   "GET /api/products/next-sku": [
     CATALOG,
     "Sugerir el siguiente SKU de una categoría",
-    { query: "NextSkuQuery" },
+    { query: "NextSkuQuery", response: "SkuResponse" },
   ],
   "POST /api/products": [
     CATALOG,
     "Crear un producto",
-    { roles: OPERATE, body: "CreateProductRequest", status: 201 },
+    { roles: OPERATE, body: "CreateProductRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/products/{id}": [
     CATALOG,
     "Editar un producto",
-    { roles: OPERATE, body: "UpdateProductRequest" },
+    { roles: OPERATE, body: "UpdateProductRequest", response: "MessageResponse" },
   ],
   "PATCH /api/products/{id}/activo": [
     CATALOG,
     "Activar o desactivar un producto",
-    { roles: ADMIN, body: "ActivoRequest" },
+    { roles: ADMIN, body: "ActivoRequest", response: "MessageResponse" },
   ],
 
   "GET /api/movements": [
@@ -110,7 +143,7 @@ const entries: Record<string, Entry> = {
   "POST /api/movements": [
     CATALOG,
     "Registrar una entrada o salida de stock",
-    { roles: OPERATE, body: "CreateMovementRequest", status: 201 },
+    { roles: OPERATE, body: "CreateMovementRequest", status: 201, response: "IdStockResponse" },
   ],
 
   "GET /api/dashboard": [CATALOG, "Métricas-resumen del inicio"],
@@ -381,27 +414,27 @@ const entries: Record<string, Entry> = {
   "POST /api/invoices": [
     INVOICES,
     "Crear un borrador de factura",
-    { roles: OPERATE, body: "InvoiceRequest", status: 201 },
+    { roles: INVOICE_WRITE, body: "InvoiceRequest", status: 201 },
   ],
   "PUT /api/invoices/{id}": [
     INVOICES,
     "Editar un borrador de factura",
-    { roles: OPERATE, body: "UpdateInvoiceRequest" },
+    { roles: INVOICE_WRITE, body: "UpdateInvoiceRequest" },
   ],
   "POST /api/invoices/{id}/confirmar": [
     INVOICES,
     "Confirmar una factura: mueve stock, contabiliza y marca la cotización como entregada",
-    { roles: OPERATE },
+    { roles: INVOICE_WRITE },
   ],
   "POST /api/invoices/{id}/anular": [
     INVOICES,
     "Anular una factura con sus contrapartidas",
-    { roles: OPERATE },
+    { roles: INVOICE_WRITE },
   ],
   "DELETE /api/invoices/{id}": [
     INVOICES,
     "Eliminar un borrador de factura",
-    { roles: OPERATE },
+    { roles: INVOICE_WRITE },
   ],
 
   "GET /api/third-parties": [
@@ -413,7 +446,7 @@ const entries: Record<string, Entry> = {
   "POST /api/third-parties": [
     PARTIES,
     "Crear un tercero",
-    { roles: WRITE, body: "CreateThirdPartyRequest", status: 201 },
+    { roles: WRITE, body: "CreateThirdPartyRequest", status: 201, response: "IdResponse" },
   ],
   "PUT /api/third-parties/{id}": [
     PARTIES,

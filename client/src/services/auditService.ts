@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type { AuditEntity, AuditList } from "@/types";
 
 export interface AuditQuery {
@@ -13,4 +13,4 @@ export interface AuditQuery {
 }
 
 export const listAudit = async (q: AuditQuery) =>
-  (await api.get<AuditList>("/audit", { params: q })).data;
+  (await apiRequest<"GET /api/audit", AuditList>("GET /api/audit", { query: q })).data;

@@ -2,7 +2,7 @@ import "dotenv/config";
 
 const BASE = process.env.SEED_API_URL ?? "http://localhost:3000/api";
 const EMAIL = process.env.SEED_EMAIL ?? "demo@demo.com";
-const PASSWORD = process.env.SEED_PASSWORD ?? "Demo1234!";
+const PASSWORD = process.env.SEED_PASSWORD ?? "Demo12345!";
 
 let token = "";
 
@@ -233,9 +233,9 @@ async function main() {
 
   // 4. Usuarios adicionales
   const usuarios = [
-    { nombre: "Laura Contadora", email: "contador@demo.com", password: "Demo1234!", rol: "contador" },
-    { nombre: "Pedro Operador", email: "operador@demo.com", password: "Demo1234!", rol: "operador" },
-    { nombre: "Carla Consulta", email: "consulta@demo.com", password: "Demo1234!", rol: "consulta" },
+    { nombre: "Laura Contadora", email: "contador@demo.com", password: "Demo12345!", rol: "contador" },
+    { nombre: "Pedro Operador", email: "operador@demo.com", password: "Demo12345!", rol: "operador" },
+    { nombre: "Carla Consulta", email: "consulta@demo.com", password: "Demo12345!", rol: "consulta" },
   ];
   for (const u of usuarios) {
     try {
@@ -1013,7 +1013,7 @@ async function main() {
   log("");
   log("=== Seed demo completado ===");
   log(`Credenciales demo: ${EMAIL} / ${PASSWORD}`);
-  log("Roles adicionales: contador@demo.com, operador@demo.com, consulta@demo.com (clave Demo1234!)");
+  log("Roles adicionales: contador@demo.com, operador@demo.com, consulta@demo.com (clave Demo12345!)");
 }
 
 main().catch((e) => {

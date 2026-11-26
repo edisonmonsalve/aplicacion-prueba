@@ -12,6 +12,7 @@ import { thirdPartiesRouter } from "./modules/third-parties/third-parties.routes
 import { periodClosuresRouter } from "./modules/period-closures/period-closures.routes.js";
 import { auditRouter } from "./modules/audit/audit.routes.js";
 import { companyRouter } from "./modules/company/company.routes.js";
+import { opsRouter } from "./modules/ops/ops.routes.js";
 
 /** Ruta de estado. Se comparte con la documentación para que no haya dos copias. */
 export const HEALTH_PATH = "/api/health";
@@ -31,4 +32,5 @@ export const apiMounts: ReadonlyArray<{ path: string; router: Router }> = [
   { path: "/api/period-closures", router: periodClosuresRouter },
   { path: "/api/audit", router: auditRouter },
   { path: "/api/company", router: companyRouter },
+  { path: "/api", router: opsRouter },
 ];

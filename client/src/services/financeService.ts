@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { apiRequest } from "./api";
 import type {
   BudgetAvailability,
   BudgetDetail,
@@ -24,62 +24,149 @@ import type {
   TrendsReport,
 } from "@/types";
 
-export const getFinanceAccounts = async () => (await api.get<FinanceAccount[]>("/finance/accounts")).data;
+export const getFinanceAccounts = async () =>
+  (await apiRequest<"GET /api/finance/accounts", FinanceAccount[]>("GET /api/finance/accounts")).data;
 export const createFinanceAccount = async (input: FinanceAccountInput) =>
-  (await api.post<{ id: number }>("/finance/accounts", input)).data;
+  (await apiRequest<"POST /api/finance/accounts", { id: number }>("POST /api/finance/accounts", input))
+    .data;
 export const updateFinanceAccount = async (id: number, input: FinanceAccountInput) =>
-  (await api.put<{ id: number }>(`/finance/accounts/${id}`, input)).data;
+  (
+    await apiRequest<"PUT /api/finance/accounts/{id}", { id: number }>(
+      "PUT /api/finance/accounts/{id}",
+      input,
+      { params: { id } }
+    )
+  ).data;
 export const deleteFinanceAccount = async (id: number) =>
-  api.delete(`/finance/accounts/${id}`);
-export const getFinanceCategories = async () => (await api.get<FinanceCategory[]>("/finance/categories")).data;
+  apiRequest("DELETE /api/finance/accounts/{id}", { params: { id } });
+export const getFinanceCategories = async () =>
+  (await apiRequest<"GET /api/finance/categories", FinanceCategory[]>("GET /api/finance/categories"))
+    .data;
 
 export const listBudgets = async (q: BudgetsQuery) =>
-  (await api.get<Paginated<BudgetListItem>>("/finance/budgets", { params: q })).data;
-export const getBudget = async (id: number) => (await api.get<BudgetDetail>(`/finance/budgets/${id}`)).data;
+  (
+    await apiRequest<"GET /api/finance/budgets", Paginated<BudgetListItem>>(
+      "GET /api/finance/budgets",
+      { query: q }
+    )
+  ).data;
+export const getBudget = async (id: number) =>
+  (
+    await apiRequest<"GET /api/finance/budgets/{id}", BudgetDetail>("GET /api/finance/budgets/{id}", {
+      params: { id },
+    })
+  ).data;
 export const createBudget = async (input: BudgetInput) =>
-  (await api.post<{ id: number }>("/finance/budgets", input)).data;
+  (await apiRequest<"POST /api/finance/budgets", { id: number }>("POST /api/finance/budgets", input))
+    .data;
 export const updateBudget = async (id: number, input: BudgetInput) =>
-  (await api.put<{ id: number }>(`/finance/budgets/${id}`, input)).data;
-export const deleteBudget = async (id: number) => api.delete(`/finance/budgets/${id}`);
+  (
+    await apiRequest<"PUT /api/finance/budgets/{id}", { id: number }>(
+      "PUT /api/finance/budgets/{id}",
+      input,
+      { params: { id } }
+    )
+  ).data;
+export const deleteBudget = async (id: number) =>
+  apiRequest("DELETE /api/finance/budgets/{id}", { params: { id } });
 export const activateBudget = async (id: number) =>
-  (await api.post<{ id: number; estado: "activo" }>(`/finance/budgets/${id}/activate`)).data;
+  (
+    await apiRequest<"POST /api/finance/budgets/{id}/activate", { id: number; estado: "activo" }>(
+      "POST /api/finance/budgets/{id}/activate",
+      { params: { id } }
+    )
+  ).data;
 export const closeBudget = async (id: number) =>
-  (await api.post<{ id: number; estado: "cerrado" }>(`/finance/budgets/${id}/close`)).data;
+  (
+    await apiRequest<"POST /api/finance/budgets/{id}/close", { id: number; estado: "cerrado" }>(
+      "POST /api/finance/budgets/{id}/close",
+      { params: { id } }
+    )
+  ).data;
 
 export const listTransactions = async (q: TransactionsQuery) =>
-  (await api.get<PaginatedTransactions>("/finance/transactions", { params: q })).data;
+  (
+    await apiRequest<"GET /api/finance/transactions", PaginatedTransactions>(
+      "GET /api/finance/transactions",
+      { query: q }
+    )
+  ).data;
 export const createTransaction = async (input: TransactionInput) =>
-  (await api.post<{ id: number }>("/finance/transactions", input)).data;
+  (
+    await apiRequest<"POST /api/finance/transactions", { id: number }>(
+      "POST /api/finance/transactions",
+      input
+    )
+  ).data;
 export const reverseTransaction = async (id: number) =>
-  (await api.post<{ id: number; anulada_de: number }>(`/finance/transactions/${id}/reverse`)).data;
+  (
+    await apiRequest<"POST /api/finance/transactions/{id}/reverse", { id: number; anulada_de: number }>(
+      "POST /api/finance/transactions/{id}/reverse",
+      { params: { id } }
+    )
+  ).data;
 
 export const getFinanceSummary = async (params: { desde?: string; hasta?: string }) =>
-  (await api.get<FinanceSummary>("/finance/summary", { params })).data;
+  (await apiRequest<"GET /api/finance/summary", FinanceSummary>("GET /api/finance/summary", { query: params }))
+    .data;
 export const getPnl = async (params: { desde?: string; hasta?: string }) =>
-  (await api.get<PnlReport>("/finance/pnl", { params })).data;
+  (await apiRequest<"GET /api/finance/pnl", PnlReport>("GET /api/finance/pnl", { query: params })).data;
 export const getCashFlow = async (params: {
   desde?: string;
   hasta?: string;
   account_id?: number;
-}) => (await api.get<CashFlowReport>("/finance/cash-flow", { params })).data;
+}) =>
+  (
+    await apiRequest<"GET /api/finance/cash-flow", CashFlowReport>("GET /api/finance/cash-flow", {
+      query: params,
+    })
+  ).data;
 export const getBalance = async (params: { hasta?: string }) =>
-  (await api.get<BalanceReport>("/finance/balance", { params })).data;
+  (await apiRequest<"GET /api/finance/balance", BalanceReport>("GET /api/finance/balance", {
+    query: params,
+  })).data;
 export const getProfitability = async (params: {
   desde?: string;
   hasta?: string;
   grupo?: "producto" | "categoria" | "cliente";
-}) => (await api.get<ProfitabilityReport>("/finance/profitability", { params })).data;
+}) =>
+  (
+    await apiRequest<"GET /api/finance/profitability", ProfitabilityReport>(
+      "GET /api/finance/profitability",
+      { query: params }
+    )
+  ).data;
 export const getInventoryAnalytics = async (params: {
   desde?: string;
   hasta?: string;
   dias_muerto?: number;
-}) => (await api.get<InventoryAnalyticsReport>("/finance/inventory-analytics", { params })).data;
+}) =>
+  (
+    await apiRequest<"GET /api/finance/inventory-analytics", InventoryAnalyticsReport>(
+      "GET /api/finance/inventory-analytics",
+      { query: params }
+    )
+  ).data;
 export const getQuoteFunnel = async (params: { desde?: string; hasta?: string }) =>
-  (await api.get<QuoteFunnelReport>("/finance/quotes-funnel", { params })).data;
+  (
+    await apiRequest<"GET /api/finance/quotes-funnel", QuoteFunnelReport>(
+      "GET /api/finance/quotes-funnel",
+      { query: params }
+    )
+  ).data;
 export const getTrends = async (params: { desde?: string; hasta?: string }) =>
-  (await api.get<TrendsReport>("/finance/trends", { params })).data;
+  (await apiRequest<"GET /api/finance/trends", TrendsReport>("GET /api/finance/trends", {
+    query: params,
+  })).data;
 export const getDataHealth = async () =>
-  (await api.get<DataHealthReport>("/finance/data-health")).data;
+  (await apiRequest<"GET /api/finance/data-health", DataHealthReport>("GET /api/finance/data-health"))
+    .data;
 export const getAvailability = async (productId: number) =>
-  (await api.get<BudgetAvailability | null>("/finance/availability", { params: { product_id: productId } })).data;
-export const getSuggestions = async () => (await api.get<Suggestion[]>("/finance/suggestions")).data;
+  (
+    await apiRequest<"GET /api/finance/availability", BudgetAvailability | null>(
+      "GET /api/finance/availability",
+      { query: { product_id: productId } }
+    )
+  ).data;
+export const getSuggestions = async () =>
+  (await apiRequest<"GET /api/finance/suggestions", Suggestion[]>("GET /api/finance/suggestions")).data;

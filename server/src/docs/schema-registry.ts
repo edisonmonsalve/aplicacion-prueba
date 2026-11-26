@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { loginSchema, changePasswordSchema } from "../modules/auth/auth.service.js";
+import {
+  changePasswordSchema,
+  loginSchema,
+  refreshTokenSchema,
+} from "../modules/auth/auth.service.js";
 import * as users from "../modules/users/users.schema.js";
 import { categorySchema } from "../modules/categories/categories.service.js";
 import * as products from "../modules/products/products.schema.js";
@@ -14,8 +18,16 @@ import * as thirdParties from "../modules/third-parties/third-parties.schema.js"
 import * as closures from "../modules/period-closures/period-closures.schema.js";
 import { auditQuerySchema } from "../modules/audit/audit.schema.js";
 import { companySchema } from "../modules/company/company.service.js";
+import { ROLES } from "../types/roles.js";
 
 type NamedSchema = [name: string, schema: z.ZodType];
+
+const authUserSchema = z.object({
+  id: finance.idSchema,
+  nombre: z.string(),
+  email: z.string().email(),
+  rol: z.enum(ROLES),
+});
 
 /**
  * Esquemas Zod ya usados por los handlers. Se registran con un nombre para que
@@ -27,6 +39,7 @@ const namedSchemas: NamedSchema[] = [
   ["AnioParam", closures.fiscalYearSchema.shape.anio],
 
   ["LoginRequest", loginSchema],
+  ["RefreshTokenRequest", refreshTokenSchema],
   ["ChangePasswordRequest", changePasswordSchema],
 
   ["CreateUserRequest", users.createUserSchema],
@@ -93,6 +106,28 @@ const namedSchemas: NamedSchema[] = [
 
   ["AuditQuery", auditQuerySchema],
   ["CompanyRequest", companySchema],
+
+  // Respuestas verificadas en los handlers; el cliente las obtiene como tipos TS.
+  ["HealthResponse", z.object({
+    status: z.literal("ok"),
+    uptime_seconds: z.number(),
+    db: z.object({ status: z.literal("ok"), latency_ms: z.number() }),
+  })],
+  ["AuthUserResponse", authUserSchema],
+  ["LoginResponse", z.object({
+    token: z.string(),
+    refreshToken: z.string(),
+    user: authUserSchema,
+  })],
+  ["MessageResponse", z.object({ message: z.string() })],
+  ["IdResponse", z.object({ id: finance.idSchema })],
+  ["SkuResponse", z.object({ sku: z.string() })],
+  ["IdStockResponse", z.object({
+    id: finance.idSchema,
+    stock_actual: z.number(),
+    costo_unitario: z.number().optional(),
+    precio_unitario: z.number().optional(),
+  })],
 ];
 
 const registry = z.registry<{ id: string }>();
