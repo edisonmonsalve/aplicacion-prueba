@@ -24,6 +24,12 @@ export async function resetDb() {
   // Las notas referencian facturas y movimientos; se borran antes que ambos.
   await pool.query("DELETE FROM invoice_adjustment_items");
   await pool.query("DELETE FROM invoice_adjustments");
+  // Control de precios: referencia facturas, líneas y productos.
+  await pool.query("DELETE FROM purchase_invoice_attachments");
+  await pool.query("DELETE FROM purchase_price_approvals");
+  await pool.query("DELETE FROM purchase_invoice_index");
+  await pool.query("DELETE FROM product_supplier_price_history");
+  await pool.query("DELETE FROM product_supplier_prices");
   await pool.query("DELETE FROM stock_movements");
   await pool.query("DELETE FROM invoice_items");
   await pool.query("UPDATE invoices SET account_id = NULL");
@@ -50,6 +56,14 @@ export async function resetDb() {
   // Los datos del emisor vuelven a los valores por defecto del servicio.
   await pool.query("DELETE FROM company_settings");
   await pool.query("DELETE FROM users");
+  // La migración deja `requiere_adjunto = 1`; las pruebas heredadas confirman
+  // compras sin adjunto, así que cada prueba parte de la configuración laxa.
+  // Los casos específicos de adjuntos la vuelven a activar con la API.
+  await pool.query(
+    `INSERT INTO purchase_price_settings (id, umbral_pct, requiere_adjunto)
+     VALUES (1, 10.00, 0)
+     ON DUPLICATE KEY UPDATE umbral_pct = 10.00, requiere_adjunto = 0, updated_by = NULL`
+  );
 }
 
 export async function createUser(rol: Rol, email = `${rol}@test.com`) {

@@ -8,6 +8,10 @@ import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
 import { quotesRouter } from "./modules/quotes/quotes.routes.js";
 import { financeRouter } from "./modules/finance/finance.routes.js";
 import { invoicesRouter } from "./modules/invoices/invoices.routes.js";
+import {
+  purchasePriceInvoiceRouter,
+  purchasePricesRouter,
+} from "./modules/purchase-prices/purchase-prices.routes.js";
 import { thirdPartiesRouter } from "./modules/third-parties/third-parties.routes.js";
 import { periodClosuresRouter } from "./modules/period-closures/period-closures.routes.js";
 import { auditRouter } from "./modules/audit/audit.routes.js";
@@ -27,7 +31,10 @@ export const apiMounts: ReadonlyArray<{ path: string; router: Router }> = [
   { path: "/api/dashboard", router: dashboardRouter },
   { path: "/api/quotes", router: quotesRouter },
   { path: "/api/finance", router: financeRouter },
+  // Las rutas de validación de compra se montan antes que `/:id` de facturas.
+  { path: "/api/invoices", router: purchasePriceInvoiceRouter },
   { path: "/api/invoices", router: invoicesRouter },
+  { path: "/api/purchase-prices", router: purchasePricesRouter },
   { path: "/api/third-parties", router: thirdPartiesRouter },
   { path: "/api/period-closures", router: periodClosuresRouter },
   { path: "/api/audit", router: auditRouter },

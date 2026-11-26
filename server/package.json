@@ -17,6 +17,8 @@
     "lint": "eslint .",
     "migrate": "tsx src/scripts/migrate.ts",
     "migrate:status": "tsx src/scripts/migrate-status.ts",
+    "backup:db": "tsx src/scripts/backup-db.ts",
+    "restore:db": "tsx src/scripts/restore-db.ts",
     "test:coverage": "vitest run --coverage",
     "openapi:export": "tsx src/scripts/export-openapi.ts"
   },

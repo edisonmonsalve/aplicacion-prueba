@@ -24,6 +24,9 @@ const OPERATE = ["admin", "operador"];
 // Facturación: el contador sí crea, confirma y anula.
 const INVOICE_WRITE = ["admin", "contador", "operador"];
 const ADMIN = ["admin"];
+// Los precios de compra y sus variaciones son visibles solo para admin/contador.
+const PURCHASE_READ = ["admin", "contador"];
+const ALL_ROLES = ["admin", "contador", "operador", "consulta"];
 
 const SESSION = "Sesión";
 const USERS = "Usuarios";
@@ -31,6 +34,7 @@ const CATALOG = "Catálogos e inventario";
 const QUOTES = "Cotizaciones";
 const FINANCE = "Finanzas";
 const INVOICES = "Facturación y cartera";
+const PURCHASE_PRICES = "Precios de compra";
 const PARTIES = "Terceros";
 const CLOSURES = "Cierres fiscales";
 const AUDIT = "Auditoría";
@@ -435,6 +439,71 @@ const entries: Record<string, Entry> = {
     INVOICES,
     "Eliminar un borrador de factura",
     { roles: INVOICE_WRITE },
+  ],
+
+  "GET /api/invoices/{id}/validacion-compra": [
+    PURCHASE_PRICES,
+    "Validación de compra antes de confirmar (el operador no ve precios)",
+    { roles: ALL_ROLES, response: "PurchaseValidationResponse" },
+  ],
+  "POST /api/invoices/{id}/solicitar-aprobacion": [
+    PURCHASE_PRICES,
+    "Solicitar aprobación por variación de precios",
+    { roles: INVOICE_WRITE, status: 201, response: "PurchaseApprovalResponse" },
+  ],
+  "GET /api/invoices/{id}/aprobacion": [
+    PURCHASE_PRICES,
+    "Estado de la aprobación de precios de una factura",
+    { roles: ALL_ROLES, response: "ApprovalLookupResponse" },
+  ],
+  "POST /api/invoices/{id}/adjuntos": [
+    PURCHASE_PRICES,
+    "Subir un adjunto PDF/XML validado (máximo 5 MB)",
+    { roles: INVOICE_WRITE, body: "PurchaseAttachmentRequest", status: 201, response: "AttachmentResponse" },
+  ],
+  "GET /api/invoices/{id}/adjuntos": [
+    PURCHASE_PRICES,
+    "Listar metadatos de los adjuntos de una factura",
+    { roles: ALL_ROLES, response: "AttachmentListResponse" },
+  ],
+  "DELETE /api/invoices/{id}/adjuntos/{adjuntoId}": [
+    PURCHASE_PRICES,
+    "Eliminar un adjunto de una factura en borrador",
+    { roles: INVOICE_WRITE, params: { adjuntoId: "IdParam" }, response: "IdResponse" },
+  ],
+  "GET /api/purchase-prices/settings": [
+    PURCHASE_PRICES,
+    "Consultar el umbral de variación y la obligatoriedad de adjunto",
+    { roles: ALL_ROLES, response: "PurchaseSettingsResponse" },
+  ],
+  "PUT /api/purchase-prices/settings": [
+    PURCHASE_PRICES,
+    "Actualizar la configuración de control de precios",
+    {
+      roles: PURCHASE_READ,
+      body: "PurchaseSettingsRequest",
+      response: "PurchaseSettingsResponse",
+    },
+  ],
+  "GET /api/purchase-prices/last": [
+    PURCHASE_PRICES,
+    "Consultar el último precio por producto y proveedor",
+    { roles: PURCHASE_READ, query: "LastPriceQuery", response: "LastPriceResponse" },
+  ],
+  "GET /api/purchase-prices/history": [
+    PURCHASE_PRICES,
+    "Consultar el historial de precios de compra",
+    { roles: PURCHASE_READ, query: "PriceHistoryQuery", response: "PriceHistoryResponse" },
+  ],
+  "POST /api/purchase-prices/approvals/{id}/aprobar": [
+    PURCHASE_PRICES,
+    "Aprobar una solicitud de variación de precios",
+    { roles: PURCHASE_READ, body: "ApprovalDecisionRequest", response: "PurchaseApprovalResponse" },
+  ],
+  "POST /api/purchase-prices/approvals/{id}/rechazar": [
+    PURCHASE_PRICES,
+    "Rechazar una solicitud de variación de precios",
+    { roles: PURCHASE_READ, body: "ApprovalDecisionRequest", response: "PurchaseApprovalResponse" },
   ],
 
   "GET /api/third-parties": [

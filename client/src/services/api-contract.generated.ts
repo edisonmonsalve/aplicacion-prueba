@@ -484,6 +484,135 @@ export type AdjustmentParams = {
   adjustmentId: number;
 };
 
+/** Generado desde el esquema Zod `PurchaseSettingsRequest`. */
+export type PurchaseSettingsRequest = {
+  umbral_pct: number;
+  requiere_adjunto: boolean;
+};
+
+/** Generado desde el esquema Zod `PurchaseSettingsResponse`. */
+export type PurchaseSettingsResponse = {
+  umbral_pct: number;
+  requiere_adjunto: boolean;
+  id: number;
+  updated_by: unknown;
+  updated_at: string;
+};
+
+/** Generado desde el esquema Zod `LastPriceQuery`. */
+export type LastPriceQuery = {
+  product_id?: number;
+  supplier_key?: string;
+};
+
+/** Generado desde el esquema Zod `PriceHistoryQuery`. */
+export type PriceHistoryQuery = {
+  product_id?: number;
+  supplier_key?: string;
+  limite?: number;
+};
+
+/** Generado desde el esquema Zod `PurchaseAttachmentRequest`. */
+export type PurchaseAttachmentRequest = {
+  nombre: string;
+  contenido_base64: string;
+  mime?: string;
+};
+
+/** Generado desde el esquema Zod `AttachmentParams`. */
+export type AttachmentParams = {
+  id: number;
+  adjuntoId: number;
+};
+
+/** Generado desde el esquema Zod `ApprovalDecisionRequest`. */
+export type ApprovalDecisionRequest = {
+  motivo?: string;
+};
+
+/** Generado desde el esquema Zod `PurchaseApprovalResponse`. */
+export type PurchaseApprovalResponse = {
+  id: number;
+  invoice_id: number;
+  estado: "pendiente" | "aprobada" | "rechazada" | "invalida";
+  motivo: unknown;
+  solicitada_por: number;
+  revisada_por: unknown;
+  revisada_at: unknown;
+  created_at: string;
+};
+
+/** Generado desde el esquema Zod `ApprovalLookupResponse`. */
+export type ApprovalLookupResponse = {
+  aprobacion: PurchaseApprovalResponse | null;
+};
+
+/** Generado desde el esquema Zod `PurchaseValidationResponse`. */
+export type PurchaseValidationResponse = {
+  tipo: "venta" | "compra";
+  estado: string;
+  puede_confirmar: boolean;
+  bloqueos: {
+  codigo: string;
+  mensaje: string;
+  detalles?: Record<string, unknown>;
+}[];
+  proveedor_key?: unknown;
+  requiere_aprobacion?: boolean;
+  aprobacion?: {
+  id: number;
+  estado: string;
+} | null;
+  umbral_pct?: number;
+  tiene_adjunto?: boolean;
+  total_xml?: unknown;
+  lineas?: {
+  product_id: number;
+  precio_unitario?: number;
+  precio_anterior?: number;
+  variacion_pct?: number;
+}[];
+};
+
+/** Generado desde el esquema Zod `LastPriceResponse`. */
+export type LastPriceResponse = {
+  product_id: number;
+  sku: string;
+  producto: string;
+  supplier_key: string;
+  precio_unitario: number;
+  invoice_id: unknown;
+  confirmed_at: unknown;
+}[];
+
+/** Generado desde el esquema Zod `PriceHistoryResponse`. */
+export type PriceHistoryResponse = {
+  id: number;
+  product_id: number;
+  sku: string;
+  producto: string;
+  supplier_key: string;
+  precio_unitario: number;
+  precio_anterior: unknown;
+  variacion_pct: unknown;
+  invoice_id: unknown;
+  origen: string;
+  created_at: string;
+  created_by: unknown;
+}[];
+
+/** Generado desde el esquema Zod `AttachmentResponse`. */
+export type AttachmentResponse = {
+  id: number;
+  nombre: string;
+  mime: string;
+  tamano_bytes: number;
+  created_at: string;
+};
+
+/** Generado desde el esquema Zod `AttachmentListResponse`. */
+export type AttachmentListResponse = AttachmentResponse[];
+
 /** Generado desde el esquema Zod `CreateThirdPartyRequest`. */
 export type CreateThirdPartyRequest = {
   tipo?: "cliente" | "proveedor" | "ambos";
@@ -706,6 +835,12 @@ export type ApiRoutes =
   | "GET /api/finance/quotes-funnel"
   | "GET /api/finance/trends"
   | "GET /api/finance/data-health"
+  | "GET /api/invoices/{id}/validacion-compra"
+  | "POST /api/invoices/{id}/solicitar-aprobacion"
+  | "GET /api/invoices/{id}/aprobacion"
+  | "POST /api/invoices/{id}/adjuntos"
+  | "GET /api/invoices/{id}/adjuntos"
+  | "DELETE /api/invoices/{id}/adjuntos/{adjuntoId}"
   | "GET /api/invoices/cartera"
   | "GET /api/invoices/cartera/aging"
   | "GET /api/invoices/cartera/alertas"
@@ -723,6 +858,12 @@ export type ApiRoutes =
   | "DELETE /api/invoices/{id}"
   | "POST /api/invoices/{id}/confirmar"
   | "POST /api/invoices/{id}/anular"
+  | "GET /api/purchase-prices/settings"
+  | "PUT /api/purchase-prices/settings"
+  | "GET /api/purchase-prices/last"
+  | "GET /api/purchase-prices/history"
+  | "POST /api/purchase-prices/approvals/{id}/aprobar"
+  | "POST /api/purchase-prices/approvals/{id}/rechazar"
   | "GET /api/third-parties"
   | "POST /api/third-parties"
   | "GET /api/third-parties/{id}"
@@ -768,11 +909,15 @@ export interface ApiRequests {
   "POST /api/finance/reconciliations/{id}/lines/{lineId}/match": MatchLineRequest;
   "POST /api/finance/reconciliations/{id}/lines/{lineId}/ignore": IgnoreLineRequest;
   "POST /api/finance/reconciliations/{id}/reopen": ReopenReconciliationRequest;
+  "POST /api/invoices/{id}/adjuntos": PurchaseAttachmentRequest;
   "PUT /api/invoices/cartera/alertas/{id}/seguimiento": FollowupRequest;
   "POST /api/invoices/{id}/payments": CreatePaymentRequest;
   "POST /api/invoices/{id}/notas": CreateAdjustmentRequest;
   "POST /api/invoices": InvoiceRequest;
   "PUT /api/invoices/{id}": UpdateInvoiceRequest;
+  "PUT /api/purchase-prices/settings": PurchaseSettingsRequest;
+  "POST /api/purchase-prices/approvals/{id}/aprobar": ApprovalDecisionRequest;
+  "POST /api/purchase-prices/approvals/{id}/rechazar": ApprovalDecisionRequest;
   "POST /api/third-parties": CreateThirdPartyRequest;
   "PUT /api/third-parties/{id}": UpdateThirdPartyRequest;
   "POST /api/period-closures": CreateClosureRequest;
@@ -799,6 +944,18 @@ export type ApiResponses = {
   "PUT /api/products/{id}": MessageResponse;
   "PATCH /api/products/{id}/activo": MessageResponse;
   "POST /api/movements": IdStockResponse;
+  "GET /api/invoices/{id}/validacion-compra": PurchaseValidationResponse;
+  "POST /api/invoices/{id}/solicitar-aprobacion": PurchaseApprovalResponse;
+  "GET /api/invoices/{id}/aprobacion": ApprovalLookupResponse;
+  "POST /api/invoices/{id}/adjuntos": AttachmentResponse;
+  "GET /api/invoices/{id}/adjuntos": AttachmentListResponse;
+  "DELETE /api/invoices/{id}/adjuntos/{adjuntoId}": IdResponse;
+  "GET /api/purchase-prices/settings": PurchaseSettingsResponse;
+  "PUT /api/purchase-prices/settings": PurchaseSettingsResponse;
+  "GET /api/purchase-prices/last": LastPriceResponse;
+  "GET /api/purchase-prices/history": PriceHistoryResponse;
+  "POST /api/purchase-prices/approvals/{id}/aprobar": PurchaseApprovalResponse;
+  "POST /api/purchase-prices/approvals/{id}/rechazar": PurchaseApprovalResponse;
   "POST /api/third-parties": IdResponse;
 };
 
@@ -831,11 +988,15 @@ export const apiRoutesWithBody: ReadonlySet<ApiRoutes> = new Set<ApiRoutes>([
   "POST /api/finance/reconciliations/{id}/lines/{lineId}/match",
   "POST /api/finance/reconciliations/{id}/lines/{lineId}/ignore",
   "POST /api/finance/reconciliations/{id}/reopen",
+  "POST /api/invoices/{id}/adjuntos",
   "PUT /api/invoices/cartera/alertas/{id}/seguimiento",
   "POST /api/invoices/{id}/payments",
   "POST /api/invoices/{id}/notas",
   "POST /api/invoices",
   "PUT /api/invoices/{id}",
+  "PUT /api/purchase-prices/settings",
+  "POST /api/purchase-prices/approvals/{id}/aprobar",
+  "POST /api/purchase-prices/approvals/{id}/rechazar",
   "POST /api/third-parties",
   "PUT /api/third-parties/{id}",
   "POST /api/period-closures",
@@ -917,6 +1078,12 @@ export type ApiOperationId =
   | "getApiFinanceQuotesFunnel"
   | "getApiFinanceTrends"
   | "getApiFinanceDataHealth"
+  | "getApiInvoicesIdValidacionCompra"
+  | "postApiInvoicesIdSolicitarAprobacion"
+  | "getApiInvoicesIdAprobacion"
+  | "postApiInvoicesIdAdjuntos"
+  | "getApiInvoicesIdAdjuntos"
+  | "deleteApiInvoicesIdAdjuntosAdjuntoId"
   | "getApiInvoicesCartera"
   | "getApiInvoicesCarteraAging"
   | "getApiInvoicesCarteraAlertas"
@@ -934,6 +1101,12 @@ export type ApiOperationId =
   | "deleteApiInvoicesId"
   | "postApiInvoicesIdConfirmar"
   | "postApiInvoicesIdAnular"
+  | "getApiPurchasePricesSettings"
+  | "putApiPurchasePricesSettings"
+  | "getApiPurchasePricesLast"
+  | "getApiPurchasePricesHistory"
+  | "postApiPurchasePricesApprovalsIdAprobar"
+  | "postApiPurchasePricesApprovalsIdRechazar"
   | "getApiThirdParties"
   | "postApiThirdParties"
   | "getApiThirdPartiesId"
@@ -1024,6 +1197,12 @@ export const apiEndpoints = {
   "getApiFinanceQuotesFunnel": { method: "GET", path: "/api/finance/quotes-funnel" },
   "getApiFinanceTrends": { method: "GET", path: "/api/finance/trends" },
   "getApiFinanceDataHealth": { method: "GET", path: "/api/finance/data-health" },
+  "getApiInvoicesIdValidacionCompra": { method: "GET", path: "/api/invoices/{id}/validacion-compra" },
+  "postApiInvoicesIdSolicitarAprobacion": { method: "POST", path: "/api/invoices/{id}/solicitar-aprobacion" },
+  "getApiInvoicesIdAprobacion": { method: "GET", path: "/api/invoices/{id}/aprobacion" },
+  "postApiInvoicesIdAdjuntos": { method: "POST", path: "/api/invoices/{id}/adjuntos" },
+  "getApiInvoicesIdAdjuntos": { method: "GET", path: "/api/invoices/{id}/adjuntos" },
+  "deleteApiInvoicesIdAdjuntosAdjuntoId": { method: "DELETE", path: "/api/invoices/{id}/adjuntos/{adjuntoId}" },
   "getApiInvoicesCartera": { method: "GET", path: "/api/invoices/cartera" },
   "getApiInvoicesCarteraAging": { method: "GET", path: "/api/invoices/cartera/aging" },
   "getApiInvoicesCarteraAlertas": { method: "GET", path: "/api/invoices/cartera/alertas" },
@@ -1041,6 +1220,12 @@ export const apiEndpoints = {
   "deleteApiInvoicesId": { method: "DELETE", path: "/api/invoices/{id}" },
   "postApiInvoicesIdConfirmar": { method: "POST", path: "/api/invoices/{id}/confirmar" },
   "postApiInvoicesIdAnular": { method: "POST", path: "/api/invoices/{id}/anular" },
+  "getApiPurchasePricesSettings": { method: "GET", path: "/api/purchase-prices/settings" },
+  "putApiPurchasePricesSettings": { method: "PUT", path: "/api/purchase-prices/settings" },
+  "getApiPurchasePricesLast": { method: "GET", path: "/api/purchase-prices/last" },
+  "getApiPurchasePricesHistory": { method: "GET", path: "/api/purchase-prices/history" },
+  "postApiPurchasePricesApprovalsIdAprobar": { method: "POST", path: "/api/purchase-prices/approvals/{id}/aprobar" },
+  "postApiPurchasePricesApprovalsIdRechazar": { method: "POST", path: "/api/purchase-prices/approvals/{id}/rechazar" },
   "getApiThirdParties": { method: "GET", path: "/api/third-parties" },
   "postApiThirdParties": { method: "POST", path: "/api/third-parties" },
   "getApiThirdPartiesId": { method: "GET", path: "/api/third-parties/{id}" },

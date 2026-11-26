@@ -39,6 +39,7 @@ jobs:
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: inventario_test
+      API_DOCS_ENABLED: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -178,10 +179,10 @@ jobs:
 
       - name: Revisar dependencias nuevas o actualizadas
         uses: actions/dependency-review-action@v4
-        # El grafo de dependencias debe habilitarse en Settings > Security.
-        # Mientras siga deshabilitado, el job es informativo y no rompe el PR;
-        # `npm audit` sigue bloqueando vulnerabilidades altas en producción.
-        continue-on-error: true
+        # Pasa a ser bloqueante cuando el grafo de dependencias está habilitado
+        # en Settings > Security y la variable DEPENDENCY_GRAPH_ENABLED = true.
+        # Hasta entonces `npm audit` sigue bloqueando vulnerabilidades altas.
+        continue-on-error: ${{ vars.DEPENDENCY_GRAPH_ENABLED != 'true' }}
         with:
           fail-on-severity: high
 

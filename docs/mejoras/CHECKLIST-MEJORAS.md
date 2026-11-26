@@ -3,7 +3,7 @@
 > Seguimiento por ID. Para ver el estado de un vistazo, usa el [tablero](README.md).
 
 - **Actualizado:** 2026-11-26
-- **Base:** `main` (`88e28d8`) · funcionalidad en merge #34 (`b64d260`)
+- **Base:** `main` (`aff2c96`) · funcionalidad en merge #34 (`b64d260`)
 
 ## Uso
 
@@ -21,11 +21,11 @@
 | Fase | Total | Hechas | Pendientes | Avance |
 | --- | ---: | ---: | ---: | ---: |
 | Base entregada | 4 | 4 | 0 | 100 % |
-| A · Orden | 7 | 0 | 7 | 0 % |
+| A · Orden | 7 | 6 | 1 | 86 % |
 | B · Inventario | 3 | 0 | 3 | 0 % |
-| C · Comunicaciones | 6 | 0 | 6 | 0 % |
-| D · Condicionados | 6 | 0 | 6 | 0 % |
-| **Total** | **26** | **4** | **22** | **15 %** |
+| C · Comunicaciones | 7 | 0 | 7 | 0 % |
+| D · Condicionados | 8 | 0 | 8 | 0 % |
+| **Total** | **29** | **10** | **19** | **34 %** |
 
 ## Base entregada
 
@@ -38,20 +38,30 @@
 
 ## Fase A · Orden
 
+> Cierre técnico validado el 2026-11-26: builds y lint de servidor y cliente, 276 pruebas de
+> servidor, 11 E2E (5 con axe) y `git diff --check`. Publicado en `feat/fase-a-orden`, PR **#53**.
+
 - [ ] **MEJ-001** · Dependency graph estricto · A/Alta/S · **P** · Próximo: habilitar el grafo en
-  GitHub · Cierre: quitar `continue-on-error` · DEC-10 · Reg —
-- [ ] **MEJ-002** · Accesibilidad automatizada · A/Alta/M · **P** · Próximo: fijar 5 pantallas y
-  selectores · Cierre: axe sin violaciones graves en CI · Reg —
-- [ ] **MEJ-004** · Aviso de stock in-app · A/Media/S · **P** · Próximo: ubicar badge y resumen ·
-  Cierre: visible sin entrar a Productos · Reg —
-- [ ] **MEJ-007** · Backups y restauración · A/Alta/M · **P** · Próximo: definir destino y
-  retención · Cierre: restauración de prueba documentada · Reg —
-- [ ] **MEJ-003** · Control de precios de compra · A/Alta/L · **P** · Próximo: acordar umbral y
-  aprobador · Cierre: cambios auditados por factura · DEC-03 · Reg —
-- [ ] **MEJ-005** · Visibilidad de API docs · A/Media/S · **P** · Próximo: decidir política ·
-  Cierre: mismo comportamiento en local, Docker y CI · DEC-08 · Reg —
-- [ ] **MEJ-006** · Usuario dedicado de MariaDB · A/Media/S · **P** · Próximo: definir permisos ·
-  Cierre: arranca y migra sin `root` · Reg —
+  GitHub Settings y definir `DEPENDENCY_GRAPH_ENABLED=true` · Cierre: quitar `continue-on-error` ·
+  DEC-10 · Reg —
+- [x] **MEJ-002** · Accesibilidad automatizada · A/Alta/M · **H** · Próximo: mantener axe en la
+  suite E2E de CI · Cierre: 5 pantallas sin violaciones; 11/11 E2E · Reg OpenCode · 2026-11-26 ·
+  PR #53
+- [x] **MEJ-004** · Aviso de stock in-app · A/Media/S · **H** · Próximo: vigilar el aviso del header
+  tras el despliegue · Cierre: campana con `bajoStock=1&activo=1`, filtro en Productos y refresco al
+  guardar; sin badge en el menú lateral · Reg OpenCode · 2026-11-26 · PR #53
+- [x] **MEJ-007** · Backups y restauración · A/Alta/M · **H** · Próximo: programar copias en el host
+  y probar una restauración trimestral · Cierre: scripts `backup:db`/`restore:db` y procedimiento en
+  `docs/OPERACION.md` · Reg OpenCode · 2026-11-26 · PR #53
+- [x] **MEJ-003** · Control de precios de compra · A/Alta/L · **H** · Próximo: sin pendientes ·
+  Cierre: validación antes de confirmar, aprobación y adjuntos auditados por factura · DEC-03
+  ratificado · Reg OpenCode · 2026-11-26 · PR #53
+- [x] **MEJ-005** · Visibilidad de API docs · A/Media/S · **H** · Próximo: sin pendientes ·
+  Cierre: `404` en producción salvo `API_DOCS_ENABLED=1`; verificado en tests, E2E y preview ·
+  DEC-08 ratificado · Reg OpenCode · 2026-11-26 · PR #53
+- [x] **MEJ-006** · Usuario dedicado de MariaDB · A/Media/S · **H** · Próximo: rotar la contraseña
+  en cada despliegue · Cierre: API, CI y preview arrancan y migran con `DB_APP_USER` · Reg OpenCode ·
+  2026-11-26 · PR #53
 
 ## Fase B · Inventario
 
@@ -76,6 +86,9 @@
   Cierre: límite compartido con fallback · Reg —
 - [ ] **MEJ-013** · Correo entrante de facturas · C/Media/L · **P** · Próximo: crear buzón dedicado
   · Cierre: borrador revisable con adjuntos seguros · DEC-04 · Reg —
+- [ ] **MEJ-023** · Centro de notificaciones y acciones · C/Media/M · **P** · Próximo: decidir tiempo
+  real (SSE/WebSocket o polling) y agrupación · Cierre: avisos con acciones contextuales, sin ruido
+  y absorbiendo el aviso de stock · DEC-11 · Reg —
 
 ## Fase D · Condicionados
 
@@ -91,6 +104,11 @@
   Cierre: revisión humana obligatoria · Reg —
 - [ ] **MEJ-019** · Facturación electrónica vía PAC · D/Alta/XL · **P** · Próximo: seleccionar PAC ·
   Cierre: factura transmitida en habilitación · Reg —
+- [ ] **MEJ-024** · Asistente IA en la aplicación · D/Media/L · **P** · Próximo: definir caso de uso,
+  proveedor y privacidad · Cierre: respuestas verificables, sin datos sensibles y auditadas · DEC-12 ·
+  Reg —
+- [ ] **MEJ-025** · Onboarding/welcome con chat IA · D/Baja/M · **P** · Próximo: definir guion y
+  alcance del chat · Cierre: guía inicial sin fricción, conectada a MEJ-024 · DEC-13 · Reg —
 
 ## Decisiones
 
@@ -98,14 +116,17 @@
 | --- | --- | --- | --- |
 | DEC-01 | ¿Promedio reemplaza o convive con `products.costo`? | MEJ-008 | Definir modelo de datos |
 | DEC-02 | ¿Se recalcula el histórico o se aplica desde la migración? | MEJ-008 | Validar con contabilidad |
-| DEC-03 | Umbral de variación y quién aprueba | MEJ-003 | Acordar porcentaje y rol |
+| DEC-03 | Umbral de variación y quién aprueba | MEJ-003 | Ratificada el 2026-11-26: 10 %, admin/contador |
 | DEC-04 | Volumen de compras y porcentaje en XML | MEJ-009, MEJ-013 | Medir durante un mes |
 | DEC-05 | SMTP propio o proveedor transaccional | MEJ-011 | Comparar costos y límites |
 | DEC-06 | ¿Hay clientes externos para `/api/v1`? | MEJ-017 | Confirmar consumidores |
 | DEC-07 | ¿Existen productos perecederos? | MEJ-020 | Revisar catálogo |
-| DEC-08 | ¿La documentación de API sigue pública? | MEJ-005 | Definir política |
+| DEC-08 | ¿La documentación de API sigue pública? | MEJ-005 | Ratificado el 2026-11-26: `404` en producción |
 | DEC-09 | Proveedor de errores y retención | MEJ-015 | Comparar opciones |
 | DEC-10 | ¿Se habilita Dependency graph? | MEJ-001 | Gestionar Settings de GitHub |
+| DEC-11 | ¿Notificaciones en tiempo real y con acciones? | MEJ-023 | Elegir SSE/WebSocket o polling |
+| DEC-12 | ¿Proveedor y límites de privacidad para IA? | MEJ-024 | Definir caso de uso y datos permitidos |
+| DEC-13 | ¿Alcance del chat en el onboarding? | MEJ-025 | Definir guion y escalado a MEJ-024 |
 
 ## Riesgos
 
@@ -115,6 +136,8 @@
 | XML/PDF no confiables | MEJ-009, MEJ-013, MEJ-018 | Validación estricta y revisión humana |
 | Regulación DIAN | MEJ-019 | PAC y ambiente de habilitación |
 | Migración de tokens | MEJ-014 | Compatibilidad y E2E |
+| Ruido de notificaciones | MEJ-023 | Agrupación, preferencias y acciones concretas |
+| Datos sensibles en IA | MEJ-024, MEJ-025 | Sin datos reales, consentimiento y proveedor evaluado |
 
 ## Registro de cambios
 
@@ -122,6 +145,9 @@
 | --- | --- |
 | 2026-11-26 | Creación del checklist y del tablero |
 | 2026-11-26 | Resumen del formato; contenido funcional por ID |
+| 2026-11-26 | Fase A en curso: badge de stock, axe E2E, docs flag, backups, usuario de DB y control de precios |
+| 2026-11-26 | Fase A cerrada: 6 mejoras en **H**; DEC-03 y DEC-08 ratificados; PR #53 |
+| 2026-11-26 | Aviso de stock solo en header; ideas registradas: MEJ-023, MEJ-024 y MEJ-025 |
 
 ## Enlaces
 

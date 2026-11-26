@@ -11,6 +11,12 @@ import {
   assertPartyType,
   findThirdPartyForInvoice,
 } from "../third-parties/third-parties.service.js";
+import {
+  invalidarAprobaciones,
+  lanzarBloqueos,
+  persistirEventosCompra,
+  validarCompraParaConfirmar,
+} from "../purchase-prices/purchase-prices.service.js";
 import { invoiceBalance, listInvoicePayments } from "./invoice-payments.service.js";
 import { listAdjustments } from "./invoice-adjustments.service.js";
 import {
@@ -597,6 +603,10 @@ export async function updateInvoice(
       }
     }
 
+    // Cualquier cambio del borrador deja sin efecto aprobaciones anteriores:
+    // los precios revisados ya no son los que se aprobaron.
+    await invalidarAprobaciones(conn, id, actor.id);
+
     await auditFinance(
       conn,
       actor.id,
@@ -782,7 +792,7 @@ async function quoteDeliveryReconciliation(
   return { cierra, lineas };
 }
 
-export async function confirmInvoice(id: number, actor: { id: number }) {
+export async function confirmInvoice(id: number, actor: AuthUser) {
   return withTransaction(async (conn) => {
     const [rows] = await conn.query<RowDataPacket[]>(
       "SELECT * FROM invoices WHERE id = ? FOR UPDATE",
@@ -798,6 +808,15 @@ export async function confirmInvoice(id: number, actor: { id: number }) {
       [id]
     );
     if (items.length === 0) throw new HttpError(409, "La factura no tiene líneas");
+
+    // MEJ-003: validar la compra antes de mover stock o generar asientos. Si hay
+    // bloqueos, se lanza un 409 con código y la transacción no persiste nada.
+    if (inv.tipo === "compra") {
+      const validacion = await validarCompraParaConfirmar(conn, inv, items);
+      lanzarBloqueos(validacion, actor);
+      // Historial, último precio, índice y auditoría viajan en la misma transacción.
+      await persistirEventosCompra(conn, inv, items, validacion, actor);
+    }
 
     const isVenta = inv.tipo === "venta";
     // A crédito se reconoce el ingreso/activo, pero la caja se mueve al cobrar

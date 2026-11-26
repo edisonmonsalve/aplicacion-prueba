@@ -37,6 +37,8 @@ uploads/
 
 # Base de datos local (volcados o archivos de datos)
 *.sql.bak
+*.sql.gz
+backups/
 *.sqlite
 *.db
 

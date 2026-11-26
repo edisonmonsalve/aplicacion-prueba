@@ -1131,6 +1131,7 @@ export default function InvoiceFormPage() {
                   variant="borderless"
                   allowClear
                   showSearch
+                  aria-label="Tercero"
                   optionFilterProp="label"
                   placeholder="Buscar tercero (opcional)"
                   onChange={onPartyChange}
@@ -1699,6 +1700,7 @@ export default function InvoiceFormPage() {
                         variant="borderless"
                         allowClear
                         showSearch
+                        aria-label="Cotización"
                         optionFilterProp="label"
                         placeholder="Sin cotización"
                         onChange={(v?: number) => {

@@ -22,7 +22,7 @@
 
   /* Señales. Cada tono tiene una versión `ink`, más oscura, para cifras:
      el acento ilumina shapes y el ink garantiza contraste AA sobre superficie. */
-  --ui-brand: #0d9488;
+  --ui-brand: #0f766e;
   --ui-brand-strong: #0f766e;
   --ui-brand-soft: rgba(13, 148, 136, 0.1);
   --ui-focus-ring: 0 0 0 2px var(--ui-brand-strong);

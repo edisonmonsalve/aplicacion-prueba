@@ -1740,7 +1740,9 @@ html[data-theme="dark"] .row-low-stock > td {
   height: var(--ui-control-h);
   min-height: var(--ui-control-h);
   padding: 3px 6px !important;
-  border: 0 !important;
+  /* Borde invisible en reposo para conservar el aspecto sin caja; el foco
+     sí dibuja un halo. `outline` mantiene el indicador exigido por WCAG 1.4.11. */
+  border: 1px solid transparent !important;
   border-radius: var(--ui-field-radius) !important;
   background: transparent !important;
   box-shadow: none !important;
@@ -2866,6 +2868,17 @@ html[data-theme="dark"] .row-low-stock > td {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   opacity: 0.6;
+}
+
+.ui-stock-popover {
+  display: grid;
+  gap: 6px;
+  max-width: 280px;
+}
+
+.ui-stock-popover__item {
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* El sider es oscuro en ambos temas: aclara el teal para que el índice no se

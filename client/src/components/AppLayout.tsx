@@ -1,11 +1,13 @@
 import { signal } from "@/styles/signal";
 import {
   Avatar,
+  Badge,
   Button,
   Dropdown,
   Input,
   Layout,
   Menu,
+  Popover,
   Space,
   Switch,
   Tooltip,
@@ -16,6 +18,7 @@ import {
 } from "antd";
 import { Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useStockAlerts } from "@/context/StockAlertsContext";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import {
@@ -24,6 +27,7 @@ import {
   ContactsOutlined,
   DashboardOutlined,
   ExpandOutlined,
+  BellOutlined,
   FileDoneOutlined,
   FileTextOutlined,
   FundOutlined,
@@ -135,6 +139,7 @@ const filterNavItems = (nodes: NavItem[], term: string): NavItem[] => {
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
+  const { count: lowStockCount, items: lowStockItems } = useStockAlerts();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const navigationType = useNavigationType();
@@ -225,6 +230,8 @@ export default function AppLayout() {
       label: navLabel("01", "Operación"),
       children: [
         { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
+        // El aviso de stock se concentra en el header: repetirlo en el menú
+        // estorbaba la lectura de la navegación (MEJ-004, ajuste Fase A).
         { key: "/products", icon: <ShoppingOutlined />, label: "Productos" },
         { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
         { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
@@ -273,8 +280,7 @@ export default function AppLayout() {
 
       {isMobile && !collapsed && (
         <div
-          role="presentation"
-          aria-label="Cerrar menú de navegación"
+          aria-hidden="true"
           onClick={() => setCollapsed(true)}
           style={{
             position: "fixed",
@@ -400,6 +406,49 @@ export default function AppLayout() {
           </Space>
 
           <Space size={isMobile ? "small" : "middle"}>
+            <Popover
+              trigger="click"
+              placement="bottomRight"
+              title="Stock bajo"
+              content={
+                lowStockCount === 0 ? (
+                  <Typography.Text type="secondary">Sin productos bajo el mínimo</Typography.Text>
+                ) : (
+                  <div className="ui-stock-popover">
+                    {lowStockItems.slice(0, 3).map((product) => (
+                      <div key={product.id} className="ui-stock-popover__item">
+                        <strong>{product.sku}</strong> · {product.nombre}
+                        <Typography.Text type="secondary">
+                          {" "}
+                          ({product.stock_actual}/{product.stock_minimo})
+                        </Typography.Text>
+                      </div>
+                    ))}
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => {
+                        setNavQuery("");
+                        navigate("/products?bajoStock=1&activo=1");
+                        if (isMobile) setCollapsed(true);
+                      }}
+                    >
+                      Ver todos
+                    </Button>
+                  </div>
+                )
+              }
+            >
+              <Tooltip title={`${lowStockCount} producto(s) con stock bajo`}>
+                <Badge count={lowStockCount} overflowCount={99} size="small">
+                  <Button
+                    type="text"
+                    icon={<BellOutlined />}
+                    aria-label={`Stock bajo: ${lowStockCount} productos`}
+                  />
+                </Badge>
+              </Tooltip>
+            </Popover>
             <Tooltip title={densityLabel}>
               <Button
                 type="text"

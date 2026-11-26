@@ -25,6 +25,7 @@ import RelativeTime from "@/components/RelativeTime";
 import StatCard from "@/components/StatCard";
 import FilterBar, { FilterField } from "@/components/FilterBar";
 import { useAuth } from "@/context/AuthContext";
+import { useStockAlerts } from "@/context/StockAlertsContext";
 import { getCategories } from "@/services/categoriesService";
 import { getProducts, setProductActivo, type ProductsQuery } from "@/services/productsService";
 import { getErrorMessage } from "@/utils/errors";
@@ -60,6 +61,7 @@ const SORT_BY_FIELD: Record<string, SortKey> = {
 
 export default function ProductsPage() {
   const { user, canOperate } = useAuth();
+  const { refresh: refreshStockAlerts } = useStockAlerts();
   const isAdmin = user?.rol === "admin";
   const verCosto = canSeeCosts(user?.rol);
   const { message: messageApi, modal } = App.useApp();
@@ -209,6 +211,7 @@ export default function ProductsPage() {
     messageApi.success(editing ? "Producto actualizado" : "Producto creado");
     if (!editing) update({ page: undefined });
     setReloadKey((k) => k + 1);
+    void refreshStockAlerts();
   };
 
   const toggleActivo = async (p: Product) => {
@@ -216,6 +219,7 @@ export default function ProductsPage() {
       await setProductActivo(p.id, !p.activo);
       messageApi.success(p.activo ? "Producto desactivado" : "Producto activado");
       setReloadKey((k) => k + 1);
+      void refreshStockAlerts();
     } catch (err) {
       messageApi.error(getErrorMessage(err));
     }
@@ -224,6 +228,7 @@ export default function ProductsPage() {
     setMovementProduct(null);
     messageApi.success(`Movimiento registrado. Nuevo stock: ${formatNumber(newStock)}`);
     setReloadKey((k) => k + 1);
+    void refreshStockAlerts();
   };
 
   const confirmToggle = (p: Product) => {
@@ -474,6 +479,7 @@ export default function ProductsPage() {
         </FilterField>
         <FilterField label="Categoría" width={180}>
           <Select
+            aria-label="Categoría"
             placeholder="Todas"
             allowClear
             style={{ width: "100%" }}
@@ -484,6 +490,7 @@ export default function ProductsPage() {
         </FilterField>
         <FilterField label="Estado" width={140}>
           <Select
+            aria-label="Estado"
             placeholder="Todos"
             allowClear
             style={{ width: "100%" }}

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { app } from "../src/app.js";
 import { buildOpenApiDocument, collectRoutes, operationKey } from "../src/docs/openapi.js";
 import { buildClientContract } from "../src/docs/client-contract.js";
@@ -155,6 +155,21 @@ describe("especificación OpenAPI", () => {
     expect(html.headers["content-type"]).toMatch(/html/);
     expect(html.text).toContain("/api/openapi.json");
     expect(html.text).toContain("swagger-ui-bundle.js");
+  });
+
+  it("oculta la documentación cuando API_DOCS_ENABLED=0", async () => {
+    const previous = process.env.API_DOCS_ENABLED;
+    process.env.API_DOCS_ENABLED = "0";
+    vi.resetModules();
+    try {
+      const { app: hiddenApp } = await import("../src/app.js");
+      await request(hiddenApp).get("/api/openapi.json").expect(404);
+      await request(hiddenApp).get("/api/docs").expect(404);
+    } finally {
+      if (previous === undefined) delete process.env.API_DOCS_ENABLED;
+      else process.env.API_DOCS_ENABLED = previous;
+      vi.resetModules();
+    }
   });
 
   it("mantiene actualizados los artefactos generados", async () => {

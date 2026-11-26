@@ -20,9 +20,10 @@ jobs:
     timeout-minutes: 25
 
     env:
-      # Valores no secretos; los dos primeros se generan por ejecución.
+      # Valores no secretos; los secretos se generan por ejecución.
       DB_NAME: inventario_preview
       WEB_PORT: 8080
+      API_DOCS_ENABLED: "0"
 
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +31,7 @@ jobs:
       - name: Generar secretos efímeros
         run: |
           echo "DB_ROOT_PASSWORD=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "DB_APP_PASSWORD=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - name: Construir y levantar la pila de producción
@@ -50,7 +52,9 @@ jobs:
           echo "$headers" | grep -qi 'content-security-policy:.*script-src'
           echo "$headers" | grep -qi 'x-content-type-options: nosniff'
 
-          curl -fsS http://localhost:8080/api/openapi.json > /dev/null
+          status=$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:8080/api/openapi.json)
+          echo "openapi en producción: $status"
+          [ "$status" = "404" ]
 
       - name: Mostrar logs si falla
         if: failure()
