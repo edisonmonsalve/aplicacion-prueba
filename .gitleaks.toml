@@ -1,0 +1,19 @@
+# Falsos positivos ya publicados en la historia de la rama:
+# - JWT de CI y credenciales efímeras del preview (ahora se generan por ejecución).
+# - Contraseña incorrecta usada en la prueba de bloqueo de cuenta.
+#
+# Se listan por valor exacto para no ocultar hallazgos futuros. Si alguno de
+# estos valores aparece en un sitio nuevo, conviene revisarlo igualmente.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores ficticios de CI y pruebas"
+paths = ['''\.gitleaks\.toml$''']
+regexes = [
+  '''91367a814052c9a6280a6028de335b61a57ba12675451ac738949cc4284819eb''',
+  '''6b5f2e0f8f4c4c0bb0f7a2b1d3e4f60718293a4b5c6d7e8f9012345678abcdef''',
+  '''19b0c2d3e4f5061728394a5b6c7d8e9f00112233445566778899aabbccddeeff''',
+  '''ClaveIncorrecta123''',
+]

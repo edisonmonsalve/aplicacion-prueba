@@ -39,10 +39,13 @@ jobs:
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: inventario_test
-      JWT_SECRET: 91367a814052c9a6280a6028de335b61a57ba12675451ac738949cc4284819eb
 
     steps:
       - uses: actions/checkout@v4
+
+      # Se genera en cada ejecución: no hay secretos reales en el repositorio.
+      - name: Generar secreto efímero para las pruebas
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -94,10 +97,12 @@ jobs:
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: inventario_e2e_test
-      JWT_SECRET: 91367a814052c9a6280a6028de335b61a57ba12675451ac738949cc4284819eb
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Generar secreto efímero para las pruebas
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -173,12 +178,19 @@ jobs:
 
       - name: Revisar dependencias nuevas o actualizadas
         uses: actions/dependency-review-action@v4
+        # El grafo de dependencias debe habilitarse en Settings > Security.
+        # Mientras siga deshabilitado, el job es informativo y no rompe el PR;
+        # `npm audit` sigue bloqueando vulnerabilidades altas en producción.
+        continue-on-error: true
         with:
           fail-on-severity: high
 
   secrets:
     name: secretos
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4

@@ -20,14 +20,17 @@ jobs:
     timeout-minutes: 25
 
     env:
-      # Valores efímeros solo para esta verificación; no son secretos reales.
-      DB_ROOT_PASSWORD: 6b5f2e0f8f4c4c0bb0f7a2b1d3e4f60718293a4b5c6d7e8f9012345678abcdef
-      JWT_SECRET: 19b0c2d3e4f5061728394a5b6c7d8e9f00112233445566778899aabbccddeeff
+      # Valores no secretos; los dos primeros se generan por ejecución.
       DB_NAME: inventario_preview
       WEB_PORT: 8080
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Generar secretos efímeros
+        run: |
+          echo "DB_ROOT_PASSWORD=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - name: Construir y levantar la pila de producción
         run: docker compose -f docker-compose.prod.yml up -d --build --wait

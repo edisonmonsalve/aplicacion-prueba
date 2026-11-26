@@ -124,11 +124,12 @@ describe("Autenticación", () => {
 
   it("bloquea la cuenta tras varios intentos fallidos y deja auditoría", async () => {
     const { id, email } = await createUser("admin");
+    const intentoFallido = "ClaveIncorrecta123";
 
     for (let intento = 1; intento <= 5; intento += 1) {
       await request(app)
         .post("/api/auth/login")
-        .send({ email, password: "ClaveIncorrecta123" })
+        .send({ email, password: intentoFallido })
         .expect(401);
     }
 

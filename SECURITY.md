@@ -73,8 +73,10 @@ No incluyas secretos reales, datos personales ni volcados de producción en el r
 - **Cadencia:** revisión mensual de `npm audit` y de las alertas de Dependabot. Las
   correcciones de seguridad críticas o altas se aplican en cuanto haya versión disponible.
 - **Puerta en CI:** cada push ejecuta `npm audit --omit=dev --audit-level=high` en servidor y
-  cliente, y cada Pull Request añade `dependency-review` (falla con severidad alta o crítica) y
-  `gitleaks` sobre el historial. Una vulnerabilidad alta o crítica en producción rompe la build.
+  cliente, y cada Pull Request añade `dependency-review` y `gitleaks` sobre el historial. Una
+  vulnerabilidad alta o crítica en dependencias de producción rompe la build. `dependency-review`
+  es informativo mientras el grafo de dependencias no esté habilitado en la configuración del
+  repositorio; `gitleaks` usa una allowlist estrecha para los valores ficticios de CI y pruebas.
 - **Producción primero:** las vulnerabilidades de dependencias de producción tienen prioridad.
   Las de desarrollo se revisan y corrigen en la siguiente ventana mensual.
 - **Actualizaciones:** Dependabot abre PRs mensuales para npm y semanales para Docker y GitHub
