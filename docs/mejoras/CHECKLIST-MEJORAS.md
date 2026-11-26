@@ -39,29 +39,29 @@
 ## Fase A · Orden
 
 > Cierre técnico validado el 2026-11-26: builds y lint de servidor y cliente, 276 pruebas de
-> servidor, 11 E2E (5 con axe) y `git diff --check`. Los cambios siguen en local, sin commit ni PR.
+> servidor, 11 E2E (5 con axe) y `git diff --check`. Publicado en `feat/fase-a-orden`, PR **#53**.
 
 - [ ] **MEJ-001** · Dependency graph estricto · A/Alta/S · **P** · Próximo: habilitar el grafo en
   GitHub Settings y definir `DEPENDENCY_GRAPH_ENABLED=true` · Cierre: quitar `continue-on-error` ·
   DEC-10 · Reg —
 - [x] **MEJ-002** · Accesibilidad automatizada · A/Alta/M · **H** · Próximo: mantener axe en la
   suite E2E de CI · Cierre: 5 pantallas sin violaciones; 11/11 E2E · Reg OpenCode · 2026-11-26 ·
-  PR pendiente
+  PR #53
 - [x] **MEJ-004** · Aviso de stock in-app · A/Media/S · **H** · Próximo: vigilar el badge tras el
   despliegue · Cierre: badge global con `bajoStock=1&activo=1` y refresco al guardar · Reg OpenCode ·
-  2026-11-26 · PR pendiente
+  2026-11-26 · PR #53
 - [x] **MEJ-007** · Backups y restauración · A/Alta/M · **H** · Próximo: programar copias en el host
   y probar una restauración trimestral · Cierre: scripts `backup:db`/`restore:db` y procedimiento en
-  `docs/OPERACION.md` · Reg OpenCode · 2026-11-26 · PR pendiente
+  `docs/OPERACION.md` · Reg OpenCode · 2026-11-26 · PR #53
 - [x] **MEJ-003** · Control de precios de compra · A/Alta/L · **H** · Próximo: sin pendientes ·
   Cierre: validación antes de confirmar, aprobación y adjuntos auditados por factura · DEC-03
-  ratificado · Reg OpenCode · 2026-11-26 · PR pendiente
+  ratificado · Reg OpenCode · 2026-11-26 · PR #53
 - [x] **MEJ-005** · Visibilidad de API docs · A/Media/S · **H** · Próximo: sin pendientes ·
   Cierre: `404` en producción salvo `API_DOCS_ENABLED=1`; verificado en tests, E2E y preview ·
-  DEC-08 ratificado · Reg OpenCode · 2026-11-26 · PR pendiente
+  DEC-08 ratificado · Reg OpenCode · 2026-11-26 · PR #53
 - [x] **MEJ-006** · Usuario dedicado de MariaDB · A/Media/S · **H** · Próximo: rotar la contraseña
   en cada despliegue · Cierre: API, CI y preview arrancan y migran con `DB_APP_USER` · Reg OpenCode ·
-  2026-11-26 · PR pendiente
+  2026-11-26 · PR #53
 
 ## Fase B · Inventario
 
@@ -133,7 +133,7 @@
 | 2026-11-26 | Creación del checklist y del tablero |
 | 2026-11-26 | Resumen del formato; contenido funcional por ID |
 | 2026-11-26 | Fase A en curso: badge de stock, axe E2E, docs flag, backups, usuario de DB y control de precios |
-| 2026-11-26 | Fase A cerrada en local: 6 mejoras en **H**; DEC-03 y DEC-08 ratificados |
+| 2026-11-26 | Fase A cerrada: 6 mejoras en **H**; DEC-03 y DEC-08 ratificados; PR #53 |
 
 ## Enlaces
 

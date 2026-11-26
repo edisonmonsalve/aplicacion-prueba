@@ -27,8 +27,8 @@
 | --- | --- | --- | --- |
 | MEJ-001 | Dependency graph estricto | Habilitar el grafo en GitHub Settings | DEC-10 |
 
-> Fase A cerrada en local: 6 mejoras en **H**; DEC-03 y DEC-08 ratificados. El PR se publica desde
-> una rama propia de la mejora, no desde `main`.
+> Fase A cerrada: 6 mejoras en **H**; DEC-03 y DEC-08 ratificados. PR **#53** desde
+> `feat/fase-a-orden`, no desde `main`.
 
 ## Todas las mejoras
 
