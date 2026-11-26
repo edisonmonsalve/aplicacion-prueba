@@ -1,5 +1,5 @@
 # Etapas compartidas: dependencias y build se reutilizan entre desarrollo y producción.
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
