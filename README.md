@@ -226,7 +226,7 @@ Usuarios demo creados por `seed:demo` (todos con clave `Demo12345!`):
 
 ```bash
 cp .env.compose.example .env   # en Windows: copy .env.compose.example .env
-# Edita .env y define DB_ROOT_PASSWORD y JWT_SECRET con valores aleatorios:
+# Edita .env y define DB_ROOT_PASSWORD, DB_APP_PASSWORD y JWT_SECRET con valores aleatorios:
 #   openssl rand -hex 32
 docker compose up -d --build --wait
 ```
@@ -264,15 +264,15 @@ Usa el mismo `.env`, pero cambia el comportamiento:
   hace de proxy inverso de `/api`; MariaDB y la API quedan en la red interna.
 - Usa su propio volumen (`signal-prod_mariadb_data`), separado del kit de desarrollo: los datos de
   uno no aparecen en el otro.
-- La API y el cliente corren con usuarios sin privilegios.
+- La API y el cliente corren con usuarios sin privilegios; MariaDB usa `DB_APP_USER`, no `root`.
 - `NODE_ENV=production` y `TRUST_PROXY=1`: el API usa la IP real que Nginx fija en
   `X-Forwarded-For`.
-- La documentación de la API sigue disponible a través del mismo origen, en `/api/docs`.
+- La documentación de la API devuelve `404` en producción. Para exponerla, define
+  `API_DOCS_ENABLED=1`.
 
 | Servicio | URL |
 | --- | --- |
-| Aplicación y API | `http://localhost:<WEB_PORT>` (`5173` con el `.env` de ejemplo) |
-| Documentación | `http://localhost:<WEB_PORT>/api/docs` |
+| Aplicación y API | `http://localhost:<WEB_PORT>` (`8080` con el `.env` de ejemplo) |
 
 En producción la imagen del servidor no incluye `tsx`, así que los seeds se ejecutan compilados:
 
@@ -292,7 +292,9 @@ docker compose down             # detener sin borrar datos
 docker compose down -v          # detener y borrar el volumen de MariaDB
 ```
 
-> `.env` es obligatorio: Compose no arranca si `DB_ROOT_PASSWORD` o `JWT_SECRET` están vacíos.
+> `.env` es obligatorio: Compose no arranca si `DB_ROOT_PASSWORD`, `DB_APP_PASSWORD` o
+> `JWT_SECRET` están vacíos. La API usa `DB_APP_USER` (no `root`); el backup se programa con
+> `npm --prefix server run backup:db`, descrito en [Operación](docs/OPERACION.md).
 > Ese archivo está ignorado por Git. En desarrollo MariaDB solo se publica en `127.0.0.1`; en
 > producción no se publica. Si cambias las credenciales después del primer arranque, ejecuta
 > `docker compose down -v` (y lo mismo con `-f docker-compose.prod.yml`) antes de volver a
@@ -411,9 +413,10 @@ refresh token de forma transparente. Los errores siguen un formato único:
 `{ "message": "..." }`, más `errors` cuando hay detalle
 (validación Zod o líneas sin stock), con códigos 400, 401, 403, 404, 409 y 500.
 
-**Referencia completa y ejecutable:** con el servidor en marcha abre
+**Referencia completa y ejecutable:** en desarrollo, con el servidor en marcha abre
 `http://localhost:3000/api/docs` (Swagger UI). El JSON OpenAPI 3.1 está en
 `/api/openapi.json` y una copia versionada en [`docs/api/openapi.json`](docs/api/openapi.json).
+En producción ambas rutas devuelven `404` salvo que se defina `API_DOCS_ENABLED=1`.
 
 La spec **no se escribe a mano**: las rutas se leen del router real de Express y los esquemas de
 petición se generan con `z.toJSONSchema` desde los mismos esquemas Zod que validan cada

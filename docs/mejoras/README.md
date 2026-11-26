@@ -3,20 +3,20 @@
 > Vista de una página. El detalle está en el [checklist](CHECKLIST-MEJORAS.md).
 
 - **Actualizado:** 2026-11-26
-- **Base:** `main` (`88e28d8`) · funcionalidad en merge #34 (`b64d260`)
+- **Base:** `main` (`aff2c96`) · funcionalidad en merge #34 (`b64d260`)
 
 ## Progreso
 
-**4 de 26 cerradas (15 %).** Quedan 22 pendientes.
+**10 de 26 cerradas (38 %).** Quedan 16 pendientes.
 
 | Fase | Hechas / total | Avance |
 | --- | :---: | :---: |
 | Base entregada | 4 / 4 | 100 % |
-| A · Orden y quick wins | 0 / 7 | 0 % |
+| A · Orden y quick wins | 6 / 7 | 86 % |
 | B · Inventario y automatización | 0 / 3 | 0 % |
 | C · Comunicaciones y estabilidad | 0 / 6 | 0 % |
 | D · Condicionados | 0 / 6 | 0 % |
-| **Total** | **4 / 26** | **15 %** |
+| **Total** | **10 / 26** | **38 %** |
 
 > Estado: **P** Pendiente · **E** En curso · **B** Bloqueado · **H** Hecho.
 > Esfuerzo: **S** < 3 días · **M** 3–10 días · **L** 2–4 semanas · **XL** > 4 semanas.
@@ -26,10 +26,9 @@
 | ID | Tarea | Próximo paso | Bloqueo |
 | --- | --- | --- | --- |
 | MEJ-001 | Dependency graph estricto | Habilitar el grafo en GitHub Settings | DEC-10 |
-| MEJ-002 | Accesibilidad automatizada | Elegir 5 pantallas y fijar selectores | — |
-| MEJ-004 | Aviso de stock in-app | Definir badge y resumen en el dashboard | — |
-| MEJ-007 | Backups automáticos | Definir destino fuera del host y retención | — |
-| MEJ-003 | Control de precios | Acordar umbral de variación y aprobador | DEC-03 |
+
+> Fase A cerrada en local: 6 mejoras en **H**; DEC-03 y DEC-08 ratificados. El PR se publica desde
+> una rama propia de la mejora, no desde `main`.
 
 ## Todas las mejoras
 
@@ -38,12 +37,12 @@ Orden sugerido por fase, prioridad y dependencias. El ID es el identificador est
 | # | ID | Mejora | Fase | Prio. | Esf. | Estado | Ref. |
 | ---: | --- | --- | :---: | :---: | :---: | :---: | --- |
 | 1 | MEJ-001 | Dependency graph estricto | A | Alta | S | P | DEC-10 |
-| 2 | MEJ-002 | Accesibilidad automatizada | A | Alta | M | P | — |
-| 3 | MEJ-004 | Notificaciones de stock in-app | A | Media | S | P | — |
-| 4 | MEJ-007 | Backups automáticos y restauración | A | Alta | M | P | — |
-| 5 | MEJ-003 | Control de precios de compra | A | Alta | L | P | DEC-03 |
-| 6 | MEJ-005 | Visibilidad de API docs en producción | A | Media | S | P | DEC-08 |
-| 7 | MEJ-006 | Usuario dedicado de MariaDB | A | Media | S | P | — |
+| 2 | MEJ-002 | Accesibilidad automatizada | A | Alta | M | H | — |
+| 3 | MEJ-004 | Notificaciones de stock in-app | A | Media | S | H | — |
+| 4 | MEJ-007 | Backups automáticos y restauración | A | Alta | M | H | — |
+| 5 | MEJ-003 | Control de precios de compra | A | Alta | L | H | DEC-03 |
+| 6 | MEJ-005 | Visibilidad de API docs en producción | A | Media | S | H | DEC-08 |
+| 7 | MEJ-006 | Usuario dedicado de MariaDB | A | Media | S | H | — |
 | 8 | MEJ-008 | Promedio ponderado de inventario | B | Alta | L | P | DEC-01, DEC-02 |
 | 9 | MEJ-009 | Importación XML de proveedores | B | Alta | L | P | DEC-04 |
 | 10 | MEJ-010 | Pruebas de carga con k6 | B | Media | M | P | — |

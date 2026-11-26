@@ -20,13 +20,22 @@ recuperar. Hay que exportar la base a un archivo y llevarlo fuera del host.
 
 ### Crear una copia
 
-Con el kit de producción:
+Desde la raíz del repositorio, con el kit de producción en marcha:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec -T db sh -c \
-  'mariadb-dump --single-transaction --routines --triggers --events \
-   -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' | gzip > "signal-$(date +%Y%m%d-%H%M).sql.gz"
+npm --prefix server run backup:db
 ```
+
+El script ejecuta `mariadb-dump --single-transaction --routines --triggers --events` dentro del
+contenedor `db`, comprime en el host y guarda en `BACKUP_DIR` (`./backups` por defecto) con nombre
+`signal-<DB_NAME>-<fecha>.sql.gz`. Verifica la integridad con `gzip -t` antes de terminar.
+
+Variables opcionales:
+
+| Variable | Valor por defecto | Uso |
+| --- | --- | --- |
+| `BACKUP_DIR` | `backups` | Destino local; monta ahí el NAS o sincronízalo a almacenamiento de objetos. |
+| `COMPOSE_FILE` | `docker-compose.prod.yml` | Kit de Compose a usar. |
 
 Sin Docker (cliente `mariadb-dump` instalado en el host):
 
@@ -46,15 +55,16 @@ mariadb-dump --single-transaction --routines --triggers --events \
 
 > La restauración sobrescribe datos. Hazlo en una base nueva o con la aplicación detenida.
 
-Con Docker:
+Desde la raíz del repositorio (PowerShell):
 
-```bash
-docker compose -f docker-compose.prod.yml stop server client
-gunzip -c signal-20260101-0200.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T db sh -c \
-  'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"'
-docker compose -f docker-compose.prod.yml start server client
+```powershell
+$env:RESTORE_DB='si'
+npm --prefix server run restore:db -- backups/signal-inventario-20260101-0200.sql.gz
 ```
+
+El script valida el archivo con `gzip -t`, exige la confirmación `RESTORE_DB=si`, detiene API y
+cliente, restaura dentro del contenedor `db` y al terminar indica cómo arrancar de nuevo. Sin
+confirmación no toca nada.
 
 Sin Docker:
 
@@ -73,11 +83,18 @@ Después:
 
 Una copia que nunca se ha restaurado no es una copia fiable. Una vez al trimestre:
 
-1. Levanta una base desechable (`DB_NAME=inventario_restore_test`).
-2. Restaura la última copia.
+1. Levanta una base desechable (`DB_NAME=inventario_restore_test`) con el mismo kit de Compose.
+2. Restaura la última copia apuntando `RESTORE_DB=si` y `COMPOSE_FILE` al kit de prueba; el script
+   rechaza bases `*_test`, así que para esta prueba usa `docker compose exec -T db sh -c
+   'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" inventario_restore_test'` con la copia descomprimida.
 3. Comprueba conteos básicos (`users`, `invoices`, `transactions`) y que la API arranca contra
    esa base.
 4. Borra la base de prueba.
+
+Automatización: programa `npm --prefix server run backup:db` con cron systemd/timer del host o un
+cron de Contabo, y conserva 7 copias diarias, 4 semanales y 12 mensuales con los nombres ya
+fechados. La rotación y el envío a almacenamiento externo son responsabilidad del host; el script
+solo crea y verifica cada copia.
 
 ## 2. Migraciones y rollback
 

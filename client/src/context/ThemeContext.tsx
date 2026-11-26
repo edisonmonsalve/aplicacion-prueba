@@ -10,7 +10,10 @@ const Ctx = createContext<{ mode: Mode; toggle: () => void }>({ mode: "light", t
 // Signal: misma paleta que styles/tokens.css. Mantener ambas en sincronía.
 const palette = {
   light: {
-    colorPrimary: "#0d9488",
+    colorPrimary: "#0f766e",
+    // AntD derive el color de enlace de `colorInfo` (#38bdf8 no llega a AA sobre
+    // blanco). Esta tinta es la misma que --ui-info-ink en tokens.css.
+    colorLink: "#0369a1",
     colorInfo: "#38bdf8",
     colorSuccess: "#10b981",
     colorWarning: "#f59e0b",
@@ -22,6 +25,7 @@ const palette = {
   },
   dark: {
     colorPrimary: "#2dd4bf",
+    colorLink: "#7dd3fc",
     colorInfo: "#38bdf8",
     colorSuccess: "#34d399",
     colorWarning: "#fbbf24",
@@ -68,12 +72,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ mode, toggle }), [mode, toggle]);
 
+  // AntD v6 calcula el texto secundario/descriptivo con transparencia sobre la
+  // superficie (≈3.3:1). Fijamos las mismas tintas AA de tokens.css después del
+  // algoritmo para que Typography.Text type="secondary" también las respete.
+  const baseAlgorithm = mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm;
+  const algorithm: typeof baseAlgorithm = (seed, mapToken) => ({
+    ...baseAlgorithm(seed, mapToken),
+    colorTextSecondary: palette[mode].colorTextSecondary,
+    colorTextTertiary: palette[mode].colorTextSecondary,
+    // Los placeholders son texto informativo: AntD los deriva con 0.25 de
+    // alfa (≈1.8:1), así que usamos la misma tinta AA que las descripciones.
+    colorTextQuaternary: palette[mode].colorTextSecondary,
+  });
+
   return (
     <Ctx.Provider value={value}>
       <ConfigProvider
         locale={esES}
         theme={{
-          algorithm: mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
+          algorithm,
           token: {
             fontFamily: "'Plus Jakarta Sans Variable', system-ui, sans-serif",
             fontFamilyCode: MONO_STACK,

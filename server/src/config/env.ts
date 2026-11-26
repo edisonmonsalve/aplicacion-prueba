@@ -29,6 +29,11 @@ const envSchema = z.object({
   TRUST_PROXY: z.enum(["0", "1"]).default("0"),
   /** 1 = desactivar el límite de intentos (solo pruebas locales). */
   RATE_LIMIT_DISABLED: z.enum(["0", "1"]).default("0"),
+  /** 1 = exponer /api/docs y /api/openapi.json. Por defecto solo fuera de producción. */
+  API_DOCS_ENABLED: z.preprocess(
+    (value) => value ?? (process.env.NODE_ENV === "production" ? "0" : "1"),
+    z.enum(["0", "1"])
+  ),
   /** Minutos que dura un token de acceso. */
   ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
   /** Días que dura un refresh token. */

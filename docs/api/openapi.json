@@ -32,6 +32,9 @@
       "name": "Finanzas"
     },
     {
+      "name": "Precios de compra"
+    },
+    {
       "name": "Facturación y cartera"
     },
     {
@@ -5919,6 +5922,478 @@
         }
       }
     },
+    "/api/invoices/{id}/validacion-compra": {
+      "get": {
+        "operationId": "getApiInvoicesIdValidacionCompra",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Validación de compra antes de confirmar (el operador no ve precios)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseValidationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/solicitar-aprobacion": {
+      "post": {
+        "operationId": "postApiInvoicesIdSolicitarAprobacion",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Solicitar aprobación por variación de precios",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseApprovalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto: recurso duplicado o en uso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/aprobacion": {
+      "get": {
+        "operationId": "getApiInvoicesIdAprobacion",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Estado de la aprobación de precios de una factura",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalLookupResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/adjuntos": {
+      "post": {
+        "operationId": "postApiInvoicesIdAdjuntos",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Subir un adjunto PDF/XML validado (máximo 5 MB)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto: recurso duplicado o en uso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseAttachmentRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getApiInvoicesIdAdjuntos",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Listar metadatos de los adjuntos de una factura",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/adjuntos/{adjuntoId}": {
+      "delete": {
+        "operationId": "deleteApiInvoicesIdAdjuntosAdjuntoId",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Eliminar un adjunto de una factura en borrador",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          },
+          {
+            "name": "adjuntoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto: recurso duplicado o en uso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/invoices/cartera": {
       "get": {
         "operationId": "getApiInvoicesCartera",
@@ -7348,6 +7823,505 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchase-prices/settings": {
+      "get": {
+        "operationId": "getApiPurchasePricesSettings",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Consultar el umbral de variación y la obligatoriedad de adjunto",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putApiPurchasePricesSettings",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Actualizar la configuración de control de precios",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto: recurso duplicado o en uso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseSettingsRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchase-prices/last": {
+      "get": {
+        "operationId": "getApiPurchasePricesLast",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Consultar el último precio por producto y proveedor",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "supplier_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastPriceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchase-prices/history": {
+      "get": {
+        "operationId": "getApiPurchasePricesHistory",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Consultar el historial de precios de compra",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "supplier_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchase-prices/approvals/{id}/aprobar": {
+      "post": {
+        "operationId": "postApiPurchasePricesApprovalsIdAprobar",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Aprobar una solicitud de variación de precios",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseApprovalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto: recurso duplicado o en uso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchase-prices/approvals/{id}/rechazar": {
+      "post": {
+        "operationId": "postApiPurchasePricesApprovalsIdRechazar",
+        "tags": [
+          "Precios de compra"
+        ],
+        "summary": "Rechazar una solicitud de variación de precios",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseApprovalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (errores de validación)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol sin permiso para esta operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto: recurso duplicado o en uso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionRequest"
               }
             }
           }
@@ -10563,6 +11537,473 @@
           "id",
           "adjustmentId"
         ]
+      },
+      "PurchaseSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "umbral_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "requiere_adjunto": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "umbral_pct",
+          "requiere_adjunto"
+        ]
+      },
+      "PurchaseSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "umbral_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "requiere_adjunto": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "number"
+          },
+          "updated_by": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "umbral_pct",
+          "requiere_adjunto",
+          "id",
+          "updated_by",
+          "updated_at"
+        ]
+      },
+      "LastPriceQuery": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "supplier_key": {
+            "type": "string",
+            "maxLength": 191
+          }
+        }
+      },
+      "PriceHistoryQuery": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "supplier_key": {
+            "type": "string",
+            "maxLength": 191
+          },
+          "limite": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "PurchaseAttachmentRequest": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "contenido_base64": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mime": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "nombre",
+          "contenido_base64"
+        ]
+      },
+      "AttachmentParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "adjuntoId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "adjuntoId"
+        ]
+      },
+      "ApprovalDecisionRequest": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "PurchaseApprovalResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "invoice_id": {
+            "type": "number"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "aprobada",
+              "rechazada",
+              "invalida"
+            ]
+          },
+          "motivo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "solicitada_por": {
+            "type": "number"
+          },
+          "revisada_por": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "revisada_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "invoice_id",
+          "estado",
+          "motivo",
+          "solicitada_por",
+          "revisada_por",
+          "revisada_at",
+          "created_at"
+        ]
+      },
+      "ApprovalLookupResponse": {
+        "type": "object",
+        "properties": {
+          "aprobacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PurchaseApprovalResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "aprobacion"
+        ]
+      },
+      "PurchaseValidationResponse": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "venta",
+              "compra"
+            ]
+          },
+          "estado": {
+            "type": "string"
+          },
+          "puede_confirmar": {
+            "type": "boolean"
+          },
+          "bloqueos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "codigo": {
+                  "type": "string"
+                },
+                "mensaje": {
+                  "type": "string"
+                },
+                "detalles": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "codigo",
+                "mensaje"
+              ]
+            }
+          },
+          "proveedor_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requiere_aprobacion": {
+            "type": "boolean"
+          },
+          "aprobacion": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "number"
+                  },
+                  "estado": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "estado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "umbral_pct": {
+            "type": "number"
+          },
+          "tiene_adjunto": {
+            "type": "boolean"
+          },
+          "total_xml": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lineas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "number"
+                },
+                "precio_unitario": {
+                  "type": "number"
+                },
+                "precio_anterior": {
+                  "type": "number"
+                },
+                "variacion_pct": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "product_id"
+              ]
+            }
+          }
+        },
+        "required": [
+          "tipo",
+          "estado",
+          "puede_confirmar",
+          "bloqueos"
+        ]
+      },
+      "LastPriceResponse": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "number"
+            },
+            "sku": {
+              "type": "string"
+            },
+            "producto": {
+              "type": "string"
+            },
+            "supplier_key": {
+              "type": "string"
+            },
+            "precio_unitario": {
+              "type": "number"
+            },
+            "invoice_id": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "confirmed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "product_id",
+            "sku",
+            "producto",
+            "supplier_key",
+            "precio_unitario",
+            "invoice_id",
+            "confirmed_at"
+          ]
+        }
+      },
+      "PriceHistoryResponse": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "number"
+            },
+            "product_id": {
+              "type": "number"
+            },
+            "sku": {
+              "type": "string"
+            },
+            "producto": {
+              "type": "string"
+            },
+            "supplier_key": {
+              "type": "string"
+            },
+            "precio_unitario": {
+              "type": "number"
+            },
+            "precio_anterior": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "variacion_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "invoice_id": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "origen": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "created_by": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "product_id",
+            "sku",
+            "producto",
+            "supplier_key",
+            "precio_unitario",
+            "precio_anterior",
+            "variacion_pct",
+            "invoice_id",
+            "origen",
+            "created_at",
+            "created_by"
+          ]
+        }
+      },
+      "AttachmentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "tamano_bytes": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "mime",
+          "tamano_bytes",
+          "created_at"
+        ]
+      },
+      "AttachmentListResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/AttachmentResponse"
+        }
       },
       "CreateThirdPartyRequest": {
         "type": "object",

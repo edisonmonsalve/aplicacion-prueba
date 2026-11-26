@@ -59,11 +59,11 @@ export default function LoginPage() {
             <Typography.Title style={{ color: signal.onBrand, marginTop: 0 }}>
               Tu stock y tus presupuestos, en un solo lugar.
             </Typography.Title>
-            <Typography.Paragraph style={{ color: "rgba(255,255,255,.8)", fontSize: 16 }}>
+            <Typography.Paragraph style={{ color: signal.onBrand, fontSize: 16 }}>
               Registra movimientos, controla el stock mínimo y genera presupuestos listos para imprimir.
             </Typography.Paragraph>
           </div>
-          <Typography.Text style={{ color: "rgba(255,255,255,.6)" }}>
+          <Typography.Text style={{ color: signal.onBrand }}>
             © {new Date().getFullYear()} Inventario
           </Typography.Text>
         </div>

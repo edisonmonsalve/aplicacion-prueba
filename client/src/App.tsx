@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Spin } from "antd";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { StockAlertsProvider } from "@/context/StockAlertsContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import RequireOperate from "./components/RequireOperate";
@@ -69,7 +70,9 @@ export default function App() {
             <Route
               element={
                 <ProtectedRoute>
-                  <AppLayout />
+                  <StockAlertsProvider>
+                    <AppLayout />
+                  </StockAlertsProvider>
                 </ProtectedRoute>
               }
             >

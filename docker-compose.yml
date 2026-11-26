@@ -6,6 +6,9 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en .env}
       MARIADB_DATABASE: ${DB_NAME:-inventario}
+      # Usuario de aplicación: la imagen lo crea con permisos sobre DB_NAME.
+      MARIADB_USER: ${DB_APP_USER:-signal}
+      MARIADB_PASSWORD: ${DB_APP_PASSWORD:?Define DB_APP_PASSWORD en .env}
     ports:
       # Solo accesible desde el host: evita exponer la base a la red.
       - "127.0.0.1:${MARIADB_HOST_PORT:-3306}:3306"
@@ -28,12 +31,13 @@ services:
       PORT: 3000
       DB_HOST: db
       DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en .env}
+      DB_USER: ${DB_APP_USER:-signal}
+      DB_PASSWORD: ${DB_APP_PASSWORD:?Define DB_APP_PASSWORD en .env}
       DB_NAME: ${DB_NAME:-inventario}
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-1}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "${API_PORT:-3000}:3000"

@@ -22,7 +22,7 @@ Ahora la descripción HTTP se **genera** desde el código real:
 | Mejora | Decisión | Estado |
 | --- | --- | --- |
 | **Spec OpenAPI 3.1** | 101 operaciones derivadas del router; esquemas con `z.toJSONSchema`. | Implementado |
-| **Swagger UI** | Explorador interactivo en `/api/docs`; JSON crudo en `/api/openapi.json`. | Implementado |
+| **Swagger UI** | Explorador interactivo en `/api/docs`; JSON crudo en `/api/openapi.json`. Fuera de producción, o con `API_DOCS_ENABLED=1`. | Implementado |
 | **Contrato del cliente** | `client/src/services/api-contract.generated.ts` generado por el exportador. | Implementado |
 | **Helper tipado** | `apiRequest()` infiere cuerpo y respuesta desde la operación. | Implementado en los 14 servicios |
 | **Parámetros** | Sustitución de `{id}` en la ruta y envío de query string. | Implementado |
@@ -54,8 +54,10 @@ client/src/services/api.ts  →  apiRequest()  →  los 14 servicios
 | `server/src/docs/client-contract.ts` | Convierte el subconjunto de JSON Schema usado por Zod en tipos TS. |
 | `server/src/scripts/export-openapi.ts` | Escribe el JSON versionado y el contrato del cliente. |
 
-`app.ts` monta `/api/openapi.json` y `/api/docs` junto al resto de los montajes, por lo que la
-documentación siempre describe lo que el servidor está publicando. La metadata es opcional: una
+`app.ts` monta `/api/openapi.json` y `/api/docs` junto al resto de los montajes cuando
+`API_DOCS_ENABLED=1` (valor por defecto fuera de producción). En producción las rutas no se
+registran y responden `404`. La generación de la spec no depende de que las rutas estén activas,
+así que los artefactos versionados siguen reflejando el router real. La metadata es opcional: una
 ruta nueva sin resumen entra igual a la spec con un valor genérico, de modo que no puede quedar
 invisible por olvidarse de documentarla.
 

@@ -55,6 +55,7 @@ export const serverEnv: Record<string, string> = {
   ...fromProcess,
   DB_NAME: "inventario_e2e_test",
   PORT: String(apiPort),
+  API_DOCS_ENABLED: "1",
   // La suite repite logins; el límite se prueba en su propia batería unitaria.
   RATE_LIMIT_DISABLED: "1",
 };

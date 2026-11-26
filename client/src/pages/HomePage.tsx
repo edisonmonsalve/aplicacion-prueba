@@ -17,6 +17,7 @@ import {
 import dayjs from "dayjs";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useStockAlerts } from "@/context/StockAlertsContext";
 import { getDashboard } from "@/services/dashboardService";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCurrency, formatNumber } from "@/utils/format";
@@ -59,6 +60,7 @@ const greeting = () => {
 
 export default function HomePage() {
   const { user, canOperate } = useAuth();
+  const { count: lowStockCount, items: lowStockItems } = useStockAlerts();
   const { token } = theme.useToken();
   const reduced = useReducedMotion();
   const navigate = useNavigate();
@@ -142,8 +144,8 @@ export default function HomePage() {
           value: <AnimatedNumber value={data.stockBajo} format={formatNumber} />,
           icon: <WarningOutlined />,
           tone: "warning" as const,
-          to: "/products?bajoStock=1",
-          hint: "Abre el catálogo filtrado por productos bajo el stock mínimo",
+          to: "/products?bajoStock=1&activo=1",
+          hint: "Abre el catálogo filtrado por productos activos bajo el stock mínimo",
         },
         {
           title: "Movimientos hoy",
@@ -243,13 +245,21 @@ export default function HomePage() {
 
       {data && (
         <>
-          {data.stockBajo > 0 && (
+          {(data.stockBajo > 0 || lowStockCount > 0) && (
             <Alert
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-              message={`Hay ${data.stockBajo} producto(s) con stock por debajo del mínimo`}
-              action={<Link to="/products?bajoStock=1">Ver productos</Link>}
+              message={`Hay ${lowStockCount || data.stockBajo} producto(s) con stock por debajo del mínimo`}
+              description={
+                lowStockItems.length > 0
+                  ? lowStockItems
+                      .slice(0, 3)
+                      .map((product) => `${product.sku} · ${product.nombre}`)
+                      .join("  |  ")
+                  : undefined
+              }
+              action={<Link to="/products?bajoStock=1&activo=1">Ver productos</Link>}
             />
           )}
 

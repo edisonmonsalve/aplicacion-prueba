@@ -14,6 +14,7 @@ import * as reconciliations from "../modules/finance/reconciliations.schema.js";
 import * as invoices from "../modules/invoices/invoices.schema.js";
 import * as payments from "../modules/invoices/invoice-payments.schema.js";
 import * as adjustments from "../modules/invoices/invoice-adjustments.schema.js";
+import * as purchasePrices from "../modules/purchase-prices/purchase-prices.schema.js";
 import * as thirdParties from "../modules/third-parties/third-parties.schema.js";
 import * as closures from "../modules/period-closures/period-closures.schema.js";
 import { auditQuerySchema } from "../modules/audit/audit.schema.js";
@@ -94,6 +95,21 @@ const namedSchemas: NamedSchema[] = [
   ["FollowupRequest", payments.followupSchema],
   ["CreateAdjustmentRequest", adjustments.createAdjustmentSchema],
   ["AdjustmentParams", adjustments.adjustmentParamsSchema],
+
+  ["PurchaseSettingsRequest", purchasePrices.purchaseSettingsSchema],
+  ["PurchaseSettingsResponse", purchasePrices.purchaseSettingsResponseSchema],
+  ["LastPriceQuery", purchasePrices.lastPriceQuerySchema],
+  ["PriceHistoryQuery", purchasePrices.priceHistoryQuerySchema],
+  ["PurchaseAttachmentRequest", purchasePrices.attachmentSchema],
+  ["AttachmentParams", purchasePrices.attachmentParamsSchema],
+  ["ApprovalDecisionRequest", purchasePrices.approvalDecisionSchema],
+  ["PurchaseApprovalResponse", purchasePrices.approvalResponseSchema],
+  ["ApprovalLookupResponse", purchasePrices.approvalLookupResponseSchema],
+  ["PurchaseValidationResponse", purchasePrices.purchaseValidationResponseSchema],
+  ["LastPriceResponse", purchasePrices.lastPriceResponseSchema],
+  ["PriceHistoryResponse", purchasePrices.priceHistoryResponseSchema],
+  ["AttachmentResponse", purchasePrices.attachmentResponseSchema],
+  ["AttachmentListResponse", purchasePrices.attachmentListResponseSchema],
 
   ["CreateThirdPartyRequest", thirdParties.createThirdPartySchema],
   ["UpdateThirdPartyRequest", thirdParties.updateThirdPartySchema],

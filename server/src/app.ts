@@ -11,14 +11,14 @@ import { logger } from "./utils/logger.js";
 
 export const app = express();
 
-const openApiDocument = buildOpenApiDocument();
-
 app.disable("x-powered-by");
 if (env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 app.use(securityHeaders);
 app.use(corsMiddleware);
 app.use(requestLogger);
-app.use(express.json({ limit: "1mb" }));
+// Los adjuntos de compra viajan en base64 dentro de JSON: 5 MB de archivo
+// ocupan ~6,7 MB codificados, por lo que el límite se eleva de 1 MB a 7 MB.
+app.use(express.json({ limit: "7mb" }));
 
 app.get(HEALTH_PATH, async (_req, res) => {
   const start = process.hrtime.bigint();
@@ -40,13 +40,17 @@ app.get(HEALTH_PATH, async (_req, res) => {
   }
 });
 
-// Documentación pública: la spec se construye desde los esquemas Zod y el router real.
-app.get("/api/openapi.json", (_req, res) => {
-  res.set("Cache-Control", "public, max-age=300").json(openApiDocument);
-});
-app.get("/api/docs", (_req, res) => {
-  res.type("html").send(swaggerUiHtml);
-});
+// Documentación: 404 en producción salvo override explícito. No se registra la
+// ruta para no revelar su existencia; la spec se construye solo cuando aplica.
+if (env.API_DOCS_ENABLED === "1") {
+  const openApiDocument = buildOpenApiDocument();
+  app.get("/api/openapi.json", (_req, res) => {
+    res.set("Cache-Control", "public, max-age=300").json(openApiDocument);
+  });
+  app.get("/api/docs", (_req, res) => {
+    res.type("html").send(swaggerUiHtml);
+  });
+}
 
 for (const mount of apiMounts) app.use(mount.path, mount.router);
 

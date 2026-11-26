@@ -36,6 +36,8 @@ interface Props {
   /** Productos ya elegidos en otras líneas: se muestran deshabilitados. */
   takenIds?: Set<number>;
   placeholder?: string;
+  /** Etiqueta accesible del campo de búsqueda interno del Select. */
+  ariaLabel?: string;
   style?: CSSProperties;
   disabled?: boolean;
   /** `borderless` lo integra en una tabla o documento editable. */
@@ -52,6 +54,7 @@ export default function ProductSelect({
   loading,
   takenIds,
   placeholder = "Buscar por nombre o SKU",
+  ariaLabel = "Producto",
   style,
   disabled,
   variant = "outlined",
@@ -160,6 +163,7 @@ export default function ProductSelect({
   return (
     <Select
       showSearch
+      aria-label={ariaLabel}
       filterOption={false}
       onSearch={(q) => {
         setQuery(q);
