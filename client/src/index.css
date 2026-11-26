@@ -2870,12 +2870,6 @@ html[data-theme="dark"] .row-low-stock > td {
   opacity: 0.6;
 }
 
-.ui-nav-with-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .ui-stock-popover {
   display: grid;
   gap: 6px;

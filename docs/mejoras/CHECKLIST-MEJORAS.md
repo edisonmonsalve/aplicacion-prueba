@@ -23,9 +23,9 @@
 | Base entregada | 4 | 4 | 0 | 100 % |
 | A · Orden | 7 | 6 | 1 | 86 % |
 | B · Inventario | 3 | 0 | 3 | 0 % |
-| C · Comunicaciones | 6 | 0 | 6 | 0 % |
-| D · Condicionados | 6 | 0 | 6 | 0 % |
-| **Total** | **26** | **10** | **16** | **38 %** |
+| C · Comunicaciones | 7 | 0 | 7 | 0 % |
+| D · Condicionados | 8 | 0 | 8 | 0 % |
+| **Total** | **29** | **10** | **19** | **34 %** |
 
 ## Base entregada
 
@@ -47,9 +47,9 @@
 - [x] **MEJ-002** · Accesibilidad automatizada · A/Alta/M · **H** · Próximo: mantener axe en la
   suite E2E de CI · Cierre: 5 pantallas sin violaciones; 11/11 E2E · Reg OpenCode · 2026-11-26 ·
   PR #53
-- [x] **MEJ-004** · Aviso de stock in-app · A/Media/S · **H** · Próximo: vigilar el badge tras el
-  despliegue · Cierre: badge global con `bajoStock=1&activo=1` y refresco al guardar · Reg OpenCode ·
-  2026-11-26 · PR #53
+- [x] **MEJ-004** · Aviso de stock in-app · A/Media/S · **H** · Próximo: vigilar el aviso del header
+  tras el despliegue · Cierre: campana con `bajoStock=1&activo=1`, filtro en Productos y refresco al
+  guardar; sin badge en el menú lateral · Reg OpenCode · 2026-11-26 · PR #53
 - [x] **MEJ-007** · Backups y restauración · A/Alta/M · **H** · Próximo: programar copias en el host
   y probar una restauración trimestral · Cierre: scripts `backup:db`/`restore:db` y procedimiento en
   `docs/OPERACION.md` · Reg OpenCode · 2026-11-26 · PR #53
@@ -86,6 +86,9 @@
   Cierre: límite compartido con fallback · Reg —
 - [ ] **MEJ-013** · Correo entrante de facturas · C/Media/L · **P** · Próximo: crear buzón dedicado
   · Cierre: borrador revisable con adjuntos seguros · DEC-04 · Reg —
+- [ ] **MEJ-023** · Centro de notificaciones y acciones · C/Media/M · **P** · Próximo: decidir tiempo
+  real (SSE/WebSocket o polling) y agrupación · Cierre: avisos con acciones contextuales, sin ruido
+  y absorbiendo el aviso de stock · DEC-11 · Reg —
 
 ## Fase D · Condicionados
 
@@ -101,6 +104,11 @@
   Cierre: revisión humana obligatoria · Reg —
 - [ ] **MEJ-019** · Facturación electrónica vía PAC · D/Alta/XL · **P** · Próximo: seleccionar PAC ·
   Cierre: factura transmitida en habilitación · Reg —
+- [ ] **MEJ-024** · Asistente IA en la aplicación · D/Media/L · **P** · Próximo: definir caso de uso,
+  proveedor y privacidad · Cierre: respuestas verificables, sin datos sensibles y auditadas · DEC-12 ·
+  Reg —
+- [ ] **MEJ-025** · Onboarding/welcome con chat IA · D/Baja/M · **P** · Próximo: definir guion y
+  alcance del chat · Cierre: guía inicial sin fricción, conectada a MEJ-024 · DEC-13 · Reg —
 
 ## Decisiones
 
@@ -116,6 +124,9 @@
 | DEC-08 | ¿La documentación de API sigue pública? | MEJ-005 | Ratificado el 2026-11-26: `404` en producción |
 | DEC-09 | Proveedor de errores y retención | MEJ-015 | Comparar opciones |
 | DEC-10 | ¿Se habilita Dependency graph? | MEJ-001 | Gestionar Settings de GitHub |
+| DEC-11 | ¿Notificaciones en tiempo real y con acciones? | MEJ-023 | Elegir SSE/WebSocket o polling |
+| DEC-12 | ¿Proveedor y límites de privacidad para IA? | MEJ-024 | Definir caso de uso y datos permitidos |
+| DEC-13 | ¿Alcance del chat en el onboarding? | MEJ-025 | Definir guion y escalado a MEJ-024 |
 
 ## Riesgos
 
@@ -125,6 +136,8 @@
 | XML/PDF no confiables | MEJ-009, MEJ-013, MEJ-018 | Validación estricta y revisión humana |
 | Regulación DIAN | MEJ-019 | PAC y ambiente de habilitación |
 | Migración de tokens | MEJ-014 | Compatibilidad y E2E |
+| Ruido de notificaciones | MEJ-023 | Agrupación, preferencias y acciones concretas |
+| Datos sensibles en IA | MEJ-024, MEJ-025 | Sin datos reales, consentimiento y proveedor evaluado |
 
 ## Registro de cambios
 
@@ -134,6 +147,7 @@
 | 2026-11-26 | Resumen del formato; contenido funcional por ID |
 | 2026-11-26 | Fase A en curso: badge de stock, axe E2E, docs flag, backups, usuario de DB y control de precios |
 | 2026-11-26 | Fase A cerrada: 6 mejoras en **H**; DEC-03 y DEC-08 ratificados; PR #53 |
+| 2026-11-26 | Aviso de stock solo en header; ideas registradas: MEJ-023, MEJ-024 y MEJ-025 |
 
 ## Enlaces
 

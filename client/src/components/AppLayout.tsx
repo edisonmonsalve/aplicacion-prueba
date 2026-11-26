@@ -230,23 +230,9 @@ export default function AppLayout() {
       label: navLabel("01", "Operación"),
       children: [
         { key: "/", icon: <DashboardOutlined />, label: "Inicio" },
-        {
-          key: "/products",
-          icon: (
-            <Badge dot={lowStockCount > 0} size="small" offset={[-2, 2]}>
-              <ShoppingOutlined />
-            </Badge>
-          ),
-          label: (
-            <span
-              className="ui-nav-with-badge"
-              aria-label={`Productos, ${lowStockCount} con stock bajo`}
-            >
-              Productos
-              {lowStockCount > 0 && <Badge count={lowStockCount} overflowCount={99} size="small" />}
-            </span>
-          ),
-        },
+        // El aviso de stock se concentra en el header: repetirlo en el menú
+        // estorbaba la lectura de la navegación (MEJ-004, ajuste Fase A).
+        { key: "/products", icon: <ShoppingOutlined />, label: "Productos" },
         { key: "/movements", icon: <SwapOutlined />, label: "Movimientos" },
         { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
         { key: "/facturas", icon: <FileDoneOutlined />, label: "Facturas" },
