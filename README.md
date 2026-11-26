@@ -656,6 +656,7 @@ métricas) está en [`docs/OPERACION.md`](docs/OPERACION.md).
 - [Pruebas E2E con Playwright](docs/MEJORAS-E2E.md) — arquitectura, ejecución local y CI.
 - [Política de seguridad](SECURITY.md) — reporte, medidas implementadas y despliegue.
 - [Operación](docs/OPERACION.md) — copias de seguridad, restauración, migraciones, logs y métricas.
+- [Tablero de mejoras](docs/mejoras/README.md) — estado, próximos pasos y enlaces al detalle.
 - [Manual de usuario](docs/MANUAL-USUARIO.md) — flujos pantalla por pantalla y glosario.
 - [Sistema visual Signal](docs/ESTILO-SIGNAL.md) — tokens, paleta, tipografía y movimiento.
 - [Mejoras de UI/UX](docs/MEJORAS-UI-UX.md) — historial de decisiones de interfaz.
@@ -666,6 +667,9 @@ métricas) está en [`docs/OPERACION.md`](docs/OPERACION.md).
 - [Requisitos de cotizaciones](docs/requisitos-cotizaciones.md).
 
 ## Posibles mejoras
+
+El detalle, la prioridad y el seguimiento están en el
+[tablero de mejoras](docs/mejoras/README.md).
 
 - Facturación electrónica y envío de documentos por correo.
 - Preview público por Pull Request (requiere definir el proveedor de despliegue; el workflow
