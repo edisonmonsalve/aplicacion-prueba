@@ -1,5 +1,5 @@
 # Dependencias compartidas por desarrollo y producción.
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -17,7 +17,7 @@ FROM deps AS build
 COPY . .
 RUN npm run build && npm prune --omit=dev
 
-FROM node:22-alpine AS production
+FROM node:26-alpine AS production
 # El kit Docker define las variables reales; NODE_ENV habilita HSTS y el modo producción.
 ENV NODE_ENV=production
 WORKDIR /app
