@@ -25,7 +25,7 @@ jobs:
       WEB_PORT: 8080
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Generar secretos efímeros
         run: |

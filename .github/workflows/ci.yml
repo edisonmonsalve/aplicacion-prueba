@@ -41,7 +41,7 @@ jobs:
       DB_NAME: inventario_test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Se genera en cada ejecución: no hay secretos reales en el repositorio.
       - name: Generar secreto efímero para las pruebas
@@ -99,7 +99,7 @@ jobs:
       DB_NAME: inventario_e2e_test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Generar secreto efímero para las pruebas
         run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
@@ -148,7 +148,7 @@ jobs:
         working-directory: client
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -174,7 +174,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Revisar dependencias nuevas o actualizadas
         uses: actions/dependency-review-action@v4
@@ -193,7 +193,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
